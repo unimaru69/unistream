@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/content_mode.dart';
 
@@ -143,7 +144,7 @@ class StreamGridTile extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF4A90D9) : Colors.black54,
+                        color: isSelected ? AppColors.primaryBlue : Colors.black54,
                         borderRadius: BorderRadius.circular(12)),
                     child: Icon(isSelected ? Icons.check : Icons.circle_outlined,
                         color: Colors.white, size: 16),
@@ -155,7 +156,7 @@ class StreamGridTile extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF4A90D9), width: 2),
+                      border: Border.all(color: AppColors.primaryBlue, width: 2),
                     ),
                   ),
                 ),

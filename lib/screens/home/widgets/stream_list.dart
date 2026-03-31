@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import '../../../models/content_mode.dart';
 import '../../../services/xtream_api.dart';
 import '../../../widgets/skeleton_list.dart';
@@ -76,7 +78,7 @@ class StreamListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (selectedCategory == null) {
-      return const Center(child: Text('Sélectionne une catégorie',
+      return const Center(child: Text(AppStrings.selectionneCategorie,
           style: TextStyle(color: Colors.white38, fontSize: 16)));
     }
     if (loadingStreams) {
@@ -114,14 +116,14 @@ class StreamListView extends StatelessWidget {
         ),
         const Spacer(),
         TextButton.icon(
-          icon: const Icon(Icons.create_new_folder_outlined, size: 16, color: Color(0xFF4A90D9)),
-          label: const Text('Créer collection', style: TextStyle(fontSize: 12, color: Color(0xFF4A90D9))),
+          icon: const Icon(Icons.create_new_folder_outlined, size: 16, color: AppColors.primaryBlue),
+          label: const Text(AppStrings.creerCollection, style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
           onPressed: selectedItems.isEmpty ? null : onCreateCollectionFromSelected,
         ),
         const SizedBox(width: 4),
         IconButton(
           icon: const Icon(Icons.close, size: 18, color: Colors.white54),
-          tooltip: 'Annuler la sélection',
+          tooltip: AppStrings.annulerSelection,
           onPressed: onExitSelectionMode,
         ),
       ]),
@@ -136,7 +138,7 @@ class StreamListView extends StatelessWidget {
           controller: searchCtrl,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
-            hintText: 'Rechercher...',
+            hintText: AppStrings.rechercherDots,
             hintStyle: const TextStyle(color: Colors.white38),
             prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
             suffixIcon: searchQuery.isNotEmpty
@@ -155,9 +157,9 @@ class StreamListView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: Tooltip(
-              message: 'Sélectionner pour créer une collection',
+              message: AppStrings.selectionnerPourCollection,
               child: IconButton(
-                icon: const Icon(Icons.checklist, size: 20, color: Color(0xFF4A90D9)),
+                icon: const Icon(Icons.checklist, size: 20, color: AppColors.primaryBlue),
                 onPressed: sortedStreams.isEmpty ? null : onEnterSelectionMode,
               ),
             ),
@@ -217,7 +219,7 @@ class StreamListView extends StatelessWidget {
                   ? Checkbox(
                       value: isSelected,
                       onChanged: (_) => onToggleSelection(selKey),
-                      activeColor: const Color(0xFF4A90D9),
+                      activeColor: AppColors.primaryBlue,
                     )
                   : listIcon(s, mode),
               title: Text(s['name'] ?? 'Sans titre',
@@ -248,8 +250,8 @@ class StreamListView extends StatelessWidget {
                 ),
               ]),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              hoverColor: const Color(0xFF4A90D9).withValues(alpha: 0.15),
-              selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.1),
+              hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.1),
               selected: isSelected,
               onTap: selectionMode
                   ? () => onToggleSelection(selKey)

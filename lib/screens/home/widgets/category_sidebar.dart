@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import '../../../models/content_mode.dart';
 
 /// Resizable category sidebar with favorites, watchlist, history, collections, and categories.
@@ -98,11 +100,11 @@ class CategorySidebar extends StatelessWidget {
               dense: true,
               leading: Icon(Icons.star, size: 16,
                   color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-              title: Text('Favoris', style: TextStyle(fontSize: 13,
+              title: Text(AppStrings.favoris, style: TextStyle(fontSize: 13,
                   color: sel ? Colors.white : Colors.white60,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
-              selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: () {
                 final modeFavs = favItems.where((e) => e['_mode'] == mode.key).toList();
@@ -140,7 +142,7 @@ class CategorySidebar extends StatelessWidget {
                       child: Container(
                         width: 8, height: 8,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF4A90D9),
+                          color: AppColors.primaryBlue,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -151,7 +153,7 @@ class CategorySidebar extends StatelessWidget {
                   color: sel ? Colors.white : Colors.white60,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
-              selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: () {
                 final modeWl = wlItems.where((e) => e['_mode'] == mode.key).toList();
@@ -168,7 +170,7 @@ class CategorySidebar extends StatelessWidget {
             child: ListTile(
               dense: true,
               leading: const Icon(Icons.history, size: 16, color: Colors.white54),
-              title: const Text('Historique', style: TextStyle(fontSize: 13, color: Colors.white60)),
+              title: const Text(AppStrings.historique, style: TextStyle(fontSize: 13, color: Colors.white60)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: onHistoryTap,
             ),
@@ -194,7 +196,7 @@ class CategorySidebar extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   iconSize: 16,
                   icon: const Icon(Icons.add, color: Colors.white38),
-                  tooltip: 'Nouvelle collection',
+                  tooltip: AppStrings.nouvelleCollection,
                   onPressed: onCreateCollection,
                 ),
               ),
@@ -215,12 +217,12 @@ class CategorySidebar extends StatelessWidget {
             child: ListTile(
               dense: true,
               leading: Icon(Icons.folder_outlined, size: 16,
-                  color: sel ? const Color(0xFF4A90D9) : Colors.white38),
+                  color: sel ? AppColors.primaryBlue : Colors.white38),
               title: Text('${col['name']} ($count)', style: TextStyle(fontSize: 13,
                   color: sel ? Colors.white : Colors.white60,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
-              selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: () => onCollectionSelected(col['id'] as String),
               trailing: SizedBox(
@@ -229,7 +231,7 @@ class CategorySidebar extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   iconSize: 16,
                   icon: const Icon(Icons.delete_outline, size: 16, color: Colors.white24),
-                  tooltip: 'Supprimer',
+                  tooltip: AppStrings.supprimer,
                   onPressed: () => onDeleteCollection(col['id'] as String),
                 ),
               ),
@@ -251,7 +253,7 @@ class CategorySidebar extends StatelessWidget {
                     fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                 overflow: TextOverflow.ellipsis),
             selected: sel,
-            selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+            selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             onTap: () => onCategorySelected(id),
           ),

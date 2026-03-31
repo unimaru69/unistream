@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
+import '../../core/colors.dart';
+import '../../core/strings.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../services/xtream_api.dart';
@@ -164,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final colName = _collections.firstWhere((c) => c['id'] == colId, orElse: () => {'name': 'collection'})['name'];
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Ajoute a "$colName"'),
-          backgroundColor: const Color(0xFF12122A),
+          backgroundColor: AppColors.darkSurface,
         ));
       }
     }
@@ -226,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Collection "$name" créée avec ${items.length} éléments'),
-        backgroundColor: const Color(0xFF12122A),
+        backgroundColor: AppColors.darkSurface,
       ));
     }
   }
@@ -500,8 +502,8 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF12122A),
-        title: const Text('Raccourcis clavier', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.darkSurface,
+        title: const Text(AppStrings.raccourcisClavier, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: 340,
           child: SingleChildScrollView(
@@ -534,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.fermer)),
         ],
       ),
     );
@@ -546,7 +548,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(children: [
         SizedBox(
           width: 80,
-          child: Text(key, style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF4A90D9))),
+          child: Text(key, style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: AppColors.primaryBlue)),
         ),
         Expanded(child: Text(desc, style: const TextStyle(fontSize: 12, color: Colors.white70))),
       ]),
@@ -635,7 +637,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: pr.id,
                 child: Row(children: [
                   Icon(pr.id == AppConfig.activeProfileId ? Icons.radio_button_checked : Icons.radio_button_off,
-                      size: 16, color: const Color(0xFF4A90D9)),
+                      size: 16, color: AppColors.primaryBlue),
                   const SizedBox(width: 8),
                   Text(pr.name, style: const TextStyle(fontSize: 13)),
                 ]),
@@ -652,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             borderRadius: BorderRadius.circular(8),
             selectedColor: Colors.white,
-            fillColor: const Color(0xFF4A90D9),
+            fillColor: AppColors.primaryBlue,
             children: const [
               Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Live')),
               Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('VOD')),
@@ -668,24 +670,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
-            tooltip: 'Trier',
+            tooltip: AppStrings.trier,
             onSelected: (v) { setState(() => _sortMode = v); _saveSortMode(); },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'default', child: Row(children: [
-                Icon(_sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: const Color(0xFF4A90D9)),
+                Icon(_sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
                 const SizedBox(width: 8), const Text('Ordre par défaut', style: TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'alpha', child: Row(children: [
-                Icon(_sortMode == 'alpha' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: const Color(0xFF4A90D9)),
+                Icon(_sortMode == 'alpha' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
                 const SizedBox(width: 8), const Text('Alphabétique', style: TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'number', child: Row(children: [
-                Icon(_sortMode == 'number' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: const Color(0xFF4A90D9)),
+                Icon(_sortMode == 'number' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
                 const SizedBox(width: 8), const Text('Par numéro', style: TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'favFirst', child: Row(children: [
-                Icon(_sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: const Color(0xFF4A90D9)),
-                const SizedBox(width: 8), const Text('Favoris en premier', style: TextStyle(fontSize: 13)),
+                Icon(_sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
+                const SizedBox(width: 8), const Text(AppStrings.favorisPremier, style: TextStyle(fontSize: 13)),
               ])),
             ],
           ),
@@ -698,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => Navigator.push(context,
                   fadeRoute(const SearchScreen()))
                   .then((_) => _refreshProgress())),
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: 'Paramètres'),
+          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: AppStrings.parametres),
           IconButton(icon: const Icon(Icons.help_outline, size: 20), onPressed: _showShortcutsHelp, tooltip: 'Raccourcis clavier (Cmd+?)'),
           const SizedBox(width: 4),
         ],
@@ -854,7 +856,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (_continueItems.isNotEmpty) ...[
-            const Text('Continuer à regarder',
+            const Text(AppStrings.continuerRegarder,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             SizedBox(
@@ -868,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   final cover = item['cover'] as String? ?? '';
                   final name  = item['name']  as String? ?? '';
                   return Tooltip(
-                    message: 'Connexion requise',
+                    message: AppStrings.connexionRequise,
                     child: Opacity(
                       opacity: 0.5,
                       child: Container(
@@ -909,14 +911,14 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
           ],
           if (_favItems.isNotEmpty) ...[
-            const Text('Favoris',
+            const Text(AppStrings.favoris,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             ...(_favItems.take(20).map((item) {
               final name = item['name'] as String? ?? '';
               final cover = item['cover']?.toString() ?? item['stream_icon']?.toString() ?? '';
               return Tooltip(
-                message: 'Connexion requise',
+                message: AppStrings.connexionRequise,
                 child: ListTile(
                   leading: cover.isNotEmpty
                       ? ClipRRect(borderRadius: BorderRadius.circular(4),
@@ -939,7 +941,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.cloud_off, size: 64, color: Colors.white24),
                 SizedBox(height: 16),
-                Text('Aucune donnée en cache disponible',
+                Text(AppStrings.aucuneDonneesCache,
                     style: TextStyle(color: Colors.white38, fontSize: 16)),
               ]),
             )),

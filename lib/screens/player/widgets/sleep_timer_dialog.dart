@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 
 void showSleepTimerPicker(BuildContext context, {
   required Duration? sleepRemaining,
@@ -8,14 +10,14 @@ void showSleepTimerPicker(BuildContext context, {
   final presets = [15, 30, 45, 60, 90, 120];
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF1A1A2E),
+    backgroundColor: AppColors.darkText,
     builder: (ctx) => SafeArea(
       child: ListView(
         shrinkWrap: true,
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Minuterie de veille', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.minuterieVeille, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           if (sleepRemaining != null)
             ListTile(

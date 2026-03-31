@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import '../../../services/xtream_api.dart';
 import '../../../utils/routes.dart';
 import '../player_screen.dart';
@@ -11,7 +13,7 @@ void showEpgGuide(BuildContext context, {
   final now = DateTime.now();
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF12122A),
+    backgroundColor: AppColors.darkSurface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
@@ -37,7 +39,7 @@ void showEpgGuide(BuildContext context, {
         builder: (_, ctrl) => Column(children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text('Guide TV', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.guideTV, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: ListView.builder(
@@ -67,11 +69,11 @@ void showEpgGuide(BuildContext context, {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Text(prog['start'] ?? '',
                           style: TextStyle(fontSize: 11,
-                              color: isCurrent ? const Color(0xFF4A90D9) : isPast ? Colors.white24 : Colors.white38)),
+                              color: isCurrent ? AppColors.primaryBlue : isPast ? Colors.white24 : Colors.white38)),
                       if (isPast)
                         const Text('pass\u00e9', style: TextStyle(fontSize: 8, color: Colors.white24))
                       else if (isCurrent)
-                        const Text('EN COURS', style: TextStyle(fontSize: 8, color: Color(0xFF4A90D9), fontWeight: FontWeight.bold)),
+                        const Text('EN COURS', style: TextStyle(fontSize: 8, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
                     ]),
                   ),
                   title: Text(prog['title'] ?? '',
@@ -95,7 +97,7 @@ void showEpgGuide(BuildContext context, {
                       ? TextButton.icon(
                           icon: const Icon(Icons.replay, size: 16),
                           label: const Text('Revoir', style: TextStyle(fontSize: 11)),
-                          style: TextButton.styleFrom(foregroundColor: const Color(0xFF2E7D32)),
+                          style: TextButton.styleFrom(foregroundColor: AppColors.accentGreen),
                           onPressed: () {
                             Navigator.pop(sheetCtx);
                             // Prefer server-local string (DST-safe), fallback to UTC conversion
@@ -119,7 +121,7 @@ void showEpgGuide(BuildContext context, {
                           },
                         )
                       : null,
-                  tileColor: isCurrent ? const Color(0xFF4A90D9).withValues(alpha: 0.1) : null,
+                  tileColor: isCurrent ? AppColors.primaryBlue.withValues(alpha: 0.1) : null,
                 );
               },
             ),

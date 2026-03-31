@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
@@ -72,25 +74,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Historique', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text(AppStrings.historique, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
         actions: [
           if (_history.isNotEmpty)
             TextButton.icon(
               icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-              label: const Text('Effacer l\'historique', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+              label: const Text(AppStrings.effacerHistorique, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
               onPressed: () async {
                 final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                  backgroundColor: const Color(0xFF12122A),
-                  title: const Text('Effacer l\'historique ?'),
-                  content: const Text('Cette action est irréversible.'),
+                  backgroundColor: AppColors.darkSurface,
+                  title: const Text(AppStrings.effacerHistoireQuestion),
+                  content: const Text(AppStrings.actionIrreversible),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text(AppStrings.annuler)),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(ctx, true), child: const Text('Effacer')),
+                      onPressed: () => Navigator.pop(ctx, true), child: const Text(AppStrings.effacer)),
                   ],
                 ));
                 if (ok == true) {
@@ -104,7 +106,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _history.isEmpty
-          ? const Center(child: Text('Aucun historique', style: TextStyle(color: Colors.white38, fontSize: 16)))
+          ? const Center(child: Text(AppStrings.aucunHistorique, style: TextStyle(color: Colors.white38, fontSize: 16)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _history.length,
@@ -133,9 +135,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     WatchProgress.deleteHistoryEntry(itemKey);
                     ScaffoldMessenger.of(context).clearSnackBars();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: const Text('Entrée supprimée'),
+                      content: const Text(AppStrings.entreeSupprimee),
                       action: SnackBarAction(
-                        label: 'Annuler',
+                        label: AppStrings.annuler,
                         onPressed: () {
                           WatchProgress.reInsertHistoryEntry(removedItem);
                           setState(() => _history.insert(removedIndex.clamp(0, _history.length), removedItem));
@@ -168,7 +170,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ]),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white24),
-                        tooltip: 'Supprimer',
+                        tooltip: AppStrings.supprimer,
                         onPressed: () {
                           final removedItem = Map<String, String>.from(item);
                           final removedIndex = i;
@@ -176,9 +178,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           WatchProgress.deleteHistoryEntry(itemKey);
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text('Entrée supprimée'),
+                            content: const Text(AppStrings.entreeSupprimee),
                             action: SnackBarAction(
-                              label: 'Annuler',
+                              label: AppStrings.annuler,
                               onPressed: () {
                                 WatchProgress.reInsertHistoryEntry(removedItem);
                                 setState(() => _history.insert(removedIndex.clamp(0, _history.length), removedItem));
@@ -189,7 +191,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         },
                       ),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      hoverColor: const Color(0xFF4A90D9).withValues(alpha: 0.15),
+                      hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
                       onTap: () => _play(item),
                     ),
                   ),

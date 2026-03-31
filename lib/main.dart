@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/colors.dart';
 import 'core/storage_keys.dart';
 import 'models/app_config.dart';
 import 'services/watch_progress.dart';
@@ -267,7 +268,7 @@ class _MiniPlayerWidgetState extends State<_MiniPlayerWidget>
           elevation: 16,
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
-          color: const Color(0xFF12122A),
+          color: AppColors.darkSurface,
           child: SizedBox(
             width: _width, height: _height,
             child: Stack(fit: StackFit.expand, children: [

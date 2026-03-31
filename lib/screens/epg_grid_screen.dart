@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
+import '../core/colors.dart';
+import '../core/strings.dart';
 import '../core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
@@ -432,7 +434,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 8),
               decoration: const BoxDecoration(
-                color: Color(0xFF1A1A2E),
+                color: AppColors.darkText,
                 border: Border(left: BorderSide(color: Colors.white12, width: 0.5)),
               ),
               child: Text(_fmtHour(h), style: const TextStyle(fontSize: 10, color: Colors.white54)),
@@ -454,7 +456,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       height: _rowHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: i.isEven ? const Color(0xFF12122A) : const Color(0xFF0E0E20),
+        color: i.isEven ? AppColors.darkSurface : AppColors.darkSurfaceAlt,
         border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
       ),
       child: Row(children: [
@@ -483,7 +485,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: AppColors.darkText,
         title: Text(prog['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 15)),
         content: SingleChildScrollView(
           child: Column(
@@ -505,7 +507,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fermer'),
+            child: const Text(AppStrings.fermer),
           ),
         ],
       ),
@@ -560,16 +562,16 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       final title     = '${canReplay ? '↻ ' : ''}${prog['title'] ?? ''}';
 
       final cellColor = isCurrent
-          ? const Color(0xFF4A90D9).withValues(alpha: 0.4)
+          ? AppColors.primaryBlue.withValues(alpha: 0.4)
           : canReplay
-          ? const Color(0xFF2E7D32).withValues(alpha: 0.25)
+          ? AppColors.accentGreen.withValues(alpha: 0.25)
           : isPast
           ? Colors.white.withValues(alpha: 0.04)
           : Colors.white.withValues(alpha: 0.08);
       final cellBorder = isCurrent
-          ? Border.all(color: const Color(0xFF4A90D9), width: 1)
+          ? Border.all(color: AppColors.primaryBlue, width: 1)
           : canReplay
-          ? Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.4), width: 0.5)
+          ? Border.all(color: AppColors.accentGreen.withValues(alpha: 0.4), width: 0.5)
           : null;
       final textColor = isCurrent ? Colors.white
           : canReplay ? Colors.white60
@@ -649,7 +651,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       height: _rowHeight,
       width: totalWidth,
       decoration: BoxDecoration(
-        color: i.isEven ? const Color(0xFF12122A) : const Color(0xFF0E0E20),
+        color: i.isEven ? AppColors.darkSurface : AppColors.darkSurfaceAlt,
         border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -660,9 +662,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Guide TV', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text(AppStrings.guideTV, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
         actions: [
           if (_loadingEpg)
@@ -698,11 +700,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                           dense: true,
                           leading: Icon(Icons.star, size: 14,
                               color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-                          title: Text('Favoris', style: TextStyle(fontSize: 12,
+                          title: Text(AppStrings.favoris, style: TextStyle(fontSize: 12,
                               color: sel ? Colors.white : Colors.white60,
                               fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                           selected: sel,
-                          selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                          selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           onTap: () => _selectFavorites(),
                         ),
@@ -721,7 +723,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                                 fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                             overflow: TextOverflow.ellipsis),
                         selected: sel,
-                        selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                        selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         onTap: () => _selectCategory(id),
                       ),
@@ -743,13 +745,13 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 child: _loadingChannels
                     ? const Center(child: CircularProgressIndicator())
                     : _channels.isEmpty
-                    ? const Center(child: Text('Sélectionne une catégorie',
+                    ? const Center(child: Text(AppStrings.selectionneCategorie,
                         style: TextStyle(color: Colors.white38)))
                     : Column(children: [
                         // Day navigation bar
                         Container(
                           height: 36,
-                          color: const Color(0xFF1A1A2E),
+                          color: AppColors.darkText,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Row(children: [
                             TextButton.icon(
@@ -794,7 +796,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                             controller: _searchCtrl,
                             style: const TextStyle(fontSize: 13),
                             decoration: InputDecoration(
-                              hintText: 'Filtrer les chaînes...',
+                              hintText: AppStrings.filtrerChaines,
                               prefixIcon: const Icon(Icons.search, size: 18),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(icon: const Icon(Icons.clear, size: 16),
@@ -816,7 +818,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                             width: _channelColWidth,
                             height: 30,
                             alignment: Alignment.center,
-                            color: const Color(0xFF1A1A2E),
+                            color: AppColors.darkText,
                             child: Text('${_filteredChannels.length} chaîne${_filteredChannels.length > 1 ? 's' : ''}',
                                 style: const TextStyle(fontSize: 10, color: Colors.white54)),
                           ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/xtream_api.dart';
@@ -79,7 +81,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
         title: Text(widget.title, style: const TextStyle(fontSize: 16)),
         backgroundColor: Colors.transparent, elevation: 0,
@@ -117,7 +119,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                           color: sel ? Colors.white : Colors.white60,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                       selected: sel,
-                      selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                      selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       onTap: () => setState(() => _selectedSeason = s),
                     );
@@ -127,7 +129,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               const VerticalDivider(width: 1, color: Colors.white12),
               Expanded(
                 child: _selectedSeason == null
-                    ? const Center(child: Text('Sélectionne une saison',
+                    ? const Center(child: Text(AppStrings.selectionneSaison,
                         style: TextStyle(color: Colors.white38)))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
@@ -148,7 +150,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                                   radius: 18,
                                   backgroundColor: isWatched
                                       ? Colors.green.withValues(alpha: 0.2)
-                                      : const Color(0xFF4A90D9).withValues(alpha: 0.2),
+                                      : AppColors.primaryBlue.withValues(alpha: 0.2),
                                   child: isWatched
                                       ? const Icon(Icons.check, size: 16, color: Colors.green)
                                       : Text('$epNum',
@@ -159,7 +161,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                                     child: Container(
                                       width: 10, height: 10,
                                       decoration: const BoxDecoration(
-                                        color: Color(0xFF4A90D9),
+                                        color: AppColors.primaryBlue,
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -182,7 +184,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                                 ? const Text('Vu', style: TextStyle(fontSize: 11, color: Colors.green))
                                 : null,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            hoverColor: const Color(0xFF4A90D9).withValues(alpha: 0.15),
+                            hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
                             onTap: () => _playEpisode(ep),
                           );
                         },

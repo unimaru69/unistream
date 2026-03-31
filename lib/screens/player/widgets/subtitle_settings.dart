@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 
 void showSubtitleStylePicker(BuildContext context, {
   required double fontSize,
@@ -23,7 +25,7 @@ void showSubtitleStylePicker(BuildContext context, {
 
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF12122A),
+    backgroundColor: AppColors.darkSurface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => StatefulBuilder(
@@ -31,7 +33,7 @@ void showSubtitleStylePicker(BuildContext context, {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Style des sous-titres',
+            child: Text(AppStrings.styleSousTitres,
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
           Padding(
@@ -43,7 +45,7 @@ void showSubtitleStylePicker(BuildContext context, {
                   value: localFontSize,
                   min: 12, max: 48, divisions: 18,
                   label: localFontSize.round().toString(),
-                  activeColor: const Color(0xFF4A90D9),
+                  activeColor: AppColors.primaryBlue,
                   onChanged: (v) {
                     setLocal(() => localFontSize = v);
                     onFontSizeChanged(v);
@@ -72,7 +74,7 @@ void showSubtitleStylePicker(BuildContext context, {
                       color: opt.$1, shape: BoxShape.circle,
                       border: Border.all(
                         color: localColor.toARGB32() == opt.$1.toARGB32()
-                            ? const Color(0xFF4A90D9) : Colors.transparent,
+                            ? AppColors.primaryBlue : Colors.transparent,
                         width: 3,
                       ),
                     ),
@@ -90,7 +92,7 @@ void showSubtitleStylePicker(BuildContext context, {
                   value: localBgOpacity,
                   min: 0, max: 1, divisions: 10,
                   label: '${(localBgOpacity * 100).round()}%',
-                  activeColor: const Color(0xFF4A90D9),
+                  activeColor: AppColors.primaryBlue,
                   onChanged: (v) {
                     setLocal(() => localBgOpacity = v);
                     onBgOpacityChanged(v);

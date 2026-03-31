@@ -6,6 +6,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
+import '../../core/colors.dart';
+import '../../core/strings.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../services/xtream_api.dart';
@@ -212,17 +214,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF12122A),
-            title: const Text('Reprendre la lecture ?'),
+            backgroundColor: AppColors.darkSurface,
+            title: const Text(AppStrings.reprendreLecture),
             content: Text('Continuer depuis ${_fmt(savedPos)} ou repartir depuis le d\u00e9but ?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Depuis le d\u00e9but'),
+                child: const Text(AppStrings.depuisDebut),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A90D9),
+                    backgroundColor: AppColors.primaryBlue,
                     foregroundColor: Colors.white),
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text('Reprendre \u00e0 ${_fmt(savedPos)}'),
@@ -802,7 +804,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   child: LinearProgressIndicator(
                     value: epgProgress,
                     backgroundColor: Colors.white12,
-                    color: const Color(0xFF4A90D9),
+                    color: AppColors.primaryBlue,
                     minHeight: 4,
                   ),
                 ),
@@ -886,7 +888,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           IconButton(
             icon: Icon(Icons.deblur, size: 20,
-                color: _deinterlace ? const Color(0xFF4A90D9) : Colors.white),
+                color: _deinterlace ? AppColors.primaryBlue : Colors.white),
             tooltip: 'D\u00e9sentrelacement${_deinterlace ? ' (actif)' : ''}',
             onPressed: _toggleDeinterlace,
           ),

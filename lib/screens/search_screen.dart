@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -150,12 +152,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
     Widget body;
     if (_query.trim().length < 2) {
-      body = const Center(child: Text('Tape au moins 2 caractères',
+      body = const Center(child: Text(AppStrings.tapeAuMoins2,
           style: TextStyle(color: Colors.white38)));
     } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (_filtered.isEmpty) {
-      body = const Center(child: Text('Aucun résultat',
+      body = const Center(child: Text(AppStrings.aucunResultat,
           style: TextStyle(color: Colors.white38)));
     } else {
       body = ListView.builder(
@@ -191,7 +193,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                   )
                 : null,
             trailing: Icon(modeIcons[mode], color: Colors.white12, size: 14),
-            hoverColor: const Color(0xFF4A90D9).withValues(alpha: 0.15),
+            hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             onTap: () => _open(item),
           );
@@ -201,13 +203,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF12122A), elevation: 0,
+        backgroundColor: AppColors.darkSurface, elevation: 0,
         title: TextField(
           controller: _ctrl,
           autofocus: true,
           style: const TextStyle(fontSize: 16),
           decoration: const InputDecoration(
-            hintText: 'Rechercher dans tout le catalogue…',
+            hintText: AppStrings.rechercherCatalogue,
             hintStyle: TextStyle(color: Colors.white38),
             border: InputBorder.none,
           ),
@@ -215,7 +217,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         ),
         bottom: TabBar(
           controller: _tabCtrl,
-          indicatorColor: const Color(0xFF4A90D9),
+          indicatorColor: AppColors.primaryBlue,
           labelStyle: const TextStyle(fontSize: 12),
           tabs: const [
             Tab(text: 'Tous'),
@@ -236,7 +238,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 label: const Text('Tous', style: TextStyle(fontSize: 12)),
                 selected: _statusFilter == 0,
                 onSelected: (_) => setState(() => _statusFilter = 0),
-                selectedColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                 backgroundColor: Colors.white10,
                 side: BorderSide.none,
                 labelStyle: TextStyle(color: _statusFilter == 0 ? Colors.white : Colors.white60),
@@ -247,7 +249,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 label: const Text('Non vus', style: TextStyle(fontSize: 12)),
                 selected: _statusFilter == 1,
                 onSelected: (_) => setState(() => _statusFilter = 1),
-                selectedColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
                 backgroundColor: Colors.white10,
                 side: BorderSide.none,
                 labelStyle: TextStyle(color: _statusFilter == 1 ? Colors.white : Colors.white60),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/storage_keys.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
@@ -22,24 +23,24 @@ Future<void> saveThemeMode(ThemeMode mode) async {
 }
 
 final darkTheme = ThemeData.dark().copyWith(
-  scaffoldBackgroundColor: const Color(0xFF0A0A1A),
-  colorScheme: ColorScheme.dark(
-    primary: const Color(0xFF4A90D9),
-    surface: const Color(0xFF12122A),
+  scaffoldBackgroundColor: AppColors.darkBackground,
+  colorScheme: const ColorScheme.dark(
+    primary: AppColors.primaryBlue,
+    surface: AppColors.darkSurface,
   ),
 );
 
 final lightTheme = ThemeData.light().copyWith(
-  scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+  scaffoldBackgroundColor: AppColors.lightBackground,
   appBarTheme: const AppBarTheme(
     backgroundColor: Colors.white,
-    foregroundColor: Color(0xFF1A1A2E),
+    foregroundColor: AppColors.darkText,
     elevation: 0.5,
   ),
-  colorScheme: ColorScheme.light(
-    primary: const Color(0xFF4A90D9),
-    surface: const Color(0xFFFFFFFF),
-    onSurface: const Color(0xFF1A1A2E),
+  colorScheme: const ColorScheme.light(
+    primary: AppColors.primaryBlue,
+    surface: Color(0xFFFFFFFF),
+    onSurface: AppColors.darkText,
   ),
   cardColor: Colors.white,
   dividerColor: Colors.black12,

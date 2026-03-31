@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 import '../../../models/content_mode.dart';
 
 /// Shows a dialog to create a new collection. Returns the collection name or null.
@@ -7,8 +9,8 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
   final name = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF12122A),
-      title: const Text('Nouvelle collection'),
+      backgroundColor: AppColors.darkSurface,
+      title: const Text(AppStrings.nouvelleCollection),
       content: TextField(
         controller: nameCtrl,
         autofocus: true,
@@ -21,11 +23,11 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.annuler)),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
-          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF4A90D9)),
-          child: const Text('Creer'),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+          child: const Text(AppStrings.creer),
         ),
       ],
     ),
@@ -45,8 +47,8 @@ Future<String?> showCollectionPickerDialog(
   return showDialog<String>(
     context: context,
     builder: (ctx) => SimpleDialog(
-      backgroundColor: const Color(0xFF12122A),
-      title: const Text('Ajouter a une collection'),
+      backgroundColor: AppColors.darkSurface,
+      title: const Text(AppStrings.ajouterCollection),
       children: [
         ...collections.map((col) => SimpleDialogOption(
           onPressed: () => Navigator.pop(ctx, col['id'] as String),
@@ -59,9 +61,9 @@ Future<String?> showCollectionPickerDialog(
             onCreateNew();
           },
           child: const Row(children: [
-            Icon(Icons.add, size: 18, color: Color(0xFF4A90D9)),
+            Icon(Icons.add, size: 18, color: AppColors.primaryBlue),
             SizedBox(width: 8),
-            Text('Nouvelle collection', style: TextStyle(fontSize: 14, color: Color(0xFF4A90D9))),
+            Text(AppStrings.nouvelleCollection, style: TextStyle(fontSize: 14, color: AppColors.primaryBlue)),
           ]),
         ),
       ],
@@ -79,7 +81,7 @@ Future<String?> showCreateCollectionFromSelectedDialog(
   final name = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF12122A),
+      backgroundColor: AppColors.darkSurface,
       title: Text('Nouvelle collection ($itemCount éléments)'),
       content: TextField(
         controller: nameCtrl,
@@ -88,8 +90,8 @@ Future<String?> showCreateCollectionFromSelectedDialog(
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-        TextButton(onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()), child: const Text('Créer')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.annuler)),
+        TextButton(onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()), child: const Text(AppStrings.creer)),
       ],
     ),
   );
@@ -136,7 +138,7 @@ void showStreamInfoDialogWithEpg(
       icon: const Icon(Icons.folder_outlined, size: 16),
       label: const Text('Collection'),
     ),
-    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.fermer)),
   ];
 
   Widget modeTag() => Container(
@@ -162,7 +164,7 @@ void showStreamInfoDialogWithEpg(
       });
     }
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF12122A),
+      backgroundColor: AppColors.darkSurface,
       title: Text(name, style: const TextStyle(fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         modeTag(),
@@ -186,7 +188,7 @@ void showStreamInfoDialogWithEpg(
     ));
   } else {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF12122A),
+      backgroundColor: AppColors.darkSurface,
       title: Text(name, style: const TextStyle(fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         modeTag(),

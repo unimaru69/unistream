@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
 import 'package:media_kit/media_kit.dart';
 
 // ── Language name resolution (ISO 639) ──
@@ -41,7 +42,7 @@ void showTrackPicker(BuildContext context, {
 }) {
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF12122A),
+    backgroundColor: AppColors.darkSurface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => _TrackPickerSheet(
@@ -76,7 +77,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const TabBar(
           tabs: [Tab(text: 'Audio'), Tab(text: 'Sous-titres')],
-          indicatorColor: Color(0xFF4A90D9),
+          indicatorColor: AppColors.primaryBlue,
         ),
         SizedBox(height: 280, child: TabBarView(children: [
           // Audio
@@ -84,7 +85,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
             title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Piste audio'),
                 style: const TextStyle(fontSize: 13)),
             value: t, groupValue: _curAudio,
-            activeColor: const Color(0xFF4A90D9),
+            activeColor: AppColors.primaryBlue,
             onChanged: (v) {
               if (v == null) return;
               widget.player.setAudioTrack(v);
@@ -96,7 +97,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
             RadioListTile<SubtitleTrack>(
               title: const Text('D\u00e9sactiv\u00e9s', style: TextStyle(fontSize: 13)),
               value: SubtitleTrack.no(), groupValue: _curSub,
-              activeColor: const Color(0xFF4A90D9),
+              activeColor: AppColors.primaryBlue,
               onChanged: (v) {
                 if (v == null) return;
                 widget.player.setSubtitleTrack(v);
@@ -107,7 +108,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
               title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Sous-titres'),
                   style: const TextStyle(fontSize: 13)),
               value: t, groupValue: _curSub,
-              activeColor: const Color(0xFF4A90D9),
+              activeColor: AppColors.primaryBlue,
               onChanged: (v) {
                 if (v == null) return;
                 widget.player.setSubtitleTrack(v);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 
 class NextEpisodeOverlay extends StatelessWidget {
   final Map<String, dynamic> nextEpisode;
@@ -24,7 +26,7 @@ class NextEpisodeOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black87,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF4A90D9), width: 1),
+          border: Border.all(color: AppColors.primaryBlue, width: 1),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -36,7 +38,7 @@ class NextEpisodeOverlay extends StatelessWidget {
             Row(children: [
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A90D9),
+                    backgroundColor: AppColors.primaryBlue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
                 onPressed: onPlayNow,
@@ -45,7 +47,7 @@ class NextEpisodeOverlay extends StatelessWidget {
               const SizedBox(width: 8),
               TextButton(
                 onPressed: onCancel,
-                child: const Text('Annuler'),
+                child: const Text(AppStrings.annuler),
               ),
             ]),
           ]),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/strings.dart';
 
 void showSpeedPicker(BuildContext context, {
   required double currentSpeed,
@@ -7,7 +9,7 @@ void showSpeedPicker(BuildContext context, {
   const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF12122A),
+    backgroundColor: AppColors.darkSurface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => StatefulBuilder(
@@ -17,7 +19,7 @@ void showSpeedPicker(BuildContext context, {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text('Vitesse de lecture',
+              child: Text(AppStrings.vitesseLecture,
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             ),
             ...speeds.map((sp) => RadioListTile<double>(
@@ -26,7 +28,7 @@ void showSpeedPicker(BuildContext context, {
                   style: const TextStyle(fontSize: 13)),
               value: sp,
               groupValue: localSpeed,
-              activeColor: const Color(0xFF4A90D9),
+              activeColor: AppColors.primaryBlue,
               onChanged: (v) {
                 if (v == null) return;
                 localSpeed = v;
@@ -55,21 +57,21 @@ void showAspectRatioPicker(BuildContext context, {
   ];
   showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF1A1A2E),
+    backgroundColor: AppColors.darkText,
     builder: (ctx) => SafeArea(
       child: ListView(
         shrinkWrap: true,
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Ratio d\'aspect', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.ratioAspect, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           for (final (value, label) in options)
             ListTile(
               dense: true,
               leading: Icon(
                 currentRatio == value ? Icons.check_circle : Icons.circle_outlined,
-                color: currentRatio == value ? const Color(0xFF4A90D9) : Colors.white38,
+                color: currentRatio == value ? AppColors.primaryBlue : Colors.white38,
                 size: 20,
               ),
               title: Text(label),
