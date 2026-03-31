@@ -66,6 +66,8 @@ bundle_lib() {
     libvulkan.so*|libdrm*.so*|libgbm.so*|libglapi.so*) return 0 ;;
     libX11.so*|libX11-xcb.so*|libxcb.so*|libXext.so*|libXi.so*|libXfixes.so*|libXcursor.so*|libXrandr.so*|libXrender.so*|libXcomposite.so*|libXdamage.so*|libXinerama.so*|libXxf86vm.so*) return 0 ;;
     libwayland-client.so*|libwayland-server.so*|libwayland-cursor.so*|libwayland-egl.so*) return 0 ;;
+    libpipewire*.so*|libspa*.so*|libpulse*.so*|libpulsecommon*) return 0 ;;
+    libasound.so*|libjack*.so*) return 0 ;;
     libstdc++.so*) return 0 ;;
   esac
   if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
