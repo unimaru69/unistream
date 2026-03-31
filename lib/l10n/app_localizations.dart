@@ -655,6 +655,672 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Toutes les données de ce profil seront perdues.'**
   String get confirmerSuppression;
+
+  /// No description provided for @reessayer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer'**
+  String get reessayer;
+
+  /// No description provided for @retour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour'**
+  String get retour;
+
+  /// No description provided for @erreur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur'**
+  String get erreur;
+
+  /// No description provided for @tout.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout'**
+  String get tout;
+
+  /// No description provided for @live.
+  ///
+  /// In fr, this message translates to:
+  /// **'Live'**
+  String get live;
+
+  /// No description provided for @vod.
+  ///
+  /// In fr, this message translates to:
+  /// **'VOD'**
+  String get vod;
+
+  /// No description provided for @series.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séries'**
+  String get series;
+
+  /// No description provided for @serie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Série'**
+  String get serie;
+
+  /// No description provided for @changerProfil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer de profil'**
+  String get changerProfil;
+
+  /// No description provided for @ordreParDefaut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ordre par défaut'**
+  String get ordreParDefaut;
+
+  /// No description provided for @alphabetique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Alphabétique'**
+  String get alphabetique;
+
+  /// No description provided for @parNumero.
+  ///
+  /// In fr, this message translates to:
+  /// **'Par numéro'**
+  String get parNumero;
+
+  /// No description provided for @vueListe.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vue liste'**
+  String get vueListe;
+
+  /// No description provided for @vueGrille.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vue grille'**
+  String get vueGrille;
+
+  /// No description provided for @rechercheGlobale.
+  ///
+  /// In fr, this message translates to:
+  /// **'Recherche globale'**
+  String get rechercheGlobale;
+
+  /// No description provided for @modeHorsLigne.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mode hors-ligne — Serveur indisponible'**
+  String get modeHorsLigne;
+
+  /// No description provided for @recemmentAjoutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récemment ajoutés'**
+  String get recemmentAjoutes;
+
+  /// No description provided for @raccourciQuitter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter'**
+  String get raccourciQuitter;
+
+  /// No description provided for @raccourciReglages.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réglages'**
+  String get raccourciReglages;
+
+  /// No description provided for @raccourciRechercher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher'**
+  String get raccourciRechercher;
+
+  /// No description provided for @raccourciHistorique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Historique'**
+  String get raccourciHistorique;
+
+  /// No description provided for @raccourciGuideTV.
+  ///
+  /// In fr, this message translates to:
+  /// **'Guide TV'**
+  String get raccourciGuideTV;
+
+  /// No description provided for @raccourciAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette aide'**
+  String get raccourciAide;
+
+  /// No description provided for @sectionLecteur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecteur'**
+  String get sectionLecteur;
+
+  /// No description provided for @lecteurPause.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture / Pause'**
+  String get lecteurPause;
+
+  /// No description provided for @reculerAvancer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reculer / Avancer 10s'**
+  String get reculerAvancer;
+
+  /// No description provided for @volumePlusMoins.
+  ///
+  /// In fr, this message translates to:
+  /// **'Volume +/−'**
+  String get volumePlusMoins;
+
+  /// No description provided for @pleinEcran.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plein écran'**
+  String get pleinEcran;
+
+  /// No description provided for @couperSon.
+  ///
+  /// In fr, this message translates to:
+  /// **'Couper le son'**
+  String get couperSon;
+
+  /// No description provided for @quitterLecteur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter le lecteur'**
+  String get quitterLecteur;
+
+  /// No description provided for @chainePrecSuiv.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chaîne précédente / suivante'**
+  String get chainePrecSuiv;
+
+  /// No description provided for @films.
+  ///
+  /// In fr, this message translates to:
+  /// **'Films'**
+  String get films;
+
+  /// No description provided for @nonVus.
+  ///
+  /// In fr, this message translates to:
+  /// **'Non vus'**
+  String get nonVus;
+
+  /// No description provided for @enCoursFiltre.
+  ///
+  /// In fr, this message translates to:
+  /// **'En cours'**
+  String get enCoursFiltre;
+
+  /// No description provided for @ilYaMinutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Il y a {count} min'**
+  String ilYaMinutes(int count);
+
+  /// No description provided for @ilYaHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'Il y a {count}h'**
+  String ilYaHeures(int count);
+
+  /// No description provided for @hier.
+  ///
+  /// In fr, this message translates to:
+  /// **'Hier'**
+  String get hier;
+
+  /// No description provided for @ilYaJours.
+  ///
+  /// In fr, this message translates to:
+  /// **'Il y a {count} jours'**
+  String ilYaJours(int count);
+
+  /// No description provided for @quitterPleinEcran.
+  ///
+  /// In fr, this message translates to:
+  /// **'Quitter le plein écran'**
+  String get quitterPleinEcran;
+
+  /// No description provided for @desentrelacement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Désentrelacement'**
+  String get desentrelacement;
+
+  /// No description provided for @miniPlayer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mini-player'**
+  String get miniPlayer;
+
+  /// No description provided for @lireMaintenant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lire maintenant ({seconds})'**
+  String lireMaintenant(int seconds);
+
+  /// No description provided for @veilleActive.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veille dans {minutes} min'**
+  String veilleActive(int minutes);
+
+  /// No description provided for @minuterieEcoulee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Minuterie écoulée — lecture en pause'**
+  String get minuterieEcoulee;
+
+  /// No description provided for @annulerMinuterie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Annuler ({minutes} min restantes)'**
+  String annulerMinuterie(int minutes);
+
+  /// No description provided for @xMinutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} minutes'**
+  String xMinutes(int count);
+
+  /// No description provided for @audioTab.
+  ///
+  /// In fr, this message translates to:
+  /// **'Audio'**
+  String get audioTab;
+
+  /// No description provided for @sousTitresTab.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sous-titres'**
+  String get sousTitresTab;
+
+  /// No description provided for @pisteAudio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Piste audio'**
+  String get pisteAudio;
+
+  /// No description provided for @desactiverSousTitres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Désactivés'**
+  String get desactiverSousTitres;
+
+  /// No description provided for @blanc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Blanc'**
+  String get blanc;
+
+  /// No description provided for @jaune.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jaune'**
+  String get jaune;
+
+  /// No description provided for @vert.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vert'**
+  String get vert;
+
+  /// No description provided for @cyan.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cyan'**
+  String get cyan;
+
+  /// No description provided for @taille.
+  ///
+  /// In fr, this message translates to:
+  /// **'Taille'**
+  String get taille;
+
+  /// No description provided for @couleurLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Couleur'**
+  String get couleurLabel;
+
+  /// No description provided for @fondLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fond'**
+  String get fondLabel;
+
+  /// No description provided for @chargementEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement EPG {loaded}/{total}'**
+  String chargementEpg(int loaded, int total);
+
+  /// No description provided for @demain.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demain'**
+  String get demain;
+
+  /// No description provided for @nombreChaines.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} chaîne(s)'**
+  String nombreChaines(int count);
+
+  /// No description provided for @passe.
+  ///
+  /// In fr, this message translates to:
+  /// **'passé'**
+  String get passe;
+
+  /// No description provided for @enCoursProg.
+  ///
+  /// In fr, this message translates to:
+  /// **'EN COURS'**
+  String get enCoursProg;
+
+  /// No description provided for @revoir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Revoir'**
+  String get revoir;
+
+  /// No description provided for @replay.
+  ///
+  /// In fr, this message translates to:
+  /// **'REPLAY'**
+  String get replay;
+
+  /// No description provided for @programmeCours.
+  ///
+  /// In fr, this message translates to:
+  /// **'Programme en cours :'**
+  String get programmeCours;
+
+  /// No description provided for @epgIndisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'EPG indisponible'**
+  String get epgIndisponible;
+
+  /// No description provided for @gererProfilsBouton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gérer les profils'**
+  String get gererProfilsBouton;
+
+  /// No description provided for @sauvegarderConfigBtn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sauvegarder'**
+  String get sauvegarderConfigBtn;
+
+  /// No description provided for @restaurerConfigBtn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Restaurer'**
+  String get restaurerConfigBtn;
+
+  /// No description provided for @langueAudioPreferee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue audio préférée'**
+  String get langueAudioPreferee;
+
+  /// No description provided for @langueSousTitresPreferee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue sous-titres préférée'**
+  String get langueSousTitresPreferee;
+
+  /// No description provided for @cacheEpgEntrees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cache EPG : {count} entrées'**
+  String cacheEpgEntrees(int count);
+
+  /// No description provided for @viderCacheEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vider le cache EPG'**
+  String get viderCacheEpg;
+
+  /// No description provided for @viderCacheImages.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vider le cache images'**
+  String get viderCacheImages;
+
+  /// No description provided for @descriptionCache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.'**
+  String get descriptionCache;
+
+  /// No description provided for @configSauvegardeeVers.
+  ///
+  /// In fr, this message translates to:
+  /// **'Configuration sauvegardée → {path}'**
+  String configSauvegardeeVers(String path);
+
+  /// No description provided for @configRestauree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Configuration restaurée. Redémarrage...'**
+  String get configRestauree;
+
+  /// No description provided for @erreurImport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur import : {detail}'**
+  String erreurImport(String detail);
+
+  /// No description provided for @erreurExport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur export : {detail}'**
+  String erreurExport(String detail);
+
+  /// No description provided for @erreurSauvegarde.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur sauvegarde : {detail}'**
+  String erreurSauvegarde(String detail);
+
+  /// No description provided for @erreurRestauration.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur restauration : {detail}'**
+  String erreurRestauration(String detail);
+
+  /// No description provided for @entreesImporteesMu3.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} entrées importées depuis M3U'**
+  String entreesImporteesMu3(int count);
+
+  /// No description provided for @favorisExportesVers.
+  ///
+  /// In fr, this message translates to:
+  /// **'Favoris exportés → {path}'**
+  String favorisExportesVers(String path);
+
+  /// No description provided for @profilDonneesSupprimees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le profil \"{name}\" et ses données seront supprimés.'**
+  String profilDonneesSupprimees(String name);
+
+  /// No description provided for @normaleVitesse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Normale (1×)'**
+  String get normaleVitesse;
+
+  /// No description provided for @etirer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Étirer'**
+  String get etirer;
+
+  /// No description provided for @aRegarder.
+  ///
+  /// In fr, this message translates to:
+  /// **'À regarder'**
+  String get aRegarder;
+
+  /// No description provided for @collectionsSection.
+  ///
+  /// In fr, this message translates to:
+  /// **'COLLECTIONS'**
+  String get collectionsSection;
+
+  /// No description provided for @nomLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get nomLabel;
+
+  /// No description provided for @nomCollection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de la collection'**
+  String get nomCollection;
+
+  /// No description provided for @collectionLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Collection'**
+  String get collectionLabel;
+
+  /// No description provided for @retirerCollection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer de la collection'**
+  String get retirerCollection;
+
+  /// No description provided for @aRegarderPlusTard.
+  ///
+  /// In fr, this message translates to:
+  /// **'À regarder plus tard'**
+  String get aRegarderPlusTard;
+
+  /// No description provided for @xSelectionnes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} sélectionné(s)'**
+  String xSelectionnes(int count);
+
+  /// No description provided for @ajouteACollection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouté à \"{name}\"'**
+  String ajouteACollection(String name);
+
+  /// No description provided for @collectionCreeAvec.
+  ///
+  /// In fr, this message translates to:
+  /// **'Collection \"{name}\" créée avec {count} éléments'**
+  String collectionCreeAvec(String name, int count);
+
+  /// No description provided for @nouvelleCollectionAvec.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvelle collection ({count} éléments)'**
+  String nouvelleCollectionAvec(int count);
+
+  /// No description provided for @saisons.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisons'**
+  String get saisons;
+
+  /// No description provided for @saison.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saison {number}'**
+  String saison(String number);
+
+  /// No description provided for @vu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vu'**
+  String get vu;
+
+  /// No description provided for @serveurConfigure.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre serveur est configuré !'**
+  String get serveurConfigure;
+
+  /// No description provided for @categorie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catégorie : {name}'**
+  String categorie(String name);
+
+  /// No description provided for @note.
+  ///
+  /// In fr, this message translates to:
+  /// **'Note : {value}'**
+  String note(String value);
+
+  /// No description provided for @nbSaisons.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisons : {count}'**
+  String nbSaisons(String count);
+
+  /// No description provided for @typeStream.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type : {type}'**
+  String typeStream(String type);
+
+  /// No description provided for @reprendreDepuis.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reprendre à {time}'**
+  String reprendreDepuis(String time);
+
+  /// No description provided for @continuerOuDebut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer depuis {time} ou repartir depuis le début ?'**
+  String continuerOuDebut(String time);
+
+  /// No description provided for @suivantEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Suivant : {title}'**
+  String suivantEpg(String title);
+
+  /// No description provided for @confirmerSupprimerCollection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer cette collection ?'**
+  String get confirmerSupprimerCollection;
+
+  /// No description provided for @confirmerRetirerCollection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer cet élément de la collection ?'**
+  String get confirmerRetirerCollection;
+
+  /// No description provided for @confirmerViderCache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vider le cache EPG ?'**
+  String get confirmerViderCache;
 }
 
 class _AppLocalizationsDelegate

@@ -57,26 +57,35 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.live_tv, size: 64, color: AppColors.primaryBlue),
-                SizedBox(height: 16),
-                Text(
-                  'UniStream',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/images/logo.jpg',
+                      width: 120,
+                      height: 120,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'UniStream',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

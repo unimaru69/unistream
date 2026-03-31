@@ -7,6 +7,7 @@ import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
 import '../utils/routes.dart';
+import '../utils/snackbar_helper.dart';
 import 'series_detail_screen.dart';
 import 'player/player_screen.dart';
 
@@ -19,7 +20,8 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void _play(Map<String, String> item) {
     final mode = item['mode'] ?? 'live';
-    final name = item['name'] ?? 'Sans titre';
+    final l10n = AppLocalizations.of(context)!;
+    final name = item['name'] ?? l10n.sansTitre;
     final url  = item['url'] ?? '';
     final cover = item['cover'] ?? '';
 
@@ -42,20 +44,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     )));
   }
 
-  String _formatDate(String iso) {
+  String _formatDate(String iso, AppLocalizations l10n) {
     try {
       final dt = DateTime.parse(iso);
       final now = DateTime.now();
       final diff = now.difference(dt);
-      if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-      if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-      if (diff.inDays == 1) return 'Hier';
-      if (diff.inDays < 7) return 'Il y a ${diff.inDays} jours';
+      if (diff.inMinutes < 60) return l10n.ilYaMinutes(diff.inMinutes);
+      if (diff.inHours < 24) return l10n.ilYaHeures(diff.inHours);
+      if (diff.inDays == 1) return l10n.hier;
+      if (diff.inDays < 7) return l10n.ilYaJours(diff.inDays);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (e, st) { AppLogger.warning(LogModule.ui, 'Failed to parse history date', error: e, stackTrace: st); return ''; }
   }
 
-  static const _modeLabels = {'live': 'Live', 'vod': 'VOD', 'series': 'Série'};
+  Map<String, String> _modeLabels(AppLocalizations l10n) => {'live': l10n.live, 'vod': l10n.vod, 'series': l10n.serie};
   static const _modeColors = {'live': Colors.redAccent, 'vod': Colors.amber, 'series': Colors.tealAccent};
 
   @override
@@ -94,12 +96,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: asyncHistory.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.white38, fontSize: 16))),
+        error: (e, st) => Center(child: Text('${l10n.erreur}: $e', style: const TextStyle(color: Colors.white38, fontSize: 16))),
         data: (history) {
           if (history.isEmpty) {
             return Center(child: Text(l10n.aucunHistorique, style: const TextStyle(color: Colors.white38, fontSize: 16)));
           }
-          return ListView.builder(
+          return RefreshIndicator(
+            onRefresh: () => ref.read(historyProvider.notifier).load(),
+            child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: history.length,
             itemBuilder: (_, i) {
@@ -124,16 +128,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   final removedItem = Map<String, String>.from(item);
                   ref.read(historyProvider.notifier).deleteEntry(itemKey);
                   ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(l10n.entreeSupprimee),
-                    action: SnackBarAction(
-                      label: l10n.annuler,
-                      onPressed: () {
-                        ref.read(historyProvider.notifier).reInsertEntry(removedItem);
-                      },
-                    ),
+                  showAppSnackBar(context, l10n.entreeSupprimee,
+                    actionLabel: l10n.annuler,
+                    onAction: () => ref.read(historyProvider.notifier).reInsertEntry(removedItem),
                     duration: const Duration(seconds: 4),
-                  ));
+                  );
                 },
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 4),
@@ -151,11 +150,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         decoration: BoxDecoration(
                           color: (_modeColors[mode] ?? Colors.grey).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4)),
-                        child: Text(_modeLabels[mode] ?? mode,
+                        child: Text(_modeLabels(l10n)[mode] ?? mode,
                             style: TextStyle(fontSize: 10, color: _modeColors[mode] ?? Colors.grey)),
                       ),
                       const SizedBox(width: 8),
-                      Text(_formatDate(ts), style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                      Text(_formatDate(ts, l10n), style: const TextStyle(fontSize: 11, color: Colors.white38)),
                     ]),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white24),
@@ -164,16 +163,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         final removedItem = Map<String, String>.from(item);
                         ref.read(historyProvider.notifier).deleteEntry(itemKey);
                         ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(l10n.entreeSupprimee),
-                          action: SnackBarAction(
-                            label: l10n.annuler,
-                            onPressed: () {
-                              ref.read(historyProvider.notifier).reInsertEntry(removedItem);
-                            },
-                          ),
+                        showAppSnackBar(context, l10n.entreeSupprimee,
+                          actionLabel: l10n.annuler,
+                          onAction: () => ref.read(historyProvider.notifier).reInsertEntry(removedItem),
                           duration: const Duration(seconds: 4),
-                        ));
+                        );
                       },
                     ),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -183,6 +177,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
               );
             },
+          ),
           );
         },
       ),

@@ -36,7 +36,7 @@ void showSpeedPicker(BuildContext context, {
                   value: sp,
                   activeColor: AppColors.primaryBlue,
                 ),
-                title: Text(sp == 1.0 ? 'Normale (1\u00d7)' : '$sp\u00d7',
+                title: Text(sp == 1.0 ? AppLocalizations.of(context)!.normaleVitesse : '$sp\u00d7',
                     style: const TextStyle(fontSize: 13)),
                 onTap: () {
                   localSpeed = sp;
@@ -62,7 +62,7 @@ void showAspectRatioPicker(BuildContext context, {
     ('16:9', '16:9'),
     ('4:3', '4:3'),
     ('2.35:1', '2.35:1'),
-    ('stretch', '\u00c9tirer'),
+    ('stretch', AppLocalizations.of(context)!.etirer),
   ];
   showModalBottomSheet(
     context: context,

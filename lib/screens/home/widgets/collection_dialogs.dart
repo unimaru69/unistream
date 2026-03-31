@@ -16,7 +16,7 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
         autofocus: true,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          labelText: 'Nom',
+          labelText: AppLocalizations.of(context)!.nomLabel,
           filled: true, fillColor: Colors.white10,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
         ),
@@ -82,11 +82,11 @@ Future<String?> showCreateCollectionFromSelectedDialog(
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: AppColors.darkSurface,
-      title: Text('Nouvelle collection ($itemCount éléments)'),
+      title: Text(AppLocalizations.of(context)!.nouvelleCollectionAvec(itemCount)),
       content: TextField(
         controller: nameCtrl,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Nom de la collection'),
+        decoration: InputDecoration(hintText: AppLocalizations.of(context)!.nomCollection),
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
       ),
       actions: [
@@ -109,20 +109,21 @@ void showStreamInfoDialogWithEpg(
   required String? Function(String streamId) getCachedEpgNow,
   required Future<dynamic> Function(String streamId, {int limit}) getShortEpg,
 }) {
-  final name = stream['name'] ?? 'Sans titre';
-  final modeLabels = {ContentMode.live: 'Live', ContentMode.vod: 'VOD', ContentMode.series: 'Série'};
+  final l10n = AppLocalizations.of(context)!;
+  final name = stream['name'] ?? l10n.sansTitre;
+  final modeLabels = {ContentMode.live: l10n.live, ContentMode.vod: l10n.vod, ContentMode.series: l10n.serie};
   final modeColors = {ContentMode.live: Colors.redAccent, ContentMode.vod: Colors.amber, ContentMode.series: Colors.tealAccent};
 
   final infoParts = <String>[];
-  if (stream['category_name'] != null) infoParts.add('Catégorie : ${stream['category_name']}');
+  if (stream['category_name'] != null) infoParts.add(l10n.categorie(stream['category_name'].toString()));
   if (stream['rating'] != null && stream['rating'].toString().isNotEmpty && stream['rating'].toString() != '0') {
-    infoParts.add('Note : ${stream['rating']}');
+    infoParts.add(l10n.note(stream['rating'].toString()));
   }
   if (mode == ContentMode.series && stream['num_seasons'] != null) {
-    infoParts.add('Saisons : ${stream['num_seasons']}');
+    infoParts.add(l10n.nbSaisons(stream['num_seasons'].toString()));
   }
   if (mode == ContentMode.vod && stream['stream_type'] != null) {
-    infoParts.add('Type : ${stream['stream_type']}');
+    infoParts.add(l10n.typeStream(stream['stream_type'].toString()));
   }
   final plot = stream['plot'] ?? stream['description'];
   if (plot != null && plot.toString().isNotEmpty) {
@@ -136,7 +137,7 @@ void showStreamInfoDialogWithEpg(
         onAddToCollection();
       },
       icon: const Icon(Icons.folder_outlined, size: 16),
-      label: const Text('Collection'),
+      label: Text(l10n.collectionLabel),
     ),
     TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.fermer)),
   ];
@@ -158,7 +159,7 @@ void showStreamInfoDialogWithEpg(
     if (streamId.isNotEmpty && getCachedEpgNow(streamId) == null) {
       getShortEpg(streamId, limit: 2).then((data) {
         final prog = getCachedEpgNow(streamId);
-        epgNotifier.value = prog ?? 'Aucun programme';
+        epgNotifier.value = prog ?? l10n.aucunProgramme;
       }).catchError((_) {
         epgNotifier.value = 'EPG indisponible';
       });
@@ -180,7 +181,7 @@ void showStreamInfoDialogWithEpg(
         const SizedBox(height: 4),
         ValueListenableBuilder<String?>(
           valueListenable: epgNotifier,
-          builder: (_, val, __) => Text(val ?? 'Aucun programme',
+          builder: (_, val, __) => Text(val ?? l10n.aucunProgramme,
               style: const TextStyle(fontSize: 13, color: Colors.tealAccent)),
         ),
       ]),

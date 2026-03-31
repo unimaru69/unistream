@@ -11,11 +11,12 @@ void showSubtitleStylePicker(BuildContext context, {
   required void Function(double opacity) onBgOpacityChanged,
   required VoidCallback onDismissed,
 }) {
+  final l10n = AppLocalizations.of(context)!;
   final colorOptions = <(Color, String)>[
-    (Colors.white, 'Blanc'),
-    (Colors.yellow, 'Jaune'),
-    (Colors.green, 'Vert'),
-    (Colors.cyan, 'Cyan'),
+    (Colors.white, l10n.blanc),
+    (Colors.yellow, l10n.jaune),
+    (Colors.green, l10n.vert),
+    (Colors.cyan, l10n.cyan),
   ];
 
   // Local mutable copies for StatefulBuilder
@@ -39,7 +40,7 @@ void showSubtitleStylePicker(BuildContext context, {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              const Text('Taille', style: TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.taille, style: const TextStyle(fontSize: 13, color: Colors.white70)),
               Expanded(
                 child: Slider(
                   value: localFontSize,
@@ -59,7 +60,7 @@ void showSubtitleStylePicker(BuildContext context, {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(children: [
-              const Text('Couleur', style: TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.couleurLabel, style: const TextStyle(fontSize: 13, color: Colors.white70)),
               const SizedBox(width: 16),
               ...colorOptions.map((opt) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -86,7 +87,7 @@ void showSubtitleStylePicker(BuildContext context, {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              const Text('Fond', style: TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.fondLabel, style: const TextStyle(fontSize: 13, color: Colors.white70)),
               Expanded(
                 child: Slider(
                   value: localBgOpacity,

@@ -21,6 +21,7 @@ import 'widgets/next_episode_overlay.dart';
 import 'widgets/subtitle_settings.dart';
 import 'widgets/epg_overlay.dart';
 import 'widgets/player_controls.dart';
+import 'player_keyboard_handler.dart';
 
 // ── Fullscreen back button ──
 class _FullscreenBackButton extends StatelessWidget {
@@ -28,7 +29,7 @@ class _FullscreenBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     icon: const Icon(Icons.arrow_back, color: Colors.white),
-    tooltip: 'Quitter le plein ecran',
+    tooltip: AppLocalizations.of(context)!.quitterPleinEcran,
     onPressed: () => Navigator.of(context).pop(),
   );
 }
@@ -208,7 +209,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           builder: (ctx) => AlertDialog(
             backgroundColor: AppColors.darkSurface,
             title: Text(AppLocalizations.of(context)!.reprendreLecture),
-            content: Text('Continuer depuis ${_fmt(savedPos)} ou repartir depuis le d\u00e9but ?'),
+            content: Text(AppLocalizations.of(context)!.continuerOuDebut(_fmt(savedPos))),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -219,7 +220,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     backgroundColor: AppColors.primaryBlue,
                     foregroundColor: Colors.white),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Reprendre \u00e0 ${_fmt(savedPos)}'),
+                child: Text(AppLocalizations.of(context)!.reprendreDepuis(_fmt(savedPos))),
               ),
             ],
           ),
@@ -366,7 +367,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _cancelSleepTimer();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('\u23f0 Minuterie \u00e9coul\u00e9e \u2014 lecture en pause')),
+              SnackBar(content: Text(AppLocalizations.of(context)!.minuterieEcoulee)),
             );
           }
         }
@@ -528,102 +529,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // ── Keyboard shortcuts ──
   bool _onKey(KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
-    final key   = event.logicalKey;
     final route = ModalRoute.of(context);
     if (route == null) return false;
 
-    if (!route.isCurrent) {
-      if (key == LogicalKeyboardKey.escape || key == LogicalKeyboardKey.keyF) {
-        Navigator.of(context).pop();
-        return true;
-      }
-      return false;
-    }
-
     final hasZapping = _isLiveMode && widget.channelList != null && widget.channelList!.length > 1;
 
-    if (event is KeyRepeatEvent) {
-      if (!_isLiveMode && key == LogicalKeyboardKey.arrowLeft) {
-        final p = _lastPos - const Duration(seconds: 10);
-        _player.seek(p < Duration.zero ? Duration.zero : p);
-        return true;
-      }
-      if (!_isLiveMode && key == LogicalKeyboardKey.arrowRight) {
-        _player.seek(_lastPos + const Duration(seconds: 10));
-        return true;
-      }
-      if (hasZapping && key == LogicalKeyboardKey.arrowUp) {
-        _zapChannel(-1);
-        return true;
-      }
-      if (hasZapping && key == LogicalKeyboardKey.arrowDown) {
-        _zapChannel(1);
-        return true;
-      }
-      if (!hasZapping && key == LogicalKeyboardKey.arrowUp) {
-        _player.setVolume((_player.state.volume + 5).clamp(0.0, 200.0));
-        return true;
-      }
-      if (!hasZapping && key == LogicalKeyboardKey.arrowDown) {
-        _player.setVolume((_player.state.volume - 5).clamp(0.0, 200.0));
-        return true;
-      }
-      return false;
-    }
-    if (key == LogicalKeyboardKey.space) {
-      _player.playOrPause();
-      return true;
-    }
-    if (!_isLiveMode && key == LogicalKeyboardKey.arrowLeft) {
-      final p = _lastPos - const Duration(seconds: 10);
-      _player.seek(p < Duration.zero ? Duration.zero : p);
-      return true;
-    }
-    if (!_isLiveMode && key == LogicalKeyboardKey.arrowRight) {
-      _player.seek(_lastPos + const Duration(seconds: 10));
-      return true;
-    }
-    if (key == LogicalKeyboardKey.keyF) {
-      final ctx = _videoCtx;
-      if (ctx != null) enterFullscreen(ctx);
-      return true;
-    }
-    if (key == LogicalKeyboardKey.keyM) {
-      _player.setVolume(_player.state.volume > 0 ? 0 : 100);
-      return true;
-    }
-    if (hasZapping && key == LogicalKeyboardKey.arrowUp) {
-      _zapChannel(-1);
-      return true;
-    }
-    if (hasZapping && key == LogicalKeyboardKey.arrowDown) {
-      _zapChannel(1);
-      return true;
-    }
-    if (!hasZapping && key == LogicalKeyboardKey.arrowUp) {
-      _player.setVolume((_player.state.volume + 10).clamp(0.0, 200.0));
-      return true;
-    }
-    if (!hasZapping && key == LogicalKeyboardKey.arrowDown) {
-      _player.setVolume((_player.state.volume - 10).clamp(0.0, 200.0));
-      return true;
-    }
-    if (key == LogicalKeyboardKey.escape) {
-      Navigator.of(context).pop();
-      return true;
-    }
-    if (_isLiveMode && widget.channelList != null) {
-      if (key == LogicalKeyboardKey.keyP) {
-        _zapChannel(-1);
-        return true;
-      }
-      if (key == LogicalKeyboardKey.keyN) {
-        _zapChannel(1);
-        return true;
-      }
-    }
-    return false;
+    return handlePlayerKeyEvent(
+      event,
+      callbacks: PlayerKeyCallbacks(
+        playPause: _player.playOrPause,
+        seek: (delta) {
+          final target = _lastPos + delta;
+          _player.seek(target < Duration.zero ? Duration.zero : target);
+        },
+        adjustVolume: (delta) {
+          _player.setVolume((_player.state.volume + delta).clamp(0.0, 200.0));
+        },
+        toggleMute: () {
+          _player.setVolume(_player.state.volume > 0 ? 0 : 100);
+        },
+        enterFullscreen: () {
+          final ctx = _videoCtx;
+          if (ctx != null) enterFullscreen(ctx);
+        },
+        escape: () => Navigator.of(context).pop(),
+        zapChannel: _zapChannel,
+      ),
+      isLiveMode: _isLiveMode,
+      hasZapping: hasZapping,
+      isRouteActive: route.isCurrent,
+    );
   }
 
   // ── EPG loading ──
@@ -728,7 +663,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final ch = list[newIdx];
     final sid = ch['stream_id'].toString();
     final url = XtreamApi.getLiveStreamUrl(sid);
-    final name = ch['name'] ?? 'Sans titre';
+    final name = ch['name'] ?? AppLocalizations.of(context)!.sansTitre;
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,
       title: name,
@@ -748,7 +683,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         .trim();
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: liveUrl,
-      title: liveTitle.isEmpty ? 'Live' : liveTitle,
+      title: liveTitle.isEmpty ? AppLocalizations.of(context)!.live : liveTitle,
       streamId: widget.streamId,
     )));
   }
@@ -811,12 +746,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 color: Colors.amber.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text('REPLAY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
+              child: Text(AppLocalizations.of(context)!.replay, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
             ),
           if (_isCatchupMode && widget.streamId != null)
             TextButton.icon(
               icon: const Icon(Icons.circle, size: 10, color: Colors.redAccent),
-              label: const Text('LIVE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+              label: Text(AppLocalizations.of(context)!.live, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
               style: TextButton.styleFrom(
                 backgroundColor: Colors.redAccent.withValues(alpha: 0.2),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -827,14 +762,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_isLiveMode && widget.channelList != null && widget.channelList!.length > 1) ...[
             IconButton(
               icon: const Icon(Icons.keyboard_arrow_up, size: 22),
-              tooltip: 'Cha\u00eene pr\u00e9c\u00e9dente (P)',
+              tooltip: '${AppLocalizations.of(context)!.chainePrecSuiv} (P)',
               onPressed: () => _zapChannel(-1),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
               icon: const Icon(Icons.keyboard_arrow_down, size: 22),
-              tooltip: 'Cha\u00eene suivante (N)',
+              tooltip: '${AppLocalizations.of(context)!.chainePrecSuiv} (N)',
               onPressed: () => _zapChannel(1),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -844,7 +779,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_epgListings.length > 1)
             IconButton(
               icon: const Icon(Icons.calendar_today, size: 20),
-              tooltip: 'Guide TV',
+              tooltip: AppLocalizations.of(context)!.guideTV,
               onPressed: () => showEpgGuide(context,
                 epgListings: _epgListings,
                 catchupSupported: _catchupSupported,
@@ -854,12 +789,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_epgNext != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Center(child: Text('Suivant : $_epgNext',
+              child: Center(child: Text(AppLocalizations.of(context)!.suivantEpg(_epgNext!),
                   style: const TextStyle(fontSize: 11, color: Colors.white38),
                   overflow: TextOverflow.ellipsis)),
             ),
           if (hasTracks)
-            IconButton(icon: const Icon(Icons.tune), tooltip: 'Audio / Sous-titres',
+            IconButton(icon: const Icon(Icons.tune), tooltip: '${AppLocalizations.of(context)!.langueAudio} / ${AppLocalizations.of(context)!.langueSousTitres}',
                 onPressed: () => showTrackPicker(context,
                   player: _player,
                   audioTracks: _audioTracks,
@@ -867,12 +802,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 )),
           IconButton(
             icon: const Icon(Icons.subtitles, size: 20),
-            tooltip: 'Style sous-titres',
+            tooltip: AppLocalizations.of(context)!.styleSousTitres,
             onPressed: _onSubtitleStylePicker,
           ),
           IconButton(
             icon: const Icon(Icons.aspect_ratio, size: 20),
-            tooltip: 'Ratio d\'aspect',
+            tooltip: AppLocalizations.of(context)!.ratioAspect,
             onPressed: () => showAspectRatioPicker(context,
               currentRatio: _aspectRatio,
               onRatioSelected: _setAspectRatio,
@@ -881,12 +816,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           IconButton(
             icon: Icon(Icons.deblur, size: 20,
                 color: _deinterlace ? AppColors.primaryBlue : Colors.white),
-            tooltip: 'D\u00e9sentrelacement${_deinterlace ? ' (actif)' : ''}',
+            tooltip: AppLocalizations.of(context)!.desentrelacement,
             onPressed: _toggleDeinterlace,
           ),
           IconButton(
             icon: const Icon(Icons.speed),
-            tooltip: 'Vitesse',
+            tooltip: AppLocalizations.of(context)!.vitesseLecture,
             onPressed: () => showSpeedPicker(context,
               currentSpeed: _speed,
               onSpeedChanged: (v) {
@@ -899,8 +834,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             icon: Icon(Icons.timer, size: 20,
                 color: _sleepRemaining != null ? Colors.amber : Colors.white),
             tooltip: _sleepRemaining != null
-                ? 'Veille dans ${_sleepRemaining!.inMinutes} min'
-                : 'Minuterie de veille',
+                ? AppLocalizations.of(context)!.veilleActive(_sleepRemaining!.inMinutes)
+                : AppLocalizations.of(context)!.minuterieVeille,
             onPressed: () => showSleepTimerPicker(context,
               sleepRemaining: _sleepRemaining,
               onCancel: _cancelSleepTimer,
@@ -909,7 +844,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.picture_in_picture_alt, size: 20),
-            tooltip: 'Mini-player',
+            tooltip: AppLocalizations.of(context)!.miniPlayer,
             onPressed: _minimize,
           ),
           const SizedBox(width: 4),
@@ -944,7 +879,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Retour'),
+                child: Text(AppLocalizations.of(context)!.retour),
               ),
             ]),
           )),

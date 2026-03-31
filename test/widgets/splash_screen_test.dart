@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:unistream/core/colors.dart';
 import 'package:unistream/screens/splash_screen.dart';
 
 import '../helpers/test_wrapper.dart';
@@ -15,11 +14,11 @@ void main() {
       expect(find.text('UniStream'), findsOneWidget);
     });
 
-    testWidgets('shows live_tv icon', (tester) async {
+    testWidgets('shows logo image', (tester) async {
       await tester.pumpWidget(testApp(const SplashScreen()));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byIcon(Icons.live_tv), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
     });
 
     testWidgets('animation progresses after pumping frames', (tester) async {

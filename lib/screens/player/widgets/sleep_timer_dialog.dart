@@ -23,7 +23,7 @@ void showSleepTimerPicker(BuildContext context, {
             ListTile(
               dense: true,
               leading: const Icon(Icons.cancel, color: Colors.redAccent, size: 20),
-              title: Text('Annuler (${sleepRemaining.inMinutes} min restantes)',
+              title: Text(AppLocalizations.of(context)!.annulerMinuterie(sleepRemaining.inMinutes),
                   style: const TextStyle(color: Colors.redAccent)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -34,7 +34,7 @@ void showSleepTimerPicker(BuildContext context, {
             ListTile(
               dense: true,
               leading: const Icon(Icons.timer, color: Colors.white38, size: 20),
-              title: Text('$m minutes'),
+              title: Text(AppLocalizations.of(context)!.xMinutes(m)),
               onTap: () {
                 Navigator.pop(ctx);
                 onStart(Duration(minutes: m));

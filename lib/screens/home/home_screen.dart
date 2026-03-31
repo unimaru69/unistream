@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -16,7 +14,10 @@ import '../../models/vod_item.dart';
 import '../../models/series_item.dart';
 import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
+import '../../utils/api_error_localizer.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../utils/routes.dart';
+import '../../utils/stream_helpers.dart';
 import '../../models/content_mode.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
@@ -26,12 +27,14 @@ import '../settings_screen.dart';
 import '../series_detail_screen.dart';
 import '../player/player_screen.dart';
 import '../history_screen.dart';
-import '../epg_grid_screen.dart';
+import '../epg/epg_grid_screen.dart';
 import '../search_screen.dart';
 import 'widgets/category_sidebar.dart';
 import 'widgets/stream_list.dart';
 import 'widgets/continue_watching_row.dart';
 import 'widgets/collection_dialogs.dart';
+import 'widgets/shortcuts_dialog.dart';
+import 'widgets/offline_content.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -70,6 +73,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   double _sidebarWidth = 250;
   static const double _sidebarMin = 150;
   static const double _sidebarMax = 400;
+
+  // Scaffold key for drawer on narrow screens
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -114,9 +120,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _showAddToCollectionPicker(dynamic stream) async {
     final key = _favKey(_mode.key, stream);
-    final name = _getStreamName(stream);
-    final cover = _getStreamIcon(stream);
-    final item = <String, dynamic>{'key': key, 'name': name.isEmpty ? 'Sans titre' : name, 'cover': cover, 'mode': _mode.key};
+    final name = getStreamName(stream);
+    final cover = getStreamIcon(stream);
+    final item = <String, dynamic>{'key': key, 'name': name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name, 'cover': cover, 'mode': _mode.key};
 
     final collections = ref.read(collectionsProvider);
     final modeCols = collections.where((c) =>
@@ -144,10 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) {
         final cols = ref.read(collectionsProvider);
         final colName = cols.firstWhere((c) => c['id'] == colId, orElse: () => {'name': 'collection'})['name'];
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Ajoute a "$colName"'),
-          backgroundColor: AppColors.darkSurface,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.ajouteACollection(colName));
       }
     }
   }
@@ -200,17 +203,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final colId = col['id'] as String;
     for (final s in items) {
       final key = _favKey(_mode.key, s);
-      final itemName = _getStreamName(s);
-      final cover = _getStreamIcon(s);
-      final item = <String, dynamic>{'key': key, 'name': itemName.isEmpty ? 'Sans titre' : itemName, 'cover': cover, 'mode': _mode.key};
+      final itemName = getStreamName(s);
+      final cover = getStreamIcon(s);
+      final item = <String, dynamic>{'key': key, 'name': itemName.isEmpty ? AppLocalizations.of(context)!.sansTitre : itemName, 'cover': cover, 'mode': _mode.key};
       await ref.read(collectionsProvider.notifier).addItem(colId, item);
     }
     _exitSelectionMode();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Collection "$name" créée avec ${items.length} éléments'),
-        backgroundColor: AppColors.darkSurface,
-      ));
+      showAppSnackBar(context, AppLocalizations.of(context)!.collectionCreeAvec(name, items.length));
     }
   }
 
@@ -219,8 +219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final list = List<dynamic>.from(_streams);
     switch (_sortMode) {
       case 'alpha':
-        list.sort((a, b) => _getStreamName(a).toLowerCase()
-            .compareTo(_getStreamName(b).toLowerCase()));
+        list.sort((a, b) => getStreamName(a).toLowerCase()
+            .compareTo(getStreamName(b).toLowerCase()));
         break;
       case 'number':
         list.sort((a, b) {
@@ -235,8 +235,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final aFav = favKeys.contains(_favKey(_mode.key, a)) ? 0 : 1;
           final bFav = favKeys.contains(_favKey(_mode.key, b)) ? 0 : 1;
           if (aFav != bFav) return aFav.compareTo(bFav);
-          return _getStreamName(a).toLowerCase()
-              .compareTo(_getStreamName(b).toLowerCase());
+          return getStreamName(a).toLowerCase()
+              .compareTo(getStreamName(b).toLowerCase());
         });
         break;
     }
@@ -254,107 +254,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await p.setDouble(StorageKeys.sidebarWidth, _sidebarWidth);
   }
 
-  // ── Typed stream helpers ──
-  static String _getStreamId(dynamic stream) {
-    if (stream is Channel) return stream.streamId.toString();
-    if (stream is VodItem) return stream.streamId.toString();
-    if (stream is SeriesItem) return stream.seriesId.toString();
-    if (stream is Map<String, dynamic>) {
-      return (stream['series_id'] ?? stream['stream_id'])?.toString() ?? '';
-    }
-    return '';
-  }
-
-  static String _getStreamName(dynamic stream) {
-    if (stream is Channel) return stream.name;
-    if (stream is VodItem) return stream.name;
-    if (stream is SeriesItem) return stream.name;
-    if (stream is Map<String, dynamic>) return stream['name']?.toString() ?? '';
-    return '';
-  }
-
-  static String _getStreamIcon(dynamic stream) {
-    if (stream is Channel) return stream.displayIcon;
-    if (stream is VodItem) return stream.displayIcon;
-    if (stream is SeriesItem) return stream.displayIcon;
-    if (stream is Map<String, dynamic>) {
-      return stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
-    }
-    return '';
-  }
-
-  /// Convert a typed model to a Map for storage in favorites/watchlist/collections.
-  Map<String, dynamic> _streamToMap(dynamic stream) {
-    if (stream is Channel) {
-      return {
-        'stream_id': stream.streamId,
-        'name': stream.name,
-        'stream_icon': stream.streamIcon,
-        'cover': stream.cover,
-        'category_id': stream.categoryId,
-        'category_name': stream.categoryName,
-        'tv_archive': stream.tvArchive,
-        'tv_archive_duration': stream.tvArchiveDuration,
-        'added': stream.added,
-        'last_modified': stream.lastModified,
-      };
-    }
-    if (stream is VodItem) {
-      return {
-        'stream_id': stream.streamId,
-        'name': stream.name,
-        'stream_icon': stream.streamIcon,
-        'cover': stream.cover,
-        'container_extension': stream.containerExtension,
-        'category_id': stream.categoryId,
-        'category_name': stream.categoryName,
-        'rating': stream.rating,
-        'stream_type': stream.streamType,
-        'plot': stream.plot,
-        'description': stream.description,
-        'added': stream.added,
-        'last_modified': stream.lastModified,
-      };
-    }
-    if (stream is SeriesItem) {
-      return {
-        'series_id': stream.seriesId,
-        'name': stream.name,
-        'cover': stream.cover,
-        'stream_icon': stream.streamIcon,
-        'category_id': stream.categoryId,
-        'category_name': stream.categoryName,
-        'num_seasons': stream.numSeasons,
-        'rating': stream.rating,
-        'plot': stream.plot,
-        'description': stream.description,
-        'added': stream.added,
-        'last_modified': stream.lastModified,
-      };
-    }
-    if (stream is Map<String, dynamic>) return stream;
-    return {};
-  }
-
   // ── Favorites / Watchlist ──
   String _favKey(String mode, dynamic s) {
     if (s is Map<String, dynamic>) {
       final id = mode == 'series' ? s['series_id']?.toString() : s['stream_id']?.toString();
       return '$mode:$id';
     }
-    final id = mode == 'series' ? _getStreamId(s) : _getStreamId(s);
+    final id = mode == 'series' ? getStreamId(s) : getStreamId(s);
     return '$mode:$id';
   }
 
   void _toggleFavorite(dynamic stream) {
     final key = _favKey(_mode.key, stream);
-    final map = _streamToMap(stream);
+    final map = streamToMap(stream);
     ref.read(favoritesProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
   }
 
   void _toggleWatchlist(dynamic stream) {
     final key = _favKey(_mode.key, stream);
-    final map = _streamToMap(stream);
+    final map = streamToMap(stream);
     ref.read(watchlistProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
   }
 
@@ -367,7 +285,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         setState(() => _isOffline = false);
         await _loadCategories();
       } else {
-        setState(() { _error = 'Authentification échouée'; _loading = false; });
+        setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
       }
     } catch (e) {
       setState(() { _isOffline = true; _loading = false; _error = null; });
@@ -394,7 +312,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       setState(() => _loading = false);
       _loadRecentlyAdded();
     } catch (e) {
-      setState(() { _error = XtreamApi.friendlyError(e); _loading = false; });
+      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
     }
   }
 
@@ -411,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final added = (s is VodItem ? s.added : s is SeriesItem ? s.added : null)?.toString() ?? '0';
         final lastMod = (s is VodItem ? s.lastModified : s is SeriesItem ? s.lastModified : null)?.toString() ?? '0';
         return (added.isNotEmpty && added != '0') || (lastMod.isNotEmpty && lastMod != '0');
-      }).map((s) => _streamToMap(s)).toList();
+      }).map((s) => streamToMap(s)).toList();
       items.sort((a, b) {
         final ta = int.tryParse(a['added']?.toString() ?? '0') ?? 0;
         final tb = int.tryParse(b['added']?.toString() ?? '0') ?? 0;
@@ -444,14 +362,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       };
       setState(() => _loadingStreams = false);
     } catch (e) {
-      setState(() { _error = XtreamApi.friendlyError(e); _loadingStreams = false; });
+      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingStreams = false; });
     }
   }
 
   // ── Navigation ──
   void _playStream(dynamic stream) {
-    final name = _getStreamName(stream);
-    final displayName = name.isEmpty ? 'Sans titre' : name;
+    final name = getStreamName(stream);
+    final displayName = name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name;
 
     if (_mode == ContentMode.series) {
       final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
@@ -467,8 +385,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final String url;
     final String? resumeKey;
-    final cover = _getStreamIcon(stream);
-    final streamId = _getStreamId(stream);
+    final cover = getStreamIcon(stream);
+    final streamId = getStreamId(stream);
     if (_mode == ContentMode.live) {
       url = XtreamApi.getLiveStreamUrl(streamId);
       resumeKey = null;
@@ -484,7 +402,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     List<Map<String, dynamic>>? channelList;
     int? channelIndex;
     if (_mode == ContentMode.live) {
-      channelList = _sortedStreams.map((e) => _streamToMap(e)).toList();
+      channelList = _sortedStreams.map((e) => streamToMap(e)).toList();
       channelIndex = channelList.indexWhere((ch) => ch['stream_id']?.toString() == streamId);
       if (channelIndex < 0) channelIndex = null;
     }
@@ -508,65 +426,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String? _progressKey(dynamic stream) {
     if (_mode == ContentMode.live) return null;
-    return _getStreamId(stream);
+    return getStreamId(stream);
   }
 
-  void _showShortcutsHelp() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: Text(AppLocalizations.of(context)!.raccourcisClavier, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: SizedBox(
-          width: 340,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _shortcutRow('Cmd+Q', 'Quitter'),
-                _shortcutRow('Cmd+,', 'Réglages'),
-                _shortcutRow('Cmd+F', 'Rechercher'),
-                _shortcutRow('Cmd+Y', 'Historique'),
-                _shortcutRow('Cmd+G', 'Guide TV'),
-                _shortcutRow('Cmd+?', 'Cette aide'),
-                const SizedBox(height: 16),
-                const Text('Lecteur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70)),
-                const Divider(color: Colors.white12, height: 12),
-                _shortcutRow('Espace', 'Lecture / Pause'),
-                _shortcutRow('\u2190 / \u2192', 'Reculer / Avancer 10s (VOD)'),
-                _shortcutRow('\u2191 / \u2193', 'Volume +/- (VOD) / Zapping (Live)'),
-                _shortcutRow('F', 'Plein écran'),
-                _shortcutRow('M', 'Couper le son'),
-                _shortcutRow('Esc', 'Quitter le lecteur'),
-                const SizedBox(height: 16),
-                const Text('Lecteur Live', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70)),
-                const Divider(color: Colors.white12, height: 12),
-                _shortcutRow('\u2191 / \u2193', 'Chaîne précédente / suivante'),
-                _shortcutRow('P / N', 'Chaîne précédente / suivante'),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.fermer)),
-        ],
-      ),
-    );
-  }
-
-  Widget _shortcutRow(String key, String desc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        SizedBox(
-          width: 80,
-          child: Text(key, style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: AppColors.primaryBlue)),
-        ),
-        Expanded(child: Text(desc, style: const TextStyle(fontSize: 12, color: Colors.white70))),
-      ]),
-    );
-  }
+  void _showShortcutsHelp() => showShortcutsDialog(context);
 
   Future<void> _openSettings() async {
     final reload = await Navigator.push<bool>(
@@ -581,7 +444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showStreamInfoDialog(dynamic s) {
-    final map = _streamToMap(s);
+    final map = streamToMap(s);
     showStreamInfoDialogWithEpg(
       context,
       stream: map,
@@ -589,6 +452,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onAddToCollection: () => _showAddToCollectionPicker(s),
       getCachedEpgNow: (streamId) => XtreamApi.getCachedEpgNow(streamId),
       getShortEpg: (streamId, {int limit = 1}) => XtreamApi.getShortEpg(streamId, limit: limit),
+    );
+  }
+
+  Widget _buildSidebarDrawer(List<Map<String, dynamic>> collections) {
+    return Drawer(
+      backgroundColor: AppColors.darkSurface,
+      child: SafeArea(
+        child: CategorySidebar(
+          width: 280,
+          minWidth: 280,
+          maxWidth: 280,
+          onWidthChanged: (_) {},
+          onDragEnd: () {},
+          categories: _categories,
+          collections: collections,
+          mode: _mode,
+          selectedCategory: _selectedCategory,
+          progress: ref.read(watchProgressProvider).valueOrNull ?? {},
+          favItems: ref.read(favoritesProvider).items,
+          wlItems: ref.read(watchlistProvider).items,
+          onCategorySelected: (id) {
+            Navigator.pop(context);
+            _loadStreams(id);
+          },
+          onSpecialCategorySelected: (cat, items) {
+            Navigator.pop(context);
+            setState(() {
+              _selectedCategory = cat;
+              _streams = items;
+            });
+          },
+          onHistoryTap: () {
+            Navigator.pop(context);
+            Navigator.push(context, fadeRoute(const HistoryScreen()))
+                .then((_) => _refreshProgress());
+          },
+          onCreateCollection: () {
+            Navigator.pop(context);
+            _createCollection();
+          },
+          onCollectionSelected: (colId) {
+            Navigator.pop(context);
+            final cols = ref.read(collectionsProvider);
+            final col = cols.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
+            final colItems = ((col['items'] as List?) ?? [])
+                .where((e) => e['mode'] == _mode.key)
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+            setState(() {
+              _selectedCategory = '__col_${colId}__';
+              _streams = colItems;
+            });
+          },
+          onDeleteCollection: (colId) async {
+            await ref.read(collectionsProvider.notifier).delete(colId);
+            if (_selectedCategory == '__col_${colId}__') {
+              setState(() { _selectedCategory = null; _streams = []; });
+            }
+          },
+        ),
+      ),
     );
   }
 
@@ -645,15 +569,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return KeyEventResult.ignored;
       },
       child: Scaffold(
+      key: _scaffoldKey,
+      drawer: _buildSidebarDrawer(collections),
       appBar: AppBar(
         title: const Text('UniStream', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: MediaQuery.of(context).size.width < 600
+            ? IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              )
+            : null,
+        automaticallyImplyLeading: false,
         actions: [
           if (AppConfig.profiles.length > 1)
             PopupMenuButton<String>(
               icon: const Icon(Icons.account_circle_outlined),
-              tooltip: 'Changer de profil',
+              tooltip: AppLocalizations.of(context)!.changerProfil,
               onSelected: (id) async {
                 await ref.read(configProvider.notifier).switchProfile(id);
                 ref.read(favoritesProvider.notifier).load();
@@ -684,17 +617,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             borderRadius: BorderRadius.circular(8),
             selectedColor: Colors.white,
             fillColor: AppColors.primaryBlue,
-            children: const [
-              Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Live')),
-              Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('VOD')),
-              Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Séries')),
+            children: [
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.live)),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.vod)),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.series)),
             ],
           ),
           const SizedBox(width: 4),
           if (_mode != ContentMode.live)
             IconButton(
               icon: Icon(showGrid ? Icons.view_list : Icons.grid_view),
-              tooltip: showGrid ? 'Vue liste' : 'Vue grille',
+              tooltip: showGrid ? AppLocalizations.of(context)!.vueListe : AppLocalizations.of(context)!.vueGrille,
               onPressed: () { setState(() => _gridView = !_gridView); _saveGridView(); },
             ),
           PopupMenuButton<String>(
@@ -704,15 +637,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             itemBuilder: (_) => [
               PopupMenuItem(value: 'default', child: Row(children: [
                 Icon(_sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), const Text('Ordre par défaut', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.ordreParDefaut, style: const TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'alpha', child: Row(children: [
                 Icon(_sortMode == 'alpha' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), const Text('Alphabétique', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.alphabetique, style: const TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'number', child: Row(children: [
                 Icon(_sortMode == 'number' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), const Text('Par numéro', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.parNumero, style: const TextStyle(fontSize: 13)),
               ])),
               PopupMenuItem(value: 'favFirst', child: Row(children: [
                 Icon(_sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
@@ -720,17 +653,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ])),
             ],
           ),
-          IconButton(icon: const Icon(Icons.live_tv), tooltip: 'Guide TV',
+          IconButton(icon: const Icon(Icons.live_tv), tooltip: AppLocalizations.of(context)!.guideTV,
               onPressed: () => Navigator.push(context,
                   slideRoute(EpgGridScreen(
                     initialCategoryId: _mode == ContentMode.live ? _selectedCategory : null,
                   )))),
-          IconButton(icon: const Icon(Icons.search), tooltip: 'Recherche globale',
+          IconButton(icon: const Icon(Icons.search), tooltip: AppLocalizations.of(context)!.rechercheGlobale,
               onPressed: () => Navigator.push(context,
                   fadeRoute(const SearchScreen()))
                   .then((_) => _refreshProgress())),
           IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: AppLocalizations.of(context)!.parametres),
-          IconButton(icon: const Icon(Icons.help_outline, size: 20), onPressed: _showShortcutsHelp, tooltip: 'Raccourcis clavier (Cmd+?)'),
+          IconButton(icon: const Icon(Icons.help_outline, size: 20), onPressed: _showShortcutsHelp, tooltip: '${AppLocalizations.of(context)!.raccourcisClavier} (Cmd+?)'),
           const SizedBox(width: 4),
         ],
       ),
@@ -742,10 +675,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
               Text(_error!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: _init, child: const Text('Réessayer')),
+              ElevatedButton(onPressed: _init, child: Text(AppLocalizations.of(context)!.reessayer)),
             ]))
           : _isOffline
-          ? _buildOfflineBody()
+          ? OfflineContent(onRetryConnection: _retryConnection)
           : Column(children: [
               ContinueWatchingRow(
                 items: continueItems,
@@ -762,8 +695,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 mode: _mode,
                 onTap: _playStream,
               ),
-              Expanded(child: Row(children: [
-              CategorySidebar(
+              Expanded(child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 600;
+                  return Row(children: [
+              if (isWide) CategorySidebar(
                 width: _sidebarWidth,
                 minWidth: _sidebarMin,
                 maxWidth: _sidebarMax,
@@ -853,131 +789,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   favKeyBuilder: _favKey,
                   itemSelectionKeyBuilder: _itemSelectionKey,
                   progressKeyBuilder: _progressKey,
+                  onRefresh: _selectedCategory != null ? () async {
+                    await _loadStreams(_selectedCategory!);
+                  } : null,
                 ),
               ),
-            ])),
+            ]);
+                },
+              )),
           ]),
     ),
     );
   }
 
-  // ── Offline body ──
-  Widget _buildOfflineBody() {
-    final offlineContinueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
-    final offlineFavItems = ref.watch(favoritesProvider).items;
-    return Column(children: [
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        color: Colors.orange.withValues(alpha: 0.15),
-        child: Row(children: [
-          const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('Mode hors-ligne — Serveur indisponible',
-              style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600))),
-          TextButton.icon(
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Réessayer', style: TextStyle(fontSize: 12)),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            onPressed: _retryConnection,
-          ),
-        ]),
-      ),
-      Expanded(child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (offlineContinueItems.isNotEmpty) ...[
-            Text(AppLocalizations.of(context)!.continuerRegarder,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: offlineContinueItems.length,
-                itemBuilder: (_, i) {
-                  final item  = offlineContinueItems[i];
-                  final ratio = item['_ratio'] as double;
-                  final cover = item['cover'] as String? ?? '';
-                  final name  = item['name']  as String? ?? '';
-                  return Tooltip(
-                    message: AppLocalizations.of(context)!.connexionRequise,
-                    child: Opacity(
-                      opacity: 0.5,
-                      child: Container(
-                        width: 90,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          Expanded(child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Stack(fit: StackFit.expand, children: [
-                              cover.isNotEmpty
-                                  ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
-                                      placeholder: (_, __) => Container(color: Colors.white10),
-                                      errorWidget: (_, __, ___) => Container(color: Colors.white10,
-                                          child: const Icon(Icons.movie, color: Colors.white24)))
-                                  : Container(color: Colors.white10,
-                                      child: const Icon(Icons.movie, color: Colors.white24)),
-                              Positioned(bottom: 0, left: 0, right: 0,
-                                child: LinearProgressIndicator(
-                                  value: ratio,
-                                  backgroundColor: Colors.black45,
-                                  color: Colors.amber,
-                                  minHeight: 3,
-                                ),
-                              ),
-                              const Center(child: Icon(Icons.cloud_off, color: Colors.white38, size: 20)),
-                            ]),
-                          )),
-                          const SizedBox(height: 3),
-                          Text(name, style: const TextStyle(fontSize: 10, color: Colors.white60),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ]),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-          if (offlineFavItems.isNotEmpty) ...[
-            Text(AppLocalizations.of(context)!.favoris,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
-            const SizedBox(height: 8),
-            ...(offlineFavItems.take(20).map((item) {
-              final name = item['name'] as String? ?? '';
-              final cover = item['cover']?.toString() ?? item['stream_icon']?.toString() ?? '';
-              return Tooltip(
-                message: AppLocalizations.of(context)!.connexionRequise,
-                child: ListTile(
-                  leading: cover.isNotEmpty
-                      ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                          child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => const Icon(Icons.star, color: Colors.amber, size: 20)))
-                      : const Icon(Icons.star, color: Colors.amber, size: 20),
-                  title: Text(name, style: const TextStyle(fontSize: 13)),
-                  trailing: const Icon(Icons.cloud_off, color: Colors.white24, size: 16),
-                  dense: true,
-                  enabled: false,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              );
-            })),
-            const SizedBox(height: 24),
-          ],
-          if (offlineContinueItems.isEmpty && offlineFavItems.isEmpty)
-            Center(child: Padding(
-              padding: const EdgeInsets.only(top: 60),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off, size: 64, color: Colors.white24),
-                const SizedBox(height: 16),
-                Text(AppLocalizations.of(context)!.aucuneDonneesCache,
-                    style: const TextStyle(color: Colors.white38, fontSize: 16)),
-              ]),
-            )),
-        ]),
-      )),
-    ]);
-  }
 }

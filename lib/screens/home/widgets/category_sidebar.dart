@@ -151,7 +151,7 @@ class CategorySidebar extends StatelessWidget {
                     ),
                 ],
               ),
-              title: Text('À regarder$countLabel', style: TextStyle(fontSize: 13,
+              title: Text('${l10n.aRegarder}$countLabel', style: TextStyle(fontSize: 13,
                   color: sel ? Colors.white : Colors.white60,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
@@ -189,7 +189,7 @@ class CategorySidebar extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(top: 6, bottom: 2, left: 8, right: 4),
             child: Row(children: [
-              const Text('COLLECTIONS', style: TextStyle(fontSize: 10,
+              Text(l10n.collectionsSection, style: const TextStyle(fontSize: 10,
                   fontWeight: FontWeight.bold, color: Colors.white30, letterSpacing: 0.8)),
               const Spacer(),
               SizedBox(
@@ -234,7 +234,30 @@ class CategorySidebar extends StatelessWidget {
                   iconSize: 16,
                   icon: const Icon(Icons.delete_outline, size: 16, color: Colors.white24),
                   tooltip: l10n.supprimer,
-                  onPressed: () => onDeleteCollection(col['id'] as String),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.darkSurface,
+                        title: Text(l10n.confirmerSupprimerCollection,
+                            style: const TextStyle(fontSize: 16)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text(l10n.annuler),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: Text(l10n.supprimer,
+                                style: const TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      onDeleteCollection(col['id'] as String);
+                    }
+                  },
                 ),
               ),
             ),

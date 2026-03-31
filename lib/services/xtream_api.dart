@@ -29,8 +29,11 @@ Future<http.Response> httpGet(String url) async {
     }
     await Future.delayed(Duration(milliseconds: 500 * (i + 1)));
   }
-  throw Exception('Echec apres $_maxRetries tentatives');
+  throw Exception('Retry limit reached after $_maxRetries attempts');
 }
+
+// ── API Error Keys ──
+enum ApiErrorKey { network, timeout, client, format, auth, generic }
 
 // ── EPG Cache ──
 class EpgCacheEntry {
@@ -41,20 +44,39 @@ class EpgCacheEntry {
 
 // ── API Xtream Codes ──
 class XtreamApi {
-  /// Translate technical error messages into user-friendly French.
-  static String friendlyError(dynamic error) {
+  /// Map a technical error to an [ApiErrorKey] for localization at the UI layer.
+  static ApiErrorKey errorKey(dynamic error) {
     final msg = error.toString();
-    if (msg.contains('SocketException') || msg.contains('Failed host lookup'))
-      return 'Connexion impossible. Vérifiez votre connexion internet.';
-    if (msg.contains('TimeoutException'))
-      return 'Le serveur ne répond pas. Réessayez dans quelques instants.';
-    if (msg.contains('ClientException'))
-      return 'Erreur de communication avec le serveur.';
-    if (msg.contains('FormatException'))
-      return 'Réponse invalide du serveur.';
-    if (msg.contains('401') || msg.contains('auth'))
-      return 'Identifiants incorrects. Vérifiez votre nom d\'utilisateur et mot de passe.';
-    return 'Une erreur est survenue. Réessayez.';
+    if (msg.contains('SocketException') || msg.contains('Failed host lookup')) {
+      return ApiErrorKey.network;
+    }
+    if (msg.contains('TimeoutException')) {
+      return ApiErrorKey.timeout;
+    }
+    if (msg.contains('ClientException')) {
+      return ApiErrorKey.client;
+    }
+    if (msg.contains('FormatException')) {
+      return ApiErrorKey.format;
+    }
+    if (msg.contains('401') || msg.contains('auth')) {
+      return ApiErrorKey.auth;
+    }
+    return ApiErrorKey.generic;
+  }
+
+  /// Legacy helper — kept for backward compat, delegates to [errorKey].
+  @Deprecated('Use errorKey() + localizeApiError() instead')
+  static String friendlyError(dynamic error) {
+    // Fallback French — only used if localization context unavailable
+    switch (errorKey(error)) {
+      case ApiErrorKey.network: return 'Connexion impossible.';
+      case ApiErrorKey.timeout: return 'Le serveur ne répond pas.';
+      case ApiErrorKey.client: return 'Erreur de communication.';
+      case ApiErrorKey.format: return 'Réponse invalide du serveur.';
+      case ApiErrorKey.auth: return 'Identifiants incorrects.';
+      case ApiErrorKey.generic: return 'Une erreur est survenue.';
+    }
   }
 
   static final Map<String, EpgCacheEntry> _epgCache = {};

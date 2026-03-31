@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/cache_config.dart';
-import '../models/profile.dart';
 import '../models/app_config.dart';
 import '../providers/config_provider.dart';
 import '../services/xtream_api.dart';
@@ -14,6 +11,9 @@ import '../services/import_export.dart';
 import '../core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/storage_keys.dart';
+import '../utils/api_error_localizer.dart';
+import '../utils/snackbar_helper.dart';
+import 'profiles/profiles_screen.dart';
 
 import '../utils/theme.dart';
 import '../providers/locale_provider.dart';
@@ -97,7 +97,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
-      setState(() { _error = XtreamApi.friendlyError(e); _saving = false; });
+      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _saving = false; });
     }
   }
 
@@ -112,16 +112,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final content = await file.readAsString();
       final entries = ImportExport.parseM3U(content);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${entries.length} entrees importees depuis M3U'),
-        backgroundColor: AppColors.darkSurface,
-      ));
+      final l10n = AppLocalizations.of(context)!;
+      showAppSnackBar(context, l10n.entreesImporteesMu3(entries.length));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur import: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.erreurImport(e.toString()), isError: true);
       }
     }
   }
@@ -134,17 +129,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final file = File('$dir/unistream_favoris.m3u');
       await file.writeAsString(m3u);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Favoris exportes -> ${file.path}'),
-          backgroundColor: AppColors.darkSurface,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.favorisExportesVers(file.path));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur export: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.erreurExport(e.toString()), isError: true);
       }
     }
   }
@@ -157,17 +146,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final file = File('$dir/unistream_backup.json');
       await file.writeAsString(json);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Configuration sauvegardee -> ${file.path}'),
-          backgroundColor: AppColors.darkSurface,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.configSauvegardeeVers(file.path));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur sauvegarde: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.erreurSauvegarde(e.toString()), isError: true);
       }
     }
   }
@@ -183,18 +166,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final content = await file.readAsString();
       await ImportExport.importConfigJSON(content);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Configuration restauree. Redemarrage...'),
-          backgroundColor: AppColors.darkSurface,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.configRestauree);
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur restauration: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        showAppSnackBar(context, AppLocalizations.of(context)!.erreurRestauration(e.toString()), isError: true);
       }
     }
   }
@@ -208,17 +185,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _field('URL du serveur', _serverCtrl, hint: 'http://monserveur.com:8080', icon: Icons.dns),
+            child: Builder(builder: (context) {
+            final l10n = AppLocalizations.of(context)!;
+            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _field(l10n.serverUrl, _serverCtrl, hint: 'http://monserveur.com:8080', icon: Icons.dns),
               const SizedBox(height: 16),
-              _field('Nom d\'utilisateur', _userCtrl, hint: 'username', icon: Icons.person),
+              _field(l10n.nomUtilisateur, _userCtrl, hint: 'username', icon: Icons.person),
               const SizedBox(height: 16),
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscure,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe',
+                  labelText: l10n.motDePasse,
                   prefixIcon: const Icon(Icons.lock, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, size: 20),
@@ -260,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     if (reload == true && mounted) Navigator.pop(context, true);
                   },
                   icon: const Icon(Icons.people_outline, size: 18),
-                  label: const Text('Gerer les profils'),
+                  label: Text(l10n.gererProfilsBouton),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -271,9 +250,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: Text('IMPORT / EXPORT', style: TextStyle(fontSize: 11,
+                child: Text(l10n.importExport, style: const TextStyle(fontSize: 11,
                     fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1)),
               ),
               const SizedBox(height: 12),
@@ -281,7 +260,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(child: OutlinedButton.icon(
                   onPressed: _importM3U,
                   icon: const Icon(Icons.file_upload_outlined, size: 18),
-                  label: const Text('Import M3U'),
+                  label: Text(l10n.importM3U),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -293,7 +272,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(child: OutlinedButton.icon(
                   onPressed: _exportFavorites,
                   icon: const Icon(Icons.file_download_outlined, size: 18),
-                  label: const Text('Export favoris'),
+                  label: Text(l10n.exportFavoris),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -307,7 +286,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(child: OutlinedButton.icon(
                   onPressed: _backupConfig,
                   icon: const Icon(Icons.backup_outlined, size: 18),
-                  label: const Text('Sauvegarder'),
+                  label: Text(l10n.sauvegarderConfigBtn),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -319,7 +298,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(child: OutlinedButton.icon(
                   onPressed: _restoreConfig,
                   icon: const Icon(Icons.restore, size: 18),
-                  label: const Text('Restaurer'),
+                  label: Text(l10n.restaurerConfigBtn),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -331,9 +310,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: Text('APPARENCE', style: TextStyle(fontSize: 11,
+                child: Text(l10n.apparence, style: const TextStyle(fontSize: 11,
                     fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1)),
               ),
               const SizedBox(height: 12),
@@ -342,13 +321,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 builder: (context, mode, _) => Row(children: [
                   const Icon(Icons.brightness_6, size: 20, color: Colors.white54),
                   const SizedBox(width: 12),
-                  const Text('Theme', style: TextStyle(fontSize: 14)),
+                  Text(l10n.themeMode, style: const TextStyle(fontSize: 14)),
                   const Spacer(),
                   SegmentedButton<ThemeMode>(
-                    segments: const [
-                      ButtonSegment(value: ThemeMode.system, label: Text('Systeme', style: TextStyle(fontSize: 12))),
-                      ButtonSegment(value: ThemeMode.dark, label: Text('Sombre', style: TextStyle(fontSize: 12))),
-                      ButtonSegment(value: ThemeMode.light, label: Text('Clair', style: TextStyle(fontSize: 12))),
+                    segments: [
+                      ButtonSegment(value: ThemeMode.system, label: Text(l10n.themeSysteme, style: const TextStyle(fontSize: 12))),
+                      ButtonSegment(value: ThemeMode.dark, label: Text(l10n.themeSombre, style: const TextStyle(fontSize: 12))),
+                      ButtonSegment(value: ThemeMode.light, label: Text(l10n.themeClair, style: const TextStyle(fontSize: 12))),
                     ],
                     selected: {mode},
                     onSelectionChanged: (v) => saveThemeMode(v.first),
@@ -382,16 +361,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: Text('LANGUES', style: TextStyle(fontSize: 11,
+                child: Text(l10n.langues, style: const TextStyle(fontSize: 11,
                     fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1)),
               ),
               const SizedBox(height: 12),
               Row(children: [
                 const Icon(Icons.audiotrack, size: 20, color: Colors.white54),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Langue audio préférée', style: TextStyle(fontSize: 14))),
+                Expanded(child: Text(l10n.langueAudioPreferee, style: const TextStyle(fontSize: 14))),
                 DropdownButton<String>(
                   value: _prefAudioLang,
                   dropdownColor: AppColors.darkSurface,
@@ -411,14 +390,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Row(children: [
                 const Icon(Icons.subtitles, size: 20, color: Colors.white54),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Langue sous-titres préférée', style: TextStyle(fontSize: 14))),
+                Expanded(child: Text(l10n.langueSousTitresPreferee, style: const TextStyle(fontSize: 14))),
                 DropdownButton<String>(
                   value: _prefSubLang,
                   dropdownColor: AppColors.darkSurface,
                   style: const TextStyle(fontSize: 13, color: Colors.white),
                   underline: const SizedBox.shrink(),
                   items: _subLangOptions.map((opt) => DropdownMenuItem(
-                    value: opt.$1, child: Text(opt.$2),
+                    value: opt.$1, child: Text(opt.$1 == 'off' ? l10n.desactive : opt.$2),
                   )).toList(),
                   onChanged: (v) {
                     if (v == null) return;
@@ -430,31 +409,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: Text('CACHE', style: TextStyle(fontSize: 11,
+                child: Text(l10n.cacheSection, style: const TextStyle(fontSize: 11,
                     fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1)),
               ),
               const SizedBox(height: 12),
               Row(children: [
                 const Icon(Icons.data_usage, size: 20, color: Colors.white54),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Cache EPG : ${XtreamApi.epgCacheSize} entrees',
+                Expanded(child: Text(l10n.cacheEpgEntrees(XtreamApi.epgCacheSize),
                     style: const TextStyle(fontSize: 14))),
               ]),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: OutlinedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.darkSurface,
+                        title: Text(l10n.confirmerViderCache,
+                            style: const TextStyle(fontSize: 16)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text(l10n.annuler),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: Text(l10n.supprimer,
+                                style: const TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
                     XtreamApi.clearEpgCache();
                     setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Cache EPG vide'),
-                      backgroundColor: AppColors.darkSurface,
-                    ));
+                    if (!mounted) return;
+                    showAppSnackBar(context, l10n.cacheEpgVide);
                   },
                   icon: const Icon(Icons.delete_sweep_outlined, size: 18),
-                  label: const Text('Vider le cache EPG'),
+                  label: Text(l10n.viderCacheEpg),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -467,14 +464,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: () async {
                     await AppCacheManager.instance.emptyCache();
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Cache images vide'),
-                        backgroundColor: AppColors.darkSurface,
-                      ));
+                      showAppSnackBar(context, l10n.cacheImagesVide);
                     }
                   },
                   icon: const Icon(Icons.image_not_supported_outlined, size: 18),
-                  label: const Text('Vider le cache images'),
+                  label: Text(l10n.viderCacheImages),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -484,10 +478,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 )),
               ]),
               const SizedBox(height: 8),
-              const Text('Le cache EPG stocke les programmes TV pour un acces rapide. '
-                  'Le cache images stocke les affiches et logos telecharges.',
-                  style: TextStyle(fontSize: 11, color: Colors.white38)),
-            ]),
+              Text(l10n.descriptionCache,
+                  style: const TextStyle(fontSize: 11, color: Colors.white38)),
+            ]);
+            }),
           ),
         ),
       ),
@@ -505,275 +499,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
         ),
       );
-}
-
-// ── Profiles Screen ──
-class ProfilesScreen extends ConsumerStatefulWidget {
-  final Future<void> Function(Profile) onAdd;
-  final Future<void> Function(Profile) onUpdate;
-  final Future<void> Function(String) onDelete;
-  final Future<void> Function(String) onSwitch;
-  const ProfilesScreen({
-    super.key,
-    required this.onAdd,
-    required this.onUpdate,
-    required this.onDelete,
-    required this.onSwitch,
-  });
-  @override
-  ConsumerState<ProfilesScreen> createState() => _ProfilesScreenState();
-}
-
-class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
-  bool _changed = false;
-
-  Future<void> _addProfile() async {
-    final result = await showDialog<Profile>(
-      context: context,
-      builder: (ctx) => const ProfileDialog(),
-    );
-    if (result != null) {
-      await widget.onAdd(result);
-      setState(() => _changed = true);
-    }
-  }
-
-  Future<void> _editProfile(Profile pr) async {
-    final result = await showDialog<Profile>(
-      context: context,
-      builder: (ctx) => ProfileDialog(profile: pr),
-    );
-    if (result != null) {
-      await widget.onUpdate(result);
-      setState(() => _changed = true);
-    }
-  }
-
-  Future<void> _deleteProfile(Profile pr) async {
-    final config = ref.read(configProvider);
-    if (config.profiles.length <= 1) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: Text(AppLocalizations.of(context)!.supprimerProfil),
-        content: Text('Le profil "${pr.name}" et ses donnees seront supprimes.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.annuler)),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: Text(AppLocalizations.of(context)!.supprimer, style: const TextStyle(color: Colors.redAccent))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      final wasActive = pr.id == config.activeProfileId;
-      await widget.onDelete(pr.id);
-      if (wasActive) {
-        final updatedConfig = ref.read(configProvider);
-        if (updatedConfig.profiles.isNotEmpty) {
-          await widget.onSwitch(updatedConfig.profiles.first.id);
-        }
-      }
-      setState(() => _changed = true);
-    }
-  }
-
-  Future<void> _switchTo(Profile pr) async {
-    await widget.onSwitch(pr.id);
-    setState(() => _changed = true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final config = ref.watch(configProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.profils, style: const TextStyle(fontSize: 16)),
-        backgroundColor: Colors.transparent, elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context, _changed),
-        ),
-        actions: [
-          IconButton(icon: const Icon(Icons.add), tooltip: AppLocalizations.of(context)!.ajouterProfil, onPressed: _addProfile),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: config.profiles.length,
-            itemBuilder: (_, i) {
-              final pr = config.profiles[i];
-              final isActive = pr.id == config.activeProfileId;
-              return Card(
-                color: isActive ? AppColors.primaryBlue.withValues(alpha: 0.15) : AppColors.darkSurface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: isActive ? const BorderSide(color: AppColors.primaryBlue, width: 1) : BorderSide.none,
-                ),
-                child: ListTile(
-                  leading: Icon(isActive ? Icons.check_circle : Icons.account_circle_outlined,
-                      color: isActive ? AppColors.primaryBlue : Colors.white38),
-                  title: Text(pr.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(pr.serverUrl, style: const TextStyle(fontSize: 11, color: Colors.white38),
-                      overflow: TextOverflow.ellipsis),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (!isActive)
-                      TextButton(onPressed: () => _switchTo(pr),
-                          child: const Text('Activer', style: TextStyle(fontSize: 12))),
-                    IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _editProfile(pr)),
-                    if (config.profiles.length > 1)
-                      IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                          onPressed: () => _deleteProfile(pr)),
-                  ]),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ProfileDialog extends StatefulWidget {
-  final Profile? profile;
-  const ProfileDialog({super.key, this.profile});
-  @override
-  State<ProfileDialog> createState() => _ProfileDialogState();
-}
-
-class _ProfileDialogState extends State<ProfileDialog> {
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _serverCtrl;
-  late final TextEditingController _userCtrl;
-  late final TextEditingController _passCtrl;
-  bool _testing = false;
-  String? _error;
-  bool _obscure = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl   = TextEditingController(text: widget.profile?.name ?? '');
-    _serverCtrl = TextEditingController(text: widget.profile?.serverUrl ?? '');
-    _userCtrl   = TextEditingController(text: widget.profile?.username ?? '');
-    _passCtrl   = TextEditingController(text: widget.profile?.password ?? '');
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose(); _serverCtrl.dispose(); _userCtrl.dispose(); _passCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final name = _nameCtrl.text.trim();
-    final server = _serverCtrl.text.trim();
-    final user = _userCtrl.text.trim();
-    final pass = _passCtrl.text.trim();
-    if (name.isEmpty || server.isEmpty || user.isEmpty || pass.isEmpty) {
-      setState(() => _error = AppLocalizations.of(context)!.tousChampRequis);
-      return;
-    }
-    setState(() { _testing = true; _error = null; });
-    try {
-      // Test connection
-      final url = '$server/player_api.php?username=$user&password=$pass';
-      final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-      final auth = jsonDecode(r.body);
-      if (auth['user_info']?['auth'] != 1) {
-        setState(() { _error = AppLocalizations.of(context)!.authEchouee; _testing = false; });
-        return;
-      }
-      if (!mounted) return;
-      final pr = Profile(
-        id: widget.profile?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        name: name, serverUrl: server, username: user, password: pass,
-      );
-      Navigator.pop(context, pr);
-    } catch (e) {
-      setState(() { _error = XtreamApi.friendlyError(e); _testing = false; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.darkSurface,
-      title: Text(widget.profile != null ? AppLocalizations.of(context)!.modifierProfil : AppLocalizations.of(context)!.nouveauProfil),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: _nameCtrl,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                labelText: 'Nom du profil', hintText: 'Mon serveur',
-                prefixIcon: const Icon(Icons.label_outline, size: 20),
-                filled: true, fillColor: Colors.white10,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _serverCtrl,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                labelText: 'URL du serveur', hintText: 'http://monserveur.com:8080',
-                prefixIcon: const Icon(Icons.dns, size: 20),
-                filled: true, fillColor: Colors.white10,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _userCtrl,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                labelText: 'Nom d\'utilisateur',
-                prefixIcon: const Icon(Icons.person, size: 20),
-                filled: true, fillColor: Colors.white10,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passCtrl,
-              obscureText: _obscure,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                labelText: 'Mot de passe',
-                prefixIcon: const Icon(Icons.lock, size: 20),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, size: 20),
-                  onPressed: () => setState(() => _obscure = !_obscure),
-                ),
-                filled: true, fillColor: Colors.white10,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-            ],
-          ]),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.annuler)),
-        FilledButton(
-          onPressed: _testing ? null : _save,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primaryBlue),
-          child: _testing
-              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(widget.profile != null ? AppLocalizations.of(context)!.enregistrer : AppLocalizations.of(context)!.testerEtAjouter),
-        ),
-      ],
-    );
-  }
 }

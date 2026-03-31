@@ -293,4 +293,399 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get confirmerSuppression =>
       'Toutes les données de ce profil seront perdues.';
+
+  @override
+  String get reessayer => 'Réessayer';
+
+  @override
+  String get retour => 'Retour';
+
+  @override
+  String get erreur => 'Erreur';
+
+  @override
+  String get tout => 'Tout';
+
+  @override
+  String get live => 'Live';
+
+  @override
+  String get vod => 'VOD';
+
+  @override
+  String get series => 'Séries';
+
+  @override
+  String get serie => 'Série';
+
+  @override
+  String get changerProfil => 'Changer de profil';
+
+  @override
+  String get ordreParDefaut => 'Ordre par défaut';
+
+  @override
+  String get alphabetique => 'Alphabétique';
+
+  @override
+  String get parNumero => 'Par numéro';
+
+  @override
+  String get vueListe => 'Vue liste';
+
+  @override
+  String get vueGrille => 'Vue grille';
+
+  @override
+  String get rechercheGlobale => 'Recherche globale';
+
+  @override
+  String get modeHorsLigne => 'Mode hors-ligne — Serveur indisponible';
+
+  @override
+  String get recemmentAjoutes => 'Récemment ajoutés';
+
+  @override
+  String get raccourciQuitter => 'Quitter';
+
+  @override
+  String get raccourciReglages => 'Réglages';
+
+  @override
+  String get raccourciRechercher => 'Rechercher';
+
+  @override
+  String get raccourciHistorique => 'Historique';
+
+  @override
+  String get raccourciGuideTV => 'Guide TV';
+
+  @override
+  String get raccourciAide => 'Cette aide';
+
+  @override
+  String get sectionLecteur => 'Lecteur';
+
+  @override
+  String get lecteurPause => 'Lecture / Pause';
+
+  @override
+  String get reculerAvancer => 'Reculer / Avancer 10s';
+
+  @override
+  String get volumePlusMoins => 'Volume +/−';
+
+  @override
+  String get pleinEcran => 'Plein écran';
+
+  @override
+  String get couperSon => 'Couper le son';
+
+  @override
+  String get quitterLecteur => 'Quitter le lecteur';
+
+  @override
+  String get chainePrecSuiv => 'Chaîne précédente / suivante';
+
+  @override
+  String get films => 'Films';
+
+  @override
+  String get nonVus => 'Non vus';
+
+  @override
+  String get enCoursFiltre => 'En cours';
+
+  @override
+  String ilYaMinutes(int count) {
+    return 'Il y a $count min';
+  }
+
+  @override
+  String ilYaHeures(int count) {
+    return 'Il y a ${count}h';
+  }
+
+  @override
+  String get hier => 'Hier';
+
+  @override
+  String ilYaJours(int count) {
+    return 'Il y a $count jours';
+  }
+
+  @override
+  String get quitterPleinEcran => 'Quitter le plein écran';
+
+  @override
+  String get desentrelacement => 'Désentrelacement';
+
+  @override
+  String get miniPlayer => 'Mini-player';
+
+  @override
+  String lireMaintenant(int seconds) {
+    return 'Lire maintenant ($seconds)';
+  }
+
+  @override
+  String veilleActive(int minutes) {
+    return 'Veille dans $minutes min';
+  }
+
+  @override
+  String get minuterieEcoulee => 'Minuterie écoulée — lecture en pause';
+
+  @override
+  String annulerMinuterie(int minutes) {
+    return 'Annuler ($minutes min restantes)';
+  }
+
+  @override
+  String xMinutes(int count) {
+    return '$count minutes';
+  }
+
+  @override
+  String get audioTab => 'Audio';
+
+  @override
+  String get sousTitresTab => 'Sous-titres';
+
+  @override
+  String get pisteAudio => 'Piste audio';
+
+  @override
+  String get desactiverSousTitres => 'Désactivés';
+
+  @override
+  String get blanc => 'Blanc';
+
+  @override
+  String get jaune => 'Jaune';
+
+  @override
+  String get vert => 'Vert';
+
+  @override
+  String get cyan => 'Cyan';
+
+  @override
+  String get taille => 'Taille';
+
+  @override
+  String get couleurLabel => 'Couleur';
+
+  @override
+  String get fondLabel => 'Fond';
+
+  @override
+  String chargementEpg(int loaded, int total) {
+    return 'Chargement EPG $loaded/$total';
+  }
+
+  @override
+  String get demain => 'Demain';
+
+  @override
+  String nombreChaines(int count) {
+    return '$count chaîne(s)';
+  }
+
+  @override
+  String get passe => 'passé';
+
+  @override
+  String get enCoursProg => 'EN COURS';
+
+  @override
+  String get revoir => 'Revoir';
+
+  @override
+  String get replay => 'REPLAY';
+
+  @override
+  String get programmeCours => 'Programme en cours :';
+
+  @override
+  String get epgIndisponible => 'EPG indisponible';
+
+  @override
+  String get gererProfilsBouton => 'Gérer les profils';
+
+  @override
+  String get sauvegarderConfigBtn => 'Sauvegarder';
+
+  @override
+  String get restaurerConfigBtn => 'Restaurer';
+
+  @override
+  String get langueAudioPreferee => 'Langue audio préférée';
+
+  @override
+  String get langueSousTitresPreferee => 'Langue sous-titres préférée';
+
+  @override
+  String cacheEpgEntrees(int count) {
+    return 'Cache EPG : $count entrées';
+  }
+
+  @override
+  String get viderCacheEpg => 'Vider le cache EPG';
+
+  @override
+  String get viderCacheImages => 'Vider le cache images';
+
+  @override
+  String get descriptionCache =>
+      'Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.';
+
+  @override
+  String configSauvegardeeVers(String path) {
+    return 'Configuration sauvegardée → $path';
+  }
+
+  @override
+  String get configRestauree => 'Configuration restaurée. Redémarrage...';
+
+  @override
+  String erreurImport(String detail) {
+    return 'Erreur import : $detail';
+  }
+
+  @override
+  String erreurExport(String detail) {
+    return 'Erreur export : $detail';
+  }
+
+  @override
+  String erreurSauvegarde(String detail) {
+    return 'Erreur sauvegarde : $detail';
+  }
+
+  @override
+  String erreurRestauration(String detail) {
+    return 'Erreur restauration : $detail';
+  }
+
+  @override
+  String entreesImporteesMu3(int count) {
+    return '$count entrées importées depuis M3U';
+  }
+
+  @override
+  String favorisExportesVers(String path) {
+    return 'Favoris exportés → $path';
+  }
+
+  @override
+  String profilDonneesSupprimees(String name) {
+    return 'Le profil \"$name\" et ses données seront supprimés.';
+  }
+
+  @override
+  String get normaleVitesse => 'Normale (1×)';
+
+  @override
+  String get etirer => 'Étirer';
+
+  @override
+  String get aRegarder => 'À regarder';
+
+  @override
+  String get collectionsSection => 'COLLECTIONS';
+
+  @override
+  String get nomLabel => 'Nom';
+
+  @override
+  String get nomCollection => 'Nom de la collection';
+
+  @override
+  String get collectionLabel => 'Collection';
+
+  @override
+  String get retirerCollection => 'Retirer de la collection';
+
+  @override
+  String get aRegarderPlusTard => 'À regarder plus tard';
+
+  @override
+  String xSelectionnes(int count) {
+    return '$count sélectionné(s)';
+  }
+
+  @override
+  String ajouteACollection(String name) {
+    return 'Ajouté à \"$name\"';
+  }
+
+  @override
+  String collectionCreeAvec(String name, int count) {
+    return 'Collection \"$name\" créée avec $count éléments';
+  }
+
+  @override
+  String nouvelleCollectionAvec(int count) {
+    return 'Nouvelle collection ($count éléments)';
+  }
+
+  @override
+  String get saisons => 'Saisons';
+
+  @override
+  String saison(String number) {
+    return 'Saison $number';
+  }
+
+  @override
+  String get vu => 'Vu';
+
+  @override
+  String get serveurConfigure => 'Votre serveur est configuré !';
+
+  @override
+  String categorie(String name) {
+    return 'Catégorie : $name';
+  }
+
+  @override
+  String note(String value) {
+    return 'Note : $value';
+  }
+
+  @override
+  String nbSaisons(String count) {
+    return 'Saisons : $count';
+  }
+
+  @override
+  String typeStream(String type) {
+    return 'Type : $type';
+  }
+
+  @override
+  String reprendreDepuis(String time) {
+    return 'Reprendre à $time';
+  }
+
+  @override
+  String continuerOuDebut(String time) {
+    return 'Continuer depuis $time ou repartir depuis le début ?';
+  }
+
+  @override
+  String suivantEpg(String title) {
+    return 'Suivant : $title';
+  }
+
+  @override
+  String get confirmerSupprimerCollection => 'Supprimer cette collection ?';
+
+  @override
+  String get confirmerRetirerCollection =>
+      'Retirer cet élément de la collection ?';
+
+  @override
+  String get confirmerViderCache => 'Vider le cache EPG ?';
 }

@@ -110,5 +110,284 @@
   },
   "profil": "Profil",
   "nomProfil": "Nom du profil",
-  "confirmerSuppression": "Toutes les données de ce profil seront perdues."
+  "confirmerSuppression": "Toutes les données de ce profil seront perdues.",
+
+  "reessayer": "Réessayer",
+  "retour": "Retour",
+  "erreur": "Erreur",
+  "tout": "Tout",
+  "live": "Live",
+  "vod": "VOD",
+  "series": "Séries",
+  "serie": "Série",
+
+  "changerProfil": "Changer de profil",
+  "ordreParDefaut": "Ordre par défaut",
+  "alphabetique": "Alphabétique",
+  "parNumero": "Par numéro",
+  "vueListe": "Vue liste",
+  "vueGrille": "Vue grille",
+  "rechercheGlobale": "Recherche globale",
+  "modeHorsLigne": "Mode hors-ligne — Serveur indisponible",
+  "recemmentAjoutes": "Récemment ajoutés",
+
+  "raccourciQuitter": "Quitter",
+  "raccourciReglages": "Réglages",
+  "raccourciRechercher": "Rechercher",
+  "raccourciHistorique": "Historique",
+  "raccourciGuideTV": "Guide TV",
+  "raccourciAide": "Cette aide",
+  "sectionLecteur": "Lecteur",
+  "lecteurPause": "Lecture / Pause",
+  "reculerAvancer": "Reculer / Avancer 10s",
+  "volumePlusMoins": "Volume +/−",
+  "pleinEcran": "Plein écran",
+  "couperSon": "Couper le son",
+  "quitterLecteur": "Quitter le lecteur",
+  "chainePrecSuiv": "Chaîne précédente / suivante",
+
+  "films": "Films",
+  "nonVus": "Non vus",
+  "enCoursFiltre": "En cours",
+
+  "ilYaMinutes": "Il y a {count} min",
+  "@ilYaMinutes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ilYaHeures": "Il y a {count}h",
+  "@ilYaHeures": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "hier": "Hier",
+  "ilYaJours": "Il y a {count} jours",
+  "@ilYaJours": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "quitterPleinEcran": "Quitter le plein écran",
+  "desentrelacement": "Désentrelacement",
+  "miniPlayer": "Mini-player",
+  "lireMaintenant": "Lire maintenant ({seconds})",
+  "@lireMaintenant": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "veilleActive": "Veille dans {minutes} min",
+  "@veilleActive": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "minuterieEcoulee": "Minuterie écoulée — lecture en pause",
+  "annulerMinuterie": "Annuler ({minutes} min restantes)",
+  "@annulerMinuterie": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "xMinutes": "{count} minutes",
+  "@xMinutes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "audioTab": "Audio",
+  "sousTitresTab": "Sous-titres",
+  "pisteAudio": "Piste audio",
+  "desactiverSousTitres": "Désactivés",
+
+  "blanc": "Blanc",
+  "jaune": "Jaune",
+  "vert": "Vert",
+  "cyan": "Cyan",
+  "taille": "Taille",
+  "couleurLabel": "Couleur",
+  "fondLabel": "Fond",
+
+  "chargementEpg": "Chargement EPG {loaded}/{total}",
+  "@chargementEpg": {
+    "placeholders": {
+      "loaded": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "demain": "Demain",
+  "nombreChaines": "{count} chaîne(s)",
+  "@nombreChaines": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "passe": "passé",
+  "enCoursProg": "EN COURS",
+  "revoir": "Revoir",
+  "replay": "REPLAY",
+  "programmeCours": "Programme en cours :",
+  "epgIndisponible": "EPG indisponible",
+
+  "gererProfilsBouton": "Gérer les profils",
+  "sauvegarderConfigBtn": "Sauvegarder",
+  "restaurerConfigBtn": "Restaurer",
+  "langueAudioPreferee": "Langue audio préférée",
+  "langueSousTitresPreferee": "Langue sous-titres préférée",
+  "cacheEpgEntrees": "Cache EPG : {count} entrées",
+  "@cacheEpgEntrees": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "viderCacheEpg": "Vider le cache EPG",
+  "viderCacheImages": "Vider le cache images",
+  "descriptionCache": "Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.",
+  "configSauvegardeeVers": "Configuration sauvegardée → {path}",
+  "@configSauvegardeeVers": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "configRestauree": "Configuration restaurée. Redémarrage...",
+  "erreurImport": "Erreur import : {detail}",
+  "@erreurImport": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "erreurExport": "Erreur export : {detail}",
+  "@erreurExport": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "erreurSauvegarde": "Erreur sauvegarde : {detail}",
+  "@erreurSauvegarde": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "erreurRestauration": "Erreur restauration : {detail}",
+  "@erreurRestauration": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "entreesImporteesMu3": "{count} entrées importées depuis M3U",
+  "@entreesImporteesMu3": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "favorisExportesVers": "Favoris exportés → {path}",
+  "@favorisExportesVers": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "profilDonneesSupprimees": "Le profil \"{name}\" et ses données seront supprimés.",
+  "@profilDonneesSupprimees": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "normaleVitesse": "Normale (1×)",
+  "etirer": "Étirer",
+
+  "aRegarder": "À regarder",
+  "collectionsSection": "COLLECTIONS",
+
+  "nomLabel": "Nom",
+  "nomCollection": "Nom de la collection",
+  "collectionLabel": "Collection",
+  "retirerCollection": "Retirer de la collection",
+  "aRegarderPlusTard": "À regarder plus tard",
+  "xSelectionnes": "{count} sélectionné(s)",
+  "@xSelectionnes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ajouteACollection": "Ajouté à \"{name}\"",
+  "@ajouteACollection": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "collectionCreeAvec": "Collection \"{name}\" créée avec {count} éléments",
+  "@collectionCreeAvec": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "nouvelleCollectionAvec": "Nouvelle collection ({count} éléments)",
+  "@nouvelleCollectionAvec": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "saisons": "Saisons",
+  "saison": "Saison {number}",
+  "@saison": {
+    "placeholders": {
+      "number": {"type": "String"}
+    }
+  },
+  "vu": "Vu",
+
+  "serveurConfigure": "Votre serveur est configuré !",
+
+  "categorie": "Catégorie : {name}",
+  "@categorie": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "note": "Note : {value}",
+  "@note": {
+    "placeholders": {
+      "value": {"type": "String"}
+    }
+  },
+  "nbSaisons": "Saisons : {count}",
+  "@nbSaisons": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "typeStream": "Type : {type}",
+  "@typeStream": {
+    "placeholders": {
+      "type": {"type": "String"}
+    }
+  },
+  "reprendreDepuis": "Reprendre à {time}",
+  "@reprendreDepuis": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "continuerOuDebut": "Continuer depuis {time} ou repartir depuis le début ?",
+  "@continuerOuDebut": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "suivantEpg": "Suivant : {title}",
+  "@suivantEpg": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+
+  "confirmerSupprimerCollection": "Supprimer cette collection ?",
+  "confirmerRetirerCollection": "Retirer cet élément de la collection ?",
+  "confirmerViderCache": "Vider le cache EPG ?"
 }

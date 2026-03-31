@@ -147,7 +147,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   void _open(Map<String, dynamic> item) {
     final mode = item['_mode'] as String;
-    final name = item['name'] as String? ?? 'Sans titre';
+    final l10n = AppLocalizations.of(context)!;
+    final name = item['name'] as String? ?? l10n.sansTitre;
     if (mode == 'series') {
       Navigator.push(context, slideRoute(SeriesDetailScreen(
         seriesId: item['series_id'].toString(),
@@ -174,6 +175,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     const modeIcons = {'live': Icons.tv, 'vod': Icons.movie, 'series': Icons.movie_creation};
     final modeColor = {'live': Colors.blue, 'vod': Colors.purple, 'series': Colors.teal};
@@ -184,15 +186,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     final filtered = _filtered(progress);
     Widget body;
     if (_query.trim().length < 2) {
-      body = Center(child: Text(AppLocalizations.of(context)!.tapeAuMoins2,
+      body = Center(child: Text(l10n.tapeAuMoins2,
           style: const TextStyle(color: Colors.white38)));
     } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (filtered.isEmpty) {
-      body = Center(child: Text(AppLocalizations.of(context)!.aucunResultat,
+      body = Center(child: Text(l10n.aucunResultat,
           style: const TextStyle(color: Colors.white38)));
     } else {
-      body = ListView.builder(
+      body = RefreshIndicator(
+        onRefresh: _search,
+        child: ListView.builder(
         itemCount: filtered.length,
         itemBuilder: (_, i) {
           final item = filtered[i];
@@ -230,6 +234,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             onTap: () => _open(item),
           );
         },
+      ),
       );
     }
 
@@ -241,7 +246,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           autofocus: true,
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.rechercherCatalogue,
+            hintText: l10n.rechercherCatalogue,
             hintStyle: TextStyle(color: Colors.white38),
             border: InputBorder.none,
           ),
@@ -251,11 +256,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           controller: _tabCtrl,
           indicatorColor: AppColors.primaryBlue,
           labelStyle: const TextStyle(fontSize: 12),
-          tabs: const [
-            Tab(text: 'Tous'),
-            Tab(text: 'Live'),
-            Tab(text: 'Films'),
-            Tab(text: 'Séries'),
+          tabs: [
+            Tab(text: l10n.tout),
+            Tab(text: l10n.live),
+            Tab(text: l10n.films),
+            Tab(text: l10n.series),
           ],
         ),
       ),
@@ -267,7 +272,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
               const Icon(Icons.filter_list, size: 16, color: Colors.white38),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Tous', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.tout, style: const TextStyle(fontSize: 12)),
                 selected: _statusFilter == 0,
                 onSelected: (_) => setState(() => _statusFilter = 0),
                 selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -278,7 +283,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
               ),
               const SizedBox(width: 6),
               ChoiceChip(
-                label: const Text('Non vus', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.nonVus, style: const TextStyle(fontSize: 12)),
                 selected: _statusFilter == 1,
                 onSelected: (_) => setState(() => _statusFilter = 1),
                 selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -289,7 +294,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
               ),
               const SizedBox(width: 6),
               ChoiceChip(
-                label: const Text('En cours', style: TextStyle(fontSize: 12)),
+                label: Text(l10n.enCoursFiltre, style: const TextStyle(fontSize: 12)),
                 selected: _statusFilter == 2,
                 onSelected: (_) => setState(() => _statusFilter = 2),
                 selectedColor: Colors.amber.withValues(alpha: 0.3),

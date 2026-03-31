@@ -71,9 +71,9 @@ void showEpgGuide(BuildContext context, {
                           style: TextStyle(fontSize: 11,
                               color: isCurrent ? AppColors.primaryBlue : isPast ? Colors.white24 : Colors.white38)),
                       if (isPast)
-                        const Text('pass\u00e9', style: TextStyle(fontSize: 8, color: Colors.white24))
+                        Text(AppLocalizations.of(context)!.passe, style: const TextStyle(fontSize: 8, color: Colors.white24))
                       else if (isCurrent)
-                        const Text('EN COURS', style: TextStyle(fontSize: 8, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                        Text(AppLocalizations.of(context)!.enCoursProg, style: const TextStyle(fontSize: 8, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
                     ]),
                   ),
                   title: Text(prog['title'] ?? '',
@@ -96,7 +96,7 @@ void showEpgGuide(BuildContext context, {
                   trailing: (catchupSupported && isPast && startTs != null && streamId != null)
                       ? TextButton.icon(
                           icon: const Icon(Icons.replay, size: 16),
-                          label: const Text('Revoir', style: TextStyle(fontSize: 11)),
+                          label: Text(AppLocalizations.of(context)!.revoir, style: const TextStyle(fontSize: 11)),
                           style: TextButton.styleFrom(foregroundColor: AppColors.accentGreen),
                           onPressed: () {
                             Navigator.pop(sheetCtx);
@@ -114,7 +114,7 @@ void showEpgGuide(BuildContext context, {
                             }
                             Navigator.pushReplacement(context, slideRoute(PlayerScreen(
                               url: url,
-                              title: '${prog['title']} (Replay)',
+                              title: '${prog['title']} (${AppLocalizations.of(context)!.replay})',
                               streamId: streamId,
                               isCatchup: true,
                             )));

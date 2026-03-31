@@ -14,6 +14,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
+  final _formKey = GlobalKey<FormState>();
   final _serverCtrl = TextEditingController();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -43,10 +44,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final server = _serverCtrl.text.trim();
     final user = _userCtrl.text.trim();
     final pass = _passCtrl.text.trim();
-    if (server.isEmpty || user.isEmpty || pass.isEmpty) {
-      setState(() => _error = l10n.tousChampRequis);
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -81,15 +79,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
-      body: PageView(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        child: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
           _buildWelcomePage(context),
           _buildConfigPage(context),
-          _buildSuccessPage(),
+          _buildSuccessPage(context),
         ],
+      ),
       ),
     );
   }
@@ -102,7 +102,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.live_tv, size: 80, color: AppColors.primaryBlue),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/images/logo.jpg',
+                width: 100,
+                height: 100,
+              ),
+            ),
             const SizedBox(height: 24),
             Text(
               l10n.bienvenue,
@@ -145,111 +152,123 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         padding: const EdgeInsets.all(32),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.dns, size: 48, color: AppColors.primaryBlue),
-              const SizedBox(height: 16),
-              Text(
-                l10n.configureServeur,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _serverCtrl,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: l10n.serverUrlHint,
-                  hintText: l10n.serverUrlHint,
-                  prefixIcon: const Icon(Icons.dns, size: 20),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _userCtrl,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: l10n.nomUtilisateur,
-                  prefixIcon: const Icon(Icons.person, size: 20),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passCtrl,
-                obscureText: _obscure,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: l10n.motDePasse,
-                  prefixIcon: const Icon(Icons.lock, size: 20),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                        _obscure ? Icons.visibility : Icons.visibility_off,
-                        size: 20),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              if (_error != null) ...[
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Icon(Icons.dns, size: 48, color: AppColors.primaryBlue),
                 const SizedBox(height: 16),
-                Text(_error!,
-                    style:
-                        const TextStyle(color: Colors.redAccent, fontSize: 13)),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _saving ? null : _authenticate,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                Text(
+                  l10n.configureServeur,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text(l10n.connexion,
-                        style: const TextStyle(fontSize: 16)),
-              ),
-            ],
+                const SizedBox(height: 32),
+                TextFormField(
+                  controller: _serverCtrl,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: l10n.serverUrlHint,
+                    hintText: l10n.serverUrlHint,
+                    prefixIcon: const Icon(Icons.dns, size: 20),
+                    filled: true,
+                    fillColor: Colors.white10,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return l10n.tousChampRequis;
+                    final uri = Uri.tryParse(v.trim());
+                    if (uri == null || !uri.hasScheme) return 'URL invalide';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _userCtrl,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: l10n.nomUtilisateur,
+                    prefixIcon: const Icon(Icons.person, size: 20),
+                    filled: true,
+                    fillColor: Colors.white10,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passCtrl,
+                  obscureText: _obscure,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: l10n.motDePasse,
+                    prefixIcon: const Icon(Icons.lock, size: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          _obscure ? Icons.visibility : Icons.visibility_off,
+                          size: 20),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white10,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_error!,
+                      style:
+                          const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                ],
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _saving ? null : _authenticate,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text(l10n.connexion,
+                          style: const TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSuccessPage() {
-    return const Center(
+  Widget _buildSuccessPage(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SuccessCheckAnimation(),
-          SizedBox(height: 24),
+          const _SuccessCheckAnimation(),
+          const SizedBox(height: 24),
           Text(
-            'Your server is configured!',
-            style: TextStyle(
+            l10n.serveurConfigure,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               color: Colors.white,

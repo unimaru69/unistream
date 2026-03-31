@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 
 // ── Language name resolution (ISO 639) ──
@@ -75,8 +76,8 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
     return DefaultTabController(
       length: 2,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const TabBar(
-          tabs: [Tab(text: 'Audio'), Tab(text: 'Sous-titres')],
+        TabBar(
+          tabs: [Tab(text: AppLocalizations.of(context)!.audioTab), Tab(text: AppLocalizations.of(context)!.sousTitresTab)],
           indicatorColor: AppColors.primaryBlue,
         ),
         SizedBox(height: 280, child: TabBarView(children: [
@@ -94,7 +95,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
                 value: t,
                 activeColor: AppColors.primaryBlue,
               ),
-              title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Piste audio'),
+              title: Text(resolveTrackLabel(t.title, t.language, t.id, AppLocalizations.of(context)!.pisteAudio),
                   style: const TextStyle(fontSize: 13)),
               onTap: () {
                 widget.player.setAudioTrack(t);
@@ -117,7 +118,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
                   value: SubtitleTrack.no(),
                   activeColor: AppColors.primaryBlue,
                 ),
-                title: const Text('D\u00e9sactiv\u00e9s', style: TextStyle(fontSize: 13)),
+                title: Text(AppLocalizations.of(context)!.desactiverSousTitres, style: const TextStyle(fontSize: 13)),
                 onTap: () {
                   final noSub = SubtitleTrack.no();
                   widget.player.setSubtitleTrack(noSub);
@@ -130,7 +131,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
                   value: t,
                   activeColor: AppColors.primaryBlue,
                 ),
-                title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Sous-titres'),
+                title: Text(resolveTrackLabel(t.title, t.language, t.id, AppLocalizations.of(context)!.sousTitresTab),
                     style: const TextStyle(fontSize: 13)),
                 onTap: () {
                   widget.player.setSubtitleTrack(t);

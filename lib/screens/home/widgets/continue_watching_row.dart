@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../../core/cache_config.dart';
 import '../../../models/content_mode.dart';
 
@@ -20,7 +21,7 @@ class ContinueWatchingRow extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-        child: Text('Continuer à regarder',
+        child: Text(AppLocalizations.of(context)!.continuerRegarder,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
                 color: Colors.white54, letterSpacing: 0.8)),
       ),
@@ -94,7 +95,7 @@ class RecentlyAddedRow extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-        child: Text('Récemment ajoutés',
+        child: Text(AppLocalizations.of(context)!.recemmentAjoutes,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
                 color: Colors.white54, letterSpacing: 0.8)),
       ),

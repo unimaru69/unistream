@@ -45,6 +45,7 @@ class StreamListView extends StatelessWidget {
   final String Function(String modeKey, dynamic stream) favKeyBuilder;
   final String Function(dynamic stream) itemSelectionKeyBuilder;
   final String? Function(dynamic stream) progressKeyBuilder;
+  final Future<void> Function()? onRefresh;
 
   const StreamListView({
     super.key,
@@ -76,6 +77,7 @@ class StreamListView extends StatelessWidget {
     required this.favKeyBuilder,
     required this.itemSelectionKeyBuilder,
     required this.progressKeyBuilder,
+    this.onRefresh,
   });
 
   @override
@@ -100,8 +102,11 @@ class StreamListView extends StatelessWidget {
             ? sortedStreams
             : sortedStreams.where((s) => _getName(s)
                 .toLowerCase().contains(searchQuery)).toList();
-        if (showGrid) return _buildGrid(filtered);
-        return _buildList(filtered);
+        final child = showGrid ? _buildGrid(filtered) : _buildList(filtered, l10n);
+        if (onRefresh != null) {
+          return RefreshIndicator(onRefresh: onRefresh!, child: child);
+        }
+        return child;
       })),
     ]);
   }
@@ -127,12 +132,12 @@ class StreamListView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(children: [
-        Text('${selectedItems.length} sélectionné${selectedItems.length > 1 ? 's' : ''}',
+        Text(l10n.xSelectionnes(selectedItems.length),
             style: const TextStyle(fontSize: 13, color: Colors.white70)),
         const SizedBox(width: 8),
         TextButton.icon(
           icon: const Icon(Icons.select_all, size: 16),
-          label: const Text('Tout', style: TextStyle(fontSize: 12)),
+          label: Text(l10n.tout, style: const TextStyle(fontSize: 12)),
           onPressed: onSelectAll,
         ),
         const Spacer(),
@@ -189,7 +194,7 @@ class StreamListView extends StatelessWidget {
     );
   }
 
-  Widget _buildList(List<dynamic> items) {
+  Widget _buildList(List<dynamic> items, AppLocalizations l10n) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
@@ -244,13 +249,13 @@ class StreamListView extends StatelessWidget {
                       activeColor: AppColors.primaryBlue,
                     )
                   : listIconTyped(s, mode),
-              title: Text(streamName.isEmpty ? 'Sans titre' : streamName,
+              title: Text(streamName.isEmpty ? l10n.sansTitre : streamName,
                   style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
               subtitle: subtitle,
               trailing: selectionMode ? null : Row(mainAxisSize: MainAxisSize.min, children: [
                 if (activeCollectionId != null) IconButton(
                   icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                  tooltip: 'Retirer de la collection',
+                  tooltip: l10n.retirerCollection,
                   onPressed: () => onRemoveFromCollection(s),
                 ),
                 if (mode != ContentMode.live) IconButton(
@@ -260,7 +265,7 @@ class StreamListView extends StatelessWidget {
                     size: 20,
                   ),
                   onPressed: () => onToggleWatchlist(s),
-                  tooltip: 'À regarder plus tard',
+                  tooltip: l10n.aRegarderPlusTard,
                 ),
                 IconButton(
                   icon: Icon(
@@ -286,10 +291,12 @@ class StreamListView extends StatelessWidget {
   }
 
   Widget _buildGrid(List<dynamic> items) {
-    return GridView.builder(
+    return LayoutBuilder(builder: (context, constraints) {
+      final int crossAxisCount = (constraints.maxWidth / 200).clamp(2, 5).toInt();
+      return GridView.builder(
       padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
         childAspectRatio: 0.58,
@@ -323,5 +330,6 @@ class StreamListView extends StatelessWidget {
         );
       },
     );
+    });
   }
 }

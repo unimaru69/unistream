@@ -30,9 +30,9 @@ class NextEpisodeOverlay extends StatelessWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            const Text('\u00c9pisode suivant', style: TextStyle(color: Colors.white54, fontSize: 11)),
+            Text(AppLocalizations.of(context)!.episodeSuivant, style: const TextStyle(color: Colors.white54, fontSize: 11)),
             const SizedBox(height: 4),
-            Text(nextEpisode['title'] ?? '\u00c9pisode suivant',
+            Text(nextEpisode['title'] ?? AppLocalizations.of(context)!.episodeSuivant,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(children: [
@@ -42,7 +42,7 @@ class NextEpisodeOverlay extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
                 onPressed: onPlayNow,
-                child: Text('Lire maintenant ($countdownSec)'),
+                child: Text(AppLocalizations.of(context)!.lireMaintenant(countdownSec)),
               ),
               const SizedBox(width: 8),
               TextButton(

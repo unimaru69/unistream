@@ -290,4 +290,399 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get confirmerSuppression => 'All data for this profile will be lost.';
+
+  @override
+  String get reessayer => 'Retry';
+
+  @override
+  String get retour => 'Back';
+
+  @override
+  String get erreur => 'Error';
+
+  @override
+  String get tout => 'All';
+
+  @override
+  String get live => 'Live';
+
+  @override
+  String get vod => 'VOD';
+
+  @override
+  String get series => 'Series';
+
+  @override
+  String get serie => 'Series';
+
+  @override
+  String get changerProfil => 'Switch profile';
+
+  @override
+  String get ordreParDefaut => 'Default order';
+
+  @override
+  String get alphabetique => 'Alphabetical';
+
+  @override
+  String get parNumero => 'By number';
+
+  @override
+  String get vueListe => 'List view';
+
+  @override
+  String get vueGrille => 'Grid view';
+
+  @override
+  String get rechercheGlobale => 'Global search';
+
+  @override
+  String get modeHorsLigne => 'Offline mode — Server unavailable';
+
+  @override
+  String get recemmentAjoutes => 'Recently added';
+
+  @override
+  String get raccourciQuitter => 'Quit';
+
+  @override
+  String get raccourciReglages => 'Settings';
+
+  @override
+  String get raccourciRechercher => 'Search';
+
+  @override
+  String get raccourciHistorique => 'History';
+
+  @override
+  String get raccourciGuideTV => 'TV Guide';
+
+  @override
+  String get raccourciAide => 'This help';
+
+  @override
+  String get sectionLecteur => 'Player';
+
+  @override
+  String get lecteurPause => 'Play / Pause';
+
+  @override
+  String get reculerAvancer => 'Rewind / Forward 10s';
+
+  @override
+  String get volumePlusMoins => 'Volume +/−';
+
+  @override
+  String get pleinEcran => 'Fullscreen';
+
+  @override
+  String get couperSon => 'Mute';
+
+  @override
+  String get quitterLecteur => 'Exit player';
+
+  @override
+  String get chainePrecSuiv => 'Previous / Next channel';
+
+  @override
+  String get films => 'Movies';
+
+  @override
+  String get nonVus => 'Unwatched';
+
+  @override
+  String get enCoursFiltre => 'In progress';
+
+  @override
+  String ilYaMinutes(int count) {
+    return '$count min ago';
+  }
+
+  @override
+  String ilYaHeures(int count) {
+    return '${count}h ago';
+  }
+
+  @override
+  String get hier => 'Yesterday';
+
+  @override
+  String ilYaJours(int count) {
+    return '$count days ago';
+  }
+
+  @override
+  String get quitterPleinEcran => 'Exit fullscreen';
+
+  @override
+  String get desentrelacement => 'Deinterlacing';
+
+  @override
+  String get miniPlayer => 'Mini-player';
+
+  @override
+  String lireMaintenant(int seconds) {
+    return 'Play now ($seconds)';
+  }
+
+  @override
+  String veilleActive(int minutes) {
+    return 'Sleep in $minutes min';
+  }
+
+  @override
+  String get minuterieEcoulee => 'Timer expired — playback paused';
+
+  @override
+  String annulerMinuterie(int minutes) {
+    return 'Cancel ($minutes min remaining)';
+  }
+
+  @override
+  String xMinutes(int count) {
+    return '$count minutes';
+  }
+
+  @override
+  String get audioTab => 'Audio';
+
+  @override
+  String get sousTitresTab => 'Subtitles';
+
+  @override
+  String get pisteAudio => 'Audio track';
+
+  @override
+  String get desactiverSousTitres => 'Disabled';
+
+  @override
+  String get blanc => 'White';
+
+  @override
+  String get jaune => 'Yellow';
+
+  @override
+  String get vert => 'Green';
+
+  @override
+  String get cyan => 'Cyan';
+
+  @override
+  String get taille => 'Size';
+
+  @override
+  String get couleurLabel => 'Color';
+
+  @override
+  String get fondLabel => 'Background';
+
+  @override
+  String chargementEpg(int loaded, int total) {
+    return 'Loading EPG $loaded/$total';
+  }
+
+  @override
+  String get demain => 'Tomorrow';
+
+  @override
+  String nombreChaines(int count) {
+    return '$count channel(s)';
+  }
+
+  @override
+  String get passe => 'past';
+
+  @override
+  String get enCoursProg => 'NOW';
+
+  @override
+  String get revoir => 'Watch again';
+
+  @override
+  String get replay => 'REPLAY';
+
+  @override
+  String get programmeCours => 'Current program:';
+
+  @override
+  String get epgIndisponible => 'EPG unavailable';
+
+  @override
+  String get gererProfilsBouton => 'Manage profiles';
+
+  @override
+  String get sauvegarderConfigBtn => 'Save';
+
+  @override
+  String get restaurerConfigBtn => 'Restore';
+
+  @override
+  String get langueAudioPreferee => 'Preferred audio language';
+
+  @override
+  String get langueSousTitresPreferee => 'Preferred subtitle language';
+
+  @override
+  String cacheEpgEntrees(int count) {
+    return 'EPG cache: $count entries';
+  }
+
+  @override
+  String get viderCacheEpg => 'Clear EPG cache';
+
+  @override
+  String get viderCacheImages => 'Clear image cache';
+
+  @override
+  String get descriptionCache =>
+      'The EPG cache stores TV programs for quick access. The image cache stores downloaded posters and logos.';
+
+  @override
+  String configSauvegardeeVers(String path) {
+    return 'Configuration saved → $path';
+  }
+
+  @override
+  String get configRestauree => 'Configuration restored. Restarting...';
+
+  @override
+  String erreurImport(String detail) {
+    return 'Import error: $detail';
+  }
+
+  @override
+  String erreurExport(String detail) {
+    return 'Export error: $detail';
+  }
+
+  @override
+  String erreurSauvegarde(String detail) {
+    return 'Save error: $detail';
+  }
+
+  @override
+  String erreurRestauration(String detail) {
+    return 'Restore error: $detail';
+  }
+
+  @override
+  String entreesImporteesMu3(int count) {
+    return '$count entries imported from M3U';
+  }
+
+  @override
+  String favorisExportesVers(String path) {
+    return 'Favorites exported → $path';
+  }
+
+  @override
+  String profilDonneesSupprimees(String name) {
+    return 'Profile \"$name\" and its data will be deleted.';
+  }
+
+  @override
+  String get normaleVitesse => 'Normal (1×)';
+
+  @override
+  String get etirer => 'Stretch';
+
+  @override
+  String get aRegarder => 'Watchlist';
+
+  @override
+  String get collectionsSection => 'COLLECTIONS';
+
+  @override
+  String get nomLabel => 'Name';
+
+  @override
+  String get nomCollection => 'Collection name';
+
+  @override
+  String get collectionLabel => 'Collection';
+
+  @override
+  String get retirerCollection => 'Remove from collection';
+
+  @override
+  String get aRegarderPlusTard => 'Watch later';
+
+  @override
+  String xSelectionnes(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String ajouteACollection(String name) {
+    return 'Added to \"$name\"';
+  }
+
+  @override
+  String collectionCreeAvec(String name, int count) {
+    return 'Collection \"$name\" created with $count items';
+  }
+
+  @override
+  String nouvelleCollectionAvec(int count) {
+    return 'New collection ($count items)';
+  }
+
+  @override
+  String get saisons => 'Seasons';
+
+  @override
+  String saison(String number) {
+    return 'Season $number';
+  }
+
+  @override
+  String get vu => 'Watched';
+
+  @override
+  String get serveurConfigure => 'Your server is configured!';
+
+  @override
+  String categorie(String name) {
+    return 'Category: $name';
+  }
+
+  @override
+  String note(String value) {
+    return 'Rating: $value';
+  }
+
+  @override
+  String nbSaisons(String count) {
+    return 'Seasons: $count';
+  }
+
+  @override
+  String typeStream(String type) {
+    return 'Type: $type';
+  }
+
+  @override
+  String reprendreDepuis(String time) {
+    return 'Resume from $time';
+  }
+
+  @override
+  String continuerOuDebut(String time) {
+    return 'Continue from $time or start from the beginning?';
+  }
+
+  @override
+  String suivantEpg(String title) {
+    return 'Next: $title';
+  }
+
+  @override
+  String get confirmerSupprimerCollection => 'Delete this collection?';
+
+  @override
+  String get confirmerRetirerCollection =>
+      'Remove this item from the collection?';
+
+  @override
+  String get confirmerViderCache => 'Clear the EPG cache?';
 }

@@ -45,7 +45,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
         _loading  = false;
       });
     } catch (e) {
-      setState(() { _error = 'Erreur: $e'; _loading = false; });
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
@@ -85,6 +85,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
@@ -95,7 +96,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+          ? Center(child: Text('${l10n.erreur}: $_error', style: const TextStyle(color: Colors.red)))
           : Row(children: [
               SizedBox(width: 220, child: Column(children: [
                 if (widget.cover.isNotEmpty)
@@ -107,10 +108,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                           errorWidget: (_, __, ___) => const SizedBox(height: 160)),
                     ),
                   ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Align(alignment: Alignment.centerLeft,
-                    child: Text('Saisons', style: TextStyle(
+                    child: Text(l10n.saisons, style: const TextStyle(
                         color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1))),
                 ),
                 Expanded(child: ListView.builder(
@@ -121,7 +122,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     final sel = _selectedSeason == s;
                     return ListTile(
                       dense: true,
-                      title: Text('Saison $s', style: TextStyle(fontSize: 13,
+                      title: Text(l10n.saison(s), style: TextStyle(fontSize: 13,
                           color: sel ? Colors.white : Colors.white60,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                       selected: sel,
@@ -135,9 +136,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               const VerticalDivider(width: 1, color: Colors.white12),
               Expanded(
                 child: _selectedSeason == null
-                    ? Center(child: Text(AppLocalizations.of(context)!.selectionneSaison,
+                    ? Center(child: Text(l10n.selectionneSaison,
                         style: const TextStyle(color: Colors.white38)))
-                    : ListView.builder(
+                    : RefreshIndicator(
+                        onRefresh: _loadInfo,
+                        child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _episodes[_selectedSeason]?.length ?? 0,
                         itemBuilder: (_, i) {
@@ -187,13 +190,14 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                                     ),
                                   )
                                 : isWatched
-                                ? const Text('Vu', style: TextStyle(fontSize: 11, color: Colors.green))
+                                ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
                                 : null,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
                             onTap: () => _playEpisode(ep),
                           );
                         },
+                      ),
                       ),
               ),
             ]),

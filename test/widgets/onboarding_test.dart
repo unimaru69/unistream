@@ -36,11 +36,11 @@ void main() {
       expect(find.text('Commencer'), findsOneWidget);
     });
 
-    testWidgets('first page shows live_tv icon', (tester) async {
+    testWidgets('first page shows logo image', (tester) async {
       await tester.pumpWidget(buildOnboarding());
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.live_tv), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
     });
 
     testWidgets('tapping Commencer advances to config page', (tester) async {
