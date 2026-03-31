@@ -3,7 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:unistream/core/logger.dart';
 import '../models/app_config.dart';
+import '../models/category.dart' as cat;
+import '../models/channel.dart';
+import '../models/vod_item.dart';
+import '../models/series_item.dart';
+import '../models/episode.dart';
+import '../models/server_info.dart';
 
 // ── Network helpers ──
 const _defaultTimeout = Duration(seconds: 15);
@@ -64,8 +71,18 @@ class XtreamApi {
     return jsonDecode(r.body);
   }
 
+  static Future<ServerInfo> authenticateTyped() async {
+    final data = await authenticate();
+    return ServerInfo.fromJson(data);
+  }
+
   static Future<List<dynamic>> getLiveCategories() async =>
       jsonDecode((await httpGet('$baseUrl&action=get_live_categories')).body);
+
+  static Future<List<cat.Category>> getLiveCategoriesTyped() async {
+    final list = await getLiveCategories();
+    return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
+  }
 
   static Future<List<dynamic>> getLiveStreams([String? catId]) async {
     var url = '$baseUrl&action=get_live_streams';
@@ -73,8 +90,18 @@ class XtreamApi {
     return jsonDecode((await httpGet(url)).body);
   }
 
+  static Future<List<Channel>> getLiveStreamsTyped([String? catId]) async {
+    final list = await getLiveStreams(catId);
+    return list.map((e) => Channel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   static Future<List<dynamic>> getVodCategories() async =>
       jsonDecode((await httpGet('$baseUrl&action=get_vod_categories')).body);
+
+  static Future<List<cat.Category>> getVodCategoriesTyped() async {
+    final list = await getVodCategories();
+    return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
+  }
 
   static Future<List<dynamic>> getVodStreams([String? catId]) async {
     var url = '$baseUrl&action=get_vod_streams';
@@ -82,8 +109,18 @@ class XtreamApi {
     return jsonDecode((await httpGet(url)).body);
   }
 
+  static Future<List<VodItem>> getVodStreamsTyped([String? catId]) async {
+    final list = await getVodStreams(catId);
+    return list.map((e) => VodItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   static Future<List<dynamic>> getSeriesCategories() async =>
       jsonDecode((await httpGet('$baseUrl&action=get_series_categories')).body);
+
+  static Future<List<cat.Category>> getSeriesCategoriesTyped() async {
+    final list = await getSeriesCategories();
+    return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
+  }
 
   static Future<List<dynamic>> getSeries([String? catId]) async {
     var url = '$baseUrl&action=get_series';
@@ -91,8 +128,24 @@ class XtreamApi {
     return jsonDecode((await httpGet(url)).body);
   }
 
+  static Future<List<SeriesItem>> getSeriesTyped([String? catId]) async {
+    final list = await getSeries(catId);
+    return list.map((e) => SeriesItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   static Future<Map<String, dynamic>> getSeriesInfo(String seriesId) async =>
       jsonDecode((await httpGet('$baseUrl&action=get_series_info&series_id=$seriesId')).body);
+
+  static Future<Map<String, List<Episode>>> getSeriesEpisodesTyped(String seriesId) async {
+    final data = await getSeriesInfo(seriesId);
+    final episodes = data['episodes'] as Map<String, dynamic>? ?? {};
+    return episodes.map((season, epList) {
+      final list = (epList as List<dynamic>)
+          .map((e) => Episode.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return MapEntry(season, list);
+    });
+  }
 
   static Future<Map<String, dynamic>> getShortEpg(String streamId, {int limit = 8}) async {
     final key = 'short_epg_${streamId}_$limit';
@@ -155,12 +208,13 @@ class XtreamApi {
             // Title may be base64 encoded
             try {
               return utf8.decode(base64Decode(title));
-            } catch (_) {
+            } catch (e, st) {
+              AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG title', error: e, stackTrace: st);
               return title;
             }
           }
         }
-      } catch (_) { continue; }
+      } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to parse EPG listing timestamps', error: e, stackTrace: st); continue; }
     }
     return null;
   }
@@ -202,7 +256,8 @@ class XtreamApi {
         }
       }
       _serverTimezoneLoaded = true;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'Failed to load server timezone', error: e, stackTrace: st);
       _serverTimezoneLoaded = true;
     }
   }

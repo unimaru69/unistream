@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
 
 class CollectionsService {
-  static String get _prefsKey => 'collections_${AppConfig.activeProfileId}';
+  static String get _prefsKey => StorageKeys.collections(AppConfig.activeProfileId);
 
   /// Load all custom collections for the active profile.
   /// Each collection: {id, name, items: [{key, name, cover, mode}]}

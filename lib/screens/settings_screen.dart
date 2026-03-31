@@ -9,6 +9,7 @@ import '../models/profile.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../services/import_export.dart';
+import '../core/storage_keys.dart';
 import 'home_screen.dart';
 
 import '../utils/theme.dart';
@@ -58,8 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadLangPrefs() async {
     final p = await SharedPreferences.getInstance();
     setState(() {
-      _prefAudioLang = p.getString('pref_audio_lang') ?? 'original';
-      _prefSubLang = p.getString('pref_sub_lang') ?? 'off';
+      _prefAudioLang = p.getString(StorageKeys.prefAudioLang) ?? 'original';
+      _prefSubLang = p.getString(StorageKeys.prefSubLang) ?? 'off';
     });
   }
 
@@ -390,7 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     if (v == null) return;
                     setState(() => _prefAudioLang = v);
-                    _saveLangPref('pref_audio_lang', v);
+                    _saveLangPref(StorageKeys.prefAudioLang, v);
                   },
                 ),
               ]),
@@ -410,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) {
                     if (v == null) return;
                     setState(() => _prefSubLang = v);
-                    _saveLangPref('pref_sub_lang', v);
+                    _saveLangPref(StorageKeys.prefSubLang, v);
                   },
                 ),
               ]),

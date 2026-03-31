@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
 
 class WatchProgress {
-  static String get _pfx => 'wp_${AppConfig.activeProfileId}_';
+  static String get _pid => AppConfig.activeProfileId;
 
   /// Sauvegarde la position. Supprime l'entree si le contenu est termine (>95%).
   static Future<void> save(String key, Duration pos, Duration dur) async {
@@ -11,27 +12,27 @@ class WatchProgress {
     final ratio = pos.inSeconds / dur.inSeconds;
     if (ratio > 0.95) { await clear(key); return; }
     final p = await SharedPreferences.getInstance();
-    await p.setInt('${_pfx}s_$key', pos.inSeconds);
-    await p.setInt('${_pfx}d_$key', dur.inSeconds);
+    await p.setInt(StorageKeys.wpPosition(_pid, key), pos.inSeconds);
+    await p.setInt(StorageKeys.wpDuration(_pid, key), dur.inSeconds);
   }
 
   static Future<Duration?> getPosition(String key) async {
     final p = await SharedPreferences.getInstance();
-    final s = p.getInt('${_pfx}s_$key');
+    final s = p.getInt(StorageKeys.wpPosition(_pid, key));
     return s != null ? Duration(seconds: s) : null;
   }
 
   static Future<void> clear(String key) async {
     final p = await SharedPreferences.getInstance();
-    await p.remove('${_pfx}s_$key');
-    await p.remove('${_pfx}d_$key');
-    await p.remove('${_pfx}meta_$key');
+    await p.remove(StorageKeys.wpPosition(_pid, key));
+    await p.remove(StorageKeys.wpDuration(_pid, key));
+    await p.remove(StorageKeys.wpMeta(_pid, key));
   }
 
   /// Sauvegarde les metadonnees d'un item (nom, cover, url, mode) pour le bandeau "Continuer a regarder".
   static Future<void> saveMeta(String key, String name, String cover, String url, String mode) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString('${_pfx}meta_$key', jsonEncode({
+    await p.setString(StorageKeys.wpMeta(_pid, key), jsonEncode({
       'name': name, 'cover': cover, 'url': url, 'mode': mode,
       'ts': DateTime.now().millisecondsSinceEpoch,
     }));
@@ -40,12 +41,13 @@ class WatchProgress {
   /// Retourne une map id -> ratio [0,1] pour tous les items avec une progression.
   static Future<Map<String, double>> loadAll() async {
     final p = await SharedPreferences.getInstance();
+    final prefix = StorageKeys.wpPositionPrefix(_pid);
     final result = <String, double>{};
     for (final k in p.getKeys()) {
-      if (!k.startsWith('${_pfx}s_')) continue;
-      final id  = k.substring('${_pfx}s_'.length);
+      if (!k.startsWith(prefix)) continue;
+      final id  = k.substring(prefix.length);
       final pos = p.getInt(k) ?? 0;
-      final dur = p.getInt('${_pfx}d_$id') ?? 0;
+      final dur = p.getInt(StorageKeys.wpDuration(_pid, id)) ?? 0;
       if (dur > 0) result[id] = (pos / dur).clamp(0.0, 1.0);
     }
     return result;
@@ -54,14 +56,15 @@ class WatchProgress {
   /// Retourne la liste des items en cours de visionnage, tries par date de derniere lecture.
   static Future<List<Map<String, dynamic>>> loadContinueWatching() async {
     final p = await SharedPreferences.getInstance();
+    final prefix = StorageKeys.wpPositionPrefix(_pid);
     final result = <Map<String, dynamic>>[];
     for (final k in p.getKeys()) {
-      if (!k.startsWith('${_pfx}s_')) continue;
-      final id  = k.substring('${_pfx}s_'.length);
+      if (!k.startsWith(prefix)) continue;
+      final id  = k.substring(prefix.length);
       final pos = p.getInt(k) ?? 0;
-      final dur = p.getInt('${_pfx}d_$id') ?? 0;
+      final dur = p.getInt(StorageKeys.wpDuration(_pid, id)) ?? 0;
       if (dur == 0 || pos < 30) continue;
-      final metaStr = p.getString('${_pfx}meta_$id');
+      final metaStr = p.getString(StorageKeys.wpMeta(_pid, id));
       if (metaStr == null) continue;
       final meta = Map<String, dynamic>.from(jsonDecode(metaStr) as Map);
       result.add({...meta, '_id': id, '_ratio': (pos / dur).clamp(0.0, 1.0)});
@@ -72,7 +75,7 @@ class WatchProgress {
   // ── Historique de lecture ──
   static Future<void> saveHistory(String key, String name, String cover, String url, String mode) async {
     final p = await SharedPreferences.getInstance();
-    final histKey = '${_pfx}history';
+    final histKey = StorageKeys.history(_pid);
     final raw = p.getString(histKey);
     List<Map<String, dynamic>> list = [];
     if (raw != null) {
@@ -90,7 +93,7 @@ class WatchProgress {
 
   static Future<List<Map<String, String>>> loadHistory() async {
     final p = await SharedPreferences.getInstance();
-    final raw = p.getString('${_pfx}history');
+    final raw = p.getString(StorageKeys.history(_pid));
     if (raw == null) return [];
     final list = List<Map<String, dynamic>>.from(
         (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
@@ -100,13 +103,13 @@ class WatchProgress {
 
   static Future<void> clearHistory() async {
     final p = await SharedPreferences.getInstance();
-    await p.remove('${_pfx}history');
+    await p.remove(StorageKeys.history(_pid));
   }
 
   /// Supprime une seule entree de l'historique par cle.
   static Future<void> deleteHistoryEntry(String key) async {
     final p = await SharedPreferences.getInstance();
-    final histKey = '${_pfx}history';
+    final histKey = StorageKeys.history(_pid);
     final raw = p.getString(histKey);
     if (raw == null) return;
     final list = List<Map<String, dynamic>>.from(
@@ -118,7 +121,7 @@ class WatchProgress {
   /// Re-insere une entree dans l'historique (pour undo).
   static Future<void> reInsertHistoryEntry(Map<String, String> entry) async {
     final p = await SharedPreferences.getInstance();
-    final histKey = '${_pfx}history';
+    final histKey = StorageKeys.history(_pid);
     final raw = p.getString(histKey);
     List<Map<String, dynamic>> list = [];
     if (raw != null) {

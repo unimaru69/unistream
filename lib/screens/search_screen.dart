@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/logger.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
@@ -73,7 +74,8 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         _results = [...tag(all[0], 'live'), ...tag(all[1], 'vod'), ...tag(all[2], 'series')];
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'Search failed', error: e, stackTrace: st);
       if (mounted) setState(() => _loading = false);
     }
   }

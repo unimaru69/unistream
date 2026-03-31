@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/storage_keys.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
 Future<void> loadThemeMode() async {
   final p = await SharedPreferences.getInstance();
-  final v = p.getString('theme_mode') ?? 'dark';
+  final v = p.getString(StorageKeys.themeMode) ?? 'dark';
   switch (v) {
     case 'light':  themeNotifier.value = ThemeMode.light; break;
     case 'system': themeNotifier.value = ThemeMode.system; break;
@@ -16,7 +17,7 @@ Future<void> loadThemeMode() async {
 Future<void> saveThemeMode(ThemeMode mode) async {
   final p = await SharedPreferences.getInstance();
   final v = mode == ThemeMode.dark ? 'dark' : mode == ThemeMode.light ? 'light' : 'system';
-  await p.setString('theme_mode', v);
+  await p.setString(StorageKeys.themeMode, v);
   themeNotifier.value = mode;
 }
 

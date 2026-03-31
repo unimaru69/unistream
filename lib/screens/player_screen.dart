@@ -5,6 +5,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/logger.dart';
+import '../core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
@@ -274,13 +276,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   // ── Subtitle customization ──
-  String get _subPfx => 'sub_${AppConfig.activeProfileId}';
+  String get _pid => AppConfig.activeProfileId;
 
   Future<void> _loadSubtitleSettings() async {
     final p = await SharedPreferences.getInstance();
-    final fs = p.getDouble('${_subPfx}_fontSize');
-    final colorVal = p.getInt('${_subPfx}_color');
-    final bgOp = p.getDouble('${_subPfx}_bgOpacity');
+    final fs = p.getDouble(StorageKeys.subtitleFontSize(_pid));
+    final colorVal = p.getInt(StorageKeys.subtitleColor(_pid));
+    final bgOp = p.getDouble(StorageKeys.subtitleBgOpacity(_pid));
     if (fs != null) _subtitleFontSize = fs;
     if (colorVal != null) _subtitleColor = Color(colorVal);
     if (bgOp != null) _subtitleBgOpacity = bgOp;
@@ -289,9 +291,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _saveSubtitleSettings() async {
     final p = await SharedPreferences.getInstance();
-    await p.setDouble('${_subPfx}_fontSize', _subtitleFontSize);
-    await p.setInt('${_subPfx}_color', _subtitleColor.toARGB32());
-    await p.setDouble('${_subPfx}_bgOpacity', _subtitleBgOpacity);
+    await p.setDouble(StorageKeys.subtitleFontSize(_pid), _subtitleFontSize);
+    await p.setInt(StorageKeys.subtitleColor(_pid), _subtitleColor.toARGB32());
+    await p.setDouble(StorageKeys.subtitleBgOpacity(_pid), _subtitleBgOpacity);
   }
 
   void _applySubtitleSettings() {
@@ -310,7 +312,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       np.setProperty('sub-color', colorHex.toUpperCase());
       final bgAlpha = (_subtitleBgOpacity * 255).round().toRadixString(16).padLeft(2, '0');
       np.setProperty('sub-back-color', '#${bgAlpha}000000'.toUpperCase());
-    } catch (_) {}
+    } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to apply subtitle style', error: e, stackTrace: st); }
   }
 
   void _showSubtitleStylePicker() {
@@ -569,8 +571,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _applyPreferredLanguages() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final prefAudio = prefs.getString('pref_audio_lang') ?? '';
-      final prefSub = prefs.getString('pref_sub_lang') ?? '';
+      final prefAudio = prefs.getString(StorageKeys.prefAudioLang) ?? '';
+      final prefSub = prefs.getString(StorageKeys.prefSubLang) ?? '';
 
       // Fuzzy language matching helper
       bool matchLang(String trackLang, String pref) {
@@ -622,7 +624,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
         }
       }
-    } catch (_) {}
+    } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to apply preferred subtitle track', error: e, stackTrace: st); }
   }
 
   void _startQualityTimer() {
@@ -656,8 +658,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _qualityBadge = badge;
         _bitrate = brStr;
       });
-    } catch (_) {
-      // getProperty might not be available on all platforms
+    } catch (e, st) {
+      AppLogger.warning(LogModule.player, 'Failed to read quality info from player', error: e, stackTrace: st);
     }
   }
 
@@ -798,7 +800,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       Map<String, dynamic> data;
       try {
         data = await XtreamApi.getFullDayEpg(widget.streamId!);
-      } catch (_) {
+      } catch (e, st) {
+        AppLogger.warning(LogModule.epg, 'Full-day EPG failed, falling back to short EPG', error: e, stackTrace: st);
         data = await XtreamApi.getShortEpg(widget.streamId!, limit: 30);
       }
       // Check if this channel has tv_archive=1
@@ -810,10 +813,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           orElse: () => <String, dynamic>{},
         );
         catchup = XtreamApi.channelHasCatchup(Map<String, dynamic>.from(thisChannel));
-      } catch (_) {}
+      } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to check channel catchup support', error: e, stackTrace: st); }
       final listings = data['epg_listings'] as List?;
       if (listings == null || listings.isEmpty) return;
-      String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+      String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
 
       DateTime? parseTs(dynamic v) {
         if (v == null) return null;
@@ -875,7 +878,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _epgNow = _epgListings.first['title'];
         }
       });
-    } catch (_) {}
+    } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to load EPG data', error: e, stackTrace: st); }
   }
 
   String _fmt(Duration d) {

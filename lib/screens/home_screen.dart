@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/logger.dart';
+import '../core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
@@ -41,12 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Favoris
   Set<String> _favKeys = {};
   List<Map<String, dynamic>> _favItems = [];
-  String get _prefKeyFavs => 'favorites_${AppConfig.activeProfileId}';
+  String get _prefKeyFavs => StorageKeys.favorites(AppConfig.activeProfileId);
 
   // Watchlist "À regarder plus tard"
   Set<String> _wlKeys = {};
   List<Map<String, dynamic>> _wlItems = [];
-  String get _prefKeyWl => 'watchlist_${AppConfig.activeProfileId}';
+  String get _prefKeyWl => StorageKeys.watchlist(AppConfig.activeProfileId);
 
   // Recherche
   final _searchCtrl = TextEditingController();
@@ -88,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Grid view preference per mode ──
-  String get _gridViewKey => 'gridView_${AppConfig.activeProfileId}_${_mode.key}';
+  String get _gridViewKey => StorageKeys.gridView(AppConfig.activeProfileId, _mode.key);
   Future<void> _loadGridView() async {
     final p = await SharedPreferences.getInstance();
     final v = p.getBool(_gridViewKey);
@@ -100,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Sort preference per mode ──
-  String get _sortKey => 'sortMode_${AppConfig.activeProfileId}_${_mode.key}';
+  String get _sortKey => StorageKeys.sortMode(AppConfig.activeProfileId, _mode.key);
   Future<void> _loadSortMode() async {
     final p = await SharedPreferences.getInstance();
     final v = p.getString(_sortKey);
@@ -323,12 +325,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Sidebar width ──
   Future<void> _loadSidebarWidth() async {
     final p = await SharedPreferences.getInstance();
-    final w = p.getDouble('sidebar_width');
+    final w = p.getDouble(StorageKeys.sidebarWidth);
     if (w != null) setState(() => _sidebarWidth = w.clamp(_sidebarMin, _sidebarMax));
   }
   Future<void> _saveSidebarWidth() async {
     final p = await SharedPreferences.getInstance();
-    await p.setDouble('sidebar_width', _sidebarWidth);
+    await p.setDouble(StorageKeys.sidebarWidth, _sidebarWidth);
   }
 
   // ── Favoris ──
@@ -467,8 +469,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return sb.compareTo(sa);
       });
       if (mounted) setState(() => _recentlyAdded = items.take(20).toList());
-    } catch (_) {
-      // Non-blocking: if it fails, just don't show the section
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'Failed to load recently added items', error: e, stackTrace: st);
     }
   }
 

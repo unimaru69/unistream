@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/logger.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
@@ -61,7 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (diff.inDays == 1) return 'Hier';
       if (diff.inDays < 7) return 'Il y a ${diff.inDays} jours';
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    } catch (_) { return ''; }
+    } catch (e, st) { AppLogger.warning(LogModule.ui, 'Failed to parse history date', error: e, stackTrace: st); return ''; }
   }
 
   static const _modeLabels = {'live': 'Live', 'vod': 'VOD', 'series': 'Série'};

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/storage_keys.dart';
 import '../models/profile.dart';
 import '../models/app_config.dart';
 import 'xtream_api.dart';
@@ -26,7 +27,7 @@ class ImportExport {
   /// Export les favoris du profil actif en M3U.
   static Future<String> exportFavoritesM3U() async {
     final p = await SharedPreferences.getInstance();
-    final key = 'favorites_${AppConfig.activeProfileId}';
+    final key = StorageKeys.favorites(AppConfig.activeProfileId);
     final raw = p.getString(key);
     if (raw == null) return '#EXTM3U\n';
     final items = List<Map<String, dynamic>>.from(
@@ -61,13 +62,14 @@ class ImportExport {
     };
     // Include favorites and watch progress for each profile
     for (final pr in AppConfig.profiles) {
-      final favKey = 'favorites_${pr.id}';
+      final favKey = StorageKeys.favorites(pr.id);
       final favRaw = p.getString(favKey);
       if (favRaw != null) data['fav_${pr.id}'] = favRaw;
       // Collect watch progress keys
       final wpData = <String, dynamic>{};
+      final wpPfx = StorageKeys.wpPrefix(pr.id);
       for (final k in p.getKeys()) {
-        if (k.startsWith('wp_${pr.id}_')) {
+        if (k.startsWith(wpPfx)) {
           final v = p.get(k);
           wpData[k] = v;
         }
@@ -86,17 +88,17 @@ class ImportExport {
       AppConfig.profiles = (data['profiles'] as List)
           .map((e) => Profile.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      await p.setString('profiles_list', jsonEncode(AppConfig.profiles.map((e) => e.toJson()).toList()));
+      await p.setString(StorageKeys.profilesList, jsonEncode(AppConfig.profiles.map((e) => e.toJson()).toList()));
     }
     // Restore active profile
     if (data['activeProfile'] != null) {
-      await p.setString('active_profile', data['activeProfile'] as String);
+      await p.setString(StorageKeys.activeProfile, data['activeProfile'] as String);
     }
     // Restore favorites
     for (final pr in AppConfig.profiles) {
       final favKey = 'fav_${pr.id}';
       if (data[favKey] != null) {
-        await p.setString('favorites_${pr.id}', data[favKey] as String);
+        await p.setString(StorageKeys.favorites(pr.id), data[favKey] as String);
       }
       // Restore watch progress
       final wpKey = 'wp_${pr.id}';

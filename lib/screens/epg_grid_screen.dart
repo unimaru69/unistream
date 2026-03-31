@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/logger.dart';
+import '../core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../utils/routes.dart';
@@ -106,7 +108,7 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
 
   Future<void> _loadEpgFavs() async {
     final p = await SharedPreferences.getInstance();
-    final raw = p.getString('favorites_${AppConfig.activeProfileId}');
+    final raw = p.getString(StorageKeys.favorites(AppConfig.activeProfileId));
     if (raw != null) {
       final list = List<Map<String, dynamic>>.from(
           (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
@@ -151,12 +153,12 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
           try {
             Map<String, dynamic> data;
             try { data = await XtreamApi.getFullDayEpg(sid); }
-            catch (_) { data = await XtreamApi.getShortEpg(sid, limit: 30); }
+            catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back to short EPG', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
             final listings = data['epg_listings'] as List? ?? [];
             final today = _dayStart;
             final tomorrow = _dayStart.add(const Duration(days: 1));
             epg[sid] = listings.map((e) {
-              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
               final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
               final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
               final rawStartStr = e['start']?.toString();
@@ -173,7 +175,7 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
               final s = p['start'] as DateTime;
               return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
             }).toList();
-          } catch (_) {}
+          } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
         }));
         if (mounted) setState(() {
           _epgData = Map.from(epg);
@@ -255,14 +257,15 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
             Map<String, dynamic> data;
             try {
               data = await XtreamApi.getFullDayEpg(sid);
-            } catch (_) {
+            } catch (e, st) {
+              AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back to short EPG', error: e, stackTrace: st);
               data = await XtreamApi.getShortEpg(sid, limit: 30);
             }
             final listings = data['epg_listings'] as List? ?? [];
             final today = _dayStart;
             final tomorrow = _dayStart.add(const Duration(days: 1));
             epg[sid] = listings.map((e) {
-              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
               final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
               final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
               // Store raw 'start' string from API — this is in server local time
@@ -282,7 +285,7 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
               // Keep only today's programs
               return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
             }).toList();
-          } catch (_) {}
+          } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
         }));
         if (mounted) setState(() {
           _epgData = Map.from(epg);
@@ -365,10 +368,10 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
         try {
           Map<String, dynamic> data;
           try { data = await XtreamApi.getFullDayEpg(sid); }
-          catch (_) { data = await XtreamApi.getShortEpg(sid, limit: 30); }
+          catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG reload failed for $sid, falling back to short EPG', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
           final listings = data['epg_listings'] as List? ?? [];
           epg[sid] = listings.map((e) {
-            String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+            String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
             final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
             final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
             final rawStartStr = e['start']?.toString();
@@ -385,7 +388,7 @@ class _EpgGridScreenState extends State<EpgGridScreen> {
             final s = p['start'] as DateTime;
             return s.isAfter(_dayStart.subtract(const Duration(hours: 1))) && s.isBefore(dayEnd);
           }).toList();
-        } catch (_) {}
+        } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to reload EPG for channel $sid', error: e, stackTrace: st); }
       }));
       if (mounted) setState(() {
         _epgData = Map.from(epg);

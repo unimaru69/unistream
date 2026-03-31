@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
@@ -6,6 +7,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/storage_keys.dart';
 import 'models/app_config.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
@@ -107,10 +109,10 @@ void main() async {
   if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
     await windowManager.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
-    final w = prefs.getDouble('window_w') ?? 1280;
-    final h = prefs.getDouble('window_h') ?? 800;
-    final x = prefs.getDouble('window_x');
-    final y = prefs.getDouble('window_y');
+    final w = prefs.getDouble(StorageKeys.windowW) ?? 1280;
+    final h = prefs.getDouble(StorageKeys.windowH) ?? 800;
+    final x = prefs.getDouble(StorageKeys.windowX);
+    final y = prefs.getDouble(StorageKeys.windowY);
     final windowOptions = WindowOptions(
       size: Size(w, h),
       minimumSize: const Size(800, 500),
@@ -126,7 +128,7 @@ void main() async {
   }
 
   await loadThemeMode();
-  runApp(const UniStreamApp());
+  runApp(const ProviderScope(child: UniStreamApp()));
 }
 
 class UniStreamApp extends StatefulWidget {
@@ -160,10 +162,10 @@ class _UniStreamAppState extends State<UniStreamApp> with WindowListener {
     _windowSaveTimer = Timer(const Duration(milliseconds: 500), () async {
       final bounds = await windowManager.getBounds();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('window_x', bounds.left);
-      await prefs.setDouble('window_y', bounds.top);
-      await prefs.setDouble('window_w', bounds.width);
-      await prefs.setDouble('window_h', bounds.height);
+      await prefs.setDouble(StorageKeys.windowX, bounds.left);
+      await prefs.setDouble(StorageKeys.windowY, bounds.top);
+      await prefs.setDouble(StorageKeys.windowW, bounds.width);
+      await prefs.setDouble(StorageKeys.windowH, bounds.height);
     });
   }
 
