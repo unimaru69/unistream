@@ -41,7 +41,9 @@ cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/lib:${HERE}/usr/bin:${LD_LIBRARY_PATH:-}"
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
+# Unset GTK_PATH to avoid host module conflicts
+unset GTK_MODULES 2>/dev/null || true
+unset GTK3_MODULES 2>/dev/null || true
 exec "${HERE}/usr/bin/unistream" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
@@ -53,9 +55,18 @@ bundle_lib() {
   local libpath="$1"
   local libname
   libname=$(basename "$libpath")
-  # Skip glibc core libs (must come from host)
+  # Skip libs that MUST come from the host system:
+  # - glibc core (libc, libm, libdl, librt, libpthread, ld-linux)
+  # - GPU/graphics stack (EGL, GL, GLX, GLESv2, vulkan, drm, gbm) — must match host GPU drivers
+  # - X11/Wayland core — must match host display server
+  # - Mesa internals, nvidia, etc.
   case "$libname" in
     libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*|linux-vdso*) return 0 ;;
+    libEGL.so*|libGL.so*|libGLX.so*|libGLESv2.so*|libGLdispatch.so*) return 0 ;;
+    libvulkan.so*|libdrm*.so*|libgbm.so*|libglapi.so*) return 0 ;;
+    libX11.so*|libX11-xcb.so*|libxcb.so*|libXext.so*|libXi.so*|libXfixes.so*|libXcursor.so*|libXrandr.so*|libXrender.so*|libXcomposite.so*|libXdamage.so*|libXinerama.so*|libXxf86vm.so*) return 0 ;;
+    libwayland-client.so*|libwayland-server.so*|libwayland-cursor.so*|libwayland-egl.so*) return 0 ;;
+    libstdc++.so*) return 0 ;;
   esac
   if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
     cp "$libpath" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $libname" || true
