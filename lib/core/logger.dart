@@ -1,4 +1,5 @@
 import 'package:logger/logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 class AppLogger {
   AppLogger._();
@@ -26,6 +27,11 @@ class AppLogger {
 
   static void error(String module, String message, {Object? error, StackTrace? stackTrace}) {
     _logger.e('[$module] $message', error: error, stackTrace: stackTrace);
+    // Send errors to Sentry
+    Sentry.captureException(
+      error ?? Exception('[$module] $message'),
+      stackTrace: stackTrace,
+    );
   }
 }
 

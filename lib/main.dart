@@ -7,7 +7,9 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/colors.dart';
+import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
 import 'models/app_config.dart';
 import 'services/watch_progress.dart';
@@ -129,7 +131,19 @@ void main() async {
   }
 
   await loadThemeMode();
-  runApp(const ProviderScope(child: UniStreamApp()));
+
+  if (isSentryEnabled) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = sentryDsn;
+        options.tracesSampleRate = 0.2;
+        options.sendDefaultPii = false;
+      },
+      appRunner: () => runApp(const ProviderScope(child: UniStreamApp())),
+    );
+  } else {
+    runApp(const ProviderScope(child: UniStreamApp()));
+  }
 }
 
 class UniStreamApp extends StatefulWidget {
