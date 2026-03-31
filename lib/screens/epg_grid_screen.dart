@@ -1,0 +1,862 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/app_config.dart';
+import '../services/xtream_api.dart';
+import '../utils/routes.dart';
+import 'player_screen.dart';
+
+// ── EPG Grid Screen ──
+class EpgGridScreen extends StatefulWidget {
+  final String? initialCategoryId;
+  const EpgGridScreen({super.key, this.initialCategoryId});
+  @override
+  State<EpgGridScreen> createState() => _EpgGridScreenState();
+}
+
+class _EpgGridScreenState extends State<EpgGridScreen> {
+  // Categories
+  List<dynamic> _categories = [];
+  String? _selectedCatId;
+  bool _loadingCats = true;
+
+  // Channels for selected category
+  List<Map<String, dynamic>> _channels = [];
+  bool _loadingChannels = false;
+
+  // EPG data: channelId → programs
+  Map<String, List<Map<String, dynamic>>> _epgData = {};
+  bool _loadingEpg = false;
+  int _epgLoaded = 0; // progress counter
+
+  String? _error;
+
+  // Search / filter
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  // Favorites (loaded from HomeScreen's favorites)
+  Set<String> _favStreamIds = {};
+
+  // Category sidebar resize
+  double _catSidebarWidth = 200;
+  static const double _catSidebarMin = 120;
+  static const double _catSidebarMax = 400;
+
+  // Timeline
+  late DateTime _dayStart;
+  final double _hourWidth = 300;
+  final double _channelColWidth = 180;
+  final double _rowHeight = 50;
+
+  // Scroll sync: two independent controllers synced manually
+  final _headerHScroll = ScrollController();
+  final _gridHScroll   = ScrollController();
+  final _channelVScroll = ScrollController();
+  final _gridVScroll    = ScrollController();
+  bool _syncingH = false;
+  bool _syncingV = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    _loadEpgFavs();
+    _loadCategories();
+
+    // Sync horizontal scroll: header ↔ grid
+    _headerHScroll.addListener(() {
+      if (_syncingH) return;
+      _syncingH = true;
+      if (_gridHScroll.hasClients) _gridHScroll.jumpTo(_headerHScroll.offset);
+      _syncingH = false;
+    });
+    _gridHScroll.addListener(() {
+      if (_syncingH) return;
+      _syncingH = true;
+      if (_headerHScroll.hasClients) _headerHScroll.jumpTo(_gridHScroll.offset);
+      _syncingH = false;
+    });
+
+    // Sync vertical scroll: channel col ↔ grid
+    _channelVScroll.addListener(() {
+      if (_syncingV) return;
+      _syncingV = true;
+      if (_gridVScroll.hasClients) _gridVScroll.jumpTo(_channelVScroll.offset);
+      _syncingV = false;
+    });
+    _gridVScroll.addListener(() {
+      if (_syncingV) return;
+      _syncingV = true;
+      if (_channelVScroll.hasClients) _channelVScroll.jumpTo(_gridVScroll.offset);
+      _syncingV = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _headerHScroll.dispose();
+    _gridHScroll.dispose();
+    _channelVScroll.dispose();
+    _gridVScroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadEpgFavs() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString('favorites_${AppConfig.activeProfileId}');
+    if (raw != null) {
+      final list = List<Map<String, dynamic>>.from(
+          (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
+      final ids = <String>{};
+      for (final item in list) {
+        if (item['_mode'] == 'live') {
+          final sid = item['stream_id']?.toString();
+          if (sid != null) ids.add(sid);
+        }
+      }
+      if (mounted) setState(() => _favStreamIds = ids);
+    }
+  }
+
+  Future<void> _selectFavorites() async {
+    setState(() {
+      _selectedCatId = '__favorites__';
+      _loadingChannels = true;
+      _channels = [];
+      _epgData = {};
+      _epgLoaded = 0;
+    });
+
+    try {
+      final streams = await XtreamApi.getLiveStreams();
+      final channels = List<Map<String, dynamic>>.from(streams)
+          .where((ch) => _favStreamIds.contains(ch['stream_id']?.toString()))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _channels = channels;
+        _loadingChannels = false;
+        _loadingEpg = true;
+      });
+
+      // Load EPG for favorite channels
+      final Map<String, List<Map<String, dynamic>>> epg = {};
+      for (var i = 0; i < channels.length; i += 6) {
+        final chunk = channels.skip(i).take(6);
+        await Future.wait(chunk.map((ch) async {
+          final sid = ch['stream_id'].toString();
+          try {
+            Map<String, dynamic> data;
+            try { data = await XtreamApi.getFullDayEpg(sid); }
+            catch (_) { data = await XtreamApi.getShortEpg(sid, limit: 30); }
+            final listings = data['epg_listings'] as List? ?? [];
+            final today = _dayStart;
+            final tomorrow = _dayStart.add(const Duration(days: 1));
+            epg[sid] = listings.map((e) {
+              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+              final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
+              final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
+              final rawStartStr = e['start']?.toString();
+              return {
+                'title': dec(e['title']?.toString() ?? ''),
+                'description': dec(e['description']?.toString() ?? ''),
+                'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
+                'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
+                'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
+                'start_server_local': rawStartStr,
+              };
+            }).where((p) {
+              if (p['start'] == null || p['end'] == null) return false;
+              final s = p['start'] as DateTime;
+              return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
+            }).toList();
+          } catch (_) {}
+        }));
+        if (mounted) setState(() {
+          _epgData = Map.from(epg);
+          _epgLoaded = (i + 6).clamp(0, channels.length);
+        });
+      }
+
+      if (mounted) setState(() => _loadingEpg = false);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final now = DateTime.now();
+        final offset = now.difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
+        if (_gridHScroll.hasClients) {
+          final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
+          _gridHScroll.jumpTo(clamped);
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() { _error = XtreamApi.friendlyError(e); _loadingChannels = false; });
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final cats = await XtreamApi.getLiveCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = cats;
+        _loadingCats = false;
+      });
+      // Auto-select initial category or first one
+      if (cats.isNotEmpty) {
+        final initId = widget.initialCategoryId;
+        final match = initId != null && initId != '__favorites__' && initId != '__watchlist__'
+            ? cats.firstWhere((c) => c['category_id'].toString() == initId, orElse: () => cats.first)
+            : cats.first;
+        _selectCategory(match['category_id'].toString());
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = XtreamApi.friendlyError(e); _loadingCats = false; });
+    }
+  }
+
+  Future<void> _selectCategory(String catId) async {
+    setState(() {
+      _selectedCatId = catId;
+      _loadingChannels = true;
+      _channels = [];
+      _epgData = {};
+      _epgLoaded = 0;
+    });
+
+    try {
+      final streams = await XtreamApi.getLiveStreams(catId);
+      final channels = List<Map<String, dynamic>>.from(streams);
+      // Sort favorites first
+      if (_favStreamIds.isNotEmpty) {
+        channels.sort((a, b) {
+          final aFav = _favStreamIds.contains(a['stream_id']?.toString()) ? 0 : 1;
+          final bFav = _favStreamIds.contains(b['stream_id']?.toString()) ? 0 : 1;
+          return aFav.compareTo(bFav);
+        });
+      }
+      if (!mounted) return;
+      setState(() {
+        _channels = channels;
+        _loadingChannels = false;
+        _loadingEpg = true;
+      });
+
+      // Load full-day EPG in batches of 6 (heavier payload than short EPG)
+      final Map<String, List<Map<String, dynamic>>> epg = {};
+      for (var i = 0; i < channels.length; i += 6) {
+        final chunk = channels.skip(i).take(6);
+        await Future.wait(chunk.map((ch) async {
+          final sid = ch['stream_id'].toString();
+          try {
+            // Try full-day EPG first, fallback to short EPG
+            Map<String, dynamic> data;
+            try {
+              data = await XtreamApi.getFullDayEpg(sid);
+            } catch (_) {
+              data = await XtreamApi.getShortEpg(sid, limit: 30);
+            }
+            final listings = data['epg_listings'] as List? ?? [];
+            final today = _dayStart;
+            final tomorrow = _dayStart.add(const Duration(days: 1));
+            epg[sid] = listings.map((e) {
+              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+              final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
+              final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
+              // Store raw 'start' string from API — this is in server local time
+              // e.g. "2026-03-30 08:30:00" — used directly for timeshift URL (DST-safe)
+              final rawStartStr = e['start']?.toString();
+              return {
+                'title': dec(e['title']?.toString() ?? ''),
+                'description': dec(e['description']?.toString() ?? ''),
+                'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
+                'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
+                'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
+                'start_server_local': rawStartStr,
+              };
+            }).where((p) {
+              if (p['start'] == null || p['end'] == null) return false;
+              final s = p['start'] as DateTime;
+              // Keep only today's programs
+              return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
+            }).toList();
+          } catch (_) {}
+        }));
+        if (mounted) setState(() {
+          _epgData = Map.from(epg);
+          _epgLoaded = (i + 6).clamp(0, channels.length);
+        });
+      }
+
+      if (mounted) setState(() => _loadingEpg = false);
+
+      // Scroll to current time
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final now = DateTime.now();
+        final offset = now.difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
+        if (_gridHScroll.hasClients) {
+          final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
+          _gridHScroll.jumpTo(clamped);
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() { _error = XtreamApi.friendlyError(e); _loadingChannels = false; });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredChannels {
+    if (_searchQuery.isEmpty) return _channels;
+    return _channels.where((ch) {
+      final name = (ch['name'] ?? '').toString().toLowerCase();
+      return name.contains(_searchQuery);
+    }).toList();
+  }
+
+  // ── French date formatting ──
+  static const _frDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+  static const _frMonths = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+  String _fmtDayFr(DateTime d) {
+    return '${_frDays[d.weekday - 1]} ${d.day} ${_frMonths[d.month - 1]} ${d.year}';
+  }
+
+  bool get _canGoPrev {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return _dayStart.isAfter(today.subtract(const Duration(days: 3)));
+  }
+
+  bool get _canGoNext {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return _dayStart.isBefore(today.add(const Duration(days: 3)));
+  }
+
+  void _changeDay(int delta) {
+    final newDay = _dayStart.add(Duration(days: delta));
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    if (newDay.isBefore(today.subtract(const Duration(days: 3))) ||
+        newDay.isAfter(today.add(const Duration(days: 3)))) return;
+
+    setState(() {
+      _dayStart = newDay;
+      _epgData = {};
+      _epgLoaded = 0;
+      _loadingEpg = true;
+    });
+
+    // Reload EPG for the new day
+    if (_selectedCatId == '__favorites__') {
+      _reloadEpgForChannels(_channels);
+    } else if (_selectedCatId != null) {
+      _reloadEpgForChannels(_channels);
+    }
+  }
+
+  Future<void> _reloadEpgForChannels(List<Map<String, dynamic>> channels) async {
+    final dayEnd = _dayStart.add(const Duration(days: 1));
+    final Map<String, List<Map<String, dynamic>>> epg = {};
+
+    for (var i = 0; i < channels.length; i += 6) {
+      final chunk = channels.skip(i).take(6);
+      await Future.wait(chunk.map((ch) async {
+        final sid = ch['stream_id'].toString();
+        try {
+          Map<String, dynamic> data;
+          try { data = await XtreamApi.getFullDayEpg(sid); }
+          catch (_) { data = await XtreamApi.getShortEpg(sid, limit: 30); }
+          final listings = data['epg_listings'] as List? ?? [];
+          epg[sid] = listings.map((e) {
+            String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+            final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
+            final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
+            final rawStartStr = e['start']?.toString();
+            return {
+              'title': dec(e['title']?.toString() ?? ''),
+              'description': dec(e['description']?.toString() ?? ''),
+              'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
+              'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
+              'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
+              'start_server_local': rawStartStr,
+            };
+          }).where((p) {
+            if (p['start'] == null || p['end'] == null) return false;
+            final s = p['start'] as DateTime;
+            return s.isAfter(_dayStart.subtract(const Duration(hours: 1))) && s.isBefore(dayEnd);
+          }).toList();
+        } catch (_) {}
+      }));
+      if (mounted) setState(() {
+        _epgData = Map.from(epg);
+        _epgLoaded = (i + 6).clamp(0, channels.length);
+      });
+    }
+
+    if (mounted) setState(() => _loadingEpg = false);
+
+    // Scroll to appropriate position
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final isToday = _dayStart.year == today.year && _dayStart.month == today.month && _dayStart.day == today.day;
+      final double offset;
+      if (isToday) {
+        offset = DateTime.now().difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
+      } else {
+        offset = 0; // beginning of day for non-today
+      }
+      if (_gridHScroll.hasClients) {
+        final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
+        _gridHScroll.jumpTo(clamped);
+      }
+    });
+  }
+
+  String _fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
+
+  Widget _buildTimelineHeader() {
+    return SizedBox(
+      width: _hourWidth * 24,
+      height: 30,
+      child: Stack(children: [
+        for (var h = 0; h < 24; h++)
+          Positioned(
+            left: h * _hourWidth,
+            top: 0, bottom: 0,
+            child: Container(
+              width: _hourWidth,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(left: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A2E),
+                border: Border(left: BorderSide(color: Colors.white12, width: 0.5)),
+              ),
+              child: Text(_fmtHour(h), style: const TextStyle(fontSize: 10, color: Colors.white54)),
+            ),
+          ),
+        // Current time marker
+        Positioned(
+          left: DateTime.now().difference(_dayStart).inMinutes * _hourWidth / 60,
+          top: 0, bottom: 0,
+          child: Container(width: 2, color: Colors.redAccent),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildChannelRow(int i, List<Map<String, dynamic>> channels) {
+    final ch = channels[i];
+    return Container(
+      height: _rowHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: i.isEven ? const Color(0xFF12122A) : const Color(0xFF0E0E20),
+        border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+      ),
+      child: Row(children: [
+        if (ch['stream_icon'] != null && ch['stream_icon'].toString().isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: CachedNetworkImage(
+              imageUrl: ch['stream_icon'].toString(),
+              width: 28, height: 28, fit: BoxFit.contain,
+              errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 16, color: Colors.white24),
+            ),
+          )
+        else
+          const Icon(Icons.tv, size: 16, color: Colors.white24),
+        const SizedBox(width: 6),
+        Expanded(child: Text(
+          ch['name'] ?? '',
+          style: const TextStyle(fontSize: 11, color: Colors.white70),
+          overflow: TextOverflow.ellipsis,
+        )),
+      ]),
+    );
+  }
+
+  void _showProgramDetail(Map<String, dynamic> prog, DateTime start, DateTime end, String desc) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: Text(prog['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 15)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
+                ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}',
+                style: const TextStyle(color: Colors.white60, fontSize: 13),
+              ),
+              if (desc.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramRow(int i, List<Map<String, dynamic>> channels) {
+    final ch = channels[i];
+    final sid = ch['stream_id'].toString();
+    final progs = _epgData[sid] ?? [];
+    final now = DateTime.now();
+    final totalWidth = _hourWidth * 24;
+    final hasCatchup = XtreamApi.channelHasCatchup(ch);
+
+    // Sort programs by start time to build a linear Row
+    final sorted = List<Map<String, dynamic>>.from(progs)
+      ..sort((a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
+
+    // Build cells: [gap, program, gap, program, ...] as SizedBox widgets
+    final cells = <Widget>[];
+    double cursorX = 0;
+
+    for (final prog in sorted) {
+      final start = prog['start'] as DateTime;
+      final end   = prog['end'] as DateTime;
+      var leftPx  = start.difference(_dayStart).inMinutes * _hourWidth / 60;
+      var widthPx = end.difference(start).inMinutes * _hourWidth / 60;
+
+      // Clamp to totalWidth bounds
+      if (leftPx < 0) { widthPx += leftPx; leftPx = 0; }
+      if (leftPx + widthPx > totalWidth) widthPx = totalWidth - leftPx;
+      if (widthPx <= 2) continue;
+
+      // Skip if this program starts before our cursor (overlap from data)
+      if (leftPx < cursorX) {
+        final overlap = cursorX - leftPx;
+        leftPx = cursorX;
+        widthPx -= overlap;
+        if (widthPx <= 2) continue;
+      }
+
+      // Insert gap before this program
+      if (leftPx > cursorX) {
+        cells.add(SizedBox(width: leftPx - cursorX));
+      }
+
+      // Build the program cell
+      final isCurrent = now.isAfter(start) && now.isBefore(end);
+      final isPast    = now.isAfter(end);
+      final canReplay = isPast && hasCatchup;
+      final durMin    = end.difference(start).inMinutes;
+      final title     = '${canReplay ? '↻ ' : ''}${prog['title'] ?? ''}';
+
+      final cellColor = isCurrent
+          ? const Color(0xFF4A90D9).withValues(alpha: 0.4)
+          : canReplay
+          ? const Color(0xFF2E7D32).withValues(alpha: 0.25)
+          : isPast
+          ? Colors.white.withValues(alpha: 0.04)
+          : Colors.white.withValues(alpha: 0.08);
+      final cellBorder = isCurrent
+          ? Border.all(color: const Color(0xFF4A90D9), width: 1)
+          : canReplay
+          ? Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.4), width: 0.5)
+          : null;
+      final textColor = isCurrent ? Colors.white
+          : canReplay ? Colors.white60
+          : isPast ? Colors.white24
+          : Colors.white60;
+
+      final cellWidth = widthPx - 1; // 1px visual gap
+
+      final desc = (prog['description'] ?? '') as String;
+      final descTrunc = desc.length > 100 ? '${desc.substring(0, 100)}…' : desc;
+
+      cells.add(SizedBox(
+        width: cellWidth > 0 ? cellWidth : 0,
+        child: Tooltip(
+          message: '${prog['title']}\n'
+              '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
+              ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}'
+              '${descTrunc.isNotEmpty ? '\n$descTrunc' : ''}'
+              '${canReplay ? '\n▶ Cliquer pour revoir (Catch-up)' : ''}',
+          child: GestureDetector(
+            onTap: () {
+              if (canReplay) {
+                final serverLocal = prog['start_server_local'] as String?;
+                final url = (serverLocal != null && serverLocal.isNotEmpty)
+                    ? XtreamApi.getTimeshiftUrlFromLocal(sid, serverLocal, durMin)
+                    : XtreamApi.getTimeshiftUrl(sid, prog['start_utc'] as DateTime? ?? start.toUtc(), durMin);
+                Navigator.push(context, slideRoute(PlayerScreen(
+                  url: url,
+                  title: '${ch['name']} — ${prog['title']} (Replay)',
+                  streamId: sid,
+                  isCatchup: true,
+                )));
+              } else {
+                final url = XtreamApi.getLiveStreamUrl(sid);
+                Navigator.push(context, slideRoute(PlayerScreen(
+                  url: url,
+                  title: '${ch['name']}${isCurrent ? ' — ${prog['title']}' : ''}',
+                  streamId: sid,
+                )));
+              }
+            },
+            onLongPress: () => _showProgramDetail(prog, start, end, desc),
+            onSecondaryTap: () => _showProgramDetail(prog, start, end, desc),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cellColor,
+                borderRadius: BorderRadius.circular(3),
+                border: cellBorder,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(children: [
+                Expanded(child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: textColor,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                )),
+              ]),
+            ),
+          ),
+        ),
+      ));
+
+      cursorX = leftPx + widthPx; // advance past this program + gap
+    }
+
+    // Fill remaining space
+    if (cursorX < totalWidth) {
+      cells.add(SizedBox(width: totalWidth - cursorX));
+    }
+
+    return Container(
+      height: _rowHeight,
+      width: totalWidth,
+      decoration: BoxDecoration(
+        color: i.isEven ? const Color(0xFF12122A) : const Color(0xFF0E0E20),
+        border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: cells),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A1A),
+      appBar: AppBar(
+        title: const Text('Guide TV', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent, elevation: 0,
+        actions: [
+          if (_loadingEpg)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(child: Text('Chargement EPG $_epgLoaded/${_channels.length}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white38))),
+            ),
+        ],
+      ),
+      body: _loadingCats
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 12),
+              ElevatedButton(onPressed: () { setState(() { _error = null; _loadingCats = true; }); _loadCategories(); },
+                  child: const Text('Réessayer')),
+            ]))
+          : Row(children: [
+              // Sidebar catégories (resizable)
+              SizedBox(
+                width: _catSidebarWidth,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _categories.length + 1,
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      final sel = _selectedCatId == '__favorites__';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.star, size: 14,
+                              color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
+                          title: Text('Favoris', style: TextStyle(fontSize: 12,
+                              color: sel ? Colors.white : Colors.white60,
+                              fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+                          selected: sel,
+                          selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          onTap: () => _selectFavorites(),
+                        ),
+                      );
+                    }
+                    final cat = _categories[i - 1];
+                    final id  = cat['category_id'].toString();
+                    final sel = _selectedCatId == id;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ListTile(
+                        dense: true,
+                        title: Text(cat['category_name'] ?? '',
+                            style: TextStyle(fontSize: 12,
+                                color: sel ? Colors.white : Colors.white60,
+                                fontWeight: sel ? FontWeight.bold : FontWeight.normal),
+                            overflow: TextOverflow.ellipsis),
+                        selected: sel,
+                        selectedTileColor: const Color(0xFF4A90D9).withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        onTap: () => _selectCategory(id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Resize handle
+              MouseRegion(
+                cursor: SystemMouseCursors.resizeColumn,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (d) => setState(() =>
+                    _catSidebarWidth = (_catSidebarWidth + d.delta.dx).clamp(_catSidebarMin, _catSidebarMax)),
+                  child: Container(width: 6, color: Colors.white12),
+                ),
+              ),
+              // Grid zone
+              Expanded(
+                child: _loadingChannels
+                    ? const Center(child: CircularProgressIndicator())
+                    : _channels.isEmpty
+                    ? const Center(child: Text('Sélectionne une catégorie',
+                        style: TextStyle(color: Colors.white38)))
+                    : Column(children: [
+                        // Day navigation bar
+                        Container(
+                          height: 36,
+                          color: const Color(0xFF1A1A2E),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(children: [
+                            TextButton.icon(
+                              onPressed: _canGoPrev ? () => _changeDay(-1) : null,
+                              icon: const Icon(Icons.chevron_left, size: 18),
+                              label: const Text('Hier', style: TextStyle(fontSize: 12)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: _canGoPrev ? Colors.white70 : Colors.white24,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                            ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () {
+                                final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+                                if (_dayStart != today) {
+                                  setState(() => _dayStart = today);
+                                  _changeDay(0);
+                                }
+                              },
+                              child: Text(
+                                _fmtDayFr(_dayStart),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton.icon(
+                              onPressed: _canGoNext ? () => _changeDay(1) : null,
+                              icon: const Text('Demain', style: TextStyle(fontSize: 12)),
+                              label: const Icon(Icons.chevron_right, size: 18),
+                              style: TextButton.styleFrom(
+                                foregroundColor: _canGoNext ? Colors.white70 : Colors.white24,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        // Search bar
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                          child: TextField(
+                            controller: _searchCtrl,
+                            style: const TextStyle(fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Filtrer les chaînes...',
+                              prefixIcon: const Icon(Icons.search, size: 18),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(icon: const Icon(Icons.clear, size: 16),
+                                      onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
+                                  : null,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide.none),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.06),
+                            ),
+                            onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                          ),
+                        ),
+                        // Timeline header
+                        Row(children: [
+                          Container(
+                            width: _channelColWidth,
+                            height: 30,
+                            alignment: Alignment.center,
+                            color: const Color(0xFF1A1A2E),
+                            child: Text('${_filteredChannels.length} chaîne${_filteredChannels.length > 1 ? 's' : ''}',
+                                style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                          ),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              controller: _headerHScroll,
+                              scrollDirection: Axis.horizontal,
+                              child: _buildTimelineHeader(),
+                            ),
+                          ),
+                        ]),
+                        // Main grid
+                        Expanded(
+                          child: Row(children: [
+                            // Channel names column
+                            SizedBox(
+                              width: _channelColWidth,
+                              child: ListView.builder(
+                                controller: _channelVScroll,
+                                itemCount: _filteredChannels.length,
+                                itemBuilder: (_, i) => _buildChannelRow(i, _filteredChannels),
+                              ),
+                            ),
+                            // Programs grid
+                            Expanded(
+                              child: SingleChildScrollView(
+                                controller: _gridHScroll,
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: _hourWidth * 24,
+                                  child: ListView.builder(
+                                    controller: _gridVScroll,
+                                    itemCount: _filteredChannels.length,
+                                    itemBuilder: (_, i) => _buildProgramRow(i, _filteredChannels),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ]),
+              ),
+            ]),
+    );
+  }
+}
+
