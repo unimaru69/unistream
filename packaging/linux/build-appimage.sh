@@ -46,41 +46,54 @@ exec "${HERE}/usr/bin/unistream" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# Bundle all non-glibc shared libraries needed by the binary
+# Bundle all non-glibc shared libraries needed by the binary and its .so deps
 echo "==> Bundling shared libraries..."
 
-# Collect all .so files from the Flutter bundle and our binary
-find "$APPDIR/usr/bin" -type f \( -name "*.so" -o -name "*.so.*" -o -executable \) | while read -r bin; do
-  ldd "$bin" 2>/dev/null | grep "=> /" | awk '{print $3}' | sort -u | while read -r libpath; do
-    libname=$(basename "$libpath")
-    # Skip glibc core libs (must come from host), libstdc++, libgcc
-    case "$libname" in
-      libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*) continue ;;
-    esac
-    if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
-      cp "$libpath" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $libname" || true
-    fi
+bundle_lib() {
+  local libpath="$1"
+  local libname
+  libname=$(basename "$libpath")
+  # Skip glibc core libs (must come from host)
+  case "$libname" in
+    libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*|linux-vdso*) return 0 ;;
+  esac
+  if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
+    cp "$libpath" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $libname" || true
+  fi
+}
+
+# Pass 1: bundle deps of all binaries/libs in the Flutter bundle
+mapfile -t BINS < <(find "$APPDIR/usr/bin" -type f \( -name "*.so" -o -name "*.so.*" -o -executable \) 2>/dev/null)
+for bin in "${BINS[@]}"; do
+  mapfile -t DEPS < <(ldd "$bin" 2>/dev/null | grep "=> /" | awk '{print $3}' || true)
+  for dep in "${DEPS[@]}"; do
+    [ -n "$dep" ] && bundle_lib "$dep"
   done
 done
 
-# Also explicitly bundle libmpv and its deps
+# Pass 2: explicitly bundle libmpv and all its transitive deps
 for lib in libmpv.so libmpv.so.2 libmpv.so.1; do
-  LIBPATH=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
-  if [ -n "$LIBPATH" ] && [ -f "$LIBPATH" ] && [ ! -f "$APPDIR/usr/lib/$lib" ]; then
-    cp "$LIBPATH" "$APPDIR/usr/lib/"
-    echo "   Bundled $lib (explicit)"
-    # Also bundle libmpv's own dependencies
-    ldd "$LIBPATH" 2>/dev/null | grep "=> /" | awk '{print $3}' | while read -r dep; do
-      depname=$(basename "$dep")
-      case "$depname" in
-        libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*) continue ;;
-      esac
-      if [ ! -f "$APPDIR/usr/lib/$depname" ]; then
-        cp "$dep" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $depname (mpv dep)" || true
-      fi
+  LIBPATH=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}' || true)
+  if [ -n "${LIBPATH:-}" ] && [ -f "$LIBPATH" ]; then
+    bundle_lib "$LIBPATH"
+    mapfile -t MPV_DEPS < <(ldd "$LIBPATH" 2>/dev/null | grep "=> /" | awk '{print $3}' || true)
+    for dep in "${MPV_DEPS[@]}"; do
+      [ -n "$dep" ] && bundle_lib "$dep"
     done
   fi
 done
+
+# Pass 3: resolve deps of newly bundled libs (transitive)
+echo "==> Resolving transitive dependencies..."
+mapfile -t BUNDLED < <(find "$APPDIR/usr/lib" -type f -name "*.so*" 2>/dev/null)
+for lib in "${BUNDLED[@]}"; do
+  mapfile -t TDEPS < <(ldd "$lib" 2>/dev/null | grep "=> /" | awk '{print $3}' || true)
+  for dep in "${TDEPS[@]}"; do
+    [ -n "$dep" ] && bundle_lib "$dep"
+  done
+done
+
+echo "==> $(find "$APPDIR/usr/lib" -type f | wc -l) libraries bundled."
 
 # Download appimagetool if not present
 APPIMAGETOOL="build/appimagetool"
