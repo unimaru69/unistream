@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
+import '../models/channel.dart';
+import '../models/vod_item.dart';
+import '../models/series_item.dart';
 import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
@@ -22,7 +25,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
   final _ctrl = TextEditingController();
   late final TabController _tabCtrl;
   String _query = '';
-  List<Map<String, dynamic>> _results = [];
+  List<Map<String, dynamic>> _results = []; // tagged result maps built from typed models
   bool _loading = false;
   Timer? _debounce;
 
@@ -56,19 +59,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     if (q.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final all = await Future.wait([
-        XtreamApi.getLiveStreams(),
-        XtreamApi.getVodStreams(),
-        XtreamApi.getSeries(),
+      final results = await Future.wait([
+        XtreamApi.getLiveStreamsTyped(),
+        XtreamApi.getVodStreamsTyped(),
+        XtreamApi.getSeriesTyped(),
       ]);
-      List<Map<String, dynamic>> tag(List<dynamic> list, String mode) => list
-          .cast<Map<String, dynamic>>()
-          .where((s) => (s['name'] ?? '').toString().toLowerCase().contains(q))
-          .map((s) => {...s, '_mode': mode})
+      final liveChannels = results[0] as List<Channel>;
+      final vodItems = results[1] as List<VodItem>;
+      final seriesItems = results[2] as List<SeriesItem>;
+
+      List<Map<String, dynamic>> tagLive(List<Channel> list) => list
+          .where((ch) => ch.name.toLowerCase().contains(q))
           .take(30)
+          .map((ch) => <String, dynamic>{
+                'stream_id': ch.streamId,
+                'name': ch.name,
+                'stream_icon': ch.displayIcon,
+                '_mode': 'live',
+              })
           .toList();
+
+      List<Map<String, dynamic>> tagVod(List<VodItem> list) => list
+          .where((v) => v.name.toLowerCase().contains(q))
+          .take(30)
+          .map((v) => <String, dynamic>{
+                'stream_id': v.streamId,
+                'name': v.name,
+                'stream_icon': v.displayIcon,
+                'container_extension': v.containerExtension,
+                '_mode': 'vod',
+              })
+          .toList();
+
+      List<Map<String, dynamic>> tagSeries(List<SeriesItem> list) => list
+          .where((s) => s.name.toLowerCase().contains(q))
+          .take(30)
+          .map((s) => <String, dynamic>{
+                'series_id': s.seriesId,
+                'name': s.name,
+                'cover': s.displayIcon,
+                '_mode': 'series',
+              })
+          .toList();
+
       if (mounted) setState(() {
-        _results = [...tag(all[0], 'live'), ...tag(all[1], 'vod'), ...tag(all[2], 'series')];
+        _results = [...tagLive(liveChannels), ...tagVod(vodItems), ...tagSeries(seriesItems)];
         _loading = false;
       });
     } catch (e, st) {

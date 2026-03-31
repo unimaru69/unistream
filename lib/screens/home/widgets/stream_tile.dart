@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/content_mode.dart';
+import '../../../models/channel.dart';
+import '../../../models/vod_item.dart';
+import '../../../models/series_item.dart';
 
 /// Helper for cached network images used across the home screen widgets.
 Widget networkImage(String url, {
@@ -22,7 +25,7 @@ Widget networkImage(String url, {
   );
 }
 
-/// Small icon for list view rows.
+/// Small icon for list view rows (legacy Map version).
 Widget listIcon(Map<String, dynamic> stream, ContentMode mode) {
   final iconUrl = mode == ContentMode.series ? stream['cover'] : stream['stream_icon'];
   final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: Colors.white38);
@@ -33,9 +36,49 @@ Widget listIcon(Map<String, dynamic> stream, ContentMode mode) {
   );
 }
 
+/// Small icon for list view rows (typed version).
+Widget listIconTyped(dynamic stream, ContentMode mode) {
+  final String iconUrl;
+  if (stream is Channel) {
+    iconUrl = stream.displayIcon;
+  } else if (stream is VodItem) {
+    iconUrl = stream.displayIcon;
+  } else if (stream is SeriesItem) {
+    iconUrl = stream.displayIcon;
+  } else if (stream is Map<String, dynamic>) {
+    iconUrl = (mode == ContentMode.series ? stream['cover'] : stream['stream_icon'])?.toString() ?? '';
+  } else {
+    iconUrl = '';
+  }
+  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: Colors.white38);
+  if (iconUrl.isEmpty) return fallback;
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(4),
+    child: networkImage(iconUrl, width: 40, height: 40, mode: mode),
+  );
+}
+
+/// Extract display icon from a typed or map stream.
+String _streamDisplayIcon(dynamic stream) {
+  if (stream is Channel) return stream.displayIcon;
+  if (stream is VodItem) return stream.displayIcon;
+  if (stream is SeriesItem) return stream.displayIcon;
+  if (stream is Map<String, dynamic>) return stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
+  return '';
+}
+
+/// Extract name from a typed or map stream.
+String _streamName(dynamic stream) {
+  if (stream is Channel) return stream.name;
+  if (stream is VodItem) return stream.name;
+  if (stream is SeriesItem) return stream.name;
+  if (stream is Map<String, dynamic>) return stream['name']?.toString() ?? '';
+  return '';
+}
+
 /// Grid tile for a single stream/channel (VOD or Series grid view).
 class StreamGridTile extends StatelessWidget {
-  final Map<String, dynamic> stream;
+  final dynamic stream;
   final ContentMode mode;
   final double? progress;
   final bool isFav;
@@ -68,7 +111,7 @@ class StreamGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cover = mode == ContentMode.series ? stream['cover'] : stream['stream_icon'];
+    final cover = _streamDisplayIcon(stream);
 
     return GestureDetector(
       onTap: onTap,
@@ -78,8 +121,8 @@ class StreamGridTile extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Stack(fit: StackFit.expand, children: [
-              if (cover != null && cover.toString().isNotEmpty)
-                networkImage(cover.toString(), mode: mode)
+              if (cover.isNotEmpty)
+                networkImage(cover, mode: mode)
               else
                 Container(color: Colors.white10,
                     child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
@@ -164,7 +207,7 @@ class StreamGridTile extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        Text(stream['name'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.white70),
+        Text(_streamName(stream), style: const TextStyle(fontSize: 11, color: Colors.white70),
             maxLines: 2, overflow: TextOverflow.ellipsis),
       ]),
     );

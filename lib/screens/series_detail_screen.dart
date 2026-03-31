@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../models/episode.dart';
 import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
@@ -19,7 +20,7 @@ class SeriesDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
-  Map<String, List<dynamic>> _episodes = {};
+  Map<String, List<Episode>> _episodes = {};
   List<String> _seasons = [];
   String? _selectedSeason;
   bool _loading = true;
@@ -33,12 +34,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   Future<void> _loadInfo() async {
     try {
-      final info    = await XtreamApi.getSeriesInfo(widget.seriesId);
-      final raw     = info['episodes'] as Map<String, dynamic>? ?? {};
-      final seasons = raw.keys.toList()
+      final episodesMap = await XtreamApi.getSeriesEpisodesTyped(widget.seriesId);
+      final seasons = episodesMap.keys.toList()
         ..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
       setState(() {
-        _episodes = raw.map((k, v) => MapEntry(k, List<dynamic>.from(v)));
+        _episodes = episodesMap;
         _seasons  = seasons;
         _selectedSeason = seasons.isNotEmpty ? seasons.first : null;
         _loading  = false;
@@ -48,26 +48,32 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     }
   }
 
-  void _playEpisode(Map<String, dynamic> ep) {
-    final epId = ep['id'].toString();
-    final url = XtreamApi.getSeriesEpisodeUrl(epId, ep['container_extension'] ?? 'mp4');
-    WatchProgress.saveMeta(epId, ep['title'] ?? widget.title, widget.cover, url, 'series');
-    WatchProgress.saveHistory('series:$epId', ep['title'] ?? widget.title, widget.cover, url, 'series');
+  void _playEpisode(Episode ep) {
+    final epId = ep.idStr;
+    final url = XtreamApi.getSeriesEpisodeUrl(epId, ep.containerExtension);
+    WatchProgress.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
+    WatchProgress.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
 
     // Trouver l'épisode suivant dans la même saison
     Map<String, dynamic>? nextEp;
     if (_selectedSeason != null) {
       final eps = _episodes[_selectedSeason!] ?? [];
-      final idx = eps.indexWhere((e) => e['id'].toString() == epId);
+      final idx = eps.indexWhere((e) => e.idStr == epId);
       if (idx >= 0 && idx < eps.length - 1) {
-        nextEp = Map<String, dynamic>.from(eps[idx + 1]);
+        final next = eps[idx + 1];
+        nextEp = {
+          'id': next.id,
+          'title': next.displayTitle,
+          'container_extension': next.containerExtension,
+          'episode_num': next.episodeNum,
+        };
       }
     }
 
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
-      title: ep['title'] ?? widget.title,
-      resumeKey: ep['id'].toString(),
+      title: ep.displayTitle,
+      resumeKey: epId,
       coverUrl: widget.cover,
       nextEpisode: nextEp,
       nextEpisodeCover: widget.cover,
@@ -134,10 +140,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                         padding: const EdgeInsets.all(16),
                         itemCount: _episodes[_selectedSeason]?.length ?? 0,
                         itemBuilder: (_, i) {
-                          final ep    = _episodes[_selectedSeason]![i] as Map<String, dynamic>;
-                          final epNum = ep['episode_num'] ?? i + 1;
-                          final title = ep['title'] ?? 'Episode $epNum';
-                          final prog  = progress[ep['id']?.toString()];
+                          final ep    = _episodes[_selectedSeason]![i];
+                          final epNum = ep.number != 0 ? ep.number : i + 1;
+                          final title = ep.displayTitle;
+                          final prog  = progress[ep.idStr];
                           final bool isWatched = prog != null && prog > 0.95;
                           final bool isPartial = prog != null && prog <= 0.95;
                           final bool isNew     = prog == null;

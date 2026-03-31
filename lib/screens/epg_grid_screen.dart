@@ -6,6 +6,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
 import '../core/colors.dart';
 import '../core/strings.dart';
+import '../models/category.dart' as cat;
+import '../models/channel.dart';
 import '../providers/favorites_provider.dart';
 import '../services/xtream_api.dart';
 import '../utils/routes.dart';
@@ -21,12 +23,12 @@ class EpgGridScreen extends ConsumerStatefulWidget {
 
 class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   // Categories
-  List<dynamic> _categories = [];
+  List<cat.Category> _categories = [];
   String? _selectedCatId;
   bool _loadingCats = true;
 
   // Channels for selected category
-  List<Map<String, dynamic>> _channels = [];
+  List<Channel> _channels = [];
   bool _loadingChannels = false;
 
   // EPG data: channelId → programs
@@ -113,9 +115,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
 
     try {
-      final streams = await XtreamApi.getLiveStreams();
-      final channels = List<Map<String, dynamic>>.from(streams)
-          .where((ch) => ref.read(favoritesProvider).keys.contains(ch['stream_id']?.toString()))
+      final streams = await XtreamApi.getLiveStreamsTyped();
+      final channels = streams
+          .where((ch) => ref.read(favoritesProvider).keys.contains(ch.id))
           .toList();
       if (!mounted) return;
       setState(() {
@@ -129,7 +131,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       for (var i = 0; i < channels.length; i += 6) {
         final chunk = channels.skip(i).take(6);
         await Future.wait(chunk.map((ch) async {
-          final sid = ch['stream_id'].toString();
+          final sid = ch.id;
           try {
             Map<String, dynamic> data;
             try { data = await XtreamApi.getFullDayEpg(sid); }
@@ -180,7 +182,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final cats = await XtreamApi.getLiveCategories();
+      final cats = await XtreamApi.getLiveCategoriesTyped();
       if (!mounted) return;
       setState(() {
         _categories = cats;
@@ -190,9 +192,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       if (cats.isNotEmpty) {
         final initId = widget.initialCategoryId;
         final match = initId != null && initId != '__favorites__' && initId != '__watchlist__'
-            ? cats.firstWhere((c) => c['category_id'].toString() == initId, orElse: () => cats.first)
+            ? cats.firstWhere((c) => c.categoryId == initId, orElse: () => cats.first)
             : cats.first;
-        _selectCategory(match['category_id'].toString());
+        _selectCategory(match.categoryId);
       }
     } catch (e) {
       if (mounted) setState(() { _error = XtreamApi.friendlyError(e); _loadingCats = false; });
@@ -209,13 +211,12 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
 
     try {
-      final streams = await XtreamApi.getLiveStreams(catId);
-      final channels = List<Map<String, dynamic>>.from(streams);
+      final channels = await XtreamApi.getLiveStreamsTyped(catId);
       // Sort favorites first
       if (ref.read(favoritesProvider).keys.isNotEmpty) {
         channels.sort((a, b) {
-          final aFav = ref.read(favoritesProvider).keys.contains(a['stream_id']?.toString()) ? 0 : 1;
-          final bFav = ref.read(favoritesProvider).keys.contains(b['stream_id']?.toString()) ? 0 : 1;
+          final aFav = ref.read(favoritesProvider).keys.contains(a.id) ? 0 : 1;
+          final bFav = ref.read(favoritesProvider).keys.contains(b.id) ? 0 : 1;
           return aFav.compareTo(bFav);
         });
       }
@@ -231,7 +232,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       for (var i = 0; i < channels.length; i += 6) {
         final chunk = channels.skip(i).take(6);
         await Future.wait(chunk.map((ch) async {
-          final sid = ch['stream_id'].toString();
+          final sid = ch.id;
           try {
             // Try full-day EPG first, fallback to short EPG
             Map<String, dynamic> data;
@@ -289,11 +290,10 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     }
   }
 
-  List<Map<String, dynamic>> get _filteredChannels {
+  List<Channel> get _filteredChannels {
     if (_searchQuery.isEmpty) return _channels;
     return _channels.where((ch) {
-      final name = (ch['name'] ?? '').toString().toLowerCase();
-      return name.contains(_searchQuery);
+      return ch.name.toLowerCase().contains(_searchQuery);
     }).toList();
   }
 
@@ -337,14 +337,14 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     }
   }
 
-  Future<void> _reloadEpgForChannels(List<Map<String, dynamic>> channels) async {
+  Future<void> _reloadEpgForChannels(List<Channel> channels) async {
     final dayEnd = _dayStart.add(const Duration(days: 1));
     final Map<String, List<Map<String, dynamic>>> epg = {};
 
     for (var i = 0; i < channels.length; i += 6) {
       final chunk = channels.skip(i).take(6);
       await Future.wait(chunk.map((ch) async {
-        final sid = ch['stream_id'].toString();
+        final sid = ch.id;
         try {
           Map<String, dynamic> data;
           try { data = await XtreamApi.getFullDayEpg(sid); }
@@ -427,7 +427,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     );
   }
 
-  Widget _buildChannelRow(int i, List<Map<String, dynamic>> channels) {
+  Widget _buildChannelRow(int i, List<Channel> channels) {
     final ch = channels[i];
     return Container(
       height: _rowHeight,
@@ -437,11 +437,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
       ),
       child: Row(children: [
-        if (ch['stream_icon'] != null && ch['stream_icon'].toString().isNotEmpty)
+        if (ch.displayIcon.isNotEmpty)
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: CachedNetworkImage(
-              imageUrl: ch['stream_icon'].toString(),
+              imageUrl: ch.displayIcon,
               width: 28, height: 28, fit: BoxFit.contain,
               errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 16, color: Colors.white24),
             ),
@@ -450,7 +450,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           const Icon(Icons.tv, size: 16, color: Colors.white24),
         const SizedBox(width: 6),
         Expanded(child: Text(
-          ch['name'] ?? '',
+          ch.name,
           style: const TextStyle(fontSize: 11, color: Colors.white70),
           overflow: TextOverflow.ellipsis,
         )),
@@ -491,13 +491,13 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     );
   }
 
-  Widget _buildProgramRow(int i, List<Map<String, dynamic>> channels) {
+  Widget _buildProgramRow(int i, List<Channel> channels) {
     final ch = channels[i];
-    final sid = ch['stream_id'].toString();
+    final sid = ch.id;
     final progs = _epgData[sid] ?? [];
     final now = DateTime.now();
     final totalWidth = _hourWidth * 24;
-    final hasCatchup = XtreamApi.channelHasCatchup(ch);
+    final hasCatchup = ch.hasCatchup;
 
     // Sort programs by start time to build a linear Row
     final sorted = List<Map<String, dynamic>>.from(progs)
@@ -577,7 +577,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                     : XtreamApi.getTimeshiftUrl(sid, prog['start_utc'] as DateTime? ?? start.toUtc(), durMin);
                 Navigator.push(context, slideRoute(PlayerScreen(
                   url: url,
-                  title: '${ch['name']} — ${prog['title']} (Replay)',
+                  title: '${ch.name} — ${prog['title']} (Replay)',
                   streamId: sid,
                   isCatchup: true,
                 )));
@@ -585,7 +585,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 final url = XtreamApi.getLiveStreamUrl(sid);
                 Navigator.push(context, slideRoute(PlayerScreen(
                   url: url,
-                  title: '${ch['name']}${isCurrent ? ' — ${prog['title']}' : ''}',
+                  title: '${ch.name}${isCurrent ? ' — ${prog['title']}' : ''}',
                   streamId: sid,
                 )));
               }
@@ -687,14 +687,14 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                         ),
                       );
                     }
-                    final cat = _categories[i - 1];
-                    final id  = cat['category_id'].toString();
+                    final category = _categories[i - 1];
+                    final id  = category.categoryId;
                     final sel = _selectedCatId == id;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ListTile(
                         dense: true,
-                        title: Text(cat['category_name'] ?? '',
+                        title: Text(category.categoryName,
                             style: TextStyle(fontSize: 12,
                                 color: sel ? Colors.white : Colors.white60,
                                 fontWeight: sel ? FontWeight.bold : FontWeight.normal),

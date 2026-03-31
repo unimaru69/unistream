@@ -9,6 +9,10 @@ import '../../core/colors.dart';
 import '../../core/strings.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
+import '../../models/category.dart' as cat;
+import '../../models/channel.dart';
+import '../../models/vod_item.dart';
+import '../../models/series_item.dart';
 import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/routes.dart';
@@ -35,7 +39,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  List<dynamic> _categories = [];
+  List<cat.Category> _categories = [];
   List<dynamic> _streams    = [];
   String? _selectedCategory;
   bool _loading        = true;
@@ -107,11 +111,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> _showAddToCollectionPicker(Map<String, dynamic> stream) async {
+  Future<void> _showAddToCollectionPicker(dynamic stream) async {
     final key = _favKey(_mode.key, stream);
-    final name = stream['name'] ?? 'Sans titre';
-    final cover = stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
-    final item = <String, dynamic>{'key': key, 'name': name, 'cover': cover, 'mode': _mode.key};
+    final name = _getStreamName(stream);
+    final cover = _getStreamIcon(stream);
+    final item = <String, dynamic>{'key': key, 'name': name.isEmpty ? 'Sans titre' : name, 'cover': cover, 'mode': _mode.key};
 
     final collections = ref.read(collectionsProvider);
     final modeCols = collections.where((c) =>
@@ -155,10 +159,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
-  Future<void> _removeFromCollection(Map<String, dynamic> s) async {
+  Future<void> _removeFromCollection(dynamic s) async {
     final colId = _activeCollectionId;
     if (colId == null) return;
-    final key = s['key']?.toString() ?? s['_key']?.toString() ?? _favKey(_mode.key, s);
+    final key = s is Map<String, dynamic>
+        ? (s['key']?.toString() ?? s['_key']?.toString() ?? _favKey(_mode.key, s))
+        : _favKey(_mode.key, s);
     await ref.read(collectionsProvider.notifier).removeItem(colId, key);
     final collections = ref.read(collectionsProvider);
     final col = collections.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
@@ -177,12 +183,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() { _selectionMode = false; _selectedItems = {}; });
   }
 
-  String _itemSelectionKey(Map<String, dynamic> s) {
+  String _itemSelectionKey(dynamic s) {
     return _favKey(_mode.key, s);
   }
 
   Future<void> _createCollectionFromSelected() async {
-    final items = _streams.cast<Map<String, dynamic>>()
+    final items = _streams
         .where((s) => _selectedItems.contains(_itemSelectionKey(s)))
         .toList();
     if (items.isEmpty) return;
@@ -193,9 +199,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final colId = col['id'] as String;
     for (final s in items) {
       final key = _favKey(_mode.key, s);
-      final itemName = s['name'] ?? 'Sans titre';
-      final cover = s['stream_icon']?.toString() ?? s['cover']?.toString() ?? '';
-      final item = <String, dynamic>{'key': key, 'name': itemName, 'cover': cover, 'mode': _mode.key};
+      final itemName = _getStreamName(s);
+      final cover = _getStreamIcon(s);
+      final item = <String, dynamic>{'key': key, 'name': itemName.isEmpty ? 'Sans titre' : itemName, 'cover': cover, 'mode': _mode.key};
       await ref.read(collectionsProvider.notifier).addItem(colId, item);
     }
     _exitSelectionMode();
@@ -212,24 +218,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final list = List<dynamic>.from(_streams);
     switch (_sortMode) {
       case 'alpha':
-        list.sort((a, b) => (a['name'] ?? '').toString().toLowerCase()
-            .compareTo((b['name'] ?? '').toString().toLowerCase()));
+        list.sort((a, b) => _getStreamName(a).toLowerCase()
+            .compareTo(_getStreamName(b).toLowerCase()));
         break;
       case 'number':
         list.sort((a, b) {
-          final na = int.tryParse((a['num'] ?? '0').toString()) ?? 0;
-          final nb = int.tryParse((b['num'] ?? '0').toString()) ?? 0;
+          final na = int.tryParse((a is Map<String, dynamic> ? (a['num'] ?? '0') : '0').toString()) ?? 0;
+          final nb = int.tryParse((b is Map<String, dynamic> ? (b['num'] ?? '0') : '0').toString()) ?? 0;
           return na.compareTo(nb);
         });
         break;
       case 'favFirst':
         list.sort((a, b) {
           final favKeys = ref.read(favoritesProvider).keys;
-          final aFav = favKeys.contains(_favKey(_mode.key, a as Map<String, dynamic>)) ? 0 : 1;
-          final bFav = favKeys.contains(_favKey(_mode.key, b as Map<String, dynamic>)) ? 0 : 1;
+          final aFav = favKeys.contains(_favKey(_mode.key, a)) ? 0 : 1;
+          final bFav = favKeys.contains(_favKey(_mode.key, b)) ? 0 : 1;
           if (aFav != bFav) return aFav.compareTo(bFav);
-          return (a['name'] ?? '').toString().toLowerCase()
-              .compareTo((b['name'] ?? '').toString().toLowerCase());
+          return _getStreamName(a).toLowerCase()
+              .compareTo(_getStreamName(b).toLowerCase());
         });
         break;
     }
@@ -247,20 +253,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await p.setDouble(StorageKeys.sidebarWidth, _sidebarWidth);
   }
 
+  // ── Typed stream helpers ──
+  static String _getStreamId(dynamic stream) {
+    if (stream is Channel) return stream.streamId.toString();
+    if (stream is VodItem) return stream.streamId.toString();
+    if (stream is SeriesItem) return stream.seriesId.toString();
+    if (stream is Map<String, dynamic>) {
+      return (stream['series_id'] ?? stream['stream_id'])?.toString() ?? '';
+    }
+    return '';
+  }
+
+  static String _getStreamName(dynamic stream) {
+    if (stream is Channel) return stream.name;
+    if (stream is VodItem) return stream.name;
+    if (stream is SeriesItem) return stream.name;
+    if (stream is Map<String, dynamic>) return stream['name']?.toString() ?? '';
+    return '';
+  }
+
+  static String _getStreamIcon(dynamic stream) {
+    if (stream is Channel) return stream.displayIcon;
+    if (stream is VodItem) return stream.displayIcon;
+    if (stream is SeriesItem) return stream.displayIcon;
+    if (stream is Map<String, dynamic>) {
+      return stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
+    }
+    return '';
+  }
+
+  /// Convert a typed model to a Map for storage in favorites/watchlist/collections.
+  Map<String, dynamic> _streamToMap(dynamic stream) {
+    if (stream is Channel) {
+      return {
+        'stream_id': stream.streamId,
+        'name': stream.name,
+        'stream_icon': stream.streamIcon,
+        'cover': stream.cover,
+        'category_id': stream.categoryId,
+        'category_name': stream.categoryName,
+        'tv_archive': stream.tvArchive,
+        'tv_archive_duration': stream.tvArchiveDuration,
+        'added': stream.added,
+        'last_modified': stream.lastModified,
+      };
+    }
+    if (stream is VodItem) {
+      return {
+        'stream_id': stream.streamId,
+        'name': stream.name,
+        'stream_icon': stream.streamIcon,
+        'cover': stream.cover,
+        'container_extension': stream.containerExtension,
+        'category_id': stream.categoryId,
+        'category_name': stream.categoryName,
+        'rating': stream.rating,
+        'stream_type': stream.streamType,
+        'plot': stream.plot,
+        'description': stream.description,
+        'added': stream.added,
+        'last_modified': stream.lastModified,
+      };
+    }
+    if (stream is SeriesItem) {
+      return {
+        'series_id': stream.seriesId,
+        'name': stream.name,
+        'cover': stream.cover,
+        'stream_icon': stream.streamIcon,
+        'category_id': stream.categoryId,
+        'category_name': stream.categoryName,
+        'num_seasons': stream.numSeasons,
+        'rating': stream.rating,
+        'plot': stream.plot,
+        'description': stream.description,
+        'added': stream.added,
+        'last_modified': stream.lastModified,
+      };
+    }
+    if (stream is Map<String, dynamic>) return stream;
+    return {};
+  }
+
   // ── Favorites / Watchlist ──
-  String _favKey(String mode, Map<String, dynamic> s) {
-    final id = mode == 'series' ? s['series_id']?.toString() : s['stream_id']?.toString();
+  String _favKey(String mode, dynamic s) {
+    if (s is Map<String, dynamic>) {
+      final id = mode == 'series' ? s['series_id']?.toString() : s['stream_id']?.toString();
+      return '$mode:$id';
+    }
+    final id = mode == 'series' ? _getStreamId(s) : _getStreamId(s);
     return '$mode:$id';
   }
 
-  void _toggleFavorite(Map<String, dynamic> stream) {
+  void _toggleFavorite(dynamic stream) {
     final key = _favKey(_mode.key, stream);
-    ref.read(favoritesProvider.notifier).toggle(key, {...stream, '_mode': _mode.key});
+    final map = _streamToMap(stream);
+    ref.read(favoritesProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
   }
 
-  void _toggleWatchlist(Map<String, dynamic> stream) {
+  void _toggleWatchlist(dynamic stream) {
     final key = _favKey(_mode.key, stream);
-    ref.read(watchlistProvider.notifier).toggle(key, {...stream, '_mode': _mode.key});
+    final map = _streamToMap(stream);
+    ref.read(watchlistProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
   }
 
   // ── Init / loading ──
@@ -292,9 +386,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _loading = true);
     try {
       _categories = switch (_mode) {
-        ContentMode.live   => await XtreamApi.getLiveCategories(),
-        ContentMode.vod    => await XtreamApi.getVodCategories(),
-        ContentMode.series => await XtreamApi.getSeriesCategories(),
+        ContentMode.live   => await XtreamApi.getLiveCategoriesTyped(),
+        ContentMode.vod    => await XtreamApi.getVodCategoriesTyped(),
+        ContentMode.series => await XtreamApi.getSeriesCategoriesTyped(),
       };
       setState(() => _loading = false);
       _loadRecentlyAdded();
@@ -310,13 +404,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     try {
       final List<dynamic> all = _mode == ContentMode.vod
-          ? await XtreamApi.getVodStreams()
-          : await XtreamApi.getSeries();
-      final items = all.cast<Map<String, dynamic>>().where((s) {
-        final added = s['added']?.toString() ?? '0';
-        final lastMod = s['last_modified']?.toString() ?? '0';
+          ? await XtreamApi.getVodStreamsTyped()
+          : await XtreamApi.getSeriesTyped();
+      final items = all.where((s) {
+        final added = (s is VodItem ? s.added : s is SeriesItem ? s.added : null)?.toString() ?? '0';
+        final lastMod = (s is VodItem ? s.lastModified : s is SeriesItem ? s.lastModified : null)?.toString() ?? '0';
         return (added.isNotEmpty && added != '0') || (lastMod.isNotEmpty && lastMod != '0');
-      }).toList();
+      }).map((s) => _streamToMap(s)).toList();
       items.sort((a, b) {
         final ta = int.tryParse(a['added']?.toString() ?? '0') ?? 0;
         final tb = int.tryParse(b['added']?.toString() ?? '0') ?? 0;
@@ -343,9 +437,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       _streams = switch (_mode) {
-        ContentMode.live   => await XtreamApi.getLiveStreams(categoryId),
-        ContentMode.vod    => await XtreamApi.getVodStreams(categoryId),
-        ContentMode.series => await XtreamApi.getSeries(categoryId),
+        ContentMode.live   => await XtreamApi.getLiveStreamsTyped(categoryId),
+        ContentMode.vod    => await XtreamApi.getVodStreamsTyped(categoryId),
+        ContentMode.series => await XtreamApi.getSeriesTyped(categoryId),
       };
       setState(() => _loadingStreams = false);
     } catch (e) {
@@ -354,15 +448,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ── Navigation ──
-  void _playStream(Map<String, dynamic> stream) {
-    final name = stream['name'] ?? 'Sans titre';
+  void _playStream(dynamic stream) {
+    final name = _getStreamName(stream);
+    final displayName = name.isEmpty ? 'Sans titre' : name;
 
     if (_mode == ContentMode.series) {
-      final cover = stream['cover']?.toString() ?? '';
-      WatchProgress.saveHistory('series:${stream['series_id']}', name, cover, '', _mode.key);
+      final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
+      final cover = stream is SeriesItem ? stream.displayIcon : (stream as Map<String, dynamic>)['cover']?.toString() ?? '';
+      WatchProgress.saveHistory('series:$seriesId', displayName, cover, '', _mode.key);
       Navigator.push(context, slideRoute(SeriesDetailScreen(
-        seriesId: stream['series_id'].toString(),
-        title: name,
+        seriesId: seriesId,
+        title: displayName,
         cover: cover,
       ))).then((_) => _refreshProgress());
       return;
@@ -370,34 +466,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final String url;
     final String? resumeKey;
-    final cover = stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
+    final cover = _getStreamIcon(stream);
+    final streamId = _getStreamId(stream);
     if (_mode == ContentMode.live) {
-      url = XtreamApi.getLiveStreamUrl(stream['stream_id'].toString());
+      url = XtreamApi.getLiveStreamUrl(streamId);
       resumeKey = null;
     } else {
-      url = XtreamApi.getVodStreamUrl(
-          stream['stream_id'].toString(), stream['container_extension'] ?? 'mp4');
-      resumeKey = stream['stream_id'].toString();
-      WatchProgress.saveMeta(resumeKey, name,
-          stream['stream_icon']?.toString() ?? '', url, _mode.key);
+      final ext = stream is VodItem ? stream.containerExtension : (stream is Map<String, dynamic> ? (stream['container_extension'] ?? 'mp4') : 'mp4');
+      url = XtreamApi.getVodStreamUrl(streamId, ext);
+      resumeKey = streamId;
+      WatchProgress.saveMeta(resumeKey, displayName,
+          stream is VodItem ? (stream.streamIcon ?? '') : (stream is Map<String, dynamic> ? (stream['stream_icon']?.toString() ?? '') : ''), url, _mode.key);
     }
-    WatchProgress.saveHistory('${_mode.key}:${stream['stream_id']}', name, cover, url, _mode.key);
+    WatchProgress.saveHistory('${_mode.key}:$streamId', displayName, cover, url, _mode.key);
 
     List<Map<String, dynamic>>? channelList;
     int? channelIndex;
     if (_mode == ContentMode.live) {
-      channelList = List<Map<String, dynamic>>.from(_sortedStreams.map((e) => Map<String, dynamic>.from(e)));
-      channelIndex = channelList.indexWhere((ch) => ch['stream_id']?.toString() == stream['stream_id']?.toString());
+      channelList = _sortedStreams.map((e) => _streamToMap(e)).toList();
+      channelIndex = channelList.indexWhere((ch) => ch['stream_id']?.toString() == streamId);
       if (channelIndex < 0) channelIndex = null;
     }
 
     Navigator.push(context, slideRoute(PlayerScreen(
-      url: url, title: name,
-      streamId: _mode == ContentMode.live ? stream['stream_id'].toString() : null,
+      url: url, title: displayName,
+      streamId: _mode == ContentMode.live ? streamId : null,
       resumeKey: resumeKey,
       coverUrl: _mode == ContentMode.live
-          ? stream['stream_icon']?.toString()
-          : stream['stream_icon']?.toString() ?? stream['cover']?.toString(),
+          ? (stream is Channel ? stream.streamIcon : (stream is Map<String, dynamic> ? stream['stream_icon']?.toString() : null))
+          : cover.isNotEmpty ? cover : null,
       channelList: channelList,
       channelIndex: channelIndex,
     ))).then((_) => _refreshProgress());
@@ -408,11 +505,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.invalidate(continueWatchingProvider);
   }
 
-  String? _progressKey(Map<String, dynamic> stream) {
+  String? _progressKey(dynamic stream) {
     if (_mode == ContentMode.live) return null;
-    return _mode == ContentMode.series
-        ? stream['series_id']?.toString()
-        : stream['stream_id']?.toString();
+    return _getStreamId(stream);
   }
 
   void _showShortcutsHelp() {
@@ -476,7 +571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final reload = await Navigator.push<bool>(
         context, slideRoute(const SettingsScreen()));
     if (reload == true) {
-      setState(() { _loading = true; _error = null; _categories = []; _streams = []; _selectedCategory = null; });
+      setState(() { _loading = true; _error = null; _categories = <cat.Category>[]; _streams = []; _selectedCategory = null; });
       ref.read(favoritesProvider.notifier).load();
       ref.read(watchlistProvider.notifier).load();
       _refreshProgress();
@@ -484,10 +579,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _showStreamInfoDialog(Map<String, dynamic> s) {
+  void _showStreamInfoDialog(dynamic s) {
+    final map = _streamToMap(s);
     showStreamInfoDialogWithEpg(
       context,
-      stream: s,
+      stream: map,
       mode: _mode,
       onAddToCollection: () => _showAddToCollectionPicker(s),
       getCachedEpgNow: (streamId) => XtreamApi.getCachedEpgNow(streamId),
@@ -562,7 +658,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref.read(favoritesProvider.notifier).load();
                 ref.read(watchlistProvider.notifier).load();
                 _refreshProgress();
-                setState(() { _loading = true; _error = null; _categories = []; _streams = []; _selectedCategory = null; });
+                setState(() { _loading = true; _error = null; _categories = <cat.Category>[]; _streams = []; _selectedCategory = null; });
                 _init();
               },
               itemBuilder: (_) => AppConfig.profiles.map((pr) => PopupMenuItem(
@@ -579,7 +675,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             isSelected: [_mode == ContentMode.live, _mode == ContentMode.vod, _mode == ContentMode.series],
             onPressed: (i) {
               final modes = ContentMode.values;
-              setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = []; _selectionMode = false; _selectedItems = {}; });
+              setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _selectionMode = false; _selectedItems = {}; });
               _loadGridView();
               _loadSortMode();
               _loadCategories();
@@ -735,7 +831,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       if (_selectedItems.length == _streams.length) {
                         _selectedItems = {};
                       } else {
-                        _selectedItems = _streams.cast<Map<String, dynamic>>()
+                        _selectedItems = _streams
                             .map((s) => _itemSelectionKey(s)).toSet();
                       }
                     });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/strings.dart';
 import '../../../models/content_mode.dart';
+import '../../../models/category.dart' as cat;
 
 /// Resizable category sidebar with favorites, watchlist, history, collections, and categories.
 class CategorySidebar extends StatelessWidget {
@@ -11,7 +12,7 @@ class CategorySidebar extends StatelessWidget {
   final ValueChanged<double> onWidthChanged;
   final VoidCallback onDragEnd;
 
-  final List<dynamic> categories;
+  final List<cat.Category> categories;
   final List<Map<String, dynamic>> collections;
   final ContentMode mode;
   final String? selectedCategory;
@@ -240,14 +241,14 @@ class CategorySidebar extends StatelessWidget {
         }
 
         // Regular categories
-        final cat = categories[i - catStartIdx];
-        final id  = cat['category_id'].toString();
+        final category = categories[i - catStartIdx];
+        final id  = category.categoryId;
         final sel = selectedCategory == id;
         return Padding(
           padding: const EdgeInsets.only(bottom: 2),
           child: ListTile(
             dense: true,
-            title: Text(cat['category_name'] ?? '',
+            title: Text(category.categoryName,
                 style: TextStyle(fontSize: 13,
                     color: sel ? Colors.white : Colors.white60,
                     fontWeight: sel ? FontWeight.bold : FontWeight.normal),

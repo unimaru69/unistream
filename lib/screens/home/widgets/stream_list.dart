@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/strings.dart';
 import '../../../models/content_mode.dart';
+import '../../../models/channel.dart';
+import '../../../models/vod_item.dart';
+import '../../../models/series_item.dart';
 import '../../../services/xtream_api.dart';
 import '../../../widgets/skeleton_list.dart';
 import 'stream_tile.dart';
@@ -34,14 +37,14 @@ class StreamListView extends StatelessWidget {
   final String? activeCollectionId;
 
   // Callbacks
-  final void Function(Map<String, dynamic> stream) onPlayStream;
-  final void Function(Map<String, dynamic> stream) onToggleFavorite;
-  final void Function(Map<String, dynamic> stream) onToggleWatchlist;
-  final void Function(Map<String, dynamic> stream) onShowStreamInfo;
-  final void Function(Map<String, dynamic> stream) onRemoveFromCollection;
-  final String Function(String modeKey, Map<String, dynamic> stream) favKeyBuilder;
-  final String Function(Map<String, dynamic> stream) itemSelectionKeyBuilder;
-  final String? Function(Map<String, dynamic> stream) progressKeyBuilder;
+  final void Function(dynamic stream) onPlayStream;
+  final void Function(dynamic stream) onToggleFavorite;
+  final void Function(dynamic stream) onToggleWatchlist;
+  final void Function(dynamic stream) onShowStreamInfo;
+  final void Function(dynamic stream) onRemoveFromCollection;
+  final String Function(String modeKey, dynamic stream) favKeyBuilder;
+  final String Function(dynamic stream) itemSelectionKeyBuilder;
+  final String? Function(dynamic stream) progressKeyBuilder;
 
   const StreamListView({
     super.key,
@@ -94,12 +97,29 @@ class StreamListView extends StatelessWidget {
       Expanded(child: Builder(builder: (ctx) {
         final filtered = searchQuery.isEmpty
             ? sortedStreams
-            : sortedStreams.where((s) => (s['name'] ?? '')
-                .toString().toLowerCase().contains(searchQuery)).toList();
+            : sortedStreams.where((s) => _getName(s)
+                .toLowerCase().contains(searchQuery)).toList();
         if (showGrid) return _buildGrid(filtered);
         return _buildList(filtered);
       })),
     ]);
+  }
+
+  // ── Typed stream helpers ──
+  static String _getName(dynamic s) {
+    if (s is Channel) return s.name;
+    if (s is VodItem) return s.name;
+    if (s is SeriesItem) return s.name;
+    if (s is Map<String, dynamic>) return s['name']?.toString() ?? '';
+    return '';
+  }
+
+  static String _getStreamId(dynamic s) {
+    if (s is Channel) return s.streamId.toString();
+    if (s is VodItem) return s.streamId.toString();
+    if (s is SeriesItem) return s.seriesId.toString();
+    if (s is Map<String, dynamic>) return (s['series_id'] ?? s['stream_id'])?.toString() ?? '';
+    return '';
   }
 
   Widget _buildSelectionBar() {
@@ -173,13 +193,13 @@ class StreamListView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        final s = items[i] as Map<String, dynamic>;
+        final s = items[i];
         final pKey = progressKeyBuilder(s);
         final prog = pKey != null ? progress[pKey] : null;
         // For live channels, show cached current program as subtitle
         String? liveEpgTitle;
         if (mode == ContentMode.live) {
-          final sid = s['stream_id']?.toString() ?? '';
+          final sid = _getStreamId(s);
           if (sid.isNotEmpty) liveEpgTitle = XtreamApi.getCachedEpgNow(sid);
         }
         Widget? subtitle;
@@ -210,6 +230,7 @@ class StreamListView extends StatelessWidget {
         }
         final selKey = itemSelectionKeyBuilder(s);
         final isSelected = selectionMode && selectedItems.contains(selKey);
+        final streamName = _getName(s);
         return Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: GestureDetector(
@@ -221,8 +242,8 @@ class StreamListView extends StatelessWidget {
                       onChanged: (_) => onToggleSelection(selKey),
                       activeColor: AppColors.primaryBlue,
                     )
-                  : listIcon(s, mode),
-              title: Text(s['name'] ?? 'Sans titre',
+                  : listIconTyped(s, mode),
+              title: Text(streamName.isEmpty ? 'Sans titre' : streamName,
                   style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
               subtitle: subtitle,
               trailing: selectionMode ? null : Row(mainAxisSize: MainAxisSize.min, children: [
@@ -274,7 +295,7 @@ class StreamListView extends StatelessWidget {
       ),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        final s = items[i] as Map<String, dynamic>;
+        final s = items[i];
         final pKey = progressKeyBuilder(s);
         final prog = pKey != null ? progress[pKey] : null;
         final isFav = favKeys.contains(favKeyBuilder(mode.key, s));
