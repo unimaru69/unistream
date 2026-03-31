@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
@@ -18,8 +17,7 @@ import 'models/app_config.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
 import 'utils/theme.dart';
-import 'screens/home/home_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/player/player_screen.dart';
 
 // Re-export theme utilities for screens that need them
@@ -208,9 +206,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: AppConfig.isConfigured
-            ? const HomeScreen()
-            : const SettingsScreen(isOnboarding: true),
+        home: const SplashScreen(),
       ),
     );
   }

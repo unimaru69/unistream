@@ -14,14 +14,12 @@ import '../services/import_export.dart';
 import '../core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/storage_keys.dart';
-import 'home/home_screen.dart';
 
 import '../utils/theme.dart';
 import '../providers/locale_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  final bool isOnboarding;
-  const SettingsScreen({super.key, this.isOnboarding = false});
+  const SettingsScreen({super.key});
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
@@ -97,11 +95,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
       if (!mounted) return;
-      if (widget.isOnboarding) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-      } else {
-        Navigator.pop(context, true);
-      }
+      Navigator.pop(context, true);
     } catch (e) {
       setState(() { _error = XtreamApi.friendlyError(e); _saving = false; });
     }
@@ -208,26 +202,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.isOnboarding
-          ? null
-          : AppBar(title: Text(AppLocalizations.of(context)!.parametres), backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.parametres), backgroundColor: Colors.transparent, elevation: 0),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              if (widget.isOnboarding) ...[
-                const Icon(Icons.stream, size: 64, color: AppColors.primaryBlue),
-                const SizedBox(height: 16),
-                const Text('UniStream', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Configure ton serveur IPTV pour commencer',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54, fontSize: 14)),
-                const SizedBox(height: 40),
-              ],
               _field('URL du serveur', _serverCtrl, hint: 'http://monserveur.com:8080', icon: Icons.dns),
               const SizedBox(height: 16),
               _field('Nom d\'utilisateur', _userCtrl, hint: 'username', icon: Icons.person),
@@ -262,11 +243,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: _saving
                     ? const SizedBox(height: 20, width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(widget.isOnboarding ? AppLocalizations.of(context)!.connexion : AppLocalizations.of(context)!.enregistrer,
+                    : Text(AppLocalizations.of(context)!.enregistrer,
                         style: const TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 24),
-              if (!widget.isOnboarding && ref.watch(configProvider).profiles.length > 0)
+              if (ref.watch(configProvider).profiles.length > 0)
                 OutlinedButton.icon(
                   onPressed: () async {
                     final reload = await Navigator.push<bool>(context,
