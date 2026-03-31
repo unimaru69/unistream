@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'player/player_screen.dart';
 
-class SeriesDetailScreen extends StatefulWidget {
+class SeriesDetailScreen extends ConsumerStatefulWidget {
   final String seriesId;
   final String title;
   final String cover;
   const SeriesDetailScreen({super.key, required this.seriesId, required this.title, required this.cover});
   @override
-  State<SeriesDetailScreen> createState() => _SeriesDetailScreenState();
+  ConsumerState<SeriesDetailScreen> createState() => _SeriesDetailScreenState();
 }
 
-class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
+class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   Map<String, List<dynamic>> _episodes = {};
   List<String> _seasons = [];
   String? _selectedSeason;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,14 +12,14 @@ import '../utils/routes.dart';
 import 'player/player_screen.dart';
 
 // ── EPG Grid Screen ──
-class EpgGridScreen extends StatefulWidget {
+class EpgGridScreen extends ConsumerStatefulWidget {
   final String? initialCategoryId;
   const EpgGridScreen({super.key, this.initialCategoryId});
   @override
-  State<EpgGridScreen> createState() => _EpgGridScreenState();
+  ConsumerState<EpgGridScreen> createState() => _EpgGridScreenState();
 }
 
-class _EpgGridScreenState extends State<EpgGridScreen> {
+class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   // Categories
   List<dynamic> _categories = [];
   String? _selectedCatId;

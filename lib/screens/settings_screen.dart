@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -14,14 +15,14 @@ import 'home/home_screen.dart';
 
 import '../utils/theme.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   final bool isOnboarding;
   const SettingsScreen({super.key, this.isOnboarding = false});
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _serverCtrl = TextEditingController(text: AppConfig.serverUrl);
   final _userCtrl   = TextEditingController(text: AppConfig.username);
   final _passCtrl   = TextEditingController(text: AppConfig.password);
