@@ -6,12 +6,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
-import '../core/storage_keys.dart';
-import '../models/app_config.dart';
-import '../services/xtream_api.dart';
-import '../services/watch_progress.dart';
-import '../utils/routes.dart';
-import '../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
+import '../../core/storage_keys.dart';
+import '../../models/app_config.dart';
+import '../../services/xtream_api.dart';
+import '../../services/watch_progress.dart';
+import '../../utils/routes.dart';
+import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
+import 'widgets/track_selector.dart';
+import 'widgets/quality_badge.dart';
+import 'widgets/sleep_timer_dialog.dart';
+import 'widgets/next_episode_overlay.dart';
+import 'widgets/subtitle_settings.dart';
+import 'widgets/epg_overlay.dart';
+import 'widgets/player_controls.dart';
 
 // ── Fullscreen back button ──
 class _FullscreenBackButton extends StatelessWidget {
@@ -28,8 +35,8 @@ class _FullscreenBackButton extends StatelessWidget {
 class PlayerScreen extends StatefulWidget {
   final String  url;
   final String  title;
-  final String? streamId;          // live → EPG
-  final String? resumeKey;         // VOD/épisode → reprise
+  final String? streamId;          // live -> EPG
+  final String? resumeKey;         // VOD/episode -> reprise
   final String? coverUrl;          // cover pour le mini-player
   final Player? existingPlayer;    // restauration depuis mini-player
   final VideoController? existingController;
@@ -73,13 +80,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String? _epgNext;
   DateTime? _epgNowStart;
   DateTime? _epgNowEnd;
-  List<Map<String, String>> _epgListings = []; // titre + start + end formatés
+  List<Map<String, String>> _epgListings = [];
   bool _catchupSupported = false;
-  BuildContext? _videoCtx; // contexte dans la sous-arborescence Video (pour enterFullscreen)
+  BuildContext? _videoCtx;
   List<AudioTrack>    _audioTracks    = [];
   List<SubtitleTrack> _subtitleTracks = [];
   double _speed = 1.0;
-  String _aspectRatio = 'auto'; // auto, 16:9, 4:3, 2.35:1, stretch
+  String _aspectRatio = 'auto';
   bool _deinterlace = false;
 
   // Quality indicator
@@ -106,7 +113,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Color _subtitleColor = Colors.white;
   double _subtitleBgOpacity = 0.5;
 
-  // Sauvegarde de position
+  // Position save
   Timer? _saveTimer;
   Duration _lastPos = Duration.zero;
   Duration _lastDur = Duration.zero;
@@ -129,19 +136,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _player.stream.tracks.listen((t) {
       if (mounted) {
         final prevAudioCount = _audioTracks.length;
-        final prevSubCount = _subtitleTracks.length;
         setState(() {
           _audioTracks    = t.audio;
           _subtitleTracks = t.subtitle;
         });
-        // Auto-select preferred language when tracks first appear
         if (prevAudioCount <= 1 && t.audio.length > 1) {
           _applyPreferredLanguages();
         }
       }
     });
 
-    // Suivi position pour la sauvegarde + auto-play
+    // Position tracking + auto-play
     _player.stream.position.listen((pos) {
       _lastPos = pos;
       _checkAutoPlayNext();
@@ -165,8 +170,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           setState(() {
             _buffering = false;
             _playError = _isCatchupMode
-                ? 'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-être pas le timeshift.'
-                : 'Impossible de lire ce flux.\nVérifiez votre connexion ou réessayez.';
+                ? 'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-\u00eatre pas le timeshift.'
+                : 'Impossible de lire ce flux.\nV\u00e9rifiez votre connexion ou r\u00e9essayez.';
           });
         }
       }
@@ -181,7 +186,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (widget.streamId != null) _loadEpg();
     if (widget.existingPlayer != null) {
-      // Restauré depuis mini-player : reprendre le suivi de position
       _startSaveTimer();
     } else if (widget.resumeKey != null) {
       _initResume();
@@ -190,6 +194,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  // ── Resume from last position ──
   Future<void> _initResume() async {
     final savedPos = await WatchProgress.getPosition(widget.resumeKey!);
     _player.open(Media(widget.url));
@@ -198,7 +203,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    // Attend que la durée soit connue, puis propose le choix
     late StreamSubscription sub;
     sub = _player.stream.duration.listen((dur) async {
       if (dur > Duration.zero) {
@@ -210,18 +214,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
           builder: (ctx) => AlertDialog(
             backgroundColor: const Color(0xFF12122A),
             title: const Text('Reprendre la lecture ?'),
-            content: Text('Continuer depuis ${_fmt(savedPos)} ou repartir depuis le début ?'),
+            content: Text('Continuer depuis ${_fmt(savedPos)} ou repartir depuis le d\u00e9but ?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Depuis le début'),
+                child: const Text('Depuis le d\u00e9but'),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A90D9),
                     foregroundColor: Colors.white),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Reprendre à ${_fmt(savedPos)}'),
+                child: Text('Reprendre \u00e0 ${_fmt(savedPos)}'),
               ),
             ],
           ),
@@ -235,7 +239,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // ── Auto-play next episode ──
   void _checkAutoPlayNext() {
     if (widget.nextEpisode == null || _showNextOverlay || _minimized) return;
-    if (_lastDur.inSeconds < 30) return; // pas de durée fiable
+    if (_lastDur.inSeconds < 30) return;
     final ratio = _lastPos.inSeconds / _lastDur.inSeconds;
     if (ratio >= 0.95) {
       _showNextOverlay = true;
@@ -263,7 +267,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final epId = ep['id'].toString();
     final url = XtreamApi.getSeriesEpisodeUrl(epId, ep['container_extension'] ?? 'mp4');
     WatchProgress.saveMeta(epId, ep['title'] ?? '', widget.nextEpisodeCover ?? '', url, 'series');
-    // Sauver la progression actuelle à 100%
     if (widget.resumeKey != null && _lastDur > Duration.zero) {
       WatchProgress.save(widget.resumeKey!, _lastDur, _lastDur);
     }
@@ -315,143 +318,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to apply subtitle style', error: e, stackTrace: st); }
   }
 
-  void _showSubtitleStylePicker() {
-    final colorOptions = <(Color, String)>[
-      (Colors.white, 'Blanc'),
-      (Colors.yellow, 'Jaune'),
-      (Colors.green, 'Vert'),
-      (Colors.cyan, 'Cyan'),
-    ];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12122A),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setLocal) => SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text('Style des sous-titres',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(children: [
-                const Text('Taille', style: TextStyle(fontSize: 13, color: Colors.white70)),
-                Expanded(
-                  child: Slider(
-                    value: _subtitleFontSize,
-                    min: 12, max: 48, divisions: 18,
-                    label: _subtitleFontSize.round().toString(),
-                    activeColor: const Color(0xFF4A90D9),
-                    onChanged: (v) {
-                      setState(() => _subtitleFontSize = v);
-                      setLocal(() {});
-                      _applySubtitleSettings();
-                    },
-                  ),
-                ),
-                Text('${_subtitleFontSize.round()}',
-                    style: const TextStyle(fontSize: 13, color: Colors.white70)),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(children: [
-                const Text('Couleur', style: TextStyle(fontSize: 13, color: Colors.white70)),
-                const SizedBox(width: 16),
-                ...colorOptions.map((opt) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _subtitleColor = opt.$1);
-                      setLocal(() {});
-                      _applySubtitleSettings();
-                    },
-                    child: Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(
-                        color: opt.$1, shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _subtitleColor.toARGB32() == opt.$1.toARGB32()
-                              ? const Color(0xFF4A90D9) : Colors.transparent,
-                          width: 3,
-                        ),
-                      ),
-                    ),
-                  ),
-                )),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(children: [
-                const Text('Fond', style: TextStyle(fontSize: 13, color: Colors.white70)),
-                Expanded(
-                  child: Slider(
-                    value: _subtitleBgOpacity,
-                    min: 0, max: 1, divisions: 10,
-                    label: '${(_subtitleBgOpacity * 100).round()}%',
-                    activeColor: const Color(0xFF4A90D9),
-                    onChanged: (v) {
-                      setState(() => _subtitleBgOpacity = v);
-                      setLocal(() {});
-                      _applySubtitleSettings();
-                    },
-                  ),
-                ),
-                Text('${(_subtitleBgOpacity * 100).round()}%',
-                    style: const TextStyle(fontSize: 13, color: Colors.white70)),
-              ]),
-            ),
-            const SizedBox(height: 16),
-          ]),
-        ),
-      ),
-    ).then((_) => _saveSubtitleSettings());
-  }
-
-  // ── Aspect ratio ──
-  void _showAspectRatioPicker() {
-    final options = [
-      ('auto', 'Auto'),
-      ('16:9', '16:9'),
-      ('4:3', '4:3'),
-      ('2.35:1', '2.35:1'),
-      ('stretch', 'Étirer'),
-    ];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A2E),
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Ratio d\'aspect', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-            for (final (value, label) in options)
-              ListTile(
-                dense: true,
-                leading: Icon(
-                  _aspectRatio == value ? Icons.check_circle : Icons.circle_outlined,
-                  color: _aspectRatio == value ? const Color(0xFF4A90D9) : Colors.white38,
-                  size: 20,
-                ),
-                title: Text(label),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _setAspectRatio(value);
-                },
-              ),
-          ],
-        ),
-      ),
+  void _onSubtitleStylePicker() {
+    showSubtitleStylePicker(context,
+      fontSize: _subtitleFontSize,
+      color: _subtitleColor,
+      bgOpacity: _subtitleBgOpacity,
+      onFontSizeChanged: (v) {
+        setState(() => _subtitleFontSize = v);
+        _applySubtitleSettings();
+      },
+      onColorChanged: (c) {
+        setState(() => _subtitleColor = c);
+        _applySubtitleSettings();
+      },
+      onBgOpacityChanged: (v) {
+        setState(() => _subtitleBgOpacity = v);
+        _applySubtitleSettings();
+      },
+      onDismissed: _saveSubtitleSettings,
     );
   }
 
+  // ── Aspect ratio ──
   void _setAspectRatio(String ratio) {
     setState(() => _aspectRatio = ratio);
     final np = _player.platform as NativePlayer;
@@ -473,46 +361,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   // ── Sleep timer ──
-  void _showSleepTimerPicker() {
-    final presets = [15, 30, 45, 60, 90, 120];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A2E),
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Minuterie de veille', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-            if (_sleepRemaining != null)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.cancel, color: Colors.redAccent, size: 20),
-                title: Text('Annuler (${_sleepRemaining!.inMinutes} min restantes)',
-                    style: const TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _cancelSleepTimer();
-                },
-              ),
-            for (final m in presets)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.timer, color: Colors.white38, size: 20),
-                title: Text('$m minutes'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _startSleepTimer(Duration(minutes: m));
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _startSleepTimer(Duration duration) {
     _cancelSleepTimer();
     _sleepRemaining = duration;
@@ -524,7 +372,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _cancelSleepTimer();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('⏰ Minuterie écoulée — lecture en pause')),
+              const SnackBar(content: Text('\u23f0 Minuterie \u00e9coul\u00e9e \u2014 lecture en pause')),
             );
           }
         }
@@ -543,6 +391,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (mounted) setState(() {});
   }
 
+  // ── Mini-player ──
   void _minimize() {
     _minimized = true;
     final state = MiniPlayerState(
@@ -574,19 +423,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final prefAudio = prefs.getString(StorageKeys.prefAudioLang) ?? '';
       final prefSub = prefs.getString(StorageKeys.prefSubLang) ?? '';
 
-      // Fuzzy language matching helper
       bool matchLang(String trackLang, String pref) {
         if (pref.isEmpty) return false;
         final t = trackLang.toLowerCase();
         final p = pref.toLowerCase();
-        // Direct match or contains
         if (t == p || t.contains(p) || p.contains(t)) return true;
-        // Common aliases
         const aliases = {
-          'fr': ['fre', 'fra', 'french', 'français'],
+          'fr': ['fre', 'fra', 'french', 'fran\u00e7ais'],
           'en': ['eng', 'english', 'anglais'],
           'de': ['deu', 'ger', 'german', 'deutsch', 'allemand'],
-          'es': ['spa', 'spanish', 'español', 'espagnol'],
+          'es': ['spa', 'spanish', 'espa\u00f1ol', 'espagnol'],
           'it': ['ita', 'italian', 'italiano', 'italien'],
           'pt': ['por', 'portuguese', 'portugais'],
           'ar': ['ara', 'arabic', 'arabe'],
@@ -598,7 +444,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         return false;
       }
 
-      // Apply preferred audio
       if (prefAudio.isNotEmpty && _audioTracks.length > 1) {
         for (final track in _audioTracks) {
           if (track.language != null && matchLang(track.language!, prefAudio)) {
@@ -608,9 +453,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
       }
 
-      // Apply preferred subtitle
       if (prefSub == 'off') {
-        // Disable subtitles
         final noSub = _subtitleTracks.firstWhere(
           (t) => t.id == 'no' || t.title == 'Disabled',
           orElse: () => SubtitleTrack.no(),
@@ -627,6 +470,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to apply preferred subtitle track', error: e, stackTrace: st); }
   }
 
+  // ── Quality polling ──
   void _startQualityTimer() {
     _updateQualityInfo();
     _qualityTimer = Timer.periodic(const Duration(seconds: 5), (_) => _updateQualityInfo());
@@ -636,7 +480,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     try {
       final np = _player.platform as NativePlayer;
       final w = await np.getProperty('video-params/w');
-      await np.getProperty('video-params/h'); // query height to keep mpv updated
+      await np.getProperty('video-params/h');
       final br = await np.getProperty('video-bitrate');
       if (!mounted) return;
       final width = int.tryParse(w) ?? 0;
@@ -676,7 +520,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
         WatchProgress.save(widget.resumeKey!, _lastPos, _lastDur);
       }
-      // Si restauré depuis mini-player, nettoyer l'overlay et le notifier
       if (widget.existingPlayer != null) {
         miniPlayerNotifier.value = null;
         miniEntry?.remove();
@@ -689,13 +532,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.dispose();
   }
 
+  // ── Keyboard shortcuts ──
   bool _onKey(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
     final key   = event.logicalKey;
     final route = ModalRoute.of(context);
     if (route == null) return false;
 
-    // Quitter le plein écran (Esc ou F)
     if (!route.isCurrent) {
       if (key == LogicalKeyboardKey.escape || key == LogicalKeyboardKey.keyF) {
         Navigator.of(context).pop();
@@ -706,7 +549,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final hasZapping = _isLiveMode && widget.channelList != null && widget.channelList!.length > 1;
 
-    // Raccourcis en mode normal — on gère tout pour éviter que l'AppBar vole le focus
     if (event is KeyRepeatEvent) {
       if (!_isLiveMode && key == LogicalKeyboardKey.arrowLeft) {
         final p = _lastPos - const Duration(seconds: 10);
@@ -749,7 +591,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return true;
     }
     if (key == LogicalKeyboardKey.keyF) {
-      // enterFullscreen requiert un contexte dans la sous-arborescence Video
       final ctx = _videoCtx;
       if (ctx != null) enterFullscreen(ctx);
       return true;
@@ -758,7 +599,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _player.setVolume(_player.state.volume > 0 ? 0 : 100);
       return true;
     }
-    // Zapping: flèches haut/bas en live, volume sinon
     if (hasZapping && key == LogicalKeyboardKey.arrowUp) {
       _zapChannel(-1);
       return true;
@@ -779,7 +619,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       Navigator.of(context).pop();
       return true;
     }
-    // Quick zapping: P/N toujours disponibles en live
     if (_isLiveMode && widget.channelList != null) {
       if (key == LogicalKeyboardKey.keyP) {
         _zapChannel(-1);
@@ -793,9 +632,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return false;
   }
 
+  // ── EPG loading ──
   Future<void> _loadEpg() async {
     try {
-      // Load full-day EPG (past+future) + channel info for catchup detection
       final channelInfoFuture = XtreamApi.getLiveStreams();
       Map<String, dynamic> data;
       try {
@@ -804,7 +643,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         AppLogger.warning(LogModule.epg, 'Full-day EPG failed, falling back to short EPG', error: e, stackTrace: st);
         data = await XtreamApi.getShortEpg(widget.streamId!, limit: 30);
       }
-      // Check if this channel has tv_archive=1
       bool catchup = false;
       try {
         final allChannels = await channelInfoFuture;
@@ -834,9 +672,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final start = parseTs(e['start_timestamp'] ?? e['start']);
         final end   = parseTs(e['stop_timestamp']  ?? e['stop']);
         final durMin = (start != null && end != null) ? end.difference(start).inMinutes : 0;
-        // Store raw UTC timestamp for timeshift URL
         final rawTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
-        // Store server-local start string for DST-safe timeshift URL
         final rawStartStr = e['start']?.toString();
         return {
           'title': dec(e['title'] ?? ''),
@@ -851,7 +687,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         };
       }).toList();
 
-      // Find current program
       int currentIdx = -1;
       for (var i = 0; i < allProgs.length; i++) {
         final startTs = int.tryParse(allProgs[i]['start_ts'] ?? '');
@@ -887,187 +722,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return d.inHours > 0 ? '${d.inHours}:$m:$s' : '$m:$s';
   }
 
-  void _showEpgGuide() {
-    final now = DateTime.now();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12122A),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (sheetCtx) {
-        // Find current program index for auto-scroll
-        int currentIdx = 0;
-        for (var i = 0; i < _epgListings.length; i++) {
-          final endTs = int.tryParse(_epgListings[i]['end_ts'] ?? '');
-          if (endTs != null && now.isBefore(DateTime.fromMillisecondsSinceEpoch(endTs))) {
-            currentIdx = i;
-            break;
-          }
-        }
-        final scrollCtrl = ScrollController(
-          initialScrollOffset: (currentIdx * 56.0 - 100).clamp(0, double.infinity),
-        );
-
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, ctrl) => Column(children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text('Guide TV', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ),
-            Expanded(
-              child: ListView.builder(
-                controller: scrollCtrl,
-                itemCount: _epgListings.length,
-                itemBuilder: (_, i) {
-                  final prog = _epgListings[i];
-                  final startTs = int.tryParse(prog['start_ts'] ?? '');
-                  final endTs   = int.tryParse(prog['end_ts'] ?? '');
-                  final durMin  = int.tryParse(prog['dur_min'] ?? '0') ?? 0;
-
-                  // Determine past / current / future
-                  bool isPast = false;
-                  bool isCurrent = false;
-                  if (startTs != null && endTs != null) {
-                    final s = DateTime.fromMillisecondsSinceEpoch(startTs);
-                    final e = DateTime.fromMillisecondsSinceEpoch(endTs);
-                    isCurrent = now.isAfter(s) && now.isBefore(e);
-                    isPast = now.isAfter(e);
-                  }
-
-                  final progDesc = prog['description'] ?? '';
-                  return ListTile(
-                    dense: true,
-                    leading: SizedBox(
-                      width: 44,
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(prog['start'] ?? '',
-                            style: TextStyle(fontSize: 11,
-                                color: isCurrent ? const Color(0xFF4A90D9) : isPast ? Colors.white24 : Colors.white38)),
-                        if (isPast)
-                          const Text('passé', style: TextStyle(fontSize: 8, color: Colors.white24))
-                        else if (isCurrent)
-                          const Text('EN COURS', style: TextStyle(fontSize: 8, color: Color(0xFF4A90D9), fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                    title: Text(prog['title'] ?? '',
-                        style: TextStyle(fontSize: 13,
-                            color: isCurrent ? Colors.white : isPast ? Colors.white38 : Colors.white70,
-                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (prog['end']?.isNotEmpty == true)
-                          Text('→ ${prog['end']}', style: TextStyle(fontSize: 10,
-                              color: isPast ? Colors.white12 : Colors.white24)),
-                        if (progDesc.isNotEmpty)
-                          Text(progDesc, style: TextStyle(fontSize: 10,
-                              color: isPast ? Colors.white24 : Colors.white38),
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                    trailing: (_catchupSupported && isPast && startTs != null && widget.streamId != null)
-                        ? TextButton.icon(
-                            icon: const Icon(Icons.replay, size: 16),
-                            label: const Text('Revoir', style: TextStyle(fontSize: 11)),
-                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2E7D32)),
-                            onPressed: () {
-                              Navigator.pop(sheetCtx);
-                              // Prefer server-local string (DST-safe), fallback to UTC conversion
-                              final serverLocal = prog['start_server_local'] as String? ?? '';
-                              String url;
-                              if (serverLocal.isNotEmpty) {
-                                url = XtreamApi.getTimeshiftUrlFromLocal(widget.streamId!, serverLocal, durMin);
-                              } else {
-                                final rawEpoch = int.tryParse(prog['start_epoch'] ?? '');
-                                final startUtc = rawEpoch != null
-                                    ? DateTime.fromMillisecondsSinceEpoch(rawEpoch * 1000, isUtc: true)
-                                    : DateTime.fromMillisecondsSinceEpoch(startTs, isUtc: true);
-                                url = XtreamApi.getTimeshiftUrl(widget.streamId!, startUtc, durMin);
-                              }
-                              Navigator.pushReplacement(context, slideRoute(PlayerScreen(
-                                url: url,
-                                title: '${prog['title']} (Replay)',
-                                streamId: widget.streamId,
-                                isCatchup: true,
-                              )));
-                            },
-                          )
-                        : null,
-                    tileColor: isCurrent ? const Color(0xFF4A90D9).withValues(alpha: 0.1) : null,
-                  );
-                },
-              ),
-            ),
-          ]),
-        );
-      },
-    );
-  }
-
-  void _showTrackPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12122A),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => _TrackPickerSheet(
-          player: _player, audioTracks: _audioTracks, subtitleTracks: _subtitleTracks),
-    );
-  }
-
-  void _showSpeedPicker() {
-    const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12122A),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setLocal) => SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text('Vitesse de lecture',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ),
-            ...speeds.map((sp) => RadioListTile<double>(
-              dense: true,
-              title: Text(sp == 1.0 ? 'Normale (1×)' : '${sp}×',
-                  style: const TextStyle(fontSize: 13)),
-              value: sp,
-              groupValue: _speed,
-              activeColor: const Color(0xFF4A90D9),
-              onChanged: (v) {
-                if (v == null) return;
-                _player.setRate(v);
-                setState(() => _speed = v);
-                setLocal(() {});
-              },
-            )),
-            const SizedBox(height: 16),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  /// Controls builder : le Builder interne est un descendant du _FullscreenInheritedWidget
-  /// fourni par Video, ce qui permet à enterFullscreen(ctx) de fonctionner.
-  Widget _buildVideoControls(VideoState state) {
-    return Builder(builder: (ctx) {
-      _videoCtx = ctx;
-      return MaterialVideoControls(state);
-    });
-  }
-
   bool get _isLiveMode => widget.streamId != null && !_isCatchupMode && widget.resumeKey == null;
+  bool get _isCatchupMode => widget.isCatchup || widget.title.contains('(Replay)');
 
+  // ── Channel zapping ──
   void _zapChannel(int delta) {
     final list = widget.channelList;
     final idx = widget.channelIndex;
@@ -1087,21 +745,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     )));
   }
 
-  bool get _isCatchupMode => widget.isCatchup || widget.title.contains('(Replay)');
-
   void _returnToLive() {
     if (widget.streamId == null) return;
     final liveUrl = XtreamApi.getLiveStreamUrl(widget.streamId!);
-    // Strip "(Replay)" and replay prefix from title
     final liveTitle = widget.title
         .replaceAll('(Replay)', '')
-        .replaceFirst(RegExp(r'^.*? — '), '')
+        .replaceFirst(RegExp(r'^.*? \u2014 '), '')
         .trim();
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: liveUrl,
       title: liveTitle.isEmpty ? 'Live' : liveTitle,
       streamId: widget.streamId,
     )));
+  }
+
+  /// Controls builder
+  Widget _buildVideoControls(VideoState state) {
+    return Builder(builder: (ctx) {
+      _videoCtx = ctx;
+      return MaterialVideoControls(state);
+    });
   }
 
   @override
@@ -1116,7 +779,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final hasTracks = _audioTracks.length > 1 || _subtitleTracks.length > 1;
 
-    // Barre de progression EPG
+    // EPG progress bar
     double? epgProgress;
     if (_epgNowStart != null && _epgNowEnd != null) {
       final now   = DateTime.now();
@@ -1170,48 +833,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (_isLiveMode && widget.channelList != null && widget.channelList!.length > 1) ...[
             IconButton(
               icon: const Icon(Icons.keyboard_arrow_up, size: 22),
-              tooltip: 'Chaîne précédente (P)',
+              tooltip: 'Cha\u00eene pr\u00e9c\u00e9dente (P)',
               onPressed: () => _zapChannel(-1),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
               icon: const Icon(Icons.keyboard_arrow_down, size: 22),
-              tooltip: 'Chaîne suivante (N)',
+              tooltip: 'Cha\u00eene suivante (N)',
               onPressed: () => _zapChannel(1),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ],
-          if (_qualityBadge.isNotEmpty)
-            Tooltip(
-              message: _bitrate.isNotEmpty ? _bitrate : _qualityBadge,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _qualityBadge == '4K' ? Colors.amber
-                       : _qualityBadge == 'FHD' ? Colors.green
-                       : _qualityBadge == 'HD' ? Colors.blue
-                       : Colors.grey,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(_qualityBadge,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                  if (_bitrate.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    Text(_bitrate,
-                        style: const TextStyle(fontSize: 9, color: Colors.white70)),
-                  ],
-                ]),
-              ),
-            ),
+          QualityBadge(qualityBadge: _qualityBadge, bitrate: _bitrate),
           if (_epgListings.length > 1)
             IconButton(
               icon: const Icon(Icons.calendar_today, size: 20),
               tooltip: 'Guide TV',
-              onPressed: _showEpgGuide,
+              onPressed: () => showEpgGuide(context,
+                epgListings: _epgListings,
+                catchupSupported: _catchupSupported,
+                streamId: widget.streamId,
+              ),
             ),
           if (_epgNext != null)
             Padding(
@@ -1222,27 +866,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           if (hasTracks)
             IconButton(icon: const Icon(Icons.tune), tooltip: 'Audio / Sous-titres',
-                onPressed: _showTrackPicker),
+                onPressed: () => showTrackPicker(context,
+                  player: _player,
+                  audioTracks: _audioTracks,
+                  subtitleTracks: _subtitleTracks,
+                )),
           IconButton(
             icon: const Icon(Icons.subtitles, size: 20),
             tooltip: 'Style sous-titres',
-            onPressed: _showSubtitleStylePicker,
+            onPressed: _onSubtitleStylePicker,
           ),
           IconButton(
             icon: const Icon(Icons.aspect_ratio, size: 20),
             tooltip: 'Ratio d\'aspect',
-            onPressed: _showAspectRatioPicker,
+            onPressed: () => showAspectRatioPicker(context,
+              currentRatio: _aspectRatio,
+              onRatioSelected: _setAspectRatio,
+            ),
           ),
           IconButton(
             icon: Icon(Icons.deblur, size: 20,
                 color: _deinterlace ? const Color(0xFF4A90D9) : Colors.white),
-            tooltip: 'Désentrelacement${_deinterlace ? ' (actif)' : ''}',
+            tooltip: 'D\u00e9sentrelacement${_deinterlace ? ' (actif)' : ''}',
             onPressed: _toggleDeinterlace,
           ),
           IconButton(
             icon: const Icon(Icons.speed),
             tooltip: 'Vitesse',
-            onPressed: _showSpeedPicker,
+            onPressed: () => showSpeedPicker(context,
+              currentSpeed: _speed,
+              onSpeedChanged: (v) {
+                _player.setRate(v);
+                setState(() => _speed = v);
+              },
+            ),
           ),
           IconButton(
             icon: Icon(Icons.timer, size: 20,
@@ -1250,7 +907,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             tooltip: _sleepRemaining != null
                 ? 'Veille dans ${_sleepRemaining!.inMinutes} min'
                 : 'Minuterie de veille',
-            onPressed: _showSleepTimerPicker,
+            onPressed: () => showSleepTimerPicker(context,
+              sleepRemaining: _sleepRemaining,
+              onCancel: _cancelSleepTimer,
+              onStart: _startSleepTimer,
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.picture_in_picture_alt, size: 20),
@@ -1273,8 +934,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           child: Video(controller: _controller, controls: _buildVideoControls),
         ),
-        // Note: MaterialVideoControls already shows its own buffering indicator.
-        // We only show ours when there's no video at all (e.g. initial load before controls appear).
         if (_playError != null)
           Center(child: Container(
             padding: const EdgeInsets.all(24),
@@ -1297,146 +956,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           )),
         // Auto-play next episode overlay
         if (_showNextOverlay && widget.nextEpisode != null)
-          Positioned(bottom: 80, right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF4A90D9), width: 1),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                  const Text('Épisode suivant', style: TextStyle(color: Colors.white54, fontSize: 11)),
-                  const SizedBox(height: 4),
-                  Text(widget.nextEpisode!['title'] ?? 'Épisode suivant',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4A90D9),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
-                      onPressed: _playNextEpisode,
-                      child: Text('Lire maintenant ($_nextCountdownSec)'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: _cancelAutoPlay,
-                      child: const Text('Annuler'),
-                    ),
-                  ]),
-                ]),
-              ]),
-            ),
+          NextEpisodeOverlay(
+            nextEpisode: widget.nextEpisode!,
+            countdownSec: _nextCountdownSec,
+            onPlayNow: _playNextEpisode,
+            onCancel: _cancelAutoPlay,
           ),
-      ]),
-    );
-  }
-}
-
-// ── Résolution codes langue ISO 639 ──
-const _langNames = {
-  'und': 'Indéfini',
-  'fr': 'Français',  'fre': 'Français',  'fra': 'Français',
-  'en': 'Anglais',   'eng': 'Anglais',
-  'es': 'Espagnol',  'spa': 'Espagnol',
-  'de': 'Allemand',  'ger': 'Allemand',  'deu': 'Allemand',
-  'it': 'Italien',   'ita': 'Italien',
-  'pt': 'Portugais', 'por': 'Portugais',
-  'ar': 'Arabe',     'ara': 'Arabe',
-  'ru': 'Russe',     'rus': 'Russe',
-  'zh': 'Chinois',   'chi': 'Chinois',   'zho': 'Chinois',
-  'ja': 'Japonais',  'jpn': 'Japonais',
-  'nl': 'Néerlandais','dut': 'Néerlandais','nld': 'Néerlandais',
-  'pl': 'Polonais',  'pol': 'Polonais',
-  'tr': 'Turc',      'tur': 'Turc',
-  'sv': 'Suédois',   'swe': 'Suédois',
-  'no': 'Norvégien', 'nor': 'Norvégien',
-  'da': 'Danois',    'dan': 'Danois',
-  'fi': 'Finnois',   'fin': 'Finnois',
-  'he': 'Hébreu',    'heb': 'Hébreu',
-  'ko': 'Coréen',    'kor': 'Coréen',
-};
-
-String _resolveTrackLabel(String? title, String? language, String? id, String fallback) {
-  final langName    = language != null ? _langNames[language.toLowerCase()] : null;
-  final langDisplay = langName ?? (language?.isNotEmpty == true ? language!.toUpperCase() : null);
-  if (title != null && title.isNotEmpty) {
-    return langDisplay != null ? '$title ($langDisplay)' : title;
-  }
-  return langDisplay ?? id ?? fallback;
-}
-
-// ── Track Picker ──
-class _TrackPickerSheet extends StatefulWidget {
-  final Player player;
-  final List<AudioTrack>    audioTracks;
-  final List<SubtitleTrack> subtitleTracks;
-  const _TrackPickerSheet({required this.player, required this.audioTracks, required this.subtitleTracks});
-  @override
-  State<_TrackPickerSheet> createState() => _TrackPickerSheetState();
-}
-
-class _TrackPickerSheetState extends State<_TrackPickerSheet> {
-  late AudioTrack    _curAudio;
-  late SubtitleTrack _curSub;
-
-  @override
-  void initState() {
-    super.initState();
-    _curAudio = widget.player.state.track.audio;
-    _curSub   = widget.player.state.track.subtitle;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const TabBar(
-          tabs: [Tab(text: 'Audio'), Tab(text: 'Sous-titres')],
-          indicatorColor: Color(0xFF4A90D9),
-        ),
-        SizedBox(height: 280, child: TabBarView(children: [
-          // Audio
-          ListView(children: widget.audioTracks.map((t) => RadioListTile<AudioTrack>(
-            title: Text(_resolveTrackLabel(t.title, t.language, t.id, 'Piste audio'),
-                style: const TextStyle(fontSize: 13)),
-            value: t, groupValue: _curAudio,
-            activeColor: const Color(0xFF4A90D9),
-            onChanged: (v) {
-              if (v == null) return;
-              widget.player.setAudioTrack(v);
-              setState(() => _curAudio = v);
-            },
-          )).toList()),
-          // Sous-titres
-          ListView(children: [
-            RadioListTile<SubtitleTrack>(
-              title: const Text('Désactivés', style: TextStyle(fontSize: 13)),
-              value: SubtitleTrack.no(), groupValue: _curSub,
-              activeColor: const Color(0xFF4A90D9),
-              onChanged: (v) {
-                if (v == null) return;
-                widget.player.setSubtitleTrack(v);
-                setState(() => _curSub = v);
-              },
-            ),
-            ...widget.subtitleTracks.map((t) => RadioListTile<SubtitleTrack>(
-              title: Text(_resolveTrackLabel(t.title, t.language, t.id, 'Sous-titres'),
-                  style: const TextStyle(fontSize: 13)),
-              value: t, groupValue: _curSub,
-              activeColor: const Color(0xFF4A90D9),
-              onChanged: (v) {
-                if (v == null) return;
-                widget.player.setSubtitleTrack(v);
-                setState(() => _curSub = v);
-              },
-            )),
-          ]),
-        ])),
       ]),
     );
   }

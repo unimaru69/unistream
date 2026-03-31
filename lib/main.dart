@@ -12,9 +12,9 @@ import 'models/app_config.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
 import 'utils/theme.dart';
-import 'screens/home_screen.dart';
+import 'screens/home/home_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/player_screen.dart';
+import 'screens/player/player_screen.dart';
 
 // Re-export theme utilities for screens that need them
 export 'utils/theme.dart' show themeNotifier, saveThemeMode;

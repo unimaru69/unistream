@@ -4,7 +4,7 @@ import 'package:unistream/core/logger.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
-import 'player_screen.dart';
+import 'player/player_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});

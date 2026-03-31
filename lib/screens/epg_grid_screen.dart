@@ -8,7 +8,7 @@ import '../core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../utils/routes.dart';
-import 'player_screen.dart';
+import 'player/player_screen.dart';
 
 // ── EPG Grid Screen ──
 class EpgGridScreen extends StatefulWidget {

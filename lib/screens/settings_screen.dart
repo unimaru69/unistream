@@ -10,7 +10,7 @@ import '../models/app_config.dart';
 import '../services/xtream_api.dart';
 import '../services/import_export.dart';
 import '../core/storage_keys.dart';
-import 'home_screen.dart';
+import 'home/home_screen.dart';
 
 import '../utils/theme.dart';
 

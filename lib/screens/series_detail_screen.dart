@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
-import 'player_screen.dart';
+import 'player/player_screen.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
   final String seriesId;

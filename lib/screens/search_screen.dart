@@ -6,7 +6,7 @@ import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
-import 'player_screen.dart';
+import 'player/player_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
