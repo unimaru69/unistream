@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
-import '../../core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../models/category.dart' as cat;
@@ -515,7 +515,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.darkSurface,
-        title: const Text(AppStrings.raccourcisClavier, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(AppLocalizations.of(context)!.raccourcisClavier, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: 340,
           child: SingleChildScrollView(
@@ -548,7 +548,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.fermer)),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.fermer)),
         ],
       ),
     );
@@ -698,7 +698,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
-            tooltip: AppStrings.trier,
+            tooltip: AppLocalizations.of(context)!.trier,
             onSelected: (v) { setState(() => _sortMode = v); _saveSortMode(); },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'default', child: Row(children: [
@@ -715,7 +715,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ])),
               PopupMenuItem(value: 'favFirst', child: Row(children: [
                 Icon(_sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), const Text(AppStrings.favorisPremier, style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.favorisPremier, style: const TextStyle(fontSize: 13)),
               ])),
             ],
           ),
@@ -728,7 +728,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onPressed: () => Navigator.push(context,
                   fadeRoute(const SearchScreen()))
                   .then((_) => _refreshProgress())),
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: AppStrings.parametres),
+          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: AppLocalizations.of(context)!.parametres),
           IconButton(icon: const Icon(Icons.help_outline, size: 20), onPressed: _showShortcutsHelp, tooltip: 'Raccourcis clavier (Cmd+?)'),
           const SizedBox(width: 4),
         ],
@@ -886,7 +886,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (offlineContinueItems.isNotEmpty) ...[
-            const Text(AppStrings.continuerRegarder,
+            Text(AppLocalizations.of(context)!.continuerRegarder,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             SizedBox(
@@ -900,7 +900,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final cover = item['cover'] as String? ?? '';
                   final name  = item['name']  as String? ?? '';
                   return Tooltip(
-                    message: AppStrings.connexionRequise,
+                    message: AppLocalizations.of(context)!.connexionRequise,
                     child: Opacity(
                       opacity: 0.5,
                       child: Container(
@@ -941,14 +941,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 24),
           ],
           if (offlineFavItems.isNotEmpty) ...[
-            const Text(AppStrings.favoris,
+            Text(AppLocalizations.of(context)!.favoris,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             ...(offlineFavItems.take(20).map((item) {
               final name = item['name'] as String? ?? '';
               final cover = item['cover']?.toString() ?? item['stream_icon']?.toString() ?? '';
               return Tooltip(
-                message: AppStrings.connexionRequise,
+                message: AppLocalizations.of(context)!.connexionRequise,
                 child: ListTile(
                   leading: cover.isNotEmpty
                       ? ClipRRect(borderRadius: BorderRadius.circular(4),
@@ -966,13 +966,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 24),
           ],
           if (offlineContinueItems.isEmpty && offlineFavItems.isEmpty)
-            const Center(child: Padding(
-              padding: EdgeInsets.only(top: 60),
+            Center(child: Padding(
+              padding: const EdgeInsets.only(top: 60),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.cloud_off, size: 64, color: Colors.white24),
-                SizedBox(height: 16),
-                Text(AppStrings.aucuneDonneesCache,
-                    style: TextStyle(color: Colors.white38, fontSize: 16)),
+                const Icon(Icons.cloud_off, size: 64, color: Colors.white24),
+                const SizedBox(height: 16),
+                Text(AppLocalizations.of(context)!.aucuneDonneesCache,
+                    style: const TextStyle(color: Colors.white38, fontSize: 16)),
               ]),
             )),
         ]),

@@ -12,11 +12,12 @@ import '../providers/config_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/import_export.dart';
 import '../core/colors.dart';
-import '../core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../core/storage_keys.dart';
 import 'home/home_screen.dart';
 
 import '../utils/theme.dart';
+import '../providers/locale_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final bool isOnboarding;
@@ -84,7 +85,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final user   = _userCtrl.text.trim();
     final pass   = _passCtrl.text.trim();
     if (server.isEmpty || user.isEmpty || pass.isEmpty) {
-      setState(() => _error = AppStrings.tousChampRequis);
+      setState(() => _error = AppLocalizations.of(context)!.tousChampRequis);
       return;
     }
     setState(() { _saving = true; _error = null; });
@@ -92,7 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(configProvider.notifier).save(server, user, pass);
       final auth = await XtreamApi.authenticate();
       if (auth['user_info']?['auth'] != 1) {
-        setState(() { _error = AppStrings.authEchouee; _saving = false; });
+        setState(() { _error = AppLocalizations.of(context)!.authEchouee; _saving = false; });
         return;
       }
       if (!mounted) return;
@@ -209,7 +210,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: widget.isOnboarding
           ? null
-          : AppBar(title: const Text(AppStrings.parametres), backgroundColor: Colors.transparent, elevation: 0),
+          : AppBar(title: Text(AppLocalizations.of(context)!.parametres), backgroundColor: Colors.transparent, elevation: 0),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -261,7 +262,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: _saving
                     ? const SizedBox(height: 20, width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(widget.isOnboarding ? AppStrings.connexion : AppStrings.enregistrer,
+                    : Text(widget.isOnboarding ? AppLocalizations.of(context)!.connexion : AppLocalizations.of(context)!.enregistrer,
                         style: const TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 24),
@@ -376,6 +377,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ]),
               ),
+              const SizedBox(height: 12),
+              Builder(builder: (context) {
+                final currentLocale = ref.watch(localeProvider);
+                return Row(children: [
+                  const Icon(Icons.language, size: 20, color: Colors.white54),
+                  const SizedBox(width: 12),
+                  Text(AppLocalizations.of(context)!.langueInterface, style: const TextStyle(fontSize: 14)),
+                  const Spacer(),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'fr', label: Text('Français', style: TextStyle(fontSize: 12))),
+                      ButtonSegment(value: 'en', label: Text('English', style: TextStyle(fontSize: 12))),
+                    ],
+                    selected: {currentLocale.languageCode},
+                    onSelectionChanged: (v) => ref.read(localeProvider.notifier).setLocale(Locale(v.first)),
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ]);
+              }),
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),
@@ -553,12 +575,12 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.darkSurface,
-        title: const Text(AppStrings.supprimerProfil),
+        title: Text(AppLocalizations.of(context)!.supprimerProfil),
         content: Text('Le profil "${pr.name}" et ses donnees seront supprimes.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text(AppStrings.annuler)),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.annuler)),
           TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(AppStrings.supprimer, style: TextStyle(color: Colors.redAccent))),
+              child: Text(AppLocalizations.of(context)!.supprimer, style: const TextStyle(color: Colors.redAccent))),
         ],
       ),
     );
@@ -585,14 +607,14 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final config = ref.watch(configProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.profils, style: TextStyle(fontSize: 16)),
+        title: Text(AppLocalizations.of(context)!.profils, style: const TextStyle(fontSize: 16)),
         backgroundColor: Colors.transparent, elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context, _changed),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.add), tooltip: AppStrings.ajouterProfil, onPressed: _addProfile),
+          IconButton(icon: const Icon(Icons.add), tooltip: AppLocalizations.of(context)!.ajouterProfil, onPressed: _addProfile),
           const SizedBox(width: 4),
         ],
       ),
@@ -673,7 +695,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
     final user = _userCtrl.text.trim();
     final pass = _passCtrl.text.trim();
     if (name.isEmpty || server.isEmpty || user.isEmpty || pass.isEmpty) {
-      setState(() => _error = AppStrings.tousChampRequis);
+      setState(() => _error = AppLocalizations.of(context)!.tousChampRequis);
       return;
     }
     setState(() { _testing = true; _error = null; });
@@ -683,7 +705,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
       final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
       final auth = jsonDecode(r.body);
       if (auth['user_info']?['auth'] != 1) {
-        setState(() { _error = AppStrings.authEchouee; _testing = false; });
+        setState(() { _error = AppLocalizations.of(context)!.authEchouee; _testing = false; });
         return;
       }
       if (!mounted) return;
@@ -701,7 +723,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.darkSurface,
-      title: Text(widget.profile != null ? AppStrings.modifierProfil : AppStrings.nouveauProfil),
+      title: Text(widget.profile != null ? AppLocalizations.of(context)!.modifierProfil : AppLocalizations.of(context)!.nouveauProfil),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
@@ -762,13 +784,13 @@ class _ProfileDialogState extends State<ProfileDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text(AppStrings.annuler)),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.annuler)),
         FilledButton(
           onPressed: _testing ? null : _save,
           style: FilledButton.styleFrom(backgroundColor: AppColors.primaryBlue),
           child: _testing
               ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(widget.profile != null ? AppStrings.enregistrer : AppStrings.testerEtAjouter),
+              : Text(widget.profile != null ? AppLocalizations.of(context)!.enregistrer : AppLocalizations.of(context)!.testerEtAjouter),
         ),
       ],
     );

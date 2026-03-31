@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/category.dart' as cat;
 
@@ -59,7 +59,7 @@ class CategorySidebar extends StatelessWidget {
       children: [
         SizedBox(
           width: width,
-          child: _buildSidebarList(),
+          child: _buildSidebarList(context),
         ),
         // Resize handle
         MouseRegion(
@@ -80,7 +80,8 @@ class CategorySidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildSidebarList() {
+  Widget _buildSidebarList(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final modeCollections = collections.where((c) =>
         c['mode'] == null || c['mode'] == mode.key).toList();
 
@@ -101,7 +102,7 @@ class CategorySidebar extends StatelessWidget {
               dense: true,
               leading: Icon(Icons.star, size: 16,
                   color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-              title: Text(AppStrings.favoris, style: TextStyle(fontSize: 13,
+              title: Text(l10n.favoris, style: TextStyle(fontSize: 13,
                   color: sel ? Colors.white : Colors.white60,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
@@ -171,7 +172,7 @@ class CategorySidebar extends StatelessWidget {
             child: ListTile(
               dense: true,
               leading: const Icon(Icons.history, size: 16, color: Colors.white54),
-              title: const Text(AppStrings.historique, style: TextStyle(fontSize: 13, color: Colors.white60)),
+              title: Text(l10n.historique, style: const TextStyle(fontSize: 13, color: Colors.white60)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: onHistoryTap,
             ),
@@ -197,7 +198,7 @@ class CategorySidebar extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   iconSize: 16,
                   icon: const Icon(Icons.add, color: Colors.white38),
-                  tooltip: AppStrings.nouvelleCollection,
+                  tooltip: l10n.nouvelleCollection,
                   onPressed: onCreateCollection,
                 ),
               ),
@@ -232,7 +233,7 @@ class CategorySidebar extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   iconSize: 16,
                   icon: const Icon(Icons.delete_outline, size: 16, color: Colors.white24),
-                  tooltip: AppStrings.supprimer,
+                  tooltip: l10n.supprimer,
                   onPressed: () => onDeleteCollection(col['id'] as String),
                 ),
               ),

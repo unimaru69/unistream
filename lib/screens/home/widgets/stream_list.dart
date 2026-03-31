@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/channel.dart';
 import '../../../models/vod_item.dart';
@@ -80,9 +80,10 @@ class StreamListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (selectedCategory == null) {
-      return const Center(child: Text(AppStrings.selectionneCategorie,
-          style: TextStyle(color: Colors.white38, fontSize: 16)));
+      return Center(child: Text(l10n.selectionneCategorie,
+          style: const TextStyle(color: Colors.white38, fontSize: 16)));
     }
     if (loadingStreams) {
       return SkeletonList(count: showGrid ? 16 : 12, isGrid: showGrid);
@@ -91,9 +92,9 @@ class StreamListView extends StatelessWidget {
     return Column(children: [
       // Selection bar or search bar
       if (selectionMode)
-        _buildSelectionBar()
+        _buildSelectionBar(l10n)
       else
-        _buildSearchBar(),
+        _buildSearchBar(l10n),
       Expanded(child: Builder(builder: (ctx) {
         final filtered = searchQuery.isEmpty
             ? sortedStreams
@@ -122,7 +123,7 @@ class StreamListView extends StatelessWidget {
     return '';
   }
 
-  Widget _buildSelectionBar() {
+  Widget _buildSelectionBar(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(children: [
@@ -137,20 +138,20 @@ class StreamListView extends StatelessWidget {
         const Spacer(),
         TextButton.icon(
           icon: const Icon(Icons.create_new_folder_outlined, size: 16, color: AppColors.primaryBlue),
-          label: const Text(AppStrings.creerCollection, style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+          label: Text(l10n.creerCollection, style: const TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
           onPressed: selectedItems.isEmpty ? null : onCreateCollectionFromSelected,
         ),
         const SizedBox(width: 4),
         IconButton(
           icon: const Icon(Icons.close, size: 18, color: Colors.white54),
-          tooltip: AppStrings.annulerSelection,
+          tooltip: l10n.annulerSelection,
           onPressed: onExitSelectionMode,
         ),
       ]),
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(children: [
@@ -158,7 +159,7 @@ class StreamListView extends StatelessWidget {
           controller: searchCtrl,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
-            hintText: AppStrings.rechercherDots,
+            hintText: l10n.rechercherDots,
             hintStyle: const TextStyle(color: Colors.white38),
             prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
             suffixIcon: searchQuery.isNotEmpty
@@ -177,7 +178,7 @@ class StreamListView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: Tooltip(
-              message: AppStrings.selectionnerPourCollection,
+              message: l10n.selectionnerPourCollection,
               child: IconButton(
                 icon: const Icon(Icons.checklist, size: 20, color: AppColors.primaryBlue),
                 onPressed: sortedStreams.isEmpty ? null : onEnterSelectionMode,

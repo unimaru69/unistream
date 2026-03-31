@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
 import '../core/colors.dart';
-import '../core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../models/category.dart' as cat;
 import '../models/channel.dart';
 import '../providers/favorites_provider.dart';
@@ -484,7 +484,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(AppStrings.fermer),
+            child: Text(AppLocalizations.of(context)!.fermer),
           ),
         ],
       ),
@@ -641,7 +641,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text(AppStrings.guideTV, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(AppLocalizations.of(context)!.guideTV, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
         actions: [
           if (_loadingEpg)
@@ -677,7 +677,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                           dense: true,
                           leading: Icon(Icons.star, size: 14,
                               color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-                          title: Text(AppStrings.favoris, style: TextStyle(fontSize: 12,
+                          title: Text(AppLocalizations.of(context)!.favoris, style: TextStyle(fontSize: 12,
                               color: sel ? Colors.white : Colors.white60,
                               fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                           selected: sel,
@@ -722,8 +722,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 child: _loadingChannels
                     ? const Center(child: CircularProgressIndicator())
                     : _channels.isEmpty
-                    ? const Center(child: Text(AppStrings.selectionneCategorie,
-                        style: TextStyle(color: Colors.white38)))
+                    ? Center(child: Text(AppLocalizations.of(context)!.selectionneCategorie,
+                        style: const TextStyle(color: Colors.white38)))
                     : Column(children: [
                         // Day navigation bar
                         Container(
@@ -773,7 +773,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                             controller: _searchCtrl,
                             style: const TextStyle(fontSize: 13),
                             decoration: InputDecoration(
-                              hintText: AppStrings.filtrerChaines,
+                              hintText: AppLocalizations.of(context)!.filtrerChaines,
                               prefixIcon: const Icon(Icons.search, size: 18),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(icon: const Icon(Icons.clear, size: 16),

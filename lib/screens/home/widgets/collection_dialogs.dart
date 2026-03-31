@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 
 /// Shows a dialog to create a new collection. Returns the collection name or null.
@@ -10,7 +10,7 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: AppColors.darkSurface,
-      title: const Text(AppStrings.nouvelleCollection),
+      title: Text(AppLocalizations.of(context)!.nouvelleCollection),
       content: TextField(
         controller: nameCtrl,
         autofocus: true,
@@ -23,11 +23,11 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.annuler)),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.annuler)),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
           style: FilledButton.styleFrom(backgroundColor: AppColors.primaryBlue),
-          child: const Text(AppStrings.creer),
+          child: Text(AppLocalizations.of(context)!.creer),
         ),
       ],
     ),
@@ -48,7 +48,7 @@ Future<String?> showCollectionPickerDialog(
     context: context,
     builder: (ctx) => SimpleDialog(
       backgroundColor: AppColors.darkSurface,
-      title: const Text(AppStrings.ajouterCollection),
+      title: Text(AppLocalizations.of(context)!.ajouterCollection),
       children: [
         ...collections.map((col) => SimpleDialogOption(
           onPressed: () => Navigator.pop(ctx, col['id'] as String),
@@ -60,10 +60,10 @@ Future<String?> showCollectionPickerDialog(
             Navigator.pop(ctx);
             onCreateNew();
           },
-          child: const Row(children: [
-            Icon(Icons.add, size: 18, color: AppColors.primaryBlue),
-            SizedBox(width: 8),
-            Text(AppStrings.nouvelleCollection, style: TextStyle(fontSize: 14, color: AppColors.primaryBlue)),
+          child: Row(children: [
+            const Icon(Icons.add, size: 18, color: AppColors.primaryBlue),
+            const SizedBox(width: 8),
+            Text(AppLocalizations.of(context)!.nouvelleCollection, style: const TextStyle(fontSize: 14, color: AppColors.primaryBlue)),
           ]),
         ),
       ],
@@ -90,8 +90,8 @@ Future<String?> showCreateCollectionFromSelectedDialog(
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.annuler)),
-        TextButton(onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()), child: const Text(AppStrings.creer)),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.annuler)),
+        TextButton(onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()), child: Text(AppLocalizations.of(context)!.creer)),
       ],
     ),
   );
@@ -138,7 +138,7 @@ void showStreamInfoDialogWithEpg(
       icon: const Icon(Icons.folder_outlined, size: 16),
       label: const Text('Collection'),
     ),
-    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(AppStrings.fermer)),
+    TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.fermer)),
   ];
 
   Widget modeTag() => Container(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 
 void showSleepTimerPicker(BuildContext context, {
   required Duration? sleepRemaining,
@@ -15,9 +15,9 @@ void showSleepTimerPicker(BuildContext context, {
       child: ListView(
         shrinkWrap: true,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(AppStrings.minuterieVeille, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(AppLocalizations.of(context)!.minuterieVeille, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           if (sleepRemaining != null)
             ListTile(

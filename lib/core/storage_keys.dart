@@ -12,6 +12,9 @@ class StorageKeys {
   static const windowW = 'window_w';
   static const windowH = 'window_h';
 
+  // ── Locale ──
+  static const locale = 'app_locale';
+
   // ── Sidebar ──
   static const sidebarWidth = 'sidebar_width';
 

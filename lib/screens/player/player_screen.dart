@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
-import '../../core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../services/xtream_api.dart';
@@ -215,12 +215,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             backgroundColor: AppColors.darkSurface,
-            title: const Text(AppStrings.reprendreLecture),
+            title: Text(AppLocalizations.of(context)!.reprendreLecture),
             content: Text('Continuer depuis ${_fmt(savedPos)} ou repartir depuis le d\u00e9but ?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(AppStrings.depuisDebut),
+                child: Text(AppLocalizations.of(context)!.depuisDebut),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(

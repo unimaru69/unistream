@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
@@ -59,28 +59,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final asyncHistory = ref.watch(historyProvider);
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text(AppStrings.historique, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(l10n.historique, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
         actions: [
           if (asyncHistory.valueOrNull?.isNotEmpty == true)
             TextButton.icon(
               icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-              label: const Text(AppStrings.effacerHistorique, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+              label: Text(l10n.effacerHistorique, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
               onPressed: () async {
                 final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
                   backgroundColor: AppColors.darkSurface,
-                  title: const Text(AppStrings.effacerHistoireQuestion),
-                  content: const Text(AppStrings.actionIrreversible),
+                  title: Text(l10n.effacerHistoireQuestion),
+                  content: Text(l10n.actionIrreversible),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text(AppStrings.annuler)),
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.annuler)),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(ctx, true), child: const Text(AppStrings.effacer)),
+                      onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.effacer)),
                   ],
                 ));
                 if (ok == true) {
@@ -95,7 +96,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         error: (e, st) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.white38, fontSize: 16))),
         data: (history) {
           if (history.isEmpty) {
-            return const Center(child: Text(AppStrings.aucunHistorique, style: TextStyle(color: Colors.white38, fontSize: 16)));
+            return Center(child: Text(l10n.aucunHistorique, style: const TextStyle(color: Colors.white38, fontSize: 16)));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -123,9 +124,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ref.read(historyProvider.notifier).deleteEntry(itemKey);
                   ScaffoldMessenger.of(context).clearSnackBars();
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text(AppStrings.entreeSupprimee),
+                    content: Text(l10n.entreeSupprimee),
                     action: SnackBarAction(
-                      label: AppStrings.annuler,
+                      label: l10n.annuler,
                       onPressed: () {
                         ref.read(historyProvider.notifier).reInsertEntry(removedItem);
                       },
@@ -157,15 +158,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ]),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white24),
-                      tooltip: AppStrings.supprimer,
+                      tooltip: l10n.supprimer,
                       onPressed: () {
                         final removedItem = Map<String, String>.from(item);
                         ref.read(historyProvider.notifier).deleteEntry(itemKey);
                         ScaffoldMessenger.of(context).clearSnackBars();
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: const Text(AppStrings.entreeSupprimee),
+                          content: Text(l10n.entreeSupprimee),
                           action: SnackBarAction(
-                            label: AppStrings.annuler,
+                            label: l10n.annuler,
                             onPressed: () {
                               ref.read(historyProvider.notifier).reInsertEntry(removedItem);
                             },

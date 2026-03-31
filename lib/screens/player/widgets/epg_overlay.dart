@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../../services/xtream_api.dart';
 import '../../../utils/routes.dart';
 import '../player_screen.dart';
@@ -37,9 +37,9 @@ void showEpgGuide(BuildContext context, {
         maxChildSize: 0.9,
         expand: false,
         builder: (_, ctrl) => Column(children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text(AppStrings.guideTV, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(AppLocalizations.of(context)!.guideTV, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: ListView.builder(

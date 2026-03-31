@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 
 void showSpeedPicker(BuildContext context, {
   required double currentSpeed,
@@ -17,10 +17,10 @@ void showSpeedPicker(BuildContext context, {
         double localSpeed = currentSpeed;
         return SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(AppStrings.vitesseLecture,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(AppLocalizations.of(context)!.vitesseLecture,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             ),
             ...speeds.map((sp) => RadioListTile<double>(
               dense: true,
@@ -62,9 +62,9 @@ void showAspectRatioPicker(BuildContext context, {
       child: ListView(
         shrinkWrap: true,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(AppStrings.ratioAspect, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(AppLocalizations.of(context)!.ratioAspect, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           for (final (value, label) in options)
             ListTile(

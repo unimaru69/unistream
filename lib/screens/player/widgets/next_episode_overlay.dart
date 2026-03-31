@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 
 class NextEpisodeOverlay extends StatelessWidget {
   final Map<String, dynamic> nextEpisode;
@@ -47,7 +47,7 @@ class NextEpisodeOverlay extends StatelessWidget {
               const SizedBox(width: 8),
               TextButton(
                 onPressed: onCancel,
-                child: const Text(AppStrings.annuler),
+                child: Text(AppLocalizations.of(context)!.annuler),
               ),
             ]),
           ]),

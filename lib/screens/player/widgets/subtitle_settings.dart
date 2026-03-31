@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 
 void showSubtitleStylePicker(BuildContext context, {
   required double fontSize,
@@ -31,10 +31,10 @@ void showSubtitleStylePicker(BuildContext context, {
     builder: (_) => StatefulBuilder(
       builder: (ctx, setLocal) => SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(AppStrings.styleSousTitres,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(AppLocalizations.of(context)!.styleSousTitres,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

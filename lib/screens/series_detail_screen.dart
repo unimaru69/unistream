@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/episode.dart';
@@ -134,8 +134,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               const VerticalDivider(width: 1, color: Colors.white12),
               Expanded(
                 child: _selectedSeason == null
-                    ? const Center(child: Text(AppStrings.selectionneSaison,
-                        style: TextStyle(color: Colors.white38)))
+                    ? Center(child: Text(AppLocalizations.of(context)!.selectionneSaison,
+                        style: const TextStyle(color: Colors.white38)))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _episodes[_selectedSeason]?.length ?? 0,

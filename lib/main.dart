@@ -8,9 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
+import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
@@ -146,13 +149,13 @@ void main() async {
   }
 }
 
-class UniStreamApp extends StatefulWidget {
+class UniStreamApp extends ConsumerStatefulWidget {
   const UniStreamApp({super.key});
   @override
-  State<UniStreamApp> createState() => _UniStreamAppState();
+  ConsumerState<UniStreamApp> createState() => _UniStreamAppState();
 }
 
-class _UniStreamAppState extends State<UniStreamApp> with WindowListener {
+class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener {
   Timer? _windowSaveTimer;
 
   @override
@@ -192,6 +195,7 @@ class _UniStreamAppState extends State<UniStreamApp> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(localeProvider);
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (_, mode, __) => MaterialApp(
@@ -201,6 +205,9 @@ class _UniStreamAppState extends State<UniStreamApp> with WindowListener {
         darkTheme: darkTheme,
         themeMode: mode,
         navigatorKey: navKey,
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: AppConfig.isConfigured
             ? const HomeScreen()
             : const SettingsScreen(isOnboarding: true),

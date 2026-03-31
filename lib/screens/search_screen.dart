@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
-import 'package:unistream/core/strings.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -183,13 +183,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     final filtered = _filtered(progress);
     Widget body;
     if (_query.trim().length < 2) {
-      body = const Center(child: Text(AppStrings.tapeAuMoins2,
-          style: TextStyle(color: Colors.white38)));
+      body = Center(child: Text(AppLocalizations.of(context)!.tapeAuMoins2,
+          style: const TextStyle(color: Colors.white38)));
     } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (filtered.isEmpty) {
-      body = const Center(child: Text(AppStrings.aucunResultat,
-          style: TextStyle(color: Colors.white38)));
+      body = Center(child: Text(AppLocalizations.of(context)!.aucunResultat,
+          style: const TextStyle(color: Colors.white38)));
     } else {
       body = ListView.builder(
         itemCount: filtered.length,
@@ -239,8 +239,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           controller: _ctrl,
           autofocus: true,
           style: const TextStyle(fontSize: 16),
-          decoration: const InputDecoration(
-            hintText: AppStrings.rechercherCatalogue,
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.rechercherCatalogue,
             hintStyle: TextStyle(color: Colors.white38),
             border: InputBorder.none,
           ),
