@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
 import '../core/colors.dart';
 import '../core/strings.dart';
-import '../core/storage_keys.dart';
-import '../models/app_config.dart';
+import '../providers/favorites_provider.dart';
 import '../services/xtream_api.dart';
 import '../utils/routes.dart';
 import 'player/player_screen.dart';
@@ -42,9 +40,6 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
 
-  // Favorites (loaded from HomeScreen's favorites)
-  Set<String> _favStreamIds = {};
-
   // Category sidebar resize
   double _catSidebarWidth = 200;
   static const double _catSidebarMin = 120;
@@ -68,7 +63,6 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   void initState() {
     super.initState();
     _dayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    _loadEpgFavs();
     _loadCategories();
 
     // Sync horizontal scroll: header ↔ grid
@@ -109,23 +103,6 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     super.dispose();
   }
 
-  Future<void> _loadEpgFavs() async {
-    final p = await SharedPreferences.getInstance();
-    final raw = p.getString(StorageKeys.favorites(AppConfig.activeProfileId));
-    if (raw != null) {
-      final list = List<Map<String, dynamic>>.from(
-          (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-      final ids = <String>{};
-      for (final item in list) {
-        if (item['_mode'] == 'live') {
-          final sid = item['stream_id']?.toString();
-          if (sid != null) ids.add(sid);
-        }
-      }
-      if (mounted) setState(() => _favStreamIds = ids);
-    }
-  }
-
   Future<void> _selectFavorites() async {
     setState(() {
       _selectedCatId = '__favorites__';
@@ -138,7 +115,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     try {
       final streams = await XtreamApi.getLiveStreams();
       final channels = List<Map<String, dynamic>>.from(streams)
-          .where((ch) => _favStreamIds.contains(ch['stream_id']?.toString()))
+          .where((ch) => ref.read(favoritesProvider).keys.contains(ch['stream_id']?.toString()))
           .toList();
       if (!mounted) return;
       setState(() {
@@ -235,10 +212,10 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       final streams = await XtreamApi.getLiveStreams(catId);
       final channels = List<Map<String, dynamic>>.from(streams);
       // Sort favorites first
-      if (_favStreamIds.isNotEmpty) {
+      if (ref.read(favoritesProvider).keys.isNotEmpty) {
         channels.sort((a, b) {
-          final aFav = _favStreamIds.contains(a['stream_id']?.toString()) ? 0 : 1;
-          final bFav = _favStreamIds.contains(b['stream_id']?.toString()) ? 0 : 1;
+          final aFav = ref.read(favoritesProvider).keys.contains(a['stream_id']?.toString()) ? 0 : 1;
+          final bFav = ref.read(favoritesProvider).keys.contains(b['stream_id']?.toString()) ? 0 : 1;
           return aFav.compareTo(bFav);
         });
       }

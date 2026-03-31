@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/logger.dart';
+import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
@@ -27,19 +28,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   // Watch status filter: 0 = Tous, 1 = Non vus, 2 = En cours
   int _statusFilter = 0;
-  Map<String, double> _progress = {};
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
     _tabCtrl.addListener(() { if (!_tabCtrl.indexIsChanging) setState(() {}); });
-    _loadProgress();
-  }
-
-  Future<void> _loadProgress() async {
-    final p = await WatchProgress.loadAll();
-    if (mounted) setState(() => _progress = p);
   }
 
   @override
@@ -83,7 +77,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     }
   }
 
-  List<Map<String, dynamic>> get _filtered {
+  List<Map<String, dynamic>> _filtered(Map<String, double> progress) {
     List<Map<String, dynamic>> list;
     switch (_tabCtrl.index) {
       case 1: list = _results.where((r) => r['_mode'] == 'live').toList(); break;
@@ -99,7 +93,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         if (mode == 'live') return true; // live always shown
         final id = mode == 'series' ? r['series_id']?.toString() : r['stream_id']?.toString();
         if (id == null) return true;
-        return _progress[id] == null;
+        return progress[id] == null;
       }).toList();
     } else if (_statusFilter == 2) {
       // En cours: has progress but not finished (<=95%)
@@ -108,7 +102,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         if (mode == 'live') return false; // live has no progress
         final id = mode == 'series' ? r['series_id']?.toString() : r['stream_id']?.toString();
         if (id == null) return false;
-        final p = _progress[id];
+        final p = progress[id];
         return p != null && p > 0 && p <= 0.95;
       }).toList();
     }
@@ -144,31 +138,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     const modeIcons = {'live': Icons.tv, 'vod': Icons.movie, 'series': Icons.movie_creation};
     final modeColor = {'live': Colors.blue, 'vod': Colors.purple, 'series': Colors.teal};
 
     // Show status filter only when not on Live tab and results exist
     final showStatusFilter = _tabCtrl.index != 1 && _results.isNotEmpty && _query.trim().length >= 2;
 
+    final filtered = _filtered(progress);
     Widget body;
     if (_query.trim().length < 2) {
       body = const Center(child: Text(AppStrings.tapeAuMoins2,
           style: TextStyle(color: Colors.white38)));
     } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
-    } else if (_filtered.isEmpty) {
+    } else if (filtered.isEmpty) {
       body = const Center(child: Text(AppStrings.aucunResultat,
           style: TextStyle(color: Colors.white38)));
     } else {
       body = ListView.builder(
-        itemCount: _filtered.length,
+        itemCount: filtered.length,
         itemBuilder: (_, i) {
-          final item = _filtered[i];
+          final item = filtered[i];
           final mode = item['_mode'] as String;
           final iconUrl = mode == 'series' ? item['cover'] : item['stream_icon'];
           // Progress indicator
           final id = mode == 'series' ? item['series_id']?.toString() : item['stream_id']?.toString();
-          final prog = (mode != 'live' && id != null) ? _progress[id] : null;
+          final prog = (mode != 'live' && id != null) ? progress[id] : null;
           return ListTile(
             leading: iconUrl != null && iconUrl.toString().isNotEmpty
                 ? ClipRRect(borderRadius: BorderRadius.circular(4),

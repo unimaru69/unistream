@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../models/profile.dart';
 import '../models/app_config.dart';
+import '../providers/config_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/import_export.dart';
 import '../core/colors.dart';
@@ -88,7 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     setState(() { _saving = true; _error = null; });
     try {
-      await AppConfig.save(server, user, pass);
+      await ref.read(configProvider.notifier).save(server, user, pass);
       final auth = await XtreamApi.authenticate();
       if (auth['user_info']?['auth'] != 1) {
         setState(() { _error = AppStrings.authEchouee; _saving = false; });
@@ -264,11 +265,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         style: const TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 24),
-              if (!widget.isOnboarding && AppConfig.profiles.length > 0)
+              if (!widget.isOnboarding && ref.watch(configProvider).profiles.length > 0)
                 OutlinedButton.icon(
                   onPressed: () async {
                     final reload = await Navigator.push<bool>(context,
-                        MaterialPageRoute(builder: (_) => const ProfilesScreen()));
+                        MaterialPageRoute(builder: (_) => ProfilesScreen(
+                          onAdd: (pr) => ref.read(configProvider.notifier).addProfile(pr),
+                          onUpdate: (pr) => ref.read(configProvider.notifier).updateProfile(pr),
+                          onDelete: (id) => ref.read(configProvider.notifier).deleteProfile(id),
+                          onSwitch: (id) => ref.read(configProvider.notifier).switchProfile(id),
+                        )));
                     if (reload == true && mounted) Navigator.pop(context, true);
                   },
                   icon: const Icon(Icons.people_outline, size: 18),
@@ -499,13 +505,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 // ── Profiles Screen ──
-class ProfilesScreen extends StatefulWidget {
-  const ProfilesScreen({super.key});
+class ProfilesScreen extends ConsumerStatefulWidget {
+  final Future<void> Function(Profile) onAdd;
+  final Future<void> Function(Profile) onUpdate;
+  final Future<void> Function(String) onDelete;
+  final Future<void> Function(String) onSwitch;
+  const ProfilesScreen({
+    super.key,
+    required this.onAdd,
+    required this.onUpdate,
+    required this.onDelete,
+    required this.onSwitch,
+  });
   @override
-  State<ProfilesScreen> createState() => _ProfilesScreenState();
+  ConsumerState<ProfilesScreen> createState() => _ProfilesScreenState();
 }
 
-class _ProfilesScreenState extends State<ProfilesScreen> {
+class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   bool _changed = false;
 
   Future<void> _addProfile() async {
@@ -514,7 +530,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
       builder: (ctx) => const ProfileDialog(),
     );
     if (result != null) {
-      await AppConfig.addProfile(result);
+      await widget.onAdd(result);
       setState(() => _changed = true);
     }
   }
@@ -525,13 +541,14 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
       builder: (ctx) => ProfileDialog(profile: pr),
     );
     if (result != null) {
-      await AppConfig.updateProfile(result);
+      await widget.onUpdate(result);
       setState(() => _changed = true);
     }
   }
 
   Future<void> _deleteProfile(Profile pr) async {
-    if (AppConfig.profiles.length <= 1) return;
+    final config = ref.read(configProvider);
+    if (config.profiles.length <= 1) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -546,22 +563,26 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
       ),
     );
     if (confirm == true) {
-      final wasActive = pr.id == AppConfig.activeProfileId;
-      await AppConfig.deleteProfile(pr.id);
-      if (wasActive && AppConfig.profiles.isNotEmpty) {
-        await AppConfig.switchProfile(AppConfig.profiles.first.id);
+      final wasActive = pr.id == config.activeProfileId;
+      await widget.onDelete(pr.id);
+      if (wasActive) {
+        final updatedConfig = ref.read(configProvider);
+        if (updatedConfig.profiles.isNotEmpty) {
+          await widget.onSwitch(updatedConfig.profiles.first.id);
+        }
       }
       setState(() => _changed = true);
     }
   }
 
   Future<void> _switchTo(Profile pr) async {
-    await AppConfig.switchProfile(pr.id);
+    await widget.onSwitch(pr.id);
     setState(() => _changed = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final config = ref.watch(configProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.profils, style: TextStyle(fontSize: 16)),
@@ -580,10 +601,10 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
           constraints: const BoxConstraints(maxWidth: 500),
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: AppConfig.profiles.length,
+            itemCount: config.profiles.length,
             itemBuilder: (_, i) {
-              final pr = AppConfig.profiles[i];
-              final isActive = pr.id == AppConfig.activeProfileId;
+              final pr = config.profiles[i];
+              final isActive = pr.id == config.activeProfileId;
               return Card(
                 color: isActive ? AppColors.primaryBlue.withValues(alpha: 0.15) : AppColors.darkSurface,
                 shape: RoundedRectangleBorder(
@@ -601,7 +622,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
                       TextButton(onPressed: () => _switchTo(pr),
                           child: const Text('Activer', style: TextStyle(fontSize: 12))),
                     IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _editProfile(pr)),
-                    if (AppConfig.profiles.length > 1)
+                    if (config.profiles.length > 1)
                       IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
                           onPressed: () => _deleteProfile(pr)),
                   ]),

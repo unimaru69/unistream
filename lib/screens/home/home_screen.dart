@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -12,9 +11,12 @@ import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
-import '../../services/collections_service.dart';
 import '../../utils/routes.dart';
 import '../../models/content_mode.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/watch_progress_provider.dart';
+import '../../providers/collections_provider.dart';
+import '../../providers/config_provider.dart';
 import '../settings_screen.dart';
 import '../series_detail_screen.dart';
 import '../player/player_screen.dart';
@@ -26,13 +28,13 @@ import 'widgets/stream_list.dart';
 import 'widgets/continue_watching_row.dart';
 import 'widgets/collection_dialogs.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> _categories = [];
   List<dynamic> _streams    = [];
   String? _selectedCategory;
@@ -45,34 +47,15 @@ class _HomeScreenState extends State<HomeScreen> {
   // Recently added (VOD/Series)
   List<Map<String, dynamic>> _recentlyAdded = [];
 
-  // Favorites
-  Set<String> _favKeys = {};
-  List<Map<String, dynamic>> _favItems = [];
-  String get _prefKeyFavs => StorageKeys.favorites(AppConfig.activeProfileId);
-
-  // Watchlist
-  Set<String> _wlKeys = {};
-  List<Map<String, dynamic>> _wlItems = [];
-  String get _prefKeyWl => StorageKeys.watchlist(AppConfig.activeProfileId);
-
   // Search
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
-
-  // Progress (id -> ratio 0-1)
-  Map<String, double> _progress = {};
-
-  // Continue watching
-  List<Map<String, dynamic>> _continueItems = [];
 
   // Grid view (VOD + Series only)
   bool _gridView = false;
 
   // Sort mode
   String _sortMode = 'default';
-
-  // Collections
-  List<Map<String, dynamic>> _collections = [];
 
   // Selection mode
   bool _selectionMode = false;
@@ -86,12 +69,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFavorites().then((_) => _loadWatchlist().then((_) => _init()));
-    _refreshProgress();
+    _init();
     _loadSidebarWidth();
     _loadGridView();
     _loadSortMode();
-    _loadCollections();
   }
 
   // ── Grid view preference per mode ──
@@ -119,16 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Collections ──
-  Future<void> _loadCollections() async {
-    final cols = await CollectionsService.loadCollections();
-    if (mounted) setState(() => _collections = cols);
-  }
-
   Future<void> _createCollection() async {
     final name = await showCreateCollectionDialog(context);
     if (name != null && name.isNotEmpty) {
-      await CollectionsService.saveCollection(name, mode: _mode.key);
-      await _loadCollections();
+      await ref.read(collectionsProvider.notifier).create(name, mode: _mode.key);
     }
   }
 
@@ -138,18 +113,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final cover = stream['stream_icon']?.toString() ?? stream['cover']?.toString() ?? '';
     final item = <String, dynamic>{'key': key, 'name': name, 'cover': cover, 'mode': _mode.key};
 
-    final modeCols = _collections.where((c) =>
+    final collections = ref.read(collectionsProvider);
+    final modeCols = collections.where((c) =>
         c['mode'] == null || c['mode'] == _mode.key).toList();
     if (modeCols.isEmpty) {
       await _createCollection();
-      await _loadCollections();
-      final updated = _collections.where((c) =>
+      final updated = ref.read(collectionsProvider).where((c) =>
           c['mode'] == null || c['mode'] == _mode.key).toList();
       if (updated.isEmpty) return;
     }
 
     if (!mounted) return;
-    final currentModeCols = _collections.where((c) =>
+    final currentModeCols = ref.read(collectionsProvider).where((c) =>
         c['mode'] == null || c['mode'] == _mode.key).toList();
     final colId = await showCollectionPickerDialog(
       context,
@@ -160,10 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
     if (colId != null) {
-      await CollectionsService.addToCollection(colId, item);
-      await _loadCollections();
+      await ref.read(collectionsProvider.notifier).addItem(colId, item);
       if (mounted) {
-        final colName = _collections.firstWhere((c) => c['id'] == colId, orElse: () => {'name': 'collection'})['name'];
+        final cols = ref.read(collectionsProvider);
+        final colName = cols.firstWhere((c) => c['id'] == colId, orElse: () => {'name': 'collection'})['name'];
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Ajoute a "$colName"'),
           backgroundColor: AppColors.darkSurface,
@@ -183,10 +158,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _removeFromCollection(Map<String, dynamic> s) async {
     final colId = _activeCollectionId;
     if (colId == null) return;
-    final key = s['key']?.toString() ?? _favKey(_mode.key, s);
-    await CollectionsService.removeFromCollection(colId, key);
-    await _loadCollections();
-    final col = _collections.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
+    final key = s['key']?.toString() ?? s['_key']?.toString() ?? _favKey(_mode.key, s);
+    await ref.read(collectionsProvider.notifier).removeItem(colId, key);
+    final collections = ref.read(collectionsProvider);
+    final col = collections.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
     final colItems = ((col['items'] as List?) ?? [])
         .where((e) => col['mode'] != null || e['mode'] == _mode.key)
         .map((e) => Map<String, dynamic>.from(e))
@@ -214,16 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final name = await showCreateCollectionFromSelectedDialog(context, itemCount: items.length);
     if (name == null || name.isEmpty) return;
-    final col = await CollectionsService.saveCollection(name, mode: _mode.key);
+    final col = await ref.read(collectionsProvider.notifier).create(name, mode: _mode.key);
     final colId = col['id'] as String;
     for (final s in items) {
       final key = _favKey(_mode.key, s);
       final itemName = s['name'] ?? 'Sans titre';
       final cover = s['stream_icon']?.toString() ?? s['cover']?.toString() ?? '';
       final item = <String, dynamic>{'key': key, 'name': itemName, 'cover': cover, 'mode': _mode.key};
-      await CollectionsService.addToCollection(colId, item);
+      await ref.read(collectionsProvider.notifier).addItem(colId, item);
     }
-    await _loadCollections();
     _exitSelectionMode();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -250,8 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case 'favFirst':
         list.sort((a, b) {
-          final aFav = _favKeys.contains(_favKey(_mode.key, a as Map<String, dynamic>)) ? 0 : 1;
-          final bFav = _favKeys.contains(_favKey(_mode.key, b as Map<String, dynamic>)) ? 0 : 1;
+          final favKeys = ref.read(favoritesProvider).keys;
+          final aFav = favKeys.contains(_favKey(_mode.key, a as Map<String, dynamic>)) ? 0 : 1;
+          final bFav = favKeys.contains(_favKey(_mode.key, b as Map<String, dynamic>)) ? 0 : 1;
           if (aFav != bFav) return aFav.compareTo(bFav);
           return (a['name'] ?? '').toString().toLowerCase()
               .compareTo((b['name'] ?? '').toString().toLowerCase());
@@ -272,25 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await p.setDouble(StorageKeys.sidebarWidth, _sidebarWidth);
   }
 
-  // ── Favorites ──
-  Future<void> _loadFavorites() async {
-    final p = await SharedPreferences.getInstance();
-    final raw = p.getString(_prefKeyFavs);
-    if (raw != null) {
-      final list = List<Map<String, dynamic>>.from(
-          (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-      setState(() {
-        _favItems = list;
-        _favKeys  = list.map((e) => e['_key'] as String).toSet();
-      });
-    }
-  }
-
-  Future<void> _saveFavorites() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_prefKeyFavs, jsonEncode(_favItems));
-  }
-
+  // ── Favorites / Watchlist ──
   String _favKey(String mode, Map<String, dynamic> s) {
     final id = mode == 'series' ? s['series_id']?.toString() : s['stream_id']?.toString();
     return '$mode:$id';
@@ -298,49 +255,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _toggleFavorite(Map<String, dynamic> stream) {
     final key = _favKey(_mode.key, stream);
-    setState(() {
-      if (_favKeys.contains(key)) {
-        _favKeys.remove(key);
-        _favItems.removeWhere((e) => e['_key'] == key);
-      } else {
-        _favKeys.add(key);
-        _favItems.add({...stream, '_key': key, '_mode': _mode.key});
-      }
-    });
-    _saveFavorites();
-  }
-
-  // ── Watchlist ──
-  Future<void> _loadWatchlist() async {
-    final p = await SharedPreferences.getInstance();
-    final raw = p.getString(_prefKeyWl);
-    if (raw != null) {
-      final list = List<Map<String, dynamic>>.from(
-          (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-      setState(() {
-        _wlItems = list;
-        _wlKeys  = list.map((e) => e['_key'] as String).toSet();
-      });
-    }
-  }
-
-  Future<void> _saveWatchlist() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_prefKeyWl, jsonEncode(_wlItems));
+    ref.read(favoritesProvider.notifier).toggle(key, {...stream, '_mode': _mode.key});
   }
 
   void _toggleWatchlist(Map<String, dynamic> stream) {
     final key = _favKey(_mode.key, stream);
-    setState(() {
-      if (_wlKeys.contains(key)) {
-        _wlKeys.remove(key);
-        _wlItems.removeWhere((e) => e['_key'] == key);
-      } else {
-        _wlKeys.add(key);
-        _wlItems.add({...stream, '_key': key, '_mode': _mode.key});
-      }
-    });
-    _saveWatchlist();
+    ref.read(watchlistProvider.notifier).toggle(key, {...stream, '_mode': _mode.key});
   }
 
   // ── Init / loading ──
@@ -356,13 +276,16 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       setState(() { _isOffline = true; _loading = false; _error = null; });
-      _refreshProgress();
     }
   }
 
   Future<void> _retryConnection() async {
     setState(() { _loading = true; _error = null; });
-    _loadFavorites().then((_) => _loadWatchlist().then((_) => _init()));
+    ref.read(favoritesProvider.notifier).load();
+    ref.read(watchlistProvider.notifier).load();
+    ref.invalidate(watchProgressProvider);
+    ref.invalidate(continueWatchingProvider);
+    _init();
   }
 
   Future<void> _loadCategories() async {
@@ -480,15 +403,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ))).then((_) => _refreshProgress());
   }
 
-  Future<void> _refreshProgress() async {
-    final results = await Future.wait([
-      WatchProgress.loadAll(),
-      WatchProgress.loadContinueWatching(),
-    ]);
-    if (mounted) setState(() {
-      _progress       = results[0] as Map<String, double>;
-      _continueItems  = results[1] as List<Map<String, dynamic>>;
-    });
+  void _refreshProgress() {
+    ref.invalidate(watchProgressProvider);
+    ref.invalidate(continueWatchingProvider);
   }
 
   String? _progressKey(Map<String, dynamic> stream) {
@@ -560,8 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
         context, slideRoute(const SettingsScreen()));
     if (reload == true) {
       setState(() { _loading = true; _error = null; _categories = []; _streams = []; _selectedCategory = null; });
-      _loadFavorites().then((_) => _loadWatchlist().then((_) => _init()));
+      ref.read(favoritesProvider.notifier).load();
+      ref.read(watchlistProvider.notifier).load();
       _refreshProgress();
+      _init();
     }
   }
 
@@ -580,6 +499,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final showGrid = _gridView && _mode != ContentMode.live;
+
+    // Watch providers
+    final favState = ref.watch(favoritesProvider);
+    final favKeys = favState.keys;
+    final favItems = favState.items;
+    final wlState = ref.watch(watchlistProvider);
+    final wlKeys = wlState.keys;
+    final wlItems = wlState.items;
+    final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
+    final continueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
+    final collections = ref.watch(collectionsProvider);
 
     return Focus(
       autofocus: true,
@@ -628,10 +558,12 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.account_circle_outlined),
               tooltip: 'Changer de profil',
               onSelected: (id) async {
-                await AppConfig.switchProfile(id);
-                setState(() { _loading = true; _error = null; _categories = []; _streams = []; _selectedCategory = null; });
-                _loadFavorites().then((_) => _init());
+                await ref.read(configProvider.notifier).switchProfile(id);
+                ref.read(favoritesProvider.notifier).load();
+                ref.read(watchlistProvider.notifier).load();
                 _refreshProgress();
+                setState(() { _loading = true; _error = null; _categories = []; _streams = []; _selectedCategory = null; });
+                _init();
               },
               itemBuilder: (_) => AppConfig.profiles.map((pr) => PopupMenuItem(
                 value: pr.id,
@@ -719,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? _buildOfflineBody()
           : Column(children: [
               ContinueWatchingRow(
-                items: _continueItems,
+                items: continueItems,
                 onTap: (item) => Navigator.push(context, slideRoute(
                   PlayerScreen(
                     url: item['url'] as String? ?? '',
@@ -743,12 +675,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 onDragEnd: _saveSidebarWidth,
                 categories: _categories,
-                collections: _collections,
+                collections: collections,
                 mode: _mode,
                 selectedCategory: _selectedCategory,
-                progress: _progress,
-                favItems: _favItems,
-                wlItems: _wlItems,
+                progress: progress,
+                favItems: favItems,
+                wlItems: wlItems,
                 onCategorySelected: _loadStreams,
                 onSpecialCategorySelected: (cat, items) {
                   setState(() {
@@ -761,7 +693,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     .then((_) => _refreshProgress()),
                 onCreateCollection: _createCollection,
                 onCollectionSelected: (colId) {
-                  final col = _collections.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
+                  final cols = ref.read(collectionsProvider);
+                  final col = cols.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
                   final colItems = ((col['items'] as List?) ?? [])
                       .where((e) => e['mode'] == _mode.key)
                       .map((e) => Map<String, dynamic>.from(e))
@@ -772,8 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
                 onDeleteCollection: (colId) async {
-                  await CollectionsService.deleteCollection(colId);
-                  await _loadCollections();
+                  await ref.read(collectionsProvider.notifier).delete(colId);
                   if (_selectedCategory == '__col_${colId}__') {
                     setState(() { _selectedCategory = null; _streams = []; });
                   }
@@ -791,9 +723,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   searchCtrl: _searchCtrl,
                   onSearchChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
                   onClearSearch: () => setState(() { _searchQuery = ''; _searchCtrl.clear(); }),
-                  progress: _progress,
-                  favKeys: _favKeys,
-                  wlKeys: _wlKeys,
+                  progress: progress,
+                  favKeys: favKeys,
+                  wlKeys: wlKeys,
                   selectionMode: _selectionMode,
                   selectedItems: _selectedItems,
                   onEnterSelectionMode: _enterSelectionMode,
@@ -834,6 +766,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Offline body ──
   Widget _buildOfflineBody() {
+    final offlineContinueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
+    final offlineFavItems = ref.watch(favoritesProvider).items;
     return Column(children: [
       Container(
         width: double.infinity,
@@ -855,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Expanded(child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (_continueItems.isNotEmpty) ...[
+          if (offlineContinueItems.isNotEmpty) ...[
             const Text(AppStrings.continuerRegarder,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
@@ -863,9 +797,9 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 120,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: _continueItems.length,
+                itemCount: offlineContinueItems.length,
                 itemBuilder: (_, i) {
-                  final item  = _continueItems[i];
+                  final item  = offlineContinueItems[i];
                   final ratio = item['_ratio'] as double;
                   final cover = item['cover'] as String? ?? '';
                   final name  = item['name']  as String? ?? '';
@@ -910,11 +844,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 24),
           ],
-          if (_favItems.isNotEmpty) ...[
+          if (offlineFavItems.isNotEmpty) ...[
             const Text(AppStrings.favoris,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
-            ...(_favItems.take(20).map((item) {
+            ...(offlineFavItems.take(20).map((item) {
               final name = item['name'] as String? ?? '';
               final cover = item['cover']?.toString() ?? item['stream_icon']?.toString() ?? '';
               return Tooltip(
@@ -935,7 +869,7 @@ class _HomeScreenState extends State<HomeScreen> {
             })),
             const SizedBox(height: 24),
           ],
-          if (_continueItems.isEmpty && _favItems.isEmpty)
+          if (offlineContinueItems.isEmpty && offlineFavItems.isEmpty)
             const Center(child: Padding(
               padding: EdgeInsets.only(top: 60),
               child: Column(mainAxisSize: MainAxisSize.min, children: [

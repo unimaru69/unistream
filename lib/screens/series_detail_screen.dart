@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
@@ -23,13 +24,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   String? _selectedSeason;
   bool _loading = true;
   String? _error;
-  Map<String, double> _progress = {};
 
   @override
   void initState() {
     super.initState();
     _loadInfo();
-    WatchProgress.loadAll().then((m) => setState(() => _progress = m));
   }
 
   Future<void> _loadInfo() async {
@@ -72,14 +71,14 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       coverUrl: widget.cover,
       nextEpisode: nextEp,
       nextEpisodeCover: widget.cover,
-    ))).then((_) async {
-      final m = await WatchProgress.loadAll();
-      if (mounted) setState(() => _progress = m);
+    ))).then((_) {
+      if (mounted) ref.invalidate(watchProgressProvider);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
@@ -138,7 +137,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                           final ep    = _episodes[_selectedSeason]![i] as Map<String, dynamic>;
                           final epNum = ep['episode_num'] ?? i + 1;
                           final title = ep['title'] ?? 'Episode $epNum';
-                          final prog  = _progress[ep['id']?.toString()];
+                          final prog  = progress[ep['id']?.toString()];
                           final bool isWatched = prog != null && prog > 0.95;
                           final bool isPartial = prog != null && prog <= 0.95;
                           final bool isNew     = prog == null;

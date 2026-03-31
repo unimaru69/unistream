@@ -25,7 +25,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
     }
     final list = List<Map<String, dynamic>>.from(
         (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-    final keys = list.map((e) => e['key']?.toString() ?? e['stream_id']?.toString() ?? '').toSet();
+    final keys = list.map((e) => (e['_key'] ?? e['key'] ?? e['stream_id'])?.toString() ?? '').toSet();
     state = FavoritesState(keys: keys, items: list);
   }
 
@@ -36,10 +36,10 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
 
     if (keys.contains(key)) {
       keys.remove(key);
-      items.removeWhere((e) => (e['key'] ?? e['stream_id']?.toString()) == key);
+      items.removeWhere((e) => (e['_key'] ?? e['key']) == key);
     } else {
       keys.add(key);
-      items.add({...item, 'key': key});
+      items.add({...item, '_key': key});
     }
 
     await p.setString(StorageKeys.favorites(AppConfig.activeProfileId), jsonEncode(items));
@@ -75,7 +75,7 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
     }
     final list = List<Map<String, dynamic>>.from(
         (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-    final keys = list.map((e) => e['key']?.toString() ?? '').toSet();
+    final keys = list.map((e) => (e['_key'] ?? e['key'])?.toString() ?? '').toSet();
     state = WatchlistState(keys: keys, items: list);
   }
 
@@ -86,10 +86,10 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
 
     if (keys.contains(key)) {
       keys.remove(key);
-      items.removeWhere((e) => e['key'] == key);
+      items.removeWhere((e) => (e['_key'] ?? e['key']) == key);
     } else {
       keys.add(key);
-      items.add({...item, 'key': key});
+      items.add({...item, '_key': key});
     }
 
     await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
