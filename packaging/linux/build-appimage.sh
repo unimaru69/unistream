@@ -40,18 +40,45 @@ cp packaging/linux/unistream.desktop "$APPDIR/usr/share/applications/${BINARY_NA
 cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/lib:${HERE}/usr/bin:${LD_LIBRARY_PATH:-}"
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
 exec "${HERE}/usr/bin/unistream" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# Bundle system libraries that might be missing on target
-echo "==> Bundling system libraries..."
-for lib in libmpv.so libmpv.so.2; do
+# Bundle all non-glibc shared libraries needed by the binary
+echo "==> Bundling shared libraries..."
+
+# Collect all .so files from the Flutter bundle and our binary
+find "$APPDIR/usr/bin" -type f \( -name "*.so" -o -name "*.so.*" -o -executable \) | while read -r bin; do
+  ldd "$bin" 2>/dev/null | grep "=> /" | awk '{print $3}' | sort -u | while read -r libpath; do
+    libname=$(basename "$libpath")
+    # Skip glibc core libs (must come from host), libstdc++, libgcc
+    case "$libname" in
+      libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*) continue ;;
+    esac
+    if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
+      cp "$libpath" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $libname" || true
+    fi
+  done
+done
+
+# Also explicitly bundle libmpv and its deps
+for lib in libmpv.so libmpv.so.2 libmpv.so.1; do
   LIBPATH=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}')
-  if [ -n "$LIBPATH" ] && [ -f "$LIBPATH" ]; then
+  if [ -n "$LIBPATH" ] && [ -f "$LIBPATH" ] && [ ! -f "$APPDIR/usr/lib/$lib" ]; then
     cp "$LIBPATH" "$APPDIR/usr/lib/"
-    echo "   Bundled $lib"
+    echo "   Bundled $lib (explicit)"
+    # Also bundle libmpv's own dependencies
+    ldd "$LIBPATH" 2>/dev/null | grep "=> /" | awk '{print $3}' | while read -r dep; do
+      depname=$(basename "$dep")
+      case "$depname" in
+        libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*) continue ;;
+      esac
+      if [ ! -f "$APPDIR/usr/lib/$depname" ]; then
+        cp "$dep" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $depname (mpv dep)" || true
+      fi
+    done
   fi
 done
 
