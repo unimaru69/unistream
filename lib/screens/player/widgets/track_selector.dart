@@ -81,41 +81,64 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
         ),
         SizedBox(height: 280, child: TabBarView(children: [
           // Audio
-          ListView(children: widget.audioTracks.map((t) => RadioListTile<AudioTrack>(
-            title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Piste audio'),
-                style: const TextStyle(fontSize: 13)),
-            value: t, groupValue: _curAudio,
-            activeColor: AppColors.primaryBlue,
+          RadioGroup<AudioTrack>(
+            groupValue: _curAudio,
             onChanged: (v) {
               if (v == null) return;
               widget.player.setAudioTrack(v);
               setState(() => _curAudio = v);
             },
-          )).toList()),
-          // Sous-titres
-          ListView(children: [
-            RadioListTile<SubtitleTrack>(
-              title: const Text('D\u00e9sactiv\u00e9s', style: TextStyle(fontSize: 13)),
-              value: SubtitleTrack.no(), groupValue: _curSub,
-              activeColor: AppColors.primaryBlue,
-              onChanged: (v) {
-                if (v == null) return;
-                widget.player.setSubtitleTrack(v);
-                setState(() => _curSub = v);
-              },
-            ),
-            ...widget.subtitleTracks.map((t) => RadioListTile<SubtitleTrack>(
-              title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Sous-titres'),
+            child: ListView(children: widget.audioTracks.map((t) => ListTile(
+              dense: true,
+              leading: Radio<AudioTrack>(
+                value: t,
+                activeColor: AppColors.primaryBlue,
+              ),
+              title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Piste audio'),
                   style: const TextStyle(fontSize: 13)),
-              value: t, groupValue: _curSub,
-              activeColor: AppColors.primaryBlue,
-              onChanged: (v) {
-                if (v == null) return;
-                widget.player.setSubtitleTrack(v);
-                setState(() => _curSub = v);
+              onTap: () {
+                widget.player.setAudioTrack(t);
+                setState(() => _curAudio = t);
               },
-            )),
-          ]),
+            )).toList()),
+          ),
+          // Sous-titres
+          RadioGroup<SubtitleTrack>(
+            groupValue: _curSub,
+            onChanged: (v) {
+              if (v == null) return;
+              widget.player.setSubtitleTrack(v);
+              setState(() => _curSub = v);
+            },
+            child: ListView(children: [
+              ListTile(
+                dense: true,
+                leading: Radio<SubtitleTrack>(
+                  value: SubtitleTrack.no(),
+                  activeColor: AppColors.primaryBlue,
+                ),
+                title: const Text('D\u00e9sactiv\u00e9s', style: TextStyle(fontSize: 13)),
+                onTap: () {
+                  final noSub = SubtitleTrack.no();
+                  widget.player.setSubtitleTrack(noSub);
+                  setState(() => _curSub = noSub);
+                },
+              ),
+              ...widget.subtitleTracks.map((t) => ListTile(
+                dense: true,
+                leading: Radio<SubtitleTrack>(
+                  value: t,
+                  activeColor: AppColors.primaryBlue,
+                ),
+                title: Text(resolveTrackLabel(t.title, t.language, t.id, 'Sous-titres'),
+                    style: const TextStyle(fontSize: 13)),
+                onTap: () {
+                  widget.player.setSubtitleTrack(t);
+                  setState(() => _curSub = t);
+                },
+              )),
+            ]),
+          ),
         ])),
       ]),
     );

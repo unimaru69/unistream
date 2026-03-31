@@ -74,7 +74,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final Player _player;
   late final VideoController _controller;
   bool _minimized = false;
-  bool _buffering = false;
   int _reconnectAttempts = 0;
   String? _playError;
 
@@ -107,7 +106,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _nextCountdownSec = 10;
 
   // Quick zapping OSD
-  String? _zapOsdText;
   Timer? _zapOsdTimer;
 
   // Subtitle customization
@@ -155,11 +153,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     _player.stream.duration.listen((dur) => _lastDur = dur);
 
-    // Buffering
-    _player.stream.buffering.listen((b) {
-      if (mounted) setState(() => _buffering = b);
-    });
-
     // Auto-reconnect on error (max 3 attempts)
     _player.stream.error.listen((err) {
       if (err.isNotEmpty && mounted && !_minimized) {
@@ -170,7 +163,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           });
         } else if (mounted) {
           setState(() {
-            _buffering = false;
             _playError = _isCatchupMode
                 ? 'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-\u00eatre pas le timeshift.'
                 : 'Impossible de lire ce flux.\nV\u00e9rifiez votre connexion ou r\u00e9essayez.';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache_config.dart';
 import '../../../models/content_mode.dart';
 
 /// Horizontal carousel of "Continue watching" items.
@@ -44,7 +45,7 @@ class ContinueWatchingRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     child: Stack(fit: StackFit.expand, children: [
                       cover.isNotEmpty
-                          ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                          ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                               placeholder: (_, __) => Container(color: Colors.white10),
                               errorWidget: (_, __, ___) => Container(color: Colors.white10,
                                   child: const Icon(Icons.movie, color: Colors.white24)))
@@ -118,7 +119,7 @@ class RecentlyAddedRow extends StatelessWidget {
                   Expanded(child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: cover.isNotEmpty
-                        ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                        ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                             placeholder: (_, __) => Container(color: Colors.white10),
                             errorWidget: (_, __, ___) => Container(color: Colors.white10,
                                 child: const Icon(Icons.fiber_new, color: Colors.white24)))

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -441,6 +442,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: CachedNetworkImage(
+              cacheManager: AppCacheManager.instance,
               imageUrl: ch.displayIcon,
               width: 28, height: 28, fit: BoxFit.contain,
               errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 16, color: Colors.white24),

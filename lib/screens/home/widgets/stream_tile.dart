@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/cache_config.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/channel.dart';
 import '../../../models/vod_item.dart';
@@ -15,6 +16,7 @@ Widget networkImage(String url, {
 }) {
   return CachedNetworkImage(
     imageUrl: url,
+    cacheManager: AppCacheManager.instance,
     width: width, height: height, fit: fit,
     placeholder: (_, __) => Container(color: Colors.white10),
     errorWidget: (_, __, ___) => Container(

@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../core/cache_config.dart';
 import '../models/episode.dart';
 import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
@@ -102,7 +103,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(imageUrl: widget.cover, height: 160, fit: BoxFit.cover,
+                      child: CachedNetworkImage(imageUrl: widget.cover, cacheManager: AppCacheManager.instance, height: 160, fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => const SizedBox(height: 160)),
                     ),
                   ),

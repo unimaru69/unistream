@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
 import '../utils/routes.dart';
@@ -139,7 +140,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   child: ListTile(
                     leading: cover.isNotEmpty
                         ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                            child: CachedNetworkImage(imageUrl: cover, width: 40, height: 40, fit: BoxFit.cover,
+                            child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
                               errorWidget: (_, __, ___) => const Icon(Icons.play_circle, color: Colors.white24)))
                         : const Icon(Icons.play_circle, color: Colors.white38),
                     title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 14),

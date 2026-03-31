@@ -15,29 +15,38 @@ void showSpeedPicker(BuildContext context, {
     builder: (_) => StatefulBuilder(
       builder: (ctx, setLocal) {
         double localSpeed = currentSpeed;
-        return SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(AppLocalizations.of(context)!.vitesseLecture,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ),
-            ...speeds.map((sp) => RadioListTile<double>(
-              dense: true,
-              title: Text(sp == 1.0 ? 'Normale (1\u00d7)' : '${sp}\u00d7',
-                  style: const TextStyle(fontSize: 13)),
-              value: sp,
-              groupValue: localSpeed,
-              activeColor: AppColors.primaryBlue,
-              onChanged: (v) {
-                if (v == null) return;
-                localSpeed = v;
-                setLocal(() {});
-                onSpeedChanged(v);
-              },
-            )),
-            const SizedBox(height: 16),
-          ]),
+        return RadioGroup<double>(
+          groupValue: localSpeed,
+          onChanged: (v) {
+            if (v == null) return;
+            localSpeed = v;
+            setLocal(() {});
+            onSpeedChanged(v);
+          },
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(AppLocalizations.of(context)!.vitesseLecture,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
+              ...speeds.map((sp) => ListTile(
+                dense: true,
+                leading: Radio<double>(
+                  value: sp,
+                  activeColor: AppColors.primaryBlue,
+                ),
+                title: Text(sp == 1.0 ? 'Normale (1\u00d7)' : '$sp\u00d7',
+                    style: const TextStyle(fontSize: 13)),
+                onTap: () {
+                  localSpeed = sp;
+                  setLocal(() {});
+                  onSpeedChanged(sp);
+                },
+              )),
+              const SizedBox(height: 16),
+            ]),
+          ),
         );
       },
     ),

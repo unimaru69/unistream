@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -911,7 +912,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             borderRadius: BorderRadius.circular(6),
                             child: Stack(fit: StackFit.expand, children: [
                               cover.isNotEmpty
-                                  ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover,
+                                  ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                                       placeholder: (_, __) => Container(color: Colors.white10),
                                       errorWidget: (_, __, ___) => Container(color: Colors.white10,
                                           child: const Icon(Icons.movie, color: Colors.white24)))
@@ -952,7 +953,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: ListTile(
                   leading: cover.isNotEmpty
                       ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                          child: CachedNetworkImage(imageUrl: cover, width: 40, height: 40, fit: BoxFit.cover,
+                          child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
                               errorWidget: (_, __, ___) => const Icon(Icons.star, color: Colors.amber, size: 20)))
                       : const Icon(Icons.star, color: Colors.amber, size: 20),
                   title: Text(name, style: const TextStyle(fontSize: 13)),

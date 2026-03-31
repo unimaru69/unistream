@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../core/cache_config.dart';
 import '../models/profile.dart';
 import '../models/app_config.dart';
 import '../providers/config_provider.dart';
@@ -465,7 +465,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton.icon(
                   onPressed: () async {
-                    await DefaultCacheManager().emptyCache();
+                    await AppCacheManager.instance.emptyCache();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text('Cache images vide'),

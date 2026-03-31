@@ -4,6 +4,7 @@ import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../models/channel.dart';
 import '../models/vod_item.dart';
@@ -203,7 +204,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           return ListTile(
             leading: iconUrl != null && iconUrl.toString().isNotEmpty
                 ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                    child: CachedNetworkImage(imageUrl: iconUrl.toString(),
+                    child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
                         width: 40, height: 40, fit: BoxFit.cover,
                         placeholder: (_, __) => Container(color: Colors.white10),
                         errorWidget: (_, __, ___) =>
