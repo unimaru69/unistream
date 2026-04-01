@@ -4,6 +4,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../../services/connectivity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
@@ -114,10 +115,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Color _subtitleColor = Colors.white;
   double _subtitleBgOpacity = 0.5;
 
+  // Stream subscriptions
+  StreamSubscription? _tracksSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _durationSubscription;
+  StreamSubscription? _errorSubscription;
+  StreamSubscription? _playingSubscription;
+
   // Position save
   Timer? _saveTimer;
   Duration _lastPos = Duration.zero;
   Duration _lastDur = Duration.zero;
+
+  // Connectivity monitoring
+  final ConnectivityService _connectivityService = ConnectivityService();
+  StreamSubscription<ConnectivityStatus>? _connectivitySubscription;
+  ConnectivityStatus _connectivityStatus = ConnectivityStatus.online;
+  bool _showConnectivityBanner = false;
 
   @override
   void initState() {
@@ -134,35 +148,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _loadSubtitleSettings();
 
     // Tracks
-    _player.stream.tracks.listen((t) {
-      if (mounted) {
-        final prevAudioCount = _audioTracks.length;
-        setState(() {
-          _audioTracks    = t.audio;
-          _subtitleTracks = t.subtitle;
-        });
-        if (prevAudioCount <= 1 && t.audio.length > 1) {
-          _applyPreferredLanguages();
-        }
+    _tracksSubscription = _player.stream.tracks.listen((t) {
+      if (!mounted) return;
+      final prevAudioCount = _audioTracks.length;
+      setState(() {
+        _audioTracks    = t.audio;
+        _subtitleTracks = t.subtitle;
+      });
+      if (prevAudioCount <= 1 && t.audio.length > 1) {
+        _applyPreferredLanguages();
       }
     });
 
     // Position tracking + auto-play
-    _player.stream.position.listen((pos) {
+    _positionSubscription = _player.stream.position.listen((pos) {
       _lastPos = pos;
       _checkAutoPlayNext();
     });
-    _player.stream.duration.listen((dur) => _lastDur = dur);
+    _durationSubscription = _player.stream.duration.listen((dur) => _lastDur = dur);
 
     // Auto-reconnect on error (max 3 attempts)
-    _player.stream.error.listen((err) {
+    _errorSubscription = _player.stream.error.listen((err) {
       if (err.isNotEmpty && mounted && !_minimized) {
         _reconnectAttempts++;
         if (_reconnectAttempts <= 3) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (mounted && !_minimized) _player.open(Media(widget.url));
+            if (!mounted || _minimized) return;
+            _player.open(Media(widget.url));
           });
-        } else if (mounted) {
+        } else {
+          if (!mounted) return;
           setState(() {
             _playError = _isCatchupMode
                 ? 'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-\u00eatre pas le timeshift.'
@@ -172,10 +187,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     });
     // Reset reconnect counter on successful play + start quality polling
-    _player.stream.playing.listen((playing) {
+    _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         _reconnectAttempts = 0;
         if (_qualityTimer == null) _startQualityTimer();
+      }
+    });
+
+    // Connectivity monitoring
+    _connectivitySubscription = _connectivityService.statusStream.listen((status) {
+      if (!mounted || _minimized) return;
+      final wasOffline = _connectivityStatus == ConnectivityStatus.offline;
+      setState(() => _connectivityStatus = status);
+
+      if (status == ConnectivityStatus.offline) {
+        setState(() => _showConnectivityBanner = true);
+      } else if (status == ConnectivityStatus.online && wasOffline) {
+        // Auto-retry stream on reconnection
+        _reconnectAttempts = 0;
+        _player.open(Media(widget.url));
+        // Hide banner after a short delay
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _showConnectivityBanner = false);
+        });
       }
     });
 
@@ -504,6 +538,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    // Cancel stream subscriptions first
+    _connectivitySubscription?.cancel();
+    _tracksSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _errorSubscription?.cancel();
+    _playingSubscription?.cancel();
+    // Cancel timers
     _saveTimer?.cancel();
     _sleepTimer?.cancel();
     _sleepTick?.cancel();
@@ -890,6 +932,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
             countdownSec: _nextCountdownSec,
             onPlayNow: _playNextEpisode,
             onCancel: _cancelAutoPlay,
+          ),
+        // Connectivity banner
+        if (_showConnectivityBanner)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              color: _connectivityStatus == ConnectivityStatus.offline
+                  ? Colors.red.withValues(alpha: 0.85)
+                  : Colors.green.withValues(alpha: 0.85),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _connectivityStatus == ConnectivityStatus.offline
+                        ? Icons.cloud_off
+                        : Icons.cloud_done,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _connectivityStatus == ConnectivityStatus.offline
+                        ? 'Connexion perdue'
+                        : 'Connexion r\u00e9tablie',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
       ]),
     );

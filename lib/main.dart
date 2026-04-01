@@ -37,6 +37,7 @@ class MiniPlayerState {
   StreamSubscription<Duration>? _durSub;
   Duration _lastPos = Duration.zero;
   Duration _lastDur = Duration.zero;
+  bool _disposed = false;
 
   MiniPlayerState({
     required this.player,
@@ -47,27 +48,35 @@ class MiniPlayerState {
     required this.url,
   });
 
+  bool get isDisposed => _disposed;
+
   void startTracking() {
-    if (resumeKey == null) return;
+    if (resumeKey == null || _disposed) return;
     _posSub = player.stream.position.listen((p) => _lastPos = p);
     _durSub = player.stream.duration.listen((d) => _lastDur = d);
     _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_disposed) return;
       if (_lastDur > Duration.zero) WatchProgress.save(resumeKey!, _lastPos, _lastDur);
     });
   }
 
   void stopTracking() {
     _saveTimer?.cancel();
+    _saveTimer = null;
     _posSub?.cancel();
+    _posSub = null;
     _durSub?.cancel();
+    _durSub = null;
     if (resumeKey != null && _lastDur > Duration.zero) {
       WatchProgress.save(resumeKey!, _lastPos, _lastDur);
     }
   }
 
   void close() {
+    if (_disposed) return;
     stopTracking();
     player.dispose();
+    _disposed = true;
   }
 }
 

@@ -447,6 +447,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               cacheManager: AppCacheManager.instance,
               imageUrl: ch.displayIcon,
               width: 28, height: 28, fit: BoxFit.contain,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (_, __) => const SizedBox(width: 28, height: 28, child: ColoredBox(color: Colors.white10)),
               errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 16, color: Colors.white24),
             ),
           )

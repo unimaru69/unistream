@@ -47,7 +47,8 @@ class ContinueWatchingRow extends StatelessWidget {
                     child: Stack(fit: StackFit.expand, children: [
                       cover.isNotEmpty
                           ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(color: Colors.white10),
+                              fadeInDuration: const Duration(milliseconds: 200),
+                              placeholder: (_, __) => const ColoredBox(color: Colors.white10),
                               errorWidget: (_, __, ___) => Container(color: Colors.white10,
                                   child: const Icon(Icons.movie, color: Colors.white24)))
                           : Container(color: Colors.white10,
@@ -121,7 +122,8 @@ class RecentlyAddedRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     child: cover.isNotEmpty
                         ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(color: Colors.white10),
+                            fadeInDuration: const Duration(milliseconds: 200),
+                            placeholder: (_, __) => const ColoredBox(color: Colors.white10),
                             errorWidget: (_, __, ___) => Container(color: Colors.white10,
                                 child: const Icon(Icons.fiber_new, color: Colors.white24)))
                         : Container(color: Colors.white10,

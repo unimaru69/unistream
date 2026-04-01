@@ -18,11 +18,18 @@ Widget networkImage(String url, {
     imageUrl: url,
     cacheManager: AppCacheManager.instance,
     width: width, height: height, fit: fit,
-    placeholder: (_, __) => Container(color: Colors.white10),
-    errorWidget: (_, __, ___) => Container(
-      color: Colors.white10,
-      child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
-          color: Colors.white24, size: 24),
+    fadeInDuration: const Duration(milliseconds: 200),
+    placeholder: (_, __) => SizedBox(
+      width: width, height: height,
+      child: const ColoredBox(color: Colors.white10),
+    ),
+    errorWidget: (_, __, ___) => SizedBox(
+      width: width, height: height,
+      child: ColoredBox(
+        color: Colors.white10,
+        child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
+            color: Colors.white24, size: 24),
+      ),
     ),
   );
 }

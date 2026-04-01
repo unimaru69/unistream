@@ -140,6 +140,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     leading: cover.isNotEmpty
                         ? ClipRRect(borderRadius: BorderRadius.circular(4),
                             child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
+                              fadeInDuration: const Duration(milliseconds: 200),
+                              placeholder: (_, __) => const SizedBox(width: 40, height: 40, child: ColoredBox(color: Colors.white10)),
                               errorWidget: (_, __, ___) => const Icon(Icons.play_circle, color: Colors.white24)))
                         : const Icon(Icons.play_circle, color: Colors.white38),
                     title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 14),

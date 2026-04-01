@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:unistream/core/logger.dart';
@@ -13,23 +14,55 @@ import '../models/episode.dart';
 import '../models/server_info.dart';
 
 // ── Network helpers ──
-const _defaultTimeout = Duration(seconds: 15);
-const _maxRetries = 3;
+const _defaultBaseDelay = Duration(seconds: 1);
+const _defaultMaxDelay = Duration(seconds: 10);
+const _defaultMaxJitterMs = 500;
 
-Future<http.Response> httpGet(String url) async {
-  for (int i = 0; i < _maxRetries; i++) {
-    try {
-      return await http.get(Uri.parse(url)).timeout(_defaultTimeout);
-    } on TimeoutException {
-      if (i == _maxRetries - 1) rethrow;
-    } on SocketException {
-      if (i == _maxRetries - 1) rethrow;
-    } on http.ClientException {
-      if (i == _maxRetries - 1) rethrow;
+/// Visible for testing — override to control jitter in tests.
+@visibleForTesting
+Random httpGetRandom = Random();
+
+Future<http.Response> httpGet(
+  String url, {
+  http.Client? client,
+  int maxRetries = 3,
+  Duration timeout = const Duration(seconds: 15),
+  void Function(int attempt, dynamic error)? onRetry,
+}) async {
+  final effectiveClient = client ?? http.Client();
+  final shouldCloseClient = client == null;
+  try {
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        return await effectiveClient
+            .get(Uri.parse(url))
+            .timeout(timeout);
+      } on TimeoutException catch (e) {
+        if (i == maxRetries - 1) rethrow;
+        onRetry?.call(i, e);
+      } on SocketException catch (e) {
+        if (i == maxRetries - 1) rethrow;
+        onRetry?.call(i, e);
+      } on HandshakeException catch (e) {
+        if (i == maxRetries - 1) rethrow;
+        onRetry?.call(i, e);
+      } on http.ClientException catch (e) {
+        if (i == maxRetries - 1) rethrow;
+        onRetry?.call(i, e);
+      }
+      // Exponential backoff with jitter:
+      // min(baseDelay * 2^attempt + random_jitter, maxDelay)
+      final exponentialMs =
+          _defaultBaseDelay.inMilliseconds * (1 << i); // 2^i
+      final jitterMs = httpGetRandom.nextInt(_defaultMaxJitterMs + 1);
+      final delayMs =
+          min(exponentialMs + jitterMs, _defaultMaxDelay.inMilliseconds);
+      await Future.delayed(Duration(milliseconds: delayMs));
     }
-    await Future.delayed(Duration(milliseconds: 500 * (i + 1)));
+    throw Exception('Retry limit reached after $maxRetries attempts');
+  } finally {
+    if (shouldCloseClient) effectiveClient.close();
   }
-  throw Exception('Retry limit reached after $_maxRetries attempts');
 }
 
 // ── API Error Keys ──
@@ -40,6 +73,13 @@ class EpgCacheEntry {
   final Map<String, dynamic> data;
   final DateTime timestamp;
   EpgCacheEntry(this.data, this.timestamp);
+}
+
+// ── Stream List Cache ──
+class _StreamCacheEntry {
+  final List<dynamic> data;
+  final DateTime timestamp;
+  _StreamCacheEntry(this.data, this.timestamp);
 }
 
 // ── API Xtream Codes ──
@@ -85,6 +125,31 @@ class XtreamApi {
   static int get epgCacheSize => _epgCache.length;
   static void clearEpgCache() => _epgCache.clear();
 
+  // ── Stream list cache (action+categoryId -> list, TTL 5 min) ──
+  static final Map<String, _StreamCacheEntry> _streamCache = {};
+  static const Duration _streamCacheTtl = Duration(minutes: 5);
+
+  /// Visible for testing — allows overriding the clock.
+  @visibleForTesting
+  static DateTime Function() streamCacheNow = () => DateTime.now();
+
+  static int get streamCacheSize => _streamCache.length;
+  static void clearStreamCache() => _streamCache.clear();
+
+  static List<dynamic>? _getStreamCached(String key) {
+    final entry = _streamCache[key];
+    if (entry == null) return null;
+    if (streamCacheNow().difference(entry.timestamp) >= _streamCacheTtl) {
+      _streamCache.remove(key);
+      return null;
+    }
+    return entry.data;
+  }
+
+  static void _putStreamCache(String key, List<dynamic> data) {
+    _streamCache[key] = _StreamCacheEntry(data, streamCacheNow());
+  }
+
   static String get baseUrl =>
       '${AppConfig.serverUrl}/player_api.php?username=${AppConfig.username}&password=${AppConfig.password}';
 
@@ -107,9 +172,14 @@ class XtreamApi {
   }
 
   static Future<List<dynamic>> getLiveStreams([String? catId]) async {
+    final cacheKey = 'get_live_streams:${catId ?? ''}';
+    final cached = _getStreamCached(cacheKey);
+    if (cached != null) return cached;
     var url = '$baseUrl&action=get_live_streams';
     if (catId != null) url += '&category_id=$catId';
-    return jsonDecode((await httpGet(url)).body);
+    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    _putStreamCache(cacheKey, result);
+    return result;
   }
 
   static Future<List<Channel>> getLiveStreamsTyped([String? catId]) async {
@@ -126,9 +196,14 @@ class XtreamApi {
   }
 
   static Future<List<dynamic>> getVodStreams([String? catId]) async {
+    final cacheKey = 'get_vod_streams:${catId ?? ''}';
+    final cached = _getStreamCached(cacheKey);
+    if (cached != null) return cached;
     var url = '$baseUrl&action=get_vod_streams';
     if (catId != null) url += '&category_id=$catId';
-    return jsonDecode((await httpGet(url)).body);
+    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    _putStreamCache(cacheKey, result);
+    return result;
   }
 
   static Future<List<VodItem>> getVodStreamsTyped([String? catId]) async {
@@ -145,9 +220,14 @@ class XtreamApi {
   }
 
   static Future<List<dynamic>> getSeries([String? catId]) async {
+    final cacheKey = 'get_series:${catId ?? ''}';
+    final cached = _getStreamCached(cacheKey);
+    if (cached != null) return cached;
     var url = '$baseUrl&action=get_series';
     if (catId != null) url += '&category_id=$catId';
-    return jsonDecode((await httpGet(url)).body);
+    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    _putStreamCache(cacheKey, result);
+    return result;
   }
 
   static Future<List<SeriesItem>> getSeriesTyped([String? catId]) async {

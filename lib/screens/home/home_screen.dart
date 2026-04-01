@@ -23,6 +23,9 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
 import '../../providers/collections_provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/connectivity_provider.dart';
+import '../../providers/paginated_streams_provider.dart';
+import '../../services/connectivity_service.dart';
 import '../settings_screen.dart';
 import '../series_detail_screen.dart';
 import '../player/player_screen.dart';
@@ -50,7 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loadingStreams  = false;
   String? _error;
   ContentMode _mode = ContentMode.live;
-  bool _isOffline = false;
+
+  // Connectivity: track previous status for offline->online transitions
+  ConnectivityStatus? _prevConnectivity;
 
   // Recently added (VOD/Series)
   List<Map<String, dynamic>> _recentlyAdded = [];
@@ -282,13 +287,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final auth = await XtreamApi.authenticate();
       if (auth['user_info']?['auth'] == 1) {
         XtreamApi.loadServerTimezone();
-        setState(() => _isOffline = false);
         await _loadCategories();
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
       }
     } catch (e) {
-      setState(() { _isOffline = true; _loading = false; _error = null; });
+      setState(() { _loading = false; _error = null; });
     }
   }
 
@@ -360,9 +364,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ContentMode.vod    => await XtreamApi.getVodStreamsTyped(categoryId),
         ContentMode.series => await XtreamApi.getSeriesTyped(categoryId),
       };
+      _resetPagination();
       setState(() => _loadingStreams = false);
     } catch (e) {
       setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingStreams = false; });
+    }
+  }
+
+  void _resetPagination() {
+    ref.read(paginatedStreamsProvider.notifier).reset(
+      _sortedStreams,
+      pageSize: pageSizeForMode(_mode),
+    );
+  }
+
+  void _resetPaginationIfActive() {
+    if (_selectedCategory != null && !_selectedCategory!.startsWith('__') && _streams.isNotEmpty) {
+      // Schedule after build so _sortedStreams reflects the new sort
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _resetPagination();
+      });
     }
   }
 
@@ -521,6 +542,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final showGrid = _gridView && _mode != ContentMode.live;
 
+    // Watch connectivity
+    final connectivityAsync = ref.watch(connectivityProvider);
+    final connectivityStatus = connectivityAsync.valueOrNull ?? ConnectivityStatus.online;
+    final isOffline = connectivityStatus == ConnectivityStatus.offline;
+
+    // Handle offline -> online transitions: auto-retry + snackbar
+    if (_prevConnectivity == ConnectivityStatus.offline &&
+        connectivityStatus == ConnectivityStatus.online) {
+      // Schedule after build to avoid setState-during-build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          showAppSnackBar(context, 'Connexion r\u00e9tablie');
+          _retryConnection();
+        }
+      });
+    }
+    _prevConnectivity = connectivityStatus;
+
     // Watch providers
     final favState = ref.watch(favoritesProvider);
     final favKeys = favState.keys;
@@ -633,7 +672,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
             tooltip: AppLocalizations.of(context)!.trier,
-            onSelected: (v) { setState(() => _sortMode = v); _saveSortMode(); },
+            onSelected: (v) { setState(() => _sortMode = v); _saveSortMode(); _resetPaginationIfActive(); },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'default', child: Row(children: [
                 Icon(_sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
@@ -677,7 +716,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _init, child: Text(AppLocalizations.of(context)!.reessayer)),
             ]))
-          : _isOffline
+          : isOffline
           ? OfflineContent(onRetryConnection: _retryConnection)
           : Column(children: [
               ContinueWatchingRow(
@@ -746,53 +785,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               // Stream content area
               Expanded(
-                child: StreamListView(
-                  mode: _mode,
-                  selectedCategory: _selectedCategory,
-                  loadingStreams: _loadingStreams,
-                  showGrid: showGrid,
-                  sortedStreams: _sortedStreams,
-                  searchQuery: _searchQuery,
-                  searchCtrl: _searchCtrl,
-                  onSearchChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-                  onClearSearch: () => setState(() { _searchQuery = ''; _searchCtrl.clear(); }),
-                  progress: progress,
-                  favKeys: favKeys,
-                  wlKeys: wlKeys,
-                  selectionMode: _selectionMode,
-                  selectedItems: _selectedItems,
-                  onEnterSelectionMode: _enterSelectionMode,
-                  onExitSelectionMode: _exitSelectionMode,
-                  onSelectAll: () {
-                    setState(() {
-                      if (_selectedItems.length == _streams.length) {
-                        _selectedItems = {};
-                      } else {
-                        _selectedItems = _streams
-                            .map((s) => _itemSelectionKey(s)).toSet();
-                      }
-                    });
-                  },
-                  onCreateCollectionFromSelected: _createCollectionFromSelected,
-                  onToggleSelection: (key) {
-                    setState(() {
-                      if (_selectedItems.contains(key)) _selectedItems.remove(key);
-                      else _selectedItems.add(key);
-                    });
-                  },
-                  activeCollectionId: _activeCollectionId,
-                  onPlayStream: _playStream,
-                  onToggleFavorite: _toggleFavorite,
-                  onToggleWatchlist: _toggleWatchlist,
-                  onShowStreamInfo: _showStreamInfoDialog,
-                  onRemoveFromCollection: _removeFromCollection,
-                  favKeyBuilder: _favKey,
-                  itemSelectionKeyBuilder: _itemSelectionKey,
-                  progressKeyBuilder: _progressKey,
-                  onRefresh: _selectedCategory != null ? () async {
-                    await _loadStreams(_selectedCategory!);
-                  } : null,
-                ),
+                child: Builder(builder: (context) {
+                  final pagState = ref.watch(paginatedStreamsProvider);
+                  // Use paginated visible items if pagination is active (totalCount > 0
+                  // and streams match), otherwise fall back to full list for special
+                  // categories like favorites/watchlist/collections.
+                  final usePagination = pagState.totalCount > 0 &&
+                      !_loadingStreams &&
+                      _selectedCategory != null &&
+                      !_selectedCategory!.startsWith('__') &&
+                      _searchQuery.isEmpty;
+                  final displayStreams = usePagination
+                      ? pagState.visibleItems
+                      : _sortedStreams;
+                  return StreamListView(
+                    mode: _mode,
+                    selectedCategory: _selectedCategory,
+                    loadingStreams: _loadingStreams,
+                    showGrid: showGrid,
+                    sortedStreams: displayStreams,
+                    searchQuery: _searchQuery,
+                    searchCtrl: _searchCtrl,
+                    onSearchChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                    onClearSearch: () => setState(() { _searchQuery = ''; _searchCtrl.clear(); }),
+                    progress: progress,
+                    favKeys: favKeys,
+                    wlKeys: wlKeys,
+                    selectionMode: _selectionMode,
+                    selectedItems: _selectedItems,
+                    onEnterSelectionMode: _enterSelectionMode,
+                    onExitSelectionMode: _exitSelectionMode,
+                    onSelectAll: () {
+                      setState(() {
+                        if (_selectedItems.length == _streams.length) {
+                          _selectedItems = {};
+                        } else {
+                          _selectedItems = _streams
+                              .map((s) => _itemSelectionKey(s)).toSet();
+                        }
+                      });
+                    },
+                    onCreateCollectionFromSelected: _createCollectionFromSelected,
+                    onToggleSelection: (key) {
+                      setState(() {
+                        if (_selectedItems.contains(key)) _selectedItems.remove(key);
+                        else _selectedItems.add(key);
+                      });
+                    },
+                    activeCollectionId: _activeCollectionId,
+                    onPlayStream: _playStream,
+                    onToggleFavorite: _toggleFavorite,
+                    onToggleWatchlist: _toggleWatchlist,
+                    onShowStreamInfo: _showStreamInfoDialog,
+                    onRemoveFromCollection: _removeFromCollection,
+                    favKeyBuilder: _favKey,
+                    itemSelectionKeyBuilder: _itemSelectionKey,
+                    progressKeyBuilder: _progressKey,
+                    onRefresh: _selectedCategory != null ? () async {
+                      await _loadStreams(_selectedCategory!);
+                    } : null,
+                    hasMore: usePagination ? pagState.hasMore : false,
+                    totalCount: usePagination ? pagState.totalCount : _streams.length,
+                    isLoadingMore: usePagination ? pagState.isLoadingMore : false,
+                    onLoadMore: usePagination
+                        ? () => ref.read(paginatedStreamsProvider.notifier).loadMore()
+                        : null,
+                  );
+                }),
               ),
             ]);
                 },

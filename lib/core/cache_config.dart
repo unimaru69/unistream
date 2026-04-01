@@ -6,7 +6,7 @@ class AppCacheManager {
   static CacheManager instance = CacheManager(
     Config(
       key,
-      maxNrOfCacheObjects: 500,
+      maxNrOfCacheObjects: 2000,
       stalePeriod: const Duration(days: 7),
     ),
   );

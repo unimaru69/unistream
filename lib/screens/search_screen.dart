@@ -210,7 +210,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 ? ClipRRect(borderRadius: BorderRadius.circular(4),
                     child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
                         width: 40, height: 40, fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(color: Colors.white10),
+                        fadeInDuration: const Duration(milliseconds: 200),
+                        placeholder: (_, __) => const SizedBox(width: 40, height: 40, child: ColoredBox(color: Colors.white10)),
                         errorWidget: (_, __, ___) =>
                             Icon(modeIcons[mode], color: Colors.white24, size: 24)))
                 : Icon(modeIcons[mode], color: modeColor[mode]),

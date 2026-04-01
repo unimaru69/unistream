@@ -1,8 +1,251 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:mocktail/mocktail.dart';
 import 'package:unistream/services/xtream_api.dart';
 import 'package:unistream/models/app_config.dart';
 
+class MockClient extends Mock implements http.Client {}
+
+class _FakeUri extends Fake implements Uri {}
+
+/// A [Random] that always returns 0 for deterministic delay tests.
+class _ZeroRandom implements Random {
+  @override
+  int nextInt(int max) => 0;
+  @override
+  double nextDouble() => 0.0;
+  @override
+  bool nextBool() => false;
+}
+
 void main() {
+  late MockClient mockClient;
+
+  setUpAll(() {
+    registerFallbackValue(_FakeUri());
+  });
+
+  setUp(() {
+    mockClient = MockClient();
+    // Use zero-jitter random for deterministic timing in tests.
+    httpGetRandom = _ZeroRandom();
+  });
+
+  tearDown(() {
+    httpGetRandom = Random();
+  });
+
+  group('httpGet() exponential backoff', () {
+    test('returns response on first successful call', () async {
+      when(() => mockClient.get(any()))
+          .thenAnswer((_) async => http.Response('ok', 200));
+
+      final resp = await httpGet(
+        'http://example.com',
+        client: mockClient,
+      );
+      expect(resp.statusCode, 200);
+      expect(resp.body, 'ok');
+      verify(() => mockClient.get(any())).called(1);
+    });
+
+    test('retries on SocketException then succeeds', () async {
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount < 3) throw const SocketException('Connection refused');
+        return http.Response('recovered', 200);
+      });
+
+      final resp = await httpGet(
+        'http://example.com',
+        client: mockClient,
+        maxRetries: 3,
+      );
+      expect(resp.body, 'recovered');
+      expect(callCount, 3);
+    });
+
+    test('retries on TimeoutException then succeeds', () async {
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) throw TimeoutException('timed out');
+        return http.Response('ok', 200);
+      });
+
+      final resp = await httpGet(
+        'http://example.com',
+        client: mockClient,
+      );
+      expect(resp.body, 'ok');
+      expect(callCount, 2);
+    });
+
+    test('retries on HandshakeException then succeeds', () async {
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          throw const HandshakeException('TLS handshake failed');
+        }
+        return http.Response('ok', 200);
+      });
+
+      final resp = await httpGet(
+        'http://example.com',
+        client: mockClient,
+      );
+      expect(resp.body, 'ok');
+      expect(callCount, 2);
+    });
+
+    test('retries on ClientException then succeeds', () async {
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          throw http.ClientException('Connection closed');
+        }
+        return http.Response('ok', 200);
+      });
+
+      final resp = await httpGet(
+        'http://example.com',
+        client: mockClient,
+      );
+      expect(resp.body, 'ok');
+      expect(callCount, 2);
+    });
+
+    test('throws after maxRetries exhausted (SocketException)', () async {
+      when(() => mockClient.get(any()))
+          .thenThrow(const SocketException('fail'));
+
+      expect(
+        () => httpGet(
+          'http://example.com',
+          client: mockClient,
+          maxRetries: 3,
+        ),
+        throwsA(isA<SocketException>()),
+      );
+    });
+
+    test('throws after maxRetries exhausted (TimeoutException)', () async {
+      when(() => mockClient.get(any()))
+          .thenThrow(TimeoutException('fail'));
+
+      expect(
+        () => httpGet(
+          'http://example.com',
+          client: mockClient,
+          maxRetries: 2,
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+    });
+
+    test('throws after maxRetries exhausted (HandshakeException)', () async {
+      when(() => mockClient.get(any()))
+          .thenThrow(const HandshakeException('TLS error'));
+
+      expect(
+        () => httpGet(
+          'http://example.com',
+          client: mockClient,
+          maxRetries: 2,
+        ),
+        throwsA(isA<HandshakeException>()),
+      );
+    });
+
+    test('onRetry callback is invoked on each retry', () async {
+      final retryLog = <int>[];
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount <= 2) throw const SocketException('fail');
+        return http.Response('ok', 200);
+      });
+
+      await httpGet(
+        'http://example.com',
+        client: mockClient,
+        maxRetries: 3,
+        onRetry: (attempt, error) => retryLog.add(attempt),
+      );
+
+      expect(retryLog, [0, 1]);
+    });
+
+    test('onRetry receives correct error types', () async {
+      final errors = <Type>[];
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) throw const SocketException('fail');
+        if (callCount == 2) throw TimeoutException('fail');
+        return http.Response('ok', 200);
+      });
+
+      await httpGet(
+        'http://example.com',
+        client: mockClient,
+        maxRetries: 3,
+        onRetry: (attempt, error) => errors.add(error.runtimeType),
+      );
+
+      expect(errors, [SocketException, TimeoutException]);
+    });
+
+    test('exponential delay pattern is correct with zero jitter', () async {
+      // With _ZeroRandom, delays should be: 1000ms, 2000ms (capped at 10000)
+      // We verify indirectly by measuring elapsed time across 3 failures.
+      final stopwatch = Stopwatch()..start();
+      when(() => mockClient.get(any()))
+          .thenThrow(const SocketException('fail'));
+
+      try {
+        await httpGet(
+          'http://example.com',
+          client: mockClient,
+          maxRetries: 3,
+        );
+      } on SocketException {
+        // expected
+      }
+      stopwatch.stop();
+
+      // 2 delays: 1000ms + 2000ms = 3000ms total (with zero jitter).
+      // Allow some tolerance for test execution overhead.
+      expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(2800));
+      expect(stopwatch.elapsedMilliseconds, lessThan(5000));
+    });
+
+    test('maxRetries parameter is respected', () async {
+      var callCount = 0;
+      when(() => mockClient.get(any())).thenAnswer((_) async {
+        callCount++;
+        throw const SocketException('fail');
+      });
+
+      try {
+        await httpGet(
+          'http://example.com',
+          client: mockClient,
+          maxRetries: 5,
+        );
+      } on SocketException {
+        // expected
+      }
+      expect(callCount, 5);
+    });
+  });
   group('ApiErrorKey enum', () {
     test('has all expected values', () {
       expect(ApiErrorKey.values, containsAll([

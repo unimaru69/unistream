@@ -105,6 +105,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(imageUrl: widget.cover, cacheManager: AppCacheManager.instance, height: 160, fit: BoxFit.cover,
+                          fadeInDuration: const Duration(milliseconds: 200),
+                          placeholder: (_, __) => const SizedBox(height: 160, child: ColoredBox(color: Colors.white10)),
                           errorWidget: (_, __, ___) => const SizedBox(height: 160)),
                     ),
                   ),

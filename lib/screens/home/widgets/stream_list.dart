@@ -10,7 +10,7 @@ import '../../../widgets/skeleton_list.dart';
 import 'stream_tile.dart';
 
 /// Main stream content area: search bar, selection bar, list/grid view.
-class StreamListView extends StatelessWidget {
+class StreamListView extends StatefulWidget {
   final ContentMode mode;
   final String? selectedCategory;
   final bool loadingStreams;
@@ -47,6 +47,12 @@ class StreamListView extends StatelessWidget {
   final String? Function(dynamic stream) progressKeyBuilder;
   final Future<void> Function()? onRefresh;
 
+  // Pagination
+  final bool hasMore;
+  final int totalCount;
+  final bool isLoadingMore;
+  final VoidCallback? onLoadMore;
+
   const StreamListView({
     super.key,
     required this.mode,
@@ -78,41 +84,17 @@ class StreamListView extends StatelessWidget {
     required this.itemSelectionKeyBuilder,
     required this.progressKeyBuilder,
     this.onRefresh,
+    this.hasMore = false,
+    this.totalCount = 0,
+    this.isLoadingMore = false,
+    this.onLoadMore,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    if (selectedCategory == null) {
-      return Center(child: Text(l10n.selectionneCategorie,
-          style: const TextStyle(color: Colors.white38, fontSize: 16)));
-    }
-    if (loadingStreams) {
-      return SkeletonList(count: showGrid ? 16 : 12, isGrid: showGrid);
-    }
-
-    return Column(children: [
-      // Selection bar or search bar
-      if (selectionMode)
-        _buildSelectionBar(l10n)
-      else
-        _buildSearchBar(l10n),
-      Expanded(child: Builder(builder: (ctx) {
-        final filtered = searchQuery.isEmpty
-            ? sortedStreams
-            : sortedStreams.where((s) => _getName(s)
-                .toLowerCase().contains(searchQuery)).toList();
-        final child = showGrid ? _buildGrid(filtered) : _buildList(filtered, l10n);
-        if (onRefresh != null) {
-          return RefreshIndicator(onRefresh: onRefresh!, child: child);
-        }
-        return child;
-      })),
-    ]);
-  }
+  State<StreamListView> createState() => _StreamListViewState();
 
   // ── Typed stream helpers ──
-  static String _getName(dynamic s) {
+  static String getName(dynamic s) {
     if (s is Channel) return s.name;
     if (s is VodItem) return s.name;
     if (s is SeriesItem) return s.name;
@@ -120,37 +102,117 @@ class StreamListView extends StatelessWidget {
     return '';
   }
 
-  static String _getStreamId(dynamic s) {
+  static String getStreamId(dynamic s) {
     if (s is Channel) return s.streamId.toString();
     if (s is VodItem) return s.streamId.toString();
     if (s is SeriesItem) return s.seriesId.toString();
     if (s is Map<String, dynamic>) return (s['series_id'] ?? s['stream_id'])?.toString() ?? '';
     return '';
   }
+}
+
+class _StreamListViewState extends State<StreamListView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 200) {
+      widget.onLoadMore?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (widget.selectedCategory == null) {
+      return Center(child: Text(l10n.selectionneCategorie,
+          style: const TextStyle(color: Colors.white38, fontSize: 16)));
+    }
+    if (widget.loadingStreams) {
+      return SkeletonList(count: widget.showGrid ? 16 : 12, isGrid: widget.showGrid);
+    }
+
+    return Column(children: [
+      // Selection bar or search bar
+      if (widget.selectionMode)
+        _buildSelectionBar(l10n)
+      else
+        _buildSearchBar(l10n),
+      // Item count indicator
+      if (widget.totalCount > 0 && widget.sortedStreams.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${widget.sortedStreams.length} / ${_formatNumber(widget.totalCount)}',
+              style: const TextStyle(fontSize: 11, color: Colors.white30),
+            ),
+          ),
+        ),
+      Expanded(child: Builder(builder: (ctx) {
+        final filtered = widget.searchQuery.isEmpty
+            ? widget.sortedStreams
+            : widget.sortedStreams.where((s) => StreamListView.getName(s)
+                .toLowerCase().contains(widget.searchQuery)).toList();
+        final child = widget.showGrid ? _buildGrid(filtered) : _buildList(filtered, l10n);
+        if (widget.onRefresh != null) {
+          return RefreshIndicator(onRefresh: widget.onRefresh!, child: child);
+        }
+        return child;
+      })),
+    ]);
+  }
+
+  static String _formatNumber(int n) {
+    if (n < 1000) return n.toString();
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
 
   Widget _buildSelectionBar(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(children: [
-        Text(l10n.xSelectionnes(selectedItems.length),
+        Text(l10n.xSelectionnes(widget.selectedItems.length),
             style: const TextStyle(fontSize: 13, color: Colors.white70)),
         const SizedBox(width: 8),
         TextButton.icon(
           icon: const Icon(Icons.select_all, size: 16),
           label: Text(l10n.tout, style: const TextStyle(fontSize: 12)),
-          onPressed: onSelectAll,
+          onPressed: widget.onSelectAll,
         ),
         const Spacer(),
         TextButton.icon(
           icon: const Icon(Icons.create_new_folder_outlined, size: 16, color: AppColors.primaryBlue),
           label: Text(l10n.creerCollection, style: const TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
-          onPressed: selectedItems.isEmpty ? null : onCreateCollectionFromSelected,
+          onPressed: widget.selectedItems.isEmpty ? null : widget.onCreateCollectionFromSelected,
         ),
         const SizedBox(width: 4),
         IconButton(
           icon: const Icon(Icons.close, size: 18, color: Colors.white54),
           tooltip: l10n.annulerSelection,
-          onPressed: onExitSelectionMode,
+          onPressed: widget.onExitSelectionMode,
         ),
       ]),
     );
@@ -161,32 +223,32 @@ class StreamListView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(children: [
         Expanded(child: TextField(
-          controller: searchCtrl,
+          controller: widget.searchCtrl,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: l10n.rechercherDots,
             hintStyle: const TextStyle(color: Colors.white38),
             prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
-            suffixIcon: searchQuery.isNotEmpty
+            suffixIcon: widget.searchQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
-                    onPressed: onClearSearch,
+                    onPressed: widget.onClearSearch,
                   )
                 : null,
             isDense: true, filled: true, fillColor: Colors.white10,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
-          onChanged: onSearchChanged,
+          onChanged: widget.onSearchChanged,
         )),
-        if (selectedCategory == '__favorites__' || selectedCategory == '__watchlist__')
+        if (widget.selectedCategory == '__favorites__' || widget.selectedCategory == '__watchlist__')
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: Tooltip(
               message: l10n.selectionnerPourCollection,
               child: IconButton(
                 icon: const Icon(Icons.checklist, size: 20, color: AppColors.primaryBlue),
-                onPressed: sortedStreams.isEmpty ? null : onEnterSelectionMode,
+                onPressed: widget.sortedStreams.isEmpty ? null : widget.onEnterSelectionMode,
               ),
             ),
           ),
@@ -195,17 +257,27 @@ class StreamListView extends StatelessWidget {
   }
 
   Widget _buildList(List<dynamic> items, AppLocalizations l10n) {
+    // Add +1 for the loading indicator when there are more items
+    final itemCount = widget.hasMore ? items.length + 1 : items.length;
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: items.length,
+      itemCount: itemCount,
       itemBuilder: (_, i) {
+        // Loading indicator at the bottom
+        if (i >= items.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
         final s = items[i];
-        final pKey = progressKeyBuilder(s);
-        final prog = pKey != null ? progress[pKey] : null;
+        final pKey = widget.progressKeyBuilder(s);
+        final prog = pKey != null ? widget.progress[pKey] : null;
         // For live channels, show cached current program as subtitle
         String? liveEpgTitle;
-        if (mode == ContentMode.live) {
-          final sid = _getStreamId(s);
+        if (widget.mode == ContentMode.live) {
+          final sid = StreamListView.getStreamId(s);
           if (sid.isNotEmpty) liveEpgTitle = XtreamApi.getCachedEpgNow(sid);
         }
         Widget? subtitle;
@@ -234,55 +306,55 @@ class StreamListView extends StatelessWidget {
             ],
           );
         }
-        final selKey = itemSelectionKeyBuilder(s);
-        final isSelected = selectionMode && selectedItems.contains(selKey);
-        final streamName = _getName(s);
+        final selKey = widget.itemSelectionKeyBuilder(s);
+        final isSelected = widget.selectionMode && widget.selectedItems.contains(selKey);
+        final streamName = StreamListView.getName(s);
         return Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: GestureDetector(
-            onSecondaryTapUp: selectionMode ? null : (_) => onShowStreamInfo(s),
+            onSecondaryTapUp: widget.selectionMode ? null : (_) => widget.onShowStreamInfo(s),
             child: ListTile(
-              leading: selectionMode
+              leading: widget.selectionMode
                   ? Checkbox(
                       value: isSelected,
-                      onChanged: (_) => onToggleSelection(selKey),
+                      onChanged: (_) => widget.onToggleSelection(selKey),
                       activeColor: AppColors.primaryBlue,
                     )
-                  : listIconTyped(s, mode),
+                  : listIconTyped(s, widget.mode),
               title: Text(streamName.isEmpty ? l10n.sansTitre : streamName,
                   style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
               subtitle: subtitle,
-              trailing: selectionMode ? null : Row(mainAxisSize: MainAxisSize.min, children: [
-                if (activeCollectionId != null) IconButton(
+              trailing: widget.selectionMode ? null : Row(mainAxisSize: MainAxisSize.min, children: [
+                if (widget.activeCollectionId != null) IconButton(
                   icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
                   tooltip: l10n.retirerCollection,
-                  onPressed: () => onRemoveFromCollection(s),
+                  onPressed: () => widget.onRemoveFromCollection(s),
                 ),
-                if (mode != ContentMode.live) IconButton(
+                if (widget.mode != ContentMode.live) IconButton(
                   icon: Icon(
-                    wlKeys.contains(favKeyBuilder(mode.key, s)) ? Icons.bookmark : Icons.bookmark_border,
-                    color: wlKeys.contains(favKeyBuilder(mode.key, s)) ? Colors.tealAccent : Colors.white24,
+                    widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Icons.bookmark : Icons.bookmark_border,
+                    color: widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.tealAccent : Colors.white24,
                     size: 20,
                   ),
-                  onPressed: () => onToggleWatchlist(s),
+                  onPressed: () => widget.onToggleWatchlist(s),
                   tooltip: l10n.aRegarderPlusTard,
                 ),
                 IconButton(
                   icon: Icon(
-                    favKeys.contains(favKeyBuilder(mode.key, s)) ? Icons.star : Icons.star_border,
-                    color: favKeys.contains(favKeyBuilder(mode.key, s)) ? Colors.amber : Colors.white24,
+                    widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Icons.star : Icons.star_border,
+                    color: widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.amber : Colors.white24,
                     size: 20,
                   ),
-                  onPressed: () => onToggleFavorite(s),
+                  onPressed: () => widget.onToggleFavorite(s),
                 ),
               ]),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.1),
               selected: isSelected,
-              onTap: selectionMode
-                  ? () => onToggleSelection(selKey)
-                  : () => onPlayStream(s),
+              onTap: widget.selectionMode
+                  ? () => widget.onToggleSelection(selKey)
+                  : () => widget.onPlayStream(s),
             ),
           ),
         );
@@ -293,7 +365,10 @@ class StreamListView extends StatelessWidget {
   Widget _buildGrid(List<dynamic> items) {
     return LayoutBuilder(builder: (context, constraints) {
       final int crossAxisCount = (constraints.maxWidth / 200).clamp(2, 5).toInt();
+      // Add +1 row for loading indicator
+      final itemCount = widget.hasMore ? items.length + 1 : items.length;
       return GridView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
@@ -301,32 +376,35 @@ class StreamListView extends StatelessWidget {
         mainAxisSpacing: 10,
         childAspectRatio: 0.58,
       ),
-      itemCount: items.length,
+      itemCount: itemCount,
       itemBuilder: (_, i) {
+        if (i >= items.length) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
         final s = items[i];
-        final pKey = progressKeyBuilder(s);
-        final prog = pKey != null ? progress[pKey] : null;
-        final isFav = favKeys.contains(favKeyBuilder(mode.key, s));
-        final isWl = wlKeys.contains(favKeyBuilder(mode.key, s));
-        final selKey = itemSelectionKeyBuilder(s);
-        final isSelected = selectionMode && selectedItems.contains(selKey);
+        final pKey = widget.progressKeyBuilder(s);
+        final prog = pKey != null ? widget.progress[pKey] : null;
+        final isFav = widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s));
+        final isWl = widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s));
+        final selKey = widget.itemSelectionKeyBuilder(s);
+        final isSelected = widget.selectionMode && widget.selectedItems.contains(selKey);
 
         return StreamGridTile(
           stream: s,
-          mode: mode,
+          mode: widget.mode,
           progress: prog,
           isFav: isFav,
           isInWatchlist: isWl,
-          isInCollection: activeCollectionId != null,
-          selectionMode: selectionMode,
+          isInCollection: widget.activeCollectionId != null,
+          selectionMode: widget.selectionMode,
           isSelected: isSelected,
-          onTap: selectionMode
-              ? () => onToggleSelection(selKey)
-              : () => onPlayStream(s),
-          onToggleFavorite: () => onToggleFavorite(s),
-          onToggleWatchlist: () => onToggleWatchlist(s),
-          onRemoveFromCollection: () => onRemoveFromCollection(s),
-          onSecondaryTap: (_) => onShowStreamInfo(s),
+          onTap: widget.selectionMode
+              ? () => widget.onToggleSelection(selKey)
+              : () => widget.onPlayStream(s),
+          onToggleFavorite: () => widget.onToggleFavorite(s),
+          onToggleWatchlist: () => widget.onToggleWatchlist(s),
+          onRemoveFromCollection: () => widget.onRemoveFromCollection(s),
+          onSecondaryTap: (_) => widget.onShowStreamInfo(s),
         );
       },
     );
