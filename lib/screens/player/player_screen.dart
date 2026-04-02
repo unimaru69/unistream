@@ -4,6 +4,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import '../../services/connectivity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
@@ -136,7 +137,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _player = widget.existingPlayer ?? Player();
+    _player = widget.existingPlayer ?? Player(
+      configuration: const PlayerConfiguration(
+        logLevel: MPVLogLevel.warn,
+      ),
+    );
+    // Configure mpv options for reliable playback across Linux distros
+    if (Platform.isLinux) {
+      final nativePlayer = _player.platform;
+      if (nativePlayer is NativePlayer) {
+        nativePlayer.setProperty('hwdec', 'auto-safe');
+        nativePlayer.setProperty('vo', 'gpu');
+        nativePlayer.setProperty('gpu-context', 'auto');
+      }
+    }
     _controller = widget.existingController ?? VideoController(_player);
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);

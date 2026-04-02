@@ -68,6 +68,9 @@ bundle_lib() {
     libwayland-client.so*|libwayland-server.so*|libwayland-cursor.so*|libwayland-egl.so*) return 0 ;;
     libpipewire*.so*|libspa*.so*|libpulse*.so*|libpulsecommon*) return 0 ;;
     libasound.so*|libjack*.so*) return 0 ;;
+    libmpv.so*) return 0 ;;
+    libavcodec.so*|libavformat.so*|libavutil.so*|libswscale.so*|libswresample.so*|libavfilter.so*|libavdevice.so*|libpostproc.so*) return 0 ;;
+    libva.so*|libva-*.so*|libvdpau.so*) return 0 ;;
     libstdc++.so*) return 0 ;;
   esac
   if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
@@ -84,17 +87,9 @@ for bin in "${BINS[@]}"; do
   done
 done
 
-# Pass 2: explicitly bundle libmpv and all its transitive deps
-for lib in libmpv.so libmpv.so.2 libmpv.so.1; do
-  LIBPATH=$(ldconfig -p 2>/dev/null | grep "$lib" | head -1 | awk '{print $NF}' || true)
-  if [ -n "${LIBPATH:-}" ] && [ -f "$LIBPATH" ]; then
-    bundle_lib "$LIBPATH"
-    mapfile -t MPV_DEPS < <(ldd "$LIBPATH" 2>/dev/null | grep "=> /" | awk '{print $3}' || true)
-    for dep in "${MPV_DEPS[@]}"; do
-      [ -n "$dep" ] && bundle_lib "$dep"
-    done
-  fi
-done
+# Pass 2: libmpv and FFmpeg are excluded from bundling — they must come
+# from the host system to match the installed codecs and HW acceleration.
+# User must install: mpv mpv-libs (or libmpv-dev on Debian/Ubuntu)
 
 # Pass 3: resolve deps of newly bundled libs (transitive)
 echo "==> Resolving transitive dependencies..."
