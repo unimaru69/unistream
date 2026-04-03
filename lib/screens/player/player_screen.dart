@@ -712,6 +712,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return d.inHours > 0 ? '${d.inHours}:$m:$s' : '$m:$s';
   }
 
+  bool get _isDesktop => Platform.isLinux || Platform.isMacOS || Platform.isWindows;
   bool get _isLiveMode => widget.streamId != null && !_isCatchupMode && widget.resumeKey == null;
   bool get _isCatchupMode => widget.isCatchup || widget.title.contains('(Replay)');
 
@@ -913,16 +914,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
       body: Stack(children: [
         MaterialVideoControlsTheme(
-          normal: const MaterialVideoControlsThemeData(
-            seekBarMargin: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            bottomButtonBarMargin: EdgeInsets.fromLTRB(16, 0, 16, 4),
+          normal: MaterialVideoControlsThemeData(
+            seekBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            bottomButtonBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            // On desktop: disable touch gestures, show controls on hover
+            volumeGesture: !_isDesktop,
+            brightnessGesture: !_isDesktop,
+            seekGesture: !_isDesktop,
+            seekOnDoubleTap: !_isDesktop,
+            visibleOnMount: true,
+            controlsHoverDuration: const Duration(seconds: 3),
           ),
-          fullscreen: const MaterialVideoControlsThemeData(
-            topButtonBar: [_FullscreenBackButton(), Spacer()],
-            seekBarMargin: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            bottomButtonBarMargin: EdgeInsets.fromLTRB(16, 0, 16, 4),
+          fullscreen: MaterialVideoControlsThemeData(
+            topButtonBar: const [_FullscreenBackButton(), Spacer()],
+            seekBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            bottomButtonBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            volumeGesture: !_isDesktop,
+            brightnessGesture: !_isDesktop,
+            seekGesture: !_isDesktop,
+            seekOnDoubleTap: !_isDesktop,
           ),
-          child: Video(controller: _controller, controls: _buildVideoControls),
+          child: SizedBox.expand(
+            child: Video(
+              controller: _controller,
+              controls: _buildVideoControls,
+              fit: BoxFit.contain,
+              fill: Colors.black,
+            ),
+          ),
         ),
         if (_playError != null)
           Center(child: Container(
