@@ -542,10 +542,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final showGrid = _gridView && _mode != ContentMode.live;
 
-    // Watch connectivity
+    // Watch connectivity — default to online so the app always attempts connection.
+    // On Linux, connectivity_plus may report 'none' if NetworkManager is absent.
     final connectivityAsync = ref.watch(connectivityProvider);
     final connectivityStatus = connectivityAsync.valueOrNull ?? ConnectivityStatus.online;
-    final isOffline = connectivityStatus == ConnectivityStatus.offline;
+    final isOffline = connectivityStatus == ConnectivityStatus.offline && _streams.isEmpty;
 
     // Handle offline -> online transitions: auto-retry + snackbar
     if (_prevConnectivity == ConnectivityStatus.offline &&

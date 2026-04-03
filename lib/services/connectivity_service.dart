@@ -51,12 +51,17 @@ class ConnectivityService {
   }
 
   /// One-shot check of current connectivity status.
+  /// On Linux, connectivity_plus may fail to detect network (no NetworkManager).
+  /// In that case we fall back to a direct reachability check.
   Future<ConnectivityStatus> checkNow() async {
     final results = await _connectivity.checkConnectivity();
     final hasNetwork = results.any((r) => r != ConnectivityResult.none);
-    if (!hasNetwork) return ConnectivityStatus.offline;
+    // Always try reachability — connectivity_plus can be unreliable on Linux
     final reachable = await _checkReachability();
-    return reachable ? ConnectivityStatus.online : ConnectivityStatus.offline;
+    if (reachable) return ConnectivityStatus.online;
+    // Only report offline if both connectivity_plus AND reachability say no
+    if (!hasNetwork) return ConnectivityStatus.offline;
+    return ConnectivityStatus.offline;
   }
 
   /// Lightweight reachability check against the configured server.
@@ -67,8 +72,9 @@ class ConnectivityService {
       final client = _httpClient ?? http.Client();
       final shouldClose = _httpClient == null;
       try {
+        // Use GET instead of HEAD — some IPTV servers reject HEAD requests
         final response = await client
-            .head(Uri.parse(serverUrl))
+            .get(Uri.parse(serverUrl))
             .timeout(const Duration(seconds: 5));
         return response.statusCode < 500;
       } finally {
