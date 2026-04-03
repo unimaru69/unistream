@@ -153,11 +153,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _controller = widget.existingController ?? VideoController(_player);
 
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // Only force immersive/landscape on mobile platforms
+    if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     HardwareKeyboard.instance.addHandler(_onKey);
     _loadSubtitleSettings();
 
@@ -578,8 +581,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
       _player.dispose();
     }
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    }
     super.dispose();
   }
 
