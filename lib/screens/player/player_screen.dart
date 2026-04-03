@@ -142,13 +142,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         logLevel: MPVLogLevel.warn,
       ),
     );
-    // Configure mpv options for reliable playback across Linux distros
+    // On Linux, force software decoding for maximum compatibility.
+    // Do NOT set vo/gpu-context — media_kit manages its own texture pipeline.
     if (Platform.isLinux) {
       final nativePlayer = _player.platform;
       if (nativePlayer is NativePlayer) {
-        nativePlayer.setProperty('hwdec', 'auto-safe');
-        nativePlayer.setProperty('vo', 'gpu');
-        nativePlayer.setProperty('gpu-context', 'auto');
+        nativePlayer.setProperty('hwdec', 'no');
       }
     }
     _controller = widget.existingController ?? VideoController(_player);
