@@ -588,8 +588,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       autofocus: true,
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        final meta = HardwareKeyboard.instance.isMetaPressed;
-        if (!meta) return KeyEventResult.ignored;
+        final mod = Platform.isMacOS
+            ? HardwareKeyboard.instance.isMetaPressed
+            : HardwareKeyboard.instance.isControlPressed;
+        if (!mod) return KeyEventResult.ignored;
         final key = event.logicalKey;
         if (key == LogicalKeyboardKey.keyQ) {
           exit(0);

@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+
+/// Platform-aware modifier key label.
+String get _mod => Platform.isMacOS ? 'Cmd' : 'Ctrl';
 
 /// Show the keyboard shortcuts help dialog.
 void showShortcutsDialog(BuildContext context) {
@@ -19,12 +23,12 @@ void showShortcutsDialog(BuildContext context) {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _shortcutRow('Cmd+Q', l10n.raccourciQuitter, descColor: tc.textSecondary),
-              _shortcutRow('Cmd+,', l10n.raccourciReglages, descColor: tc.textSecondary),
-              _shortcutRow('Cmd+F', l10n.raccourciRechercher, descColor: tc.textSecondary),
-              _shortcutRow('Cmd+Y', l10n.raccourciHistorique, descColor: tc.textSecondary),
-              _shortcutRow('Cmd+G', l10n.raccourciGuideTV, descColor: tc.textSecondary),
-              _shortcutRow('Cmd+?', l10n.raccourciAide, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+Q', l10n.raccourciQuitter, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+,', l10n.raccourciReglages, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+F', l10n.raccourciRechercher, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+Y', l10n.raccourciHistorique, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+G', l10n.raccourciGuideTV, descColor: tc.textSecondary),
+              _shortcutRow('$_mod+?', l10n.raccourciAide, descColor: tc.textSecondary),
               const SizedBox(height: 16),
               Text(l10n.sectionLecteur, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: tc.textSecondary)),
               Divider(color: tc.divider, height: 12),
