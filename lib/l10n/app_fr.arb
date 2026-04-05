@@ -438,6 +438,14 @@
       "number": {"type": "String"}
     }
   },
+  "rechercherCategorie": "Rechercher une catégorie…",
+  "chainesTV": "Chaînes TV",
+  "nCategoriesBloqueesLabel": "{count, plural, =0{Aucune catégorie bloquée} =1{1 catégorie bloquée} other{{count} catégories bloquées}}",
+  "@nCategoriesBloqueesLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "chiffresSaisis": "{count} chiffres sur {total} saisis",
   "@chiffresSaisis": {
     "placeholders": {

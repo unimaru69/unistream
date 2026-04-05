@@ -281,6 +281,14 @@
       "number": {"type": "String"}
     }
   },
+  "rechercherCategorie": "Search categories…",
+  "chainesTV": "TV Channels",
+  "nCategoriesBloqueesLabel": "{count, plural, =0{No blocked categories} =1{1 blocked category} other{{count} blocked categories}}",
+  "@nCategoriesBloqueesLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "chiffresSaisis": "{count} of {total} digits entered",
   "@chiffresSaisis": {
     "placeholders": {

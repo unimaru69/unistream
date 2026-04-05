@@ -1538,6 +1538,24 @@ abstract class AppLocalizations {
   /// **'Chiffre {number}'**
   String chiffre(String number);
 
+  /// No description provided for @rechercherCategorie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher une catégorie…'**
+  String get rechercherCategorie;
+
+  /// No description provided for @chainesTV.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chaînes TV'**
+  String get chainesTV;
+
+  /// No description provided for @nCategoriesBloqueesLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{Aucune catégorie bloquée} =1{1 catégorie bloquée} other{{count} catégories bloquées}}'**
+  String nCategoriesBloqueesLabel(int count);
+
   /// No description provided for @chiffresSaisis.
   ///
   /// In fr, this message translates to:

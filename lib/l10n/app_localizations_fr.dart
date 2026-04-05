@@ -806,6 +806,24 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get rechercherCategorie => 'Rechercher une catégorie…';
+
+  @override
+  String get chainesTV => 'Chaînes TV';
+
+  @override
+  String nCategoriesBloqueesLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count catégories bloquées',
+      one: '1 catégorie bloquée',
+      zero: 'Aucune catégorie bloquée',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String chiffresSaisis(int count, int total) {
     return '$count chiffres sur $total saisis';
   }
