@@ -210,12 +210,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           return ListTile(
             leading: iconUrl != null && iconUrl.toString().isNotEmpty
                 ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                    child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
-                        width: 40, height: 40, fit: BoxFit.cover,
+                    child: Container(
+                      color: mode == 'live' ? const Color(0xFF1E1E2E) : null,
+                      child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
+                        width: 40, height: 40, fit: mode == 'live' ? BoxFit.contain : BoxFit.cover,
                         fadeInDuration: const Duration(milliseconds: 200),
-                        placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
+                        placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: mode == 'live' ? const Color(0xFF1E1E2E) : tc.inputFill)),
                         errorWidget: (_, __, ___) =>
-                            Icon(modeIcons[mode], color: tc.borderColor, size: 24)))
+                            Icon(modeIcons[mode], color: tc.borderColor, size: 24)),
+                    ))
                 : Icon(modeIcons[mode], color: modeColor[mode]),
             title: Text(item['name'] ?? '',
                 style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),

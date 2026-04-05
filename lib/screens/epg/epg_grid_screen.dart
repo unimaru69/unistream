@@ -446,13 +446,17 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         if (ch.displayIcon.isNotEmpty)
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: CachedNetworkImage(
-              cacheManager: AppCacheManager.instance,
-              imageUrl: ch.displayIcon,
-              width: 28, height: 28, fit: BoxFit.contain,
-              fadeInDuration: const Duration(milliseconds: 200),
-              placeholder: (_, __) => SizedBox(width: 28, height: 28, child: ColoredBox(color: tc.inputFill)),
-              errorWidget: (_, __, ___) => Icon(Icons.tv, size: 16, color: tc.borderColor),
+            child: Container(
+              width: 28, height: 28,
+              color: const Color(0xFF1E1E2E),
+              child: CachedNetworkImage(
+                cacheManager: AppCacheManager.instance,
+                imageUrl: ch.displayIcon,
+                width: 28, height: 28, fit: BoxFit.contain,
+                fadeInDuration: const Duration(milliseconds: 200),
+                placeholder: (_, __) => const SizedBox(width: 28, height: 28),
+                errorWidget: (_, __, ___) => Icon(Icons.tv, size: 16, color: tc.borderColor),
+              ),
             ),
           )
         else

@@ -812,9 +812,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _selectedCategory != null &&
                       !_selectedCategory!.startsWith('__') &&
                       _searchQuery.isEmpty;
-                  final displayStreams = usePagination
+                  var displayStreams = usePagination
                       ? pagState.visibleItems
                       : _sortedStreams;
+                  // Filter out streams from blocked parental categories
+                  if (parentalActive) {
+                    displayStreams = displayStreams.where((s) {
+                      final catId = getStreamCategoryId(s);
+                      return catId == null || !blockedIds.contains(catId);
+                    }).toList();
+                  }
                   return StreamListView(
                     mode: _mode,
                     selectedCategory: _selectedCategory,

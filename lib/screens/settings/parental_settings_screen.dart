@@ -42,6 +42,14 @@ class _ParentalSettingsScreenState
     _loadAllCategories();
   }
 
+  @override
+  void dispose() {
+    // Re-lock parental controls when leaving settings so the home screen
+    // filters blocked categories again.
+    ref.read(parentalProvider.notifier).lock();
+    super.dispose();
+  }
+
   Future<void> _loadAllCategories() async {
     try {
       final results = await Future.wait([

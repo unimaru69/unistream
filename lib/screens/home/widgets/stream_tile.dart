@@ -8,7 +8,14 @@ import '../../../models/channel.dart';
 import '../../../models/vod_item.dart';
 import '../../../models/series_item.dart';
 
+/// Background color for channel logos — dark even in light theme so white
+/// logos remain visible.
+const _logoDarkBg = Color(0xFF1E1E2E);
+
 /// Helper for cached network images used across the home screen widgets.
+///
+/// For live channel logos ([mode] == [ContentMode.live]) a dark background is
+/// used regardless of theme, because IPTV logos are typically white/transparent.
 Widget networkImage(String url, {
   required BuildContext context,
   double? width,
@@ -17,21 +24,23 @@ Widget networkImage(String url, {
   ContentMode mode = ContentMode.vod,
 }) {
   final tc = AppThemeColors.of(context);
+  final isLogo = mode == ContentMode.live;
+  final bgColor = isLogo ? _logoDarkBg : tc.inputFill;
+  final placeholderFit = isLogo ? BoxFit.contain : fit;
   return CachedNetworkImage(
     imageUrl: url,
     cacheManager: AppCacheManager.instance,
-    width: width, height: height, fit: fit,
+    width: width, height: height, fit: placeholderFit,
     fadeInDuration: const Duration(milliseconds: 200),
     placeholder: (_, __) => SizedBox(
       width: width, height: height,
-      child: ColoredBox(color: tc.inputFill),
+      child: ColoredBox(color: bgColor),
     ),
     errorWidget: (_, __, ___) => SizedBox(
       width: width, height: height,
       child: ColoredBox(
-        color: tc.inputFill,
-        child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
-            color: tc.borderColor, size: 24),
+        color: bgColor,
+        child: Icon(Icons.tv, color: tc.borderColor, size: 24),
       ),
     ),
   );
@@ -45,7 +54,10 @@ Widget listIcon(Map<String, dynamic> stream, ContentMode mode, BuildContext cont
   if (iconUrl == null || iconUrl.toString().isEmpty) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
-    child: networkImage(iconUrl.toString(), context: context, width: 40, height: 40, mode: mode),
+    child: Container(
+      color: mode == ContentMode.live ? _logoDarkBg : null,
+      child: networkImage(iconUrl.toString(), context: context, width: 40, height: 40, mode: mode),
+    ),
   );
 }
 
@@ -68,7 +80,10 @@ Widget listIconTyped(dynamic stream, ContentMode mode, BuildContext context) {
   if (iconUrl.isEmpty) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
-    child: networkImage(iconUrl, context: context, width: 40, height: 40, mode: mode),
+    child: Container(
+      color: mode == ContentMode.live ? _logoDarkBg : null,
+      child: networkImage(iconUrl, context: context, width: 40, height: 40, mode: mode),
+    ),
   );
 }
 
@@ -137,9 +152,12 @@ class StreamGridTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: Stack(fit: StackFit.expand, children: [
               if (cover.isNotEmpty)
-                networkImage(cover, context: context, mode: mode)
+                Container(
+                  color: mode == ContentMode.live ? _logoDarkBg : null,
+                  child: networkImage(cover, context: context, mode: mode),
+                )
               else
-                Container(color: tc.inputFill,
+                Container(color: mode == ContentMode.live ? _logoDarkBg : tc.inputFill,
                     child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
                         color: tc.borderColor, size: 32)),
               // Progress bar
