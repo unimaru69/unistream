@@ -222,6 +222,40 @@ class SyncService {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Pull All (startup sync)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Pull all data from Supabase in parallel.
+  /// Returns a record with favorites, watchlist, collections, and watch progress.
+  Future<({
+    Map<String, dynamic> favorites,
+    Map<String, dynamic> watchlist,
+    List<Map<String, dynamic>> collections,
+    Map<String, dynamic> watchProgress,
+  })> pullAll() async {
+    if (!_ready) {
+      return (
+        favorites: <String, dynamic>{},
+        watchlist: <String, dynamic>{},
+        collections: <Map<String, dynamic>>[],
+        watchProgress: <String, dynamic>{},
+      );
+    }
+    final results = await Future.wait([
+      pullFavorites('favorite'),
+      pullFavorites('watchlist'),
+      pullCollections(),
+      pullWatchProgress(),
+    ]);
+    return (
+      favorites: results[0] as Map<String, dynamic>,
+      watchlist: results[1] as Map<String, dynamic>,
+      collections: results[2] as List<Map<String, dynamic>>,
+      watchProgress: results[3] as Map<String, dynamic>,
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Realtime
   // ══════════════════════════════════════════════════════════════════════════
 

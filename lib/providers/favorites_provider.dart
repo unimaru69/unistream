@@ -48,6 +48,31 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
     _pushSync();
   }
 
+  /// Merge remote items into local state (union, remote fills gaps).
+  /// Called after a pull from Supabase.
+  Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
+    if (remote.isEmpty) return;
+    final p = await SharedPreferences.getInstance();
+    final items = List<Map<String, dynamic>>.from(state.items);
+    final keys = Set<String>.from(state.keys);
+    bool changed = false;
+
+    for (final entry in remote.entries) {
+      if (!keys.contains(entry.key)) {
+        keys.add(entry.key);
+        final item = Map<String, dynamic>.from(entry.value as Map);
+        if (!item.containsKey('_key')) item['_key'] = entry.key;
+        items.add(item);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await p.setString(StorageKeys.favorites(AppConfig.activeProfileId), jsonEncode(items));
+      state = FavoritesState(keys: keys, items: items);
+    }
+  }
+
   void _pushSync() {
     final map = <String, dynamic>{};
     for (final item in state.items) {
@@ -106,6 +131,30 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
     await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
     state = WatchlistState(keys: keys, items: items);
     _pushSync();
+  }
+
+  /// Merge remote items into local state (union, remote fills gaps).
+  Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
+    if (remote.isEmpty) return;
+    final p = await SharedPreferences.getInstance();
+    final items = List<Map<String, dynamic>>.from(state.items);
+    final keys = Set<String>.from(state.keys);
+    bool changed = false;
+
+    for (final entry in remote.entries) {
+      if (!keys.contains(entry.key)) {
+        keys.add(entry.key);
+        final item = Map<String, dynamic>.from(entry.value as Map);
+        if (!item.containsKey('_key')) item['_key'] = entry.key;
+        items.add(item);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
+      state = WatchlistState(keys: keys, items: items);
+    }
   }
 
   void _pushSync() {

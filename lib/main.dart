@@ -16,7 +16,11 @@ import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
 import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
+import 'providers/favorites_provider.dart';
+import 'providers/collections_provider.dart';
+import 'providers/watch_progress_provider.dart';
 import 'services/supabase_config.dart';
+import 'services/sync_service.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
 import 'utils/theme.dart';
@@ -186,11 +190,57 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       windowManager.addListener(this);
     }
+    // Pull remote data and start realtime after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initSync());
+  }
+
+  /// Pull remote data from Supabase and merge into local providers,
+  /// then start realtime subscriptions for live cross-device sync.
+  Future<void> _initSync() async {
+    try {
+      final sync = SyncService.instance;
+      final remote = await sync.pullAll();
+
+      // Merge into providers (fire-and-forget, errors swallowed per-provider)
+      await Future.wait([
+        ref.read(favoritesProvider.notifier).mergeFromRemote(remote.favorites),
+        ref.read(watchlistProvider.notifier).mergeFromRemote(remote.watchlist),
+        ref.read(collectionsProvider.notifier).mergeFromRemote(remote.collections),
+        WatchProgress.mergeFromRemote(remote.watchProgress).then((changed) {
+          if (changed) ref.invalidate(watchProgressProvider);
+        }),
+      ]);
+
+      AppLogger.info(LogModule.sync, 'Startup sync pull complete');
+
+      // Start realtime subscriptions for live sync
+      sync.startRealtime((table) async {
+        AppLogger.debug(LogModule.sync, 'Realtime change: $table');
+        switch (table) {
+          case 'user_favorites':
+            final favs = await sync.pullFavorites('favorite');
+            ref.read(favoritesProvider.notifier).mergeFromRemote(favs);
+            final wl = await sync.pullFavorites('watchlist');
+            ref.read(watchlistProvider.notifier).mergeFromRemote(wl);
+          case 'user_collections':
+            final cols = await sync.pullCollections();
+            ref.read(collectionsProvider.notifier).mergeFromRemote(cols);
+          case 'user_watch_progress':
+            final wp = await sync.pullWatchProgress();
+            final changed = await WatchProgress.mergeFromRemote(wp);
+            if (changed) ref.invalidate(watchProgressProvider);
+        }
+      });
+    } catch (e, st) {
+      AppLogger.warning(LogModule.sync, 'Startup sync failed (offline?)',
+          error: e, stackTrace: st);
+    }
   }
 
   @override
   void dispose() {
     _windowSaveTimer?.cancel();
+    SyncService.instance.stopRealtime();
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       windowManager.removeListener(this);
     }

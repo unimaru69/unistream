@@ -137,4 +137,29 @@ class WatchProgress {
     list.sort((a, b) => (b['timestamp'] as String? ?? '').compareTo(a['timestamp'] as String? ?? ''));
     await p.setString(histKey, jsonEncode(list));
   }
+
+  /// Merge remote watch progress into local storage.
+  /// Remote entries fill gaps (local takes precedence when both exist).
+  static Future<bool> mergeFromRemote(Map<String, dynamic> remote) async {
+    if (remote.isEmpty) return false;
+    final p = await SharedPreferences.getInstance();
+    final prefix = StorageKeys.wpPositionPrefix(_pid);
+    bool changed = false;
+
+    for (final entry in remote.entries) {
+      final key = entry.key;
+      final localPos = p.getInt(StorageKeys.wpPosition(_pid, key));
+      if (localPos != null) continue; // Local already has this entry
+
+      final data = entry.value as Map<String, dynamic>;
+      final posMs = data['position_ms'] as int? ?? 0;
+      final durMs = data['duration_ms'] as int? ?? 0;
+      if (durMs < 10000) continue; // Skip very short items
+
+      await p.setInt(StorageKeys.wpPosition(_pid, key), posMs ~/ 1000);
+      await p.setInt(StorageKeys.wpDuration(_pid, key), durMs ~/ 1000);
+      changed = true;
+    }
+    return changed;
+  }
 }
