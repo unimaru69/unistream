@@ -122,6 +122,18 @@ abstract class AppLocalizations {
   /// **'Enregistrer'**
   String get enregistrer;
 
+  /// No description provided for @champObligatoire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce champ est obligatoire'**
+  String get champObligatoire;
+
+  /// No description provided for @urlInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'URL invalide (ex: http://...)'**
+  String get urlInvalide;
+
   /// No description provided for @creer.
   ///
   /// In fr, this message translates to:
@@ -1351,6 +1363,186 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Prêt !'**
   String get splashReady;
+
+  /// No description provided for @entrerPinParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrer le PIN parental'**
+  String get entrerPinParental;
+
+  /// No description provided for @pinIncorrectReessayer.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN incorrect — réessayer'**
+  String get pinIncorrectReessayer;
+
+  /// No description provided for @choisirPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisir un PIN (4 chiffres)'**
+  String get choisirPin;
+
+  /// No description provided for @confirmerPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer le PIN'**
+  String get confirmerPin;
+
+  /// No description provided for @pinsNeCorrespondentPas.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les PINs ne correspondent pas'**
+  String get pinsNeCorrespondentPas;
+
+  /// No description provided for @pinActuel.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN actuel'**
+  String get pinActuel;
+
+  /// No description provided for @pinIncorrect.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN incorrect'**
+  String get pinIncorrect;
+
+  /// No description provided for @nouveauPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau PIN (4 chiffres)'**
+  String get nouveauPin;
+
+  /// No description provided for @confirmerNouveauPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer le nouveau PIN'**
+  String get confirmerNouveauPin;
+
+  /// No description provided for @pinModifie.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN modifié'**
+  String get pinModifie;
+
+  /// No description provided for @supprimerControleParentalQ.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer le contrôle parental ?'**
+  String get supprimerControleParentalQ;
+
+  /// No description provided for @pinEtCategoriesSupprimees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le PIN et toutes les catégories bloquées seront supprimés.'**
+  String get pinEtCategoriesSupprimees;
+
+  /// No description provided for @controleParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Contrôle parental'**
+  String get controleParental;
+
+  /// No description provided for @descriptionControleParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le contrôle parental permet de masquer certaines catégories\nderrière un code PIN.'**
+  String get descriptionControleParental;
+
+  /// No description provided for @activerControleParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Activer le contrôle parental'**
+  String get activerControleParental;
+
+  /// No description provided for @entrerPinAcceder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez votre PIN pour accéder aux paramètres parentaux.'**
+  String get entrerPinAcceder;
+
+  /// No description provided for @entrerLePin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrer le PIN'**
+  String get entrerLePin;
+
+  /// No description provided for @changerLePin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer le PIN'**
+  String get changerLePin;
+
+  /// No description provided for @desactiverParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Désactiver'**
+  String get desactiverParental;
+
+  /// No description provided for @categoriesBloquees.
+  ///
+  /// In fr, this message translates to:
+  /// **'CATÉGORIES BLOQUÉES'**
+  String get categoriesBloquees;
+
+  /// No description provided for @categoriesMasquees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les catégories cochées seront masquées tant que le contrôle parental est verrouillé.'**
+  String get categoriesMasquees;
+
+  /// No description provided for @tvEnDirect.
+  ///
+  /// In fr, this message translates to:
+  /// **'TV en direct'**
+  String get tvEnDirect;
+
+  /// No description provided for @filmsVod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Films (VOD)'**
+  String get filmsVod;
+
+  /// No description provided for @catchupNonDisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-être pas le timeshift.'**
+  String get catchupNonDisponible;
+
+  /// No description provided for @impossibleLireFlux.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de lire ce flux.\nVérifiez votre connexion ou réessayez.'**
+  String get impossibleLireFlux;
+
+  /// No description provided for @connexionRetablie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion rétablie'**
+  String get connexionRetablie;
+
+  /// No description provided for @cliquerPourRevoir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cliquer pour revoir (Catch-up)'**
+  String get cliquerPourRevoir;
+
+  /// No description provided for @toutEffacer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout effacer'**
+  String get toutEffacer;
+
+  /// No description provided for @chiffre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chiffre {number}'**
+  String chiffre(String number);
+
+  /// No description provided for @chiffresSaisis.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} chiffres sur {total} saisis'**
+  String chiffresSaisis(int count, int total);
 }
 
 class _AppLocalizationsDelegate

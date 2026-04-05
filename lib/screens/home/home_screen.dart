@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
+import '../../core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
@@ -479,8 +480,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildSidebarDrawer(List<Map<String, dynamic>> collections, List<cat.Category> categories) {
+    final tc = AppThemeColors.of(context);
     return Drawer(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       child: SafeArea(
         child: CategorySidebar(
           width: 280,
@@ -556,7 +558,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Schedule after build to avoid setState-during-build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          showAppSnackBar(context, 'Connexion r\u00e9tablie');
+          showAppSnackBar(context, AppLocalizations.of(context)!.connexionRetablie);
           _retryConnection();
         }
       });
@@ -666,7 +668,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _loadCategories();
             },
             borderRadius: BorderRadius.circular(8),
-            selectedColor: Colors.white,
+            selectedColor: AppThemeColors.of(context).textPrimary,
             fillColor: AppColors.primaryBlue,
             children: [
               Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.live)),
@@ -751,7 +753,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               Expanded(child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 600;
+                  final isWide = constraints.maxWidth >= 900;
                   return Row(children: [
               if (isWide) CategorySidebar(
                 width: _sidebarWidth,

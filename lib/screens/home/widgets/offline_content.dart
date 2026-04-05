@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/cache_config.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
@@ -17,6 +18,7 @@ class OfflineContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tc = AppThemeColors.of(context);
     final offlineContinueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
     final offlineFavItems = ref.watch(favoritesProvider).items;
     final l10n = AppLocalizations.of(context)!;
@@ -44,7 +46,7 @@ class OfflineContent extends ConsumerWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (offlineContinueItems.isNotEmpty) ...[
             Text(l10n.continuerRegarder,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tc.textSecondary)),
             const SizedBox(height: 8),
             SizedBox(
               height: 120,
@@ -70,11 +72,11 @@ class OfflineContent extends ConsumerWidget {
                               cover.isNotEmpty
                                   ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                                       fadeInDuration: const Duration(milliseconds: 200),
-                                      placeholder: (_, __) => const ColoredBox(color: Colors.white10),
-                                      errorWidget: (_, __, ___) => Container(color: Colors.white10,
-                                          child: const Icon(Icons.movie, color: Colors.white24)))
-                                  : Container(color: Colors.white10,
-                                      child: const Icon(Icons.movie, color: Colors.white24)),
+                                      placeholder: (_, __) => ColoredBox(color: tc.inputFill),
+                                      errorWidget: (_, __, ___) => Container(color: tc.inputFill,
+                                          child: Icon(Icons.movie, color: tc.borderColor)))
+                                  : Container(color: tc.inputFill,
+                                      child: Icon(Icons.movie, color: tc.borderColor)),
                               Positioned(bottom: 0, left: 0, right: 0,
                                 child: LinearProgressIndicator(
                                   value: ratio,
@@ -83,11 +85,11 @@ class OfflineContent extends ConsumerWidget {
                                   minHeight: 3,
                                 ),
                               ),
-                              const Center(child: Icon(Icons.cloud_off, color: Colors.white38, size: 20)),
+                              Center(child: Icon(Icons.cloud_off, color: tc.textDisabled, size: 20)),
                             ]),
                           )),
                           const SizedBox(height: 3),
-                          Text(name, style: const TextStyle(fontSize: 10, color: Colors.white60),
+                          Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                         ]),
                       ),
@@ -100,7 +102,7 @@ class OfflineContent extends ConsumerWidget {
           ],
           if (offlineFavItems.isNotEmpty) ...[
             Text(l10n.favoris,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tc.textSecondary)),
             const SizedBox(height: 8),
             ...(offlineFavItems.take(20).map((item) {
               final name = item['name'] as String? ?? '';
@@ -112,11 +114,11 @@ class OfflineContent extends ConsumerWidget {
                       ? ClipRRect(borderRadius: BorderRadius.circular(4),
                           child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
                               fadeInDuration: const Duration(milliseconds: 200),
-                              placeholder: (_, __) => const SizedBox(width: 40, height: 40, child: ColoredBox(color: Colors.white10)),
+                              placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
                               errorWidget: (_, __, ___) => const Icon(Icons.star, color: Colors.amber, size: 20)))
                       : const Icon(Icons.star, color: Colors.amber, size: 20),
                   title: Text(name, style: const TextStyle(fontSize: 13)),
-                  trailing: const Icon(Icons.cloud_off, color: Colors.white24, size: 16),
+                  trailing: Icon(Icons.cloud_off, color: tc.borderColor, size: 16),
                   dense: true,
                   enabled: false,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -129,10 +131,10 @@ class OfflineContent extends ConsumerWidget {
             Center(child: Padding(
               padding: const EdgeInsets.only(top: 60),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off, size: 64, color: Colors.white24),
+                Icon(Icons.cloud_off, size: 64, color: tc.borderColor),
                 const SizedBox(height: 16),
                 Text(l10n.aucuneDonneesCache,
-                    style: const TextStyle(color: Colors.white38, fontSize: 16)),
+                    style: TextStyle(color: tc.textDisabled, fontSize: 16)),
               ]),
             )),
         ]),

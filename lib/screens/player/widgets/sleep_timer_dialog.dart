@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
 void showSleepTimerPicker(BuildContext context, {
@@ -7,10 +7,11 @@ void showSleepTimerPicker(BuildContext context, {
   required void Function() onCancel,
   required void Function(Duration duration) onStart,
 }) {
+  final tc = AppThemeColors.of(context);
   final presets = [15, 30, 45, 60, 90, 120];
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.darkText,
+    backgroundColor: tc.surface,
     builder: (ctx) => SafeArea(
       child: ListView(
         shrinkWrap: true,
@@ -33,7 +34,7 @@ void showSleepTimerPicker(BuildContext context, {
           for (final m in presets)
             ListTile(
               dense: true,
-              leading: const Icon(Icons.timer, color: Colors.white38, size: 20),
+              leading: Icon(Icons.timer, color: tc.textDisabled, size: 20),
               title: Text(AppLocalizations.of(context)!.xMinutes(m)),
               onTap: () {
                 Navigator.pop(ctx);

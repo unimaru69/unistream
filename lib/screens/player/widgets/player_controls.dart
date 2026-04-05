@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
 void showSpeedPicker(BuildContext context, {
   required double currentSpeed,
   required void Function(double speed) onSpeedChanged,
 }) {
+  final tc = AppThemeColors.of(context);
   const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.darkSurface,
+    backgroundColor: tc.surface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => StatefulBuilder(
@@ -64,9 +66,10 @@ void showAspectRatioPicker(BuildContext context, {
     ('2.35:1', '2.35:1'),
     ('stretch', AppLocalizations.of(context)!.etirer),
   ];
+  final tc = AppThemeColors.of(context);
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.darkText,
+    backgroundColor: tc.surface,
     builder: (ctx) => SafeArea(
       child: ListView(
         shrinkWrap: true,
@@ -80,7 +83,7 @@ void showAspectRatioPicker(BuildContext context, {
               dense: true,
               leading: Icon(
                 currentRatio == value ? Icons.check_circle : Icons.circle_outlined,
-                color: currentRatio == value ? AppColors.primaryBlue : Colors.white38,
+                color: currentRatio == value ? AppColors.primaryBlue : tc.textDisabled,
                 size: 20,
               ),
               title: Text(label),

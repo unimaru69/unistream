@@ -9,6 +9,7 @@ import '../../services/connectivity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
@@ -210,8 +211,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (!mounted) return;
           setState(() {
             _playError = _isCatchupMode
-                ? 'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-\u00eatre pas le timeshift.'
-                : 'Impossible de lire ce flux.\nV\u00e9rifiez votre connexion ou r\u00e9essayez.';
+                ? AppLocalizations.of(context)!.catchupNonDisponible
+                : AppLocalizations.of(context)!.impossibleLireFlux;
           });
         }
       }
@@ -268,11 +269,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (dur > Duration.zero) {
         await sub.cancel();
         if (!mounted) { _startSaveTimer(); return; }
+        final tc = AppThemeColors.of(context);
         final resume = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            backgroundColor: AppColors.darkSurface,
+            backgroundColor: tc.surface,
             title: Text(AppLocalizations.of(context)!.reprendreLecture),
             content: Text(AppLocalizations.of(context)!.continuerOuDebut(_fmt(savedPos))),
             actions: [
@@ -1045,7 +1047,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
               const SizedBox(height: 16),
               Text(_playError!, textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  style: TextStyle(color: AppThemeColors.of(context).textSecondary, fontSize: 14)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),

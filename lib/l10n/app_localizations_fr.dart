@@ -21,6 +21,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get enregistrer => 'Enregistrer';
 
   @override
+  String get champObligatoire => 'Ce champ est obligatoire';
+
+  @override
+  String get urlInvalide => 'URL invalide (ex: http://...)';
+
+  @override
   String get creer => 'Créer';
 
   @override
@@ -703,4 +709,104 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get splashReady => 'Prêt !';
+
+  @override
+  String get entrerPinParental => 'Entrer le PIN parental';
+
+  @override
+  String get pinIncorrectReessayer => 'PIN incorrect — réessayer';
+
+  @override
+  String get choisirPin => 'Choisir un PIN (4 chiffres)';
+
+  @override
+  String get confirmerPin => 'Confirmer le PIN';
+
+  @override
+  String get pinsNeCorrespondentPas => 'Les PINs ne correspondent pas';
+
+  @override
+  String get pinActuel => 'PIN actuel';
+
+  @override
+  String get pinIncorrect => 'PIN incorrect';
+
+  @override
+  String get nouveauPin => 'Nouveau PIN (4 chiffres)';
+
+  @override
+  String get confirmerNouveauPin => 'Confirmer le nouveau PIN';
+
+  @override
+  String get pinModifie => 'PIN modifié';
+
+  @override
+  String get supprimerControleParentalQ => 'Supprimer le contrôle parental ?';
+
+  @override
+  String get pinEtCategoriesSupprimees =>
+      'Le PIN et toutes les catégories bloquées seront supprimés.';
+
+  @override
+  String get controleParental => 'Contrôle parental';
+
+  @override
+  String get descriptionControleParental =>
+      'Le contrôle parental permet de masquer certaines catégories\nderrière un code PIN.';
+
+  @override
+  String get activerControleParental => 'Activer le contrôle parental';
+
+  @override
+  String get entrerPinAcceder =>
+      'Entrez votre PIN pour accéder aux paramètres parentaux.';
+
+  @override
+  String get entrerLePin => 'Entrer le PIN';
+
+  @override
+  String get changerLePin => 'Changer le PIN';
+
+  @override
+  String get desactiverParental => 'Désactiver';
+
+  @override
+  String get categoriesBloquees => 'CATÉGORIES BLOQUÉES';
+
+  @override
+  String get categoriesMasquees =>
+      'Les catégories cochées seront masquées tant que le contrôle parental est verrouillé.';
+
+  @override
+  String get tvEnDirect => 'TV en direct';
+
+  @override
+  String get filmsVod => 'Films (VOD)';
+
+  @override
+  String get catchupNonDisponible =>
+      'Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-être pas le timeshift.';
+
+  @override
+  String get impossibleLireFlux =>
+      'Impossible de lire ce flux.\nVérifiez votre connexion ou réessayez.';
+
+  @override
+  String get connexionRetablie => 'Connexion rétablie';
+
+  @override
+  String get cliquerPourRevoir => 'Cliquer pour revoir (Catch-up)';
+
+  @override
+  String get toutEffacer => 'Tout effacer';
+
+  @override
+  String chiffre(String number) {
+    return 'Chiffre $number';
+  }
+
+  @override
+  String chiffresSaisis(int count, int total) {
+    return '$count chiffres sur $total saisis';
+  }
 }

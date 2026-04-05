@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 
 /// Shows a dialog to create a new collection. Returns the collection name or null.
 Future<String?> showCreateCollectionDialog(BuildContext context) async {
+  final tc = AppThemeColors.of(context);
   final nameCtrl = TextEditingController();
   final name = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(AppLocalizations.of(context)!.nouvelleCollection),
       content: TextField(
         controller: nameCtrl,
@@ -17,7 +19,7 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           labelText: AppLocalizations.of(context)!.nomLabel,
-          filled: true, fillColor: Colors.white10,
+          filled: true, fillColor: tc.inputFill,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
         ),
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
@@ -44,17 +46,18 @@ Future<String?> showCollectionPickerDialog(
   required List<Map<String, dynamic>> collections,
   required VoidCallback onCreateNew,
 }) async {
+  final tc = AppThemeColors.of(context);
   return showDialog<String>(
     context: context,
     builder: (ctx) => SimpleDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(AppLocalizations.of(context)!.ajouterCollection),
       children: [
         ...collections.map((col) => SimpleDialogOption(
           onPressed: () => Navigator.pop(ctx, col['id'] as String),
           child: Text(col['name'] as String, style: const TextStyle(fontSize: 14)),
         )),
-        const Divider(color: Colors.white12),
+        Divider(color: tc.divider),
         SimpleDialogOption(
           onPressed: () {
             Navigator.pop(ctx);
@@ -77,11 +80,12 @@ Future<String?> showCreateCollectionFromSelectedDialog(
   BuildContext context, {
   required int itemCount,
 }) async {
+  final tc = AppThemeColors.of(context);
   final nameCtrl = TextEditingController();
   final name = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(AppLocalizations.of(context)!.nouvelleCollectionAvec(itemCount)),
       content: TextField(
         controller: nameCtrl,
@@ -109,6 +113,7 @@ void showStreamInfoDialogWithEpg(
   required String? Function(String streamId) getCachedEpgNow,
   required Future<dynamic> Function(String streamId, {int limit}) getShortEpg,
 }) {
+  final tc = AppThemeColors.of(context);
   final l10n = AppLocalizations.of(context)!;
   final name = stream['name'] ?? l10n.sansTitre;
   final modeLabels = {ContentMode.live: l10n.live, ContentMode.vod: l10n.vod, ContentMode.series: l10n.serie};
@@ -165,7 +170,7 @@ void showStreamInfoDialogWithEpg(
       });
     }
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(name, style: const TextStyle(fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         modeTag(),
@@ -173,11 +178,11 @@ void showStreamInfoDialogWithEpg(
           const SizedBox(height: 8),
           ...infoParts.map((p) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Text(p, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+            child: Text(p, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
           )),
         ],
         const SizedBox(height: 8),
-        const Text('Programme en cours :', style: TextStyle(fontSize: 12, color: Colors.white38)),
+        Text('Programme en cours :', style: TextStyle(fontSize: 12, color: tc.textDisabled)),
         const SizedBox(height: 4),
         ValueListenableBuilder<String?>(
           valueListenable: epgNotifier,
@@ -189,7 +194,7 @@ void showStreamInfoDialogWithEpg(
     ));
   } else {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(name, style: const TextStyle(fontSize: 16)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         modeTag(),
@@ -197,7 +202,7 @@ void showStreamInfoDialogWithEpg(
           const SizedBox(height: 8),
           ...infoParts.map((p) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Text(p, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+            child: Text(p, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
           )),
         ],
       ]),

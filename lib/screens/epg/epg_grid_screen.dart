@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
@@ -401,6 +402,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   String _fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
 
   Widget _buildTimelineHeader() {
+    final tc = AppThemeColors.of(context);
     return SizedBox(
       width: _hourWidth * 24,
       height: 30,
@@ -413,11 +415,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               width: _hourWidth,
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 8),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.darkText,
-                border: Border(left: BorderSide(color: Colors.white12, width: 0.5)),
+                border: Border(left: BorderSide(color: tc.divider, width: 0.5)),
               ),
-              child: Text(_fmtHour(h), style: const TextStyle(fontSize: 10, color: Colors.white54)),
+              child: Text(_fmtHour(h), style: TextStyle(fontSize: 10, color: tc.textTertiary)),
             ),
           ),
         // Current time marker
@@ -431,13 +433,14 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   }
 
   Widget _buildChannelRow(int i, List<Channel> channels) {
+    final tc = AppThemeColors.of(context);
     final ch = channels[i];
     return Container(
       height: _rowHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: i.isEven ? AppColors.darkSurface : AppColors.darkSurfaceAlt,
-        border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+        color: i.isEven ? tc.surface : tc.surfaceAlt,
+        border: Border(bottom: BorderSide(color: tc.inputFill, width: 0.5)),
       ),
       child: Row(children: [
         if (ch.displayIcon.isNotEmpty)
@@ -448,16 +451,16 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               imageUrl: ch.displayIcon,
               width: 28, height: 28, fit: BoxFit.contain,
               fadeInDuration: const Duration(milliseconds: 200),
-              placeholder: (_, __) => const SizedBox(width: 28, height: 28, child: ColoredBox(color: Colors.white10)),
-              errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 16, color: Colors.white24),
+              placeholder: (_, __) => SizedBox(width: 28, height: 28, child: ColoredBox(color: tc.inputFill)),
+              errorWidget: (_, __, ___) => Icon(Icons.tv, size: 16, color: tc.borderColor),
             ),
           )
         else
-          const Icon(Icons.tv, size: 16, color: Colors.white24),
+          Icon(Icons.tv, size: 16, color: tc.borderColor),
         const SizedBox(width: 6),
         Expanded(child: Text(
           ch.name,
-          style: const TextStyle(fontSize: 11, color: Colors.white70),
+          style: TextStyle(fontSize: 11, color: tc.textSecondary),
           overflow: TextOverflow.ellipsis,
         )),
       ]),
@@ -465,11 +468,12 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   }
 
   void _showProgramDetail(Map<String, dynamic> prog, DateTime start, DateTime end, String desc) {
+    final tc = AppThemeColors.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.darkText,
-        title: Text(prog['title'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 15)),
+        title: Text(prog['title'] ?? '', style: TextStyle(color: tc.textPrimary, fontSize: 15)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -478,11 +482,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               Text(
                 '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
                 ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}',
-                style: const TextStyle(color: Colors.white60, fontSize: 13),
+                style: TextStyle(color: tc.textSecondary, fontSize: 13),
               ),
               if (desc.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(desc, style: TextStyle(color: tc.textSecondary, fontSize: 13)),
               ],
             ],
           ),
@@ -498,6 +502,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   }
 
   Widget _buildProgramRow(int i, List<Channel> channels) {
+    final tc = AppThemeColors.of(context);
     final ch = channels[i];
     final sid = ch.id;
     final progs = _epgData[sid] ?? [];
@@ -556,10 +561,10 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           : canReplay
           ? Border.all(color: AppColors.accentGreen.withValues(alpha: 0.4), width: 0.5)
           : null;
-      final textColor = isCurrent ? Colors.white
-          : canReplay ? Colors.white60
-          : isPast ? Colors.white24
-          : Colors.white60;
+      final textColor = isCurrent ? tc.textPrimary
+          : canReplay ? tc.textSecondary
+          : isPast ? tc.borderColor
+          : tc.textSecondary;
 
       final cellWidth = widthPx - 1; // 1px visual gap
 
@@ -573,7 +578,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
               ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}'
               '${descTrunc.isNotEmpty ? '\n$descTrunc' : ''}'
-              '${canReplay ? '\n▶ Cliquer pour revoir (Catch-up)' : ''}',
+              '${canReplay ? '\n▶ ${AppLocalizations.of(context)!.cliquerPourRevoir}' : ''}',
           child: GestureDetector(
             onTap: () {
               if (canReplay) {
@@ -634,8 +639,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       height: _rowHeight,
       width: totalWidth,
       decoration: BoxDecoration(
-        color: i.isEven ? AppColors.darkSurface : AppColors.darkSurfaceAlt,
-        border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+        color: i.isEven ? tc.surface : tc.surfaceAlt,
+        border: Border(bottom: BorderSide(color: tc.inputFill, width: 0.5)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(children: cells),
@@ -644,8 +649,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: tc.surfaceAlt,
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.guideTV, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
@@ -654,7 +660,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Center(child: Text(AppLocalizations.of(context)!.chargementEpg(_epgLoaded, _channels.length),
-                  style: const TextStyle(fontSize: 11, color: Colors.white38))),
+                  style: TextStyle(fontSize: 11, color: tc.textDisabled))),
             ),
         ],
       ),
@@ -684,7 +690,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                           leading: Icon(Icons.star, size: 14,
                               color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
                           title: Text(AppLocalizations.of(context)!.favoris, style: TextStyle(fontSize: 12,
-                              color: sel ? Colors.white : Colors.white60,
+                              color: sel ? tc.textPrimary : tc.textSecondary,
                               fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                           selected: sel,
                           selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -702,7 +708,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                         dense: true,
                         title: Text(category.categoryName,
                             style: TextStyle(fontSize: 12,
-                                color: sel ? Colors.white : Colors.white60,
+                                color: sel ? tc.textPrimary : tc.textSecondary,
                                 fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                             overflow: TextOverflow.ellipsis),
                         selected: sel,
@@ -720,7 +726,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 child: GestureDetector(
                   onHorizontalDragUpdate: (d) => setState(() =>
                     _catSidebarWidth = (_catSidebarWidth + d.delta.dx).clamp(_catSidebarMin, _catSidebarMax)),
-                  child: Container(width: 6, color: Colors.white12),
+                  child: Container(width: 6, color: tc.divider),
                 ),
               ),
               // Grid zone
@@ -729,7 +735,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : _channels.isEmpty
                     ? Center(child: Text(AppLocalizations.of(context)!.selectionneCategorie,
-                        style: const TextStyle(color: Colors.white38)))
+                        style: TextStyle(color: tc.textDisabled)))
                     : Column(children: [
                         // Day navigation bar
                         EpgDayNavigator(
@@ -778,7 +784,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                             alignment: Alignment.center,
                             color: AppColors.darkText,
                             child: Text(AppLocalizations.of(context)!.nombreChaines(_filteredChannels.length),
-                                style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                                style: TextStyle(fontSize: 10, color: tc.textTertiary)),
                           ),
                           Expanded(
                             child: SingleChildScrollView(

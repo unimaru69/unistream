@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
 void showSubtitleStylePicker(BuildContext context, {
@@ -24,9 +25,10 @@ void showSubtitleStylePicker(BuildContext context, {
   Color localColor = color;
   double localBgOpacity = bgOpacity;
 
+  final tc = AppThemeColors.of(context);
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.darkSurface,
+    backgroundColor: tc.surface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => StatefulBuilder(
@@ -40,7 +42,7 @@ void showSubtitleStylePicker(BuildContext context, {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              Text(l10n.taille, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.taille, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               Expanded(
                 child: Slider(
                   value: localFontSize,
@@ -54,13 +56,13 @@ void showSubtitleStylePicker(BuildContext context, {
                 ),
               ),
               Text('${localFontSize.round()}',
-                  style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                  style: TextStyle(fontSize: 13, color: tc.textSecondary)),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(children: [
-              Text(l10n.couleurLabel, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.couleurLabel, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               const SizedBox(width: 16),
               ...colorOptions.map((opt) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -87,7 +89,7 @@ void showSubtitleStylePicker(BuildContext context, {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              Text(l10n.fondLabel, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(l10n.fondLabel, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               Expanded(
                 child: Slider(
                   value: localBgOpacity,
@@ -101,7 +103,7 @@ void showSubtitleStylePicker(BuildContext context, {
                 ),
               ),
               Text('${(localBgOpacity * 100).round()}%',
-                  style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                  style: TextStyle(fontSize: 13, color: tc.textSecondary)),
             ]),
           ),
           const SizedBox(height: 16),

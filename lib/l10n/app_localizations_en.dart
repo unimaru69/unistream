@@ -21,6 +21,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enregistrer => 'Save';
 
   @override
+  String get champObligatoire => 'This field is required';
+
+  @override
+  String get urlInvalide => 'Invalid URL (e.g. http://...)';
+
+  @override
   String get creer => 'Create';
 
   @override
@@ -700,4 +706,103 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splashReady => 'Ready!';
+
+  @override
+  String get entrerPinParental => 'Enter parental PIN';
+
+  @override
+  String get pinIncorrectReessayer => 'Incorrect PIN — retry';
+
+  @override
+  String get choisirPin => 'Choose a PIN (4 digits)';
+
+  @override
+  String get confirmerPin => 'Confirm PIN';
+
+  @override
+  String get pinsNeCorrespondentPas => 'PINs don\'t match';
+
+  @override
+  String get pinActuel => 'Current PIN';
+
+  @override
+  String get pinIncorrect => 'Incorrect PIN';
+
+  @override
+  String get nouveauPin => 'New PIN (4 digits)';
+
+  @override
+  String get confirmerNouveauPin => 'Confirm new PIN';
+
+  @override
+  String get pinModifie => 'PIN changed';
+
+  @override
+  String get supprimerControleParentalQ => 'Remove parental control?';
+
+  @override
+  String get pinEtCategoriesSupprimees =>
+      'The PIN and all blocked categories will be removed.';
+
+  @override
+  String get controleParental => 'Parental control';
+
+  @override
+  String get descriptionControleParental =>
+      'Parental control allows hiding certain categories\nbehind a PIN code.';
+
+  @override
+  String get activerControleParental => 'Enable parental control';
+
+  @override
+  String get entrerPinAcceder => 'Enter your PIN to access parental settings.';
+
+  @override
+  String get entrerLePin => 'Enter PIN';
+
+  @override
+  String get changerLePin => 'Change PIN';
+
+  @override
+  String get desactiverParental => 'Disable';
+
+  @override
+  String get categoriesBloquees => 'BLOCKED CATEGORIES';
+
+  @override
+  String get categoriesMasquees =>
+      'Checked categories will be hidden while parental control is locked.';
+
+  @override
+  String get tvEnDirect => 'Live TV';
+
+  @override
+  String get filmsVod => 'Movies (VOD)';
+
+  @override
+  String get catchupNonDisponible =>
+      'Catch-up not available for this program.\nThe server may not support timeshift.';
+
+  @override
+  String get impossibleLireFlux =>
+      'Unable to play this stream.\nCheck your connection or try again.';
+
+  @override
+  String get connexionRetablie => 'Connection restored';
+
+  @override
+  String get cliquerPourRevoir => 'Click to replay (Catch-up)';
+
+  @override
+  String get toutEffacer => 'Clear all';
+
+  @override
+  String chiffre(String number) {
+    return 'Digit $number';
+  }
+
+  @override
+  String chiffresSaisis(int count, int total) {
+    return '$count of $total digits entered';
+  }
 }

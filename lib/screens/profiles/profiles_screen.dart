@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/theme_colors.dart';
 import '../../models/profile.dart';
 import '../../providers/config_provider.dart';
 import 'profile_dialog.dart';
@@ -50,11 +51,12 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   Future<void> _deleteProfile(Profile pr) async {
     final config = ref.read(configProvider);
     if (config.profiles.length <= 1) return;
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
+        backgroundColor: tc.surface,
         title: Text(l10n.supprimerProfil),
         content: Text(l10n.profilDonneesSupprimees(pr.name)),
         actions: [
@@ -84,6 +86,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final config = ref.watch(configProvider);
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
@@ -109,16 +112,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               final pr = config.profiles[i];
               final isActive = pr.id == config.activeProfileId;
               return Card(
-                color: isActive ? AppColors.primaryBlue.withValues(alpha: 0.15) : AppColors.darkSurface,
+                color: isActive ? AppColors.primaryBlue.withValues(alpha: 0.15) : tc.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: isActive ? const BorderSide(color: AppColors.primaryBlue, width: 1) : BorderSide.none,
                 ),
                 child: ListTile(
                   leading: Icon(isActive ? Icons.check_circle : Icons.account_circle_outlined,
-                      color: isActive ? AppColors.primaryBlue : Colors.white38),
+                      color: isActive ? AppColors.primaryBlue : tc.textDisabled),
                   title: Text(pr.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(pr.serverUrl, style: const TextStyle(fontSize: 11, color: Colors.white38),
+                  subtitle: Text(pr.serverUrl, style: TextStyle(fontSize: 11, color: tc.textDisabled),
                       overflow: TextOverflow.ellipsis),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     if (!isActive)

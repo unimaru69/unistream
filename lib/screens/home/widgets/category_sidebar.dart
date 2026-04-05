@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/category.dart' as cat;
@@ -54,6 +55,7 @@ class CategorySidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -72,7 +74,7 @@ class CategorySidebar extends StatelessWidget {
             child: Container(
               width: 5,
               color: Colors.transparent,
-              child: const Center(child: VerticalDivider(width: 1, color: Colors.white12)),
+              child: Center(child: VerticalDivider(width: 1, color: tc.divider)),
             ),
           ),
         ),
@@ -81,6 +83,7 @@ class CategorySidebar extends StatelessWidget {
   }
 
   Widget _buildSidebarList(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final modeCollections = collections.where((c) =>
         c['mode'] == null || c['mode'] == mode.key).toList();
@@ -103,7 +106,7 @@ class CategorySidebar extends StatelessWidget {
               leading: Icon(Icons.star, size: 16,
                   color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
               title: Text(l10n.favoris, style: TextStyle(fontSize: 13,
-                  color: sel ? Colors.white : Colors.white60,
+                  color: sel ? tc.textPrimary : tc.textSecondary,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -152,7 +155,7 @@ class CategorySidebar extends StatelessWidget {
                 ],
               ),
               title: Text('${l10n.aRegarder}$countLabel', style: TextStyle(fontSize: 13,
-                  color: sel ? Colors.white : Colors.white60,
+                  color: sel ? tc.textPrimary : tc.textSecondary,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -171,8 +174,8 @@ class CategorySidebar extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 2),
             child: ListTile(
               dense: true,
-              leading: const Icon(Icons.history, size: 16, color: Colors.white54),
-              title: Text(l10n.historique, style: const TextStyle(fontSize: 13, color: Colors.white60)),
+              leading: Icon(Icons.history, size: 16, color: tc.textTertiary),
+              title: Text(l10n.historique, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: onHistoryTap,
             ),
@@ -189,15 +192,15 @@ class CategorySidebar extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(top: 6, bottom: 2, left: 8, right: 4),
             child: Row(children: [
-              Text(l10n.collectionsSection, style: const TextStyle(fontSize: 10,
-                  fontWeight: FontWeight.bold, color: Colors.white30, letterSpacing: 0.8)),
+              Text(l10n.collectionsSection, style: TextStyle(fontSize: 10,
+                  fontWeight: FontWeight.bold, color: tc.textDisabled, letterSpacing: 0.8)),
               const Spacer(),
               SizedBox(
                 width: 24, height: 24,
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   iconSize: 16,
-                  icon: const Icon(Icons.add, color: Colors.white38),
+                  icon: Icon(Icons.add, color: tc.textDisabled),
                   tooltip: l10n.nouvelleCollection,
                   onPressed: onCreateCollection,
                 ),
@@ -219,9 +222,9 @@ class CategorySidebar extends StatelessWidget {
             child: ListTile(
               dense: true,
               leading: Icon(Icons.folder_outlined, size: 16,
-                  color: sel ? AppColors.primaryBlue : Colors.white38),
+                  color: sel ? AppColors.primaryBlue : tc.textDisabled),
               title: Text('${col['name']} ($count)', style: TextStyle(fontSize: 13,
-                  color: sel ? Colors.white : Colors.white60,
+                  color: sel ? tc.textPrimary : tc.textSecondary,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -232,13 +235,13 @@ class CategorySidebar extends StatelessWidget {
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   iconSize: 16,
-                  icon: const Icon(Icons.delete_outline, size: 16, color: Colors.white24),
+                  icon: Icon(Icons.delete_outline, size: 16, color: tc.borderColor),
                   tooltip: l10n.supprimer,
                   onPressed: () async {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: AppColors.darkSurface,
+                        backgroundColor: tc.surface,
                         title: Text(l10n.confirmerSupprimerCollection,
                             style: const TextStyle(fontSize: 16)),
                         actions: [
@@ -274,7 +277,7 @@ class CategorySidebar extends StatelessWidget {
             dense: true,
             title: Text(category.categoryName,
                 style: TextStyle(fontSize: 13,
-                    color: sel ? Colors.white : Colors.white60,
+                    color: sel ? tc.textPrimary : tc.textSecondary,
                     fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                 overflow: TextOverflow.ellipsis),
             selected: sel,

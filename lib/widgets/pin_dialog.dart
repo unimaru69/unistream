@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
+import '../core/theme_colors.dart';
 
 /// Reusable PIN entry dialog with a custom numeric keypad.
 ///
@@ -75,8 +77,9 @@ class _PinDialogState extends State<PinDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     return Dialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
@@ -85,15 +88,15 @@ class _PinDialogState extends State<PinDialog> {
           children: [
             Text(
               widget.title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white),
+                  color: tc.textPrimary),
             ),
             const SizedBox(height: 24),
             // Dots
             Semantics(
-              label: '${_pin.length} chiffres sur ${widget.pinLength} saisis',
+              label: AppLocalizations.of(context)!.chiffresSaisis(_pin.length, widget.pinLength),
               child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(widget.pinLength, (i) {
@@ -107,7 +110,7 @@ class _PinDialogState extends State<PinDialog> {
                       shape: BoxShape.circle,
                       color: filled ? AppColors.primaryBlue : Colors.transparent,
                       border: Border.all(
-                        color: filled ? AppColors.primaryBlue : Colors.white38,
+                        color: filled ? AppColors.primaryBlue : tc.textDisabled,
                         width: 2,
                       ),
                     ),
@@ -129,8 +132,8 @@ class _PinDialogState extends State<PinDialog> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: widget.onCancel,
-              child: const Text('Annuler',
-                  style: TextStyle(color: Colors.white54)),
+              child: Text(AppLocalizations.of(context)!.annuler,
+                  style: TextStyle(color: tc.textTertiary)),
             ),
           ],
         ),
@@ -165,10 +168,12 @@ class _PinDialogState extends State<PinDialog> {
   }
 
   Widget _keypadButton(String label) {
+    final tc = AppThemeColors.of(context);
     final isBackspace = label == '<';
     final isClear = label == 'C';
 
-    final semanticLabel = isBackspace ? 'Effacer' : isClear ? 'Tout effacer' : 'Chiffre $label';
+    final l10n = AppLocalizations.of(context)!;
+    final semanticLabel = isBackspace ? l10n.effacer : isClear ? l10n.toutEffacer : l10n.chiffre(label);
     return Semantics(
       label: semanticLabel,
       button: true,
@@ -177,8 +182,8 @@ class _PinDialogState extends State<PinDialog> {
         height: 52,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white10,
-            foregroundColor: Colors.white,
+            backgroundColor: tc.inputFill,
+            foregroundColor: tc.textPrimary,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             padding: EdgeInsets.zero,

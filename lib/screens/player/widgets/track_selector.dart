@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -41,9 +42,10 @@ void showTrackPicker(BuildContext context, {
   required List<AudioTrack> audioTracks,
   required List<SubtitleTrack> subtitleTracks,
 }) {
+  final tc = AppThemeColors.of(context);
   showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.darkSurface,
+    backgroundColor: tc.surface,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => _TrackPickerSheet(

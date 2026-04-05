@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/theme_colors.dart';
 import '../../models/category.dart' as cat;
 import '../../providers/parental_provider.dart';
 import '../../services/xtream_api.dart';
@@ -61,7 +63,8 @@ class _ParentalSettingsScreenState
   }
 
   Future<void> _authenticate() async {
-    final pin = await showPinDialog(context, title: 'Entrer le PIN parental');
+    final l10n = AppLocalizations.of(context)!;
+    final pin = await showPinDialog(context, title: l10n.entrerPinParental);
     if (pin == null) return;
     final ok = await ref.read(parentalProvider.notifier).verifyAndUnlock(pin);
     if (ok) {
@@ -70,7 +73,7 @@ class _ParentalSettingsScreenState
       if (!mounted) return;
       // Show error and retry
       final retry =
-          await showPinDialog(context, title: 'PIN incorrect — r\u00e9essayer');
+          await showPinDialog(context, title: l10n.pinIncorrectReessayer);
       if (retry == null) return;
       final ok2 =
           await ref.read(parentalProvider.notifier).verifyAndUnlock(retry);
@@ -81,18 +84,19 @@ class _ParentalSettingsScreenState
   }
 
   Future<void> _setPin() async {
-    final pin = await showPinDialog(context, title: 'Choisir un PIN (4 chiffres)');
+    final l10n = AppLocalizations.of(context)!;
+    final pin = await showPinDialog(context, title: l10n.choisirPin);
     if (pin == null) return;
     // Confirm
     if (!mounted) return;
     final confirm =
-        await showPinDialog(context, title: 'Confirmer le PIN');
+        await showPinDialog(context, title: l10n.confirmerPin);
     if (confirm == null) return;
     if (pin != confirm) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Les PINs ne correspondent pas'),
+        SnackBar(
+            content: Text(l10n.pinsNeCorrespondentPas),
             backgroundColor: Colors.redAccent),
       );
       return;
@@ -103,31 +107,32 @@ class _ParentalSettingsScreenState
 
   Future<void> _changePin() async {
     // Verify current PIN first
+    final l10n = AppLocalizations.of(context)!;
     final current =
-        await showPinDialog(context, title: 'PIN actuel');
+        await showPinDialog(context, title: l10n.pinActuel);
     if (current == null) return;
     final ok = await ref.read(parentalProvider.notifier).verifyAndUnlock(current);
     if (!ok) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('PIN incorrect'),
+        SnackBar(
+            content: Text(l10n.pinIncorrect),
             backgroundColor: Colors.redAccent),
       );
       return;
     }
     if (!mounted) return;
     final newPin =
-        await showPinDialog(context, title: 'Nouveau PIN (4 chiffres)');
+        await showPinDialog(context, title: l10n.nouveauPin);
     if (newPin == null) return;
     if (!mounted) return;
     final confirm =
-        await showPinDialog(context, title: 'Confirmer le nouveau PIN');
+        await showPinDialog(context, title: l10n.confirmerNouveauPin);
     if (confirm == null || confirm != newPin) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Les PINs ne correspondent pas'),
+        SnackBar(
+            content: Text(l10n.pinsNeCorrespondentPas),
             backgroundColor: Colors.redAccent),
       );
       return;
@@ -135,30 +140,34 @@ class _ParentalSettingsScreenState
     await ref.read(parentalProvider.notifier).setPin(newPin);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PIN modifi\u00e9')),
+      SnackBar(content: Text(l10n.pinModifie)),
     );
   }
 
   Future<void> _clearPin() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: const Text('Supprimer le contr\u00f4le parental ?',
-            style: TextStyle(fontSize: 16)),
-        content: const Text(
-            'Le PIN et toutes les cat\u00e9gories bloqu\u00e9es seront supprim\u00e9s.',
-            style: TextStyle(fontSize: 14, color: Colors.white70)),
+      builder: (ctx) {
+        final tc = AppThemeColors.of(ctx);
+        return AlertDialog(
+        backgroundColor: tc.surface,
+        title: Text(l10n.supprimerControleParentalQ,
+            style: const TextStyle(fontSize: 16)),
+        content: Text(
+            l10n.pinEtCategoriesSupprimees,
+            style: TextStyle(fontSize: 14, color: tc.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text(l10n.annuler)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Supprimer',
-                  style: TextStyle(color: Colors.redAccent))),
+              child: Text(l10n.supprimer,
+                  style: const TextStyle(color: Colors.redAccent))),
         ],
-      ),
+      );
+      },
     );
     if (confirmed != true) return;
     await ref.read(parentalProvider.notifier).clearPin();
@@ -169,9 +178,10 @@ class _ParentalSettingsScreenState
   Widget build(BuildContext context) {
     final parental = ref.watch(parentalProvider);
 
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contr\u00f4le parental'),
+        title: Text(l10n.controleParental),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -192,21 +202,22 @@ class _ParentalSettingsScreenState
   }
 
   Widget _buildSetPinView() {
+    final tc = AppThemeColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.lock_outline, size: 64, color: Colors.white24),
+        Icon(Icons.lock_outline, size: 64, color: tc.borderColor),
         const SizedBox(height: 16),
-        const Text(
-          'Le contr\u00f4le parental permet de masquer certaines cat\u00e9gories\nderri\u00e8re un code PIN.',
+        Text(
+          AppLocalizations.of(context)!.descriptionControleParental,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.white54),
+          style: TextStyle(fontSize: 14, color: tc.textTertiary),
         ),
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: _setPin,
           icon: const Icon(Icons.lock, size: 18),
-          label: const Text('Activer le contr\u00f4le parental'),
+          label: Text(AppLocalizations.of(context)!.activerControleParental),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primaryBlue,
             padding:
@@ -220,21 +231,22 @@ class _ParentalSettingsScreenState
   }
 
   Widget _buildLockedView() {
+    final tc = AppThemeColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.lock, size: 64, color: Colors.white24),
+        Icon(Icons.lock, size: 64, color: tc.borderColor),
         const SizedBox(height: 16),
-        const Text(
-          'Entrez votre PIN pour acc\u00e9der aux param\u00e8tres parentaux.',
+        Text(
+          AppLocalizations.of(context)!.entrerPinAcceder,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.white54),
+          style: TextStyle(fontSize: 14, color: tc.textTertiary),
         ),
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: _authenticate,
           icon: const Icon(Icons.vpn_key, size: 18),
-          label: const Text('Entrer le PIN'),
+          label: Text(AppLocalizations.of(context)!.entrerLePin),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primaryBlue,
             padding:
@@ -248,6 +260,7 @@ class _ParentalSettingsScreenState
   }
 
   Widget _buildSettingsView(ParentalState parental) {
+    final tc = AppThemeColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -257,10 +270,10 @@ class _ParentalSettingsScreenState
             child: OutlinedButton.icon(
               onPressed: _changePin,
               icon: const Icon(Icons.vpn_key, size: 18),
-              label: const Text('Changer le PIN'),
+              label: Text(AppLocalizations.of(context)!.changerLePin),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white70,
-                side: const BorderSide(color: Colors.white24),
+                foregroundColor: tc.textSecondary,
+                side: BorderSide(color: tc.borderColor),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -272,7 +285,7 @@ class _ParentalSettingsScreenState
             child: OutlinedButton.icon(
               onPressed: _clearPin,
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('D\u00e9sactiver'),
+              label: Text(AppLocalizations.of(context)!.desactiverParental),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.redAccent,
                 side: const BorderSide(color: Colors.redAccent),
@@ -284,31 +297,31 @@ class _ParentalSettingsScreenState
           ),
         ]),
         const SizedBox(height: 24),
-        const Divider(color: Colors.white12),
+        Divider(color: tc.divider),
         const SizedBox(height: 16),
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'CAT\u00c9GORIES BLOQU\u00c9ES',
+            AppLocalizations.of(context)!.categoriesBloquees,
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: Colors.white38,
+                color: tc.textDisabled,
                 letterSpacing: 1),
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Les cat\u00e9gories coch\u00e9es seront masqu\u00e9es tant que le contr\u00f4le parental est verrouill\u00e9.',
-          style: TextStyle(fontSize: 12, color: Colors.white38),
+        Text(
+          AppLocalizations.of(context)!.categoriesMasquees,
+          style: TextStyle(fontSize: 12, color: tc.textDisabled),
         ),
         const SizedBox(height: 16),
         if (_loadingCategories)
           const Center(child: CircularProgressIndicator())
         else ...[
-          _buildCategorySection('TV en direct', _liveCategories, parental),
-          _buildCategorySection('Films (VOD)', _vodCategories, parental),
-          _buildCategorySection('S\u00e9ries', _seriesCategories, parental),
+          _buildCategorySection(AppLocalizations.of(context)!.tvEnDirect, _liveCategories, parental),
+          _buildCategorySection(AppLocalizations.of(context)!.filmsVod, _vodCategories, parental),
+          _buildCategorySection(AppLocalizations.of(context)!.series, _seriesCategories, parental),
         ],
       ],
     );
@@ -317,16 +330,17 @@ class _ParentalSettingsScreenState
   Widget _buildCategorySection(
       String title, List<cat.Category> categories, ParentalState parental) {
     if (categories.isEmpty) return const SizedBox.shrink();
+    final tc = AppThemeColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 12, bottom: 4),
           child: Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white70)),
+                  color: tc.textSecondary)),
         ),
         ...categories.map((c) {
           final blocked = parental.blockedCategoryIds.contains(c.categoryId);
@@ -334,7 +348,7 @@ class _ParentalSettingsScreenState
             dense: true,
             contentPadding: EdgeInsets.zero,
             title: Text(c.categoryName,
-                style: const TextStyle(fontSize: 13, color: Colors.white)),
+                style: TextStyle(fontSize: 13, color: tc.textPrimary)),
             value: blocked,
             activeColor: Colors.redAccent,
             onChanged: (_) =>

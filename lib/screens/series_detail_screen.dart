@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -85,10 +86,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: tc.surfaceAlt,
       appBar: AppBar(
         title: Text(widget.title, style: const TextStyle(fontSize: 16)),
         backgroundColor: Colors.transparent, elevation: 0,
@@ -106,15 +108,15 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(imageUrl: widget.cover, cacheManager: AppCacheManager.instance, height: 160, fit: BoxFit.cover,
                           fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, __) => const SizedBox(height: 160, child: ColoredBox(color: Colors.white10)),
+                          placeholder: (_, __) => SizedBox(height: 160, child: ColoredBox(color: tc.inputFill)),
                           errorWidget: (_, __, ___) => const SizedBox(height: 160)),
                     ),
                   ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Align(alignment: Alignment.centerLeft,
-                    child: Text(l10n.saisons, style: const TextStyle(
-                        color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1))),
+                    child: Text(l10n.saisons, style: TextStyle(
+                        color: tc.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1))),
                 ),
                 Expanded(child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -125,7 +127,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     return ListTile(
                       dense: true,
                       title: Text(l10n.saison(s), style: TextStyle(fontSize: 13,
-                          color: sel ? Colors.white : Colors.white60,
+                          color: sel ? tc.textPrimary : tc.textSecondary,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
                       selected: sel,
                       selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
@@ -135,11 +137,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   },
                 )),
               ])),
-              const VerticalDivider(width: 1, color: Colors.white12),
+              VerticalDivider(width: 1, color: tc.divider),
               Expanded(
                 child: _selectedSeason == null
                     ? Center(child: Text(l10n.selectionneSaison,
-                        style: const TextStyle(color: Colors.white38)))
+                        style: TextStyle(color: tc.textDisabled)))
                     : RefreshIndicator(
                         onRefresh: _loadInfo,
                         child: ListView.builder(
@@ -165,7 +167,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                                   child: isWatched
                                       ? const Icon(Icons.check, size: 16, color: Colors.green)
                                       : Text('$epNum',
-                                          style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                          style: TextStyle(fontSize: 12, color: tc.textSecondary)),
                                 ),
                                 if (isNew)
                                   Positioned(top: -2, right: -2,
@@ -180,13 +182,13 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                               ],
                             ),
                             title: Text(title, style: TextStyle(fontSize: 14,
-                                color: isWatched ? Colors.white38 : Colors.white)),
+                                color: isWatched ? tc.textDisabled : tc.textPrimary)),
                             subtitle: isPartial
                                 ? Padding(
                                     padding: const EdgeInsets.only(top: 4),
                                     child: LinearProgressIndicator(
                                       value: prog,
-                                      backgroundColor: Colors.white12,
+                                      backgroundColor: tc.divider,
                                       color: Colors.amber, minHeight: 3,
                                       borderRadius: BorderRadius.circular(2),
                                     ),

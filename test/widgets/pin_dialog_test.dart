@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/widgets/pin_dialog.dart';
 
 void main() {
@@ -11,6 +12,9 @@ void main() {
     VoidCallback? onCancel,
   }) {
     return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('fr'),
       home: Scaffold(
         body: PinDialog(
           title: title,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/channel.dart';
@@ -138,10 +139,11 @@ class _StreamListViewState extends State<StreamListView> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     if (widget.selectedCategory == null) {
       return Center(child: Text(l10n.selectionneCategorie,
-          style: const TextStyle(color: Colors.white38, fontSize: 16)));
+          style: TextStyle(color: tc.textDisabled, fontSize: 16)));
     }
     if (widget.loadingStreams) {
       return SkeletonList(count: widget.showGrid ? 16 : 12, isGrid: widget.showGrid);
@@ -161,7 +163,7 @@ class _StreamListViewState extends State<StreamListView> {
             alignment: Alignment.centerRight,
             child: Text(
               '${widget.sortedStreams.length} / ${_formatNumber(widget.totalCount)}',
-              style: const TextStyle(fontSize: 11, color: Colors.white30),
+              style: TextStyle(fontSize: 11, color: tc.textDisabled),
             ),
           ),
         ),
@@ -191,11 +193,12 @@ class _StreamListViewState extends State<StreamListView> {
   }
 
   Widget _buildSelectionBar(AppLocalizations l10n) {
+    final tc = AppThemeColors.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(children: [
         Text(l10n.xSelectionnes(widget.selectedItems.length),
-            style: const TextStyle(fontSize: 13, color: Colors.white70)),
+            style: TextStyle(fontSize: 13, color: tc.textSecondary)),
         const SizedBox(width: 8),
         TextButton.icon(
           icon: const Icon(Icons.select_all, size: 16),
@@ -210,7 +213,7 @@ class _StreamListViewState extends State<StreamListView> {
         ),
         const SizedBox(width: 4),
         IconButton(
-          icon: const Icon(Icons.close, size: 18, color: Colors.white54),
+          icon: Icon(Icons.close, size: 18, color: tc.textTertiary),
           tooltip: l10n.annulerSelection,
           onPressed: widget.onExitSelectionMode,
         ),
@@ -219,6 +222,7 @@ class _StreamListViewState extends State<StreamListView> {
   }
 
   Widget _buildSearchBar(AppLocalizations l10n) {
+    final tc = AppThemeColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(children: [
@@ -227,15 +231,15 @@ class _StreamListViewState extends State<StreamListView> {
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: l10n.rechercherDots,
-            hintStyle: const TextStyle(color: Colors.white38),
-            prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
+            hintStyle: TextStyle(color: tc.textDisabled),
+            prefixIcon: Icon(Icons.search, color: tc.textDisabled, size: 20),
             suffixIcon: widget.searchQuery.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
+                    icon: Icon(Icons.clear, color: tc.textDisabled, size: 18),
                     onPressed: widget.onClearSearch,
                   )
                 : null,
-            isDense: true, filled: true, fillColor: Colors.white10,
+            isDense: true, filled: true, fillColor: tc.inputFill,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
@@ -257,6 +261,7 @@ class _StreamListViewState extends State<StreamListView> {
   }
 
   Widget _buildList(List<dynamic> items, AppLocalizations l10n) {
+    final tc = AppThemeColors.of(context);
     // Add +1 for the loading indicator when there are more items
     final itemCount = widget.hasMore ? items.length + 1 : items.length;
     return ListView.builder(
@@ -297,7 +302,7 @@ class _StreamListViewState extends State<StreamListView> {
                   padding: const EdgeInsets.only(top: 4),
                   child: LinearProgressIndicator(
                     value: prog,
-                    backgroundColor: Colors.white12,
+                    backgroundColor: tc.divider,
                     color: Colors.amber,
                     minHeight: 3,
                     borderRadius: BorderRadius.circular(2),
@@ -320,7 +325,7 @@ class _StreamListViewState extends State<StreamListView> {
                       onChanged: (_) => widget.onToggleSelection(selKey),
                       activeColor: AppColors.primaryBlue,
                     )
-                  : listIconTyped(s, widget.mode),
+                  : listIconTyped(s, widget.mode, context),
               title: Text(streamName.isEmpty ? l10n.sansTitre : streamName,
                   style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
               subtitle: subtitle,
@@ -333,7 +338,7 @@ class _StreamListViewState extends State<StreamListView> {
                 if (widget.mode != ContentMode.live) IconButton(
                   icon: Icon(
                     widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Icons.bookmark : Icons.bookmark_border,
-                    color: widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.tealAccent : Colors.white24,
+                    color: widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.tealAccent : tc.borderColor,
                     size: 20,
                   ),
                   onPressed: () => widget.onToggleWatchlist(s),
@@ -342,7 +347,7 @@ class _StreamListViewState extends State<StreamListView> {
                 IconButton(
                   icon: Icon(
                     widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Icons.star : Icons.star_border,
-                    color: widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.amber : Colors.white24,
+                    color: widget.favKeys.contains(widget.favKeyBuilder(widget.mode.key, s)) ? Colors.amber : tc.borderColor,
                     size: 20,
                   ),
                   onPressed: () => widget.onToggleFavorite(s),
@@ -364,7 +369,7 @@ class _StreamListViewState extends State<StreamListView> {
 
   Widget _buildGrid(List<dynamic> items) {
     return LayoutBuilder(builder: (context, constraints) {
-      final int crossAxisCount = (constraints.maxWidth / 200).clamp(2, 5).toInt();
+      final int crossAxisCount = (constraints.maxWidth / 200).floor().clamp(2, 6);
       // Add +1 row for loading indicator
       final itemCount = widget.hasMore ? items.length + 1 : items.length;
       return GridView.builder(

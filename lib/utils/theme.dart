@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/storage_keys.dart';
+import 'package:unistream/core/theme_colors.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
@@ -28,20 +29,27 @@ final darkTheme = ThemeData.dark().copyWith(
     primary: AppColors.primaryBlue,
     surface: AppColors.darkSurface,
   ),
+  dialogTheme: const DialogThemeData(backgroundColor: AppColors.darkSurface),
+  popupMenuTheme: const PopupMenuThemeData(color: AppColors.darkSurface),
+  extensions: const [AppThemeColors.dark],
 );
 
 final lightTheme = ThemeData.light().copyWith(
   scaffoldBackgroundColor: AppColors.lightBackground,
   appBarTheme: const AppBarTheme(
     backgroundColor: Colors.white,
-    foregroundColor: AppColors.darkText,
+    foregroundColor: AppColors.lightTextPrimary,
     elevation: 0.5,
+    iconTheme: IconThemeData(color: AppColors.lightIcon),
   ),
   colorScheme: const ColorScheme.light(
     primary: AppColors.primaryBlue,
-    surface: Color(0xFFFFFFFF),
-    onSurface: AppColors.darkText,
+    surface: AppColors.lightSurface,
+    onSurface: AppColors.lightTextPrimary,
   ),
   cardColor: Colors.white,
-  dividerColor: Colors.black12,
+  dividerColor: AppColors.lightDivider,
+  dialogTheme: const DialogThemeData(backgroundColor: AppColors.lightSurface),
+  popupMenuTheme: const PopupMenuThemeData(color: AppColors.lightSurface),
+  extensions: const [AppThemeColors.light],
 );

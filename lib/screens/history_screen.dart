@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -62,11 +63,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final asyncHistory = ref.watch(historyProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: tc.surfaceAlt,
       appBar: AppBar(
         title: Text(l10n.historique, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
@@ -77,7 +79,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               label: Text(l10n.effacerHistorique, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
               onPressed: () async {
                 final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                  backgroundColor: AppColors.darkSurface,
+                  backgroundColor: tc.surface,
                   title: Text(l10n.effacerHistoireQuestion),
                   content: Text(l10n.actionIrreversible),
                   actions: [
@@ -96,10 +98,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: asyncHistory.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('${l10n.erreur}: $e', style: const TextStyle(color: Colors.white38, fontSize: 16))),
+        error: (e, st) => Center(child: Text('${l10n.erreur}: $e', style: TextStyle(color: tc.textDisabled, fontSize: 16))),
         data: (history) {
           if (history.isEmpty) {
-            return Center(child: Text(l10n.aucunHistorique, style: const TextStyle(color: Colors.white38, fontSize: 16)));
+            return Center(child: Text(l10n.aucunHistorique, style: TextStyle(color: tc.textDisabled, fontSize: 16)));
           }
           return RefreshIndicator(
             onRefresh: () => ref.read(historyProvider.notifier).load(),
@@ -141,9 +143,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         ? ClipRRect(borderRadius: BorderRadius.circular(4),
                             child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
                               fadeInDuration: const Duration(milliseconds: 200),
-                              placeholder: (_, __) => const SizedBox(width: 40, height: 40, child: ColoredBox(color: Colors.white10)),
-                              errorWidget: (_, __, ___) => const Icon(Icons.play_circle, color: Colors.white24)))
-                        : const Icon(Icons.play_circle, color: Colors.white38),
+                              placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
+                              errorWidget: (_, __, ___) => Icon(Icons.play_circle, color: tc.borderColor)))
+                        : Icon(Icons.play_circle, color: tc.textDisabled),
                     title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 14),
                         overflow: TextOverflow.ellipsis),
                     subtitle: Row(children: [
@@ -156,10 +158,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             style: TextStyle(fontSize: 10, color: _modeColors[mode] ?? Colors.grey)),
                       ),
                       const SizedBox(width: 8),
-                      Text(_formatDate(ts, l10n), style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                      Text(_formatDate(ts, l10n), style: TextStyle(fontSize: 11, color: tc.textDisabled)),
                     ]),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white24),
+                      icon: Icon(Icons.delete_outline, size: 18, color: tc.borderColor),
                       tooltip: l10n.supprimer,
                       onPressed: () {
                         final removedItem = Map<String, String>.from(item);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
@@ -175,6 +176,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     const modeIcons = {'live': Icons.tv, 'vod': Icons.movie, 'series': Icons.movie_creation};
@@ -187,12 +189,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     Widget body;
     if (_query.trim().length < 2) {
       body = Center(child: Text(l10n.tapeAuMoins2,
-          style: const TextStyle(color: Colors.white38)));
+          style: TextStyle(color: tc.textDisabled)));
     } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (filtered.isEmpty) {
       body = Center(child: Text(l10n.aucunResultat,
-          style: const TextStyle(color: Colors.white38)));
+          style: TextStyle(color: tc.textDisabled)));
     } else {
       body = RefreshIndicator(
         onRefresh: _search,
@@ -211,9 +213,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                     child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
                         width: 40, height: 40, fit: BoxFit.cover,
                         fadeInDuration: const Duration(milliseconds: 200),
-                        placeholder: (_, __) => const SizedBox(width: 40, height: 40, child: ColoredBox(color: Colors.white10)),
+                        placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
                         errorWidget: (_, __, ___) =>
-                            Icon(modeIcons[mode], color: Colors.white24, size: 24)))
+                            Icon(modeIcons[mode], color: tc.borderColor, size: 24)))
                 : Icon(modeIcons[mode], color: modeColor[mode]),
             title: Text(item['name'] ?? '',
                 style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
@@ -222,14 +224,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                     padding: const EdgeInsets.only(top: 4),
                     child: LinearProgressIndicator(
                       value: prog,
-                      backgroundColor: Colors.white12,
+                      backgroundColor: tc.divider,
                       color: prog > 0.95 ? Colors.green : Colors.amber,
                       minHeight: 3,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   )
                 : null,
-            trailing: Icon(modeIcons[mode], color: Colors.white12, size: 14),
+            trailing: Icon(modeIcons[mode], color: tc.divider, size: 14),
             hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             onTap: () => _open(item),
@@ -241,14 +243,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.darkSurface, elevation: 0,
+        backgroundColor: tc.surface, elevation: 0,
         title: TextField(
           controller: _ctrl,
           autofocus: true,
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             hintText: l10n.rechercherCatalogue,
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: TextStyle(color: tc.textDisabled),
             border: InputBorder.none,
           ),
           onChanged: _onChanged,
@@ -270,16 +272,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: Row(children: [
-              const Icon(Icons.filter_list, size: 16, color: Colors.white38),
+              Icon(Icons.filter_list, size: 16, color: tc.textDisabled),
               const SizedBox(width: 8),
               ChoiceChip(
                 label: Text(l10n.tout, style: const TextStyle(fontSize: 12)),
                 selected: _statusFilter == 0,
                 onSelected: (_) => setState(() => _statusFilter = 0),
                 selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                backgroundColor: Colors.white10,
+                backgroundColor: tc.inputFill,
                 side: BorderSide.none,
-                labelStyle: TextStyle(color: _statusFilter == 0 ? Colors.white : Colors.white60),
+                labelStyle: TextStyle(color: _statusFilter == 0 ? tc.textPrimary : tc.textSecondary),
                 visualDensity: VisualDensity.compact,
               ),
               const SizedBox(width: 6),
@@ -288,9 +290,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 selected: _statusFilter == 1,
                 onSelected: (_) => setState(() => _statusFilter = 1),
                 selectedColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                backgroundColor: Colors.white10,
+                backgroundColor: tc.inputFill,
                 side: BorderSide.none,
-                labelStyle: TextStyle(color: _statusFilter == 1 ? Colors.white : Colors.white60),
+                labelStyle: TextStyle(color: _statusFilter == 1 ? tc.textPrimary : tc.textSecondary),
                 visualDensity: VisualDensity.compact,
               ),
               const SizedBox(width: 6),
@@ -299,9 +301,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 selected: _statusFilter == 2,
                 onSelected: (_) => setState(() => _statusFilter = 2),
                 selectedColor: Colors.amber.withValues(alpha: 0.3),
-                backgroundColor: Colors.white10,
+                backgroundColor: tc.inputFill,
                 side: BorderSide.none,
-                labelStyle: TextStyle(color: _statusFilter == 2 ? Colors.amber : Colors.white60),
+                labelStyle: TextStyle(color: _statusFilter == 2 ? Colors.amber : tc.textSecondary),
                 visualDensity: VisualDensity.compact,
               ),
             ]),

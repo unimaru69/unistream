@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/cache_config.dart';
 import '../../../models/content_mode.dart';
@@ -9,11 +10,13 @@ import '../../../models/series_item.dart';
 
 /// Helper for cached network images used across the home screen widgets.
 Widget networkImage(String url, {
+  required BuildContext context,
   double? width,
   double? height,
   BoxFit fit = BoxFit.cover,
   ContentMode mode = ContentMode.vod,
 }) {
+  final tc = AppThemeColors.of(context);
   return CachedNetworkImage(
     imageUrl: url,
     cacheManager: AppCacheManager.instance,
@@ -21,32 +24,34 @@ Widget networkImage(String url, {
     fadeInDuration: const Duration(milliseconds: 200),
     placeholder: (_, __) => SizedBox(
       width: width, height: height,
-      child: const ColoredBox(color: Colors.white10),
+      child: ColoredBox(color: tc.inputFill),
     ),
     errorWidget: (_, __, ___) => SizedBox(
       width: width, height: height,
       child: ColoredBox(
-        color: Colors.white10,
+        color: tc.inputFill,
         child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
-            color: Colors.white24, size: 24),
+            color: tc.borderColor, size: 24),
       ),
     ),
   );
 }
 
 /// Small icon for list view rows (legacy Map version).
-Widget listIcon(Map<String, dynamic> stream, ContentMode mode) {
+Widget listIcon(Map<String, dynamic> stream, ContentMode mode, BuildContext context) {
+  final tc = AppThemeColors.of(context);
   final iconUrl = mode == ContentMode.series ? stream['cover'] : stream['stream_icon'];
-  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: Colors.white38);
+  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: tc.textDisabled);
   if (iconUrl == null || iconUrl.toString().isEmpty) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
-    child: networkImage(iconUrl.toString(), width: 40, height: 40, mode: mode),
+    child: networkImage(iconUrl.toString(), context: context, width: 40, height: 40, mode: mode),
   );
 }
 
 /// Small icon for list view rows (typed version).
-Widget listIconTyped(dynamic stream, ContentMode mode) {
+Widget listIconTyped(dynamic stream, ContentMode mode, BuildContext context) {
+  final tc = AppThemeColors.of(context);
   final String iconUrl;
   if (stream is Channel) {
     iconUrl = stream.displayIcon;
@@ -59,11 +64,11 @@ Widget listIconTyped(dynamic stream, ContentMode mode) {
   } else {
     iconUrl = '';
   }
-  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: Colors.white38);
+  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: tc.textDisabled);
   if (iconUrl.isEmpty) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
-    child: networkImage(iconUrl, width: 40, height: 40, mode: mode),
+    child: networkImage(iconUrl, context: context, width: 40, height: 40, mode: mode),
   );
 }
 
@@ -120,6 +125,7 @@ class StreamGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final cover = _streamDisplayIcon(stream);
 
     return GestureDetector(
@@ -131,11 +137,11 @@ class StreamGridTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: Stack(fit: StackFit.expand, children: [
               if (cover.isNotEmpty)
-                networkImage(cover, mode: mode)
+                networkImage(cover, context: context, mode: mode)
               else
-                Container(color: Colors.white10,
+                Container(color: tc.inputFill,
                     child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
-                        color: Colors.white24, size: 32)),
+                        color: tc.borderColor, size: 32)),
               // Progress bar
               if (progress != null)
                 Positioned(bottom: 0, left: 0, right: 0,
@@ -171,7 +177,7 @@ class StreamGridTile extends StatelessWidget {
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12)),
                       child: Icon(isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                          color: isInWatchlist ? Colors.tealAccent : Colors.white54, size: 14),
+                          color: isInWatchlist ? Colors.tealAccent : tc.textTertiary, size: 14),
                     ),
                   ),
                 ),
@@ -186,7 +192,7 @@ class StreamGridTile extends StatelessWidget {
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12)),
                       child: Icon(isFav ? Icons.star : Icons.star_border,
-                          color: isFav ? Colors.amber : Colors.white54, size: 14),
+                          color: isFav ? Colors.amber : tc.textTertiary, size: 14),
                     ),
                   ),
                 ),
@@ -199,7 +205,7 @@ class StreamGridTile extends StatelessWidget {
                         color: isSelected ? AppColors.primaryBlue : Colors.black54,
                         borderRadius: BorderRadius.circular(12)),
                     child: Icon(isSelected ? Icons.check : Icons.circle_outlined,
-                        color: Colors.white, size: 16),
+                        color: tc.textPrimary, size: 16),
                   ),
                 ),
               // Selection border
@@ -216,7 +222,7 @@ class StreamGridTile extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        Text(_streamName(stream), style: const TextStyle(fontSize: 11, color: Colors.white70),
+        Text(_streamName(stream), style: TextStyle(fontSize: 11, color: tc.textSecondary),
             maxLines: 2, overflow: TextOverflow.ellipsis),
       ]),
     );

@@ -5,6 +5,8 @@
   "fermer": "Close",
   "supprimer": "Delete",
   "enregistrer": "Save",
+  "champObligatoire": "This field is required",
+  "urlInvalide": "Invalid URL (e.g. http://...)",
   "creer": "Create",
   "connexion": "Sign in",
   "effacer": "Clear",
@@ -239,5 +241,51 @@
 
   "splashLoadingConfig": "Loading configuration...",
   "splashConnecting": "Connecting to server...",
-  "splashReady": "Ready!"
+  "splashReady": "Ready!",
+
+  "entrerPinParental": "Enter parental PIN",
+  "pinIncorrectReessayer": "Incorrect PIN — retry",
+  "choisirPin": "Choose a PIN (4 digits)",
+  "confirmerPin": "Confirm PIN",
+  "pinsNeCorrespondentPas": "PINs don't match",
+  "pinActuel": "Current PIN",
+  "pinIncorrect": "Incorrect PIN",
+  "nouveauPin": "New PIN (4 digits)",
+  "confirmerNouveauPin": "Confirm new PIN",
+  "pinModifie": "PIN changed",
+  "supprimerControleParentalQ": "Remove parental control?",
+  "pinEtCategoriesSupprimees": "The PIN and all blocked categories will be removed.",
+  "controleParental": "Parental control",
+  "descriptionControleParental": "Parental control allows hiding certain categories\nbehind a PIN code.",
+  "activerControleParental": "Enable parental control",
+  "entrerPinAcceder": "Enter your PIN to access parental settings.",
+  "entrerLePin": "Enter PIN",
+  "changerLePin": "Change PIN",
+  "desactiverParental": "Disable",
+  "categoriesBloquees": "BLOCKED CATEGORIES",
+  "categoriesMasquees": "Checked categories will be hidden while parental control is locked.",
+  "tvEnDirect": "Live TV",
+  "filmsVod": "Movies (VOD)",
+
+  "catchupNonDisponible": "Catch-up not available for this program.\nThe server may not support timeshift.",
+  "impossibleLireFlux": "Unable to play this stream.\nCheck your connection or try again.",
+
+  "connexionRetablie": "Connection restored",
+
+  "cliquerPourRevoir": "Click to replay (Catch-up)",
+
+  "toutEffacer": "Clear all",
+  "chiffre": "Digit {number}",
+  "@chiffre": {
+    "placeholders": {
+      "number": {"type": "String"}
+    }
+  },
+  "chiffresSaisis": "{count} of {total} digits entered",
+  "@chiffresSaisis": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

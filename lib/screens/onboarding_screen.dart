@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
+import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
 import '../services/xtream_api.dart';
 import 'home/home_screen.dart';
@@ -95,6 +96,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildWelcomePage(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
@@ -114,17 +116,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Text(
               l10n.bienvenue,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: tc.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               l10n.configureServeur,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 15),
+              style: TextStyle(color: tc.textTertiary, fontSize: 15),
             ),
             const SizedBox(height: 48),
             FilledButton(
@@ -146,6 +148,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildConfigPage(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Center(
       child: SingleChildScrollView(
@@ -162,10 +165,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Text(
                   l10n.configureServeur,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: tc.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -177,7 +180,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hintText: l10n.serverUrlHint,
                     prefixIcon: const Icon(Icons.dns, size: 20),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: tc.inputFill,
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
@@ -197,7 +200,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     labelText: l10n.nomUtilisateur,
                     prefixIcon: const Icon(Icons.person, size: 20),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: tc.inputFill,
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
@@ -219,7 +222,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: tc.inputFill,
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
@@ -259,6 +262,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildSuccessPage(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
@@ -268,10 +272,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: 24),
           Text(
             l10n.serveurConfigure,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: tc.textPrimary,
             ),
           ),
         ],

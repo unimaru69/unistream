@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/core/theme_colors.dart';
 import '../../../core/cache_config.dart';
 import '../../../models/content_mode.dart';
 
@@ -18,12 +19,13 @@ class ContinueWatchingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final tc = AppThemeColors.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
         child: Text(AppLocalizations.of(context)!.continuerRegarder,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                color: Colors.white54, letterSpacing: 0.8)),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                color: tc.textTertiary, letterSpacing: 0.8)),
       ),
       SizedBox(
         height: 120,
@@ -48,11 +50,11 @@ class ContinueWatchingRow extends StatelessWidget {
                       cover.isNotEmpty
                           ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                               fadeInDuration: const Duration(milliseconds: 200),
-                              placeholder: (_, __) => const ColoredBox(color: Colors.white10),
-                              errorWidget: (_, __, ___) => Container(color: Colors.white10,
-                                  child: const Icon(Icons.movie, color: Colors.white24)))
-                          : Container(color: Colors.white10,
-                              child: const Icon(Icons.movie, color: Colors.white24)),
+                              placeholder: (_, __) => ColoredBox(color: tc.inputFill),
+                              errorWidget: (_, __, ___) => Container(color: tc.inputFill,
+                                  child: Icon(Icons.movie, color: tc.borderColor)))
+                          : Container(color: tc.inputFill,
+                              child: Icon(Icons.movie, color: tc.borderColor)),
                       Positioned(bottom: 0, left: 0, right: 0,
                         child: LinearProgressIndicator(
                           value: ratio,
@@ -64,7 +66,7 @@ class ContinueWatchingRow extends StatelessWidget {
                     ]),
                   )),
                   const SizedBox(height: 3),
-                  Text(name, style: const TextStyle(fontSize: 10, color: Colors.white60),
+                  Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ]),
               ),
@@ -72,7 +74,7 @@ class ContinueWatchingRow extends StatelessWidget {
           },
         ),
       ),
-      const Divider(color: Colors.white12, height: 1),
+      Divider(color: tc.divider, height: 1),
     ]);
   }
 }
@@ -93,12 +95,13 @@ class RecentlyAddedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty || mode == ContentMode.live) return const SizedBox.shrink();
+    final tc = AppThemeColors.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
         child: Text(AppLocalizations.of(context)!.recemmentAjoutes,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                color: Colors.white54, letterSpacing: 0.8)),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                color: tc.textTertiary, letterSpacing: 0.8)),
       ),
       SizedBox(
         height: 120,
@@ -123,14 +126,14 @@ class RecentlyAddedRow extends StatelessWidget {
                     child: cover.isNotEmpty
                         ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                             fadeInDuration: const Duration(milliseconds: 200),
-                            placeholder: (_, __) => const ColoredBox(color: Colors.white10),
-                            errorWidget: (_, __, ___) => Container(color: Colors.white10,
-                                child: const Icon(Icons.fiber_new, color: Colors.white24)))
-                        : Container(color: Colors.white10,
-                            child: const Icon(Icons.fiber_new, color: Colors.white24)),
+                            placeholder: (_, __) => ColoredBox(color: tc.inputFill),
+                            errorWidget: (_, __, ___) => Container(color: tc.inputFill,
+                                child: Icon(Icons.fiber_new, color: tc.borderColor)))
+                        : Container(color: tc.inputFill,
+                            child: Icon(Icons.fiber_new, color: tc.borderColor)),
                   )),
                   const SizedBox(height: 3),
-                  Text(name, style: const TextStyle(fontSize: 10, color: Colors.white60),
+                  Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ]),
               ),
@@ -138,7 +141,7 @@ class RecentlyAddedRow extends StatelessWidget {
           },
         ),
       ),
-      const Divider(color: Colors.white12, height: 1),
+      Divider(color: tc.divider, height: 1),
     ]);
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/theme_colors.dart';
 import '../../models/profile.dart';
 import '../../services/xtream_api.dart';
 import '../../utils/api_error_localizer.dart';
@@ -68,9 +69,10 @@ class _ProfileDialogState extends State<ProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: tc.surface,
       title: Text(widget.profile != null ? l10n.modifierProfil : l10n.nouveauProfil),
       content: SizedBox(
         width: 400,
@@ -84,7 +86,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 decoration: InputDecoration(
                   labelText: l10n.nomProfil, hintText: 'Mon serveur',
                   prefixIcon: const Icon(Icons.label_outline, size: 20),
-                  filled: true, fillColor: Colors.white10,
+                  filled: true, fillColor: tc.inputFill,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
@@ -96,7 +98,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 decoration: InputDecoration(
                   labelText: l10n.serverUrl, hintText: 'http://monserveur.com:8080',
                   prefixIcon: const Icon(Icons.dns, size: 20),
-                  filled: true, fillColor: Colors.white10,
+                  filled: true, fillColor: tc.inputFill,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
                 validator: (v) {
@@ -113,7 +115,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 decoration: InputDecoration(
                   labelText: l10n.nomUtilisateur,
                   prefixIcon: const Icon(Icons.person, size: 20),
-                  filled: true, fillColor: Colors.white10,
+                  filled: true, fillColor: tc.inputFill,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
@@ -130,7 +132,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                     icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, size: 20),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
-                  filled: true, fillColor: Colors.white10,
+                  filled: true, fillColor: tc.inputFill,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,

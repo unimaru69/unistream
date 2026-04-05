@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 
 class SkeletonList extends StatefulWidget {
   final int  count;
@@ -27,10 +27,12 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
   );
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
+  Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
+    return AnimatedBuilder(
     animation: _anim,
     builder: (_, __) {
-      final c = Color.lerp(AppColors.darkText, AppColors.darkTextShimmer, _anim.value)!;
+      final c = Color.lerp(tc.shimmerBase, tc.shimmerHighlight, _anim.value)!;
       if (widget.isGrid) {
         return GridView.builder(
           padding: const EdgeInsets.all(12),
@@ -46,4 +48,5 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
       );
     },
   );
+  }
 }

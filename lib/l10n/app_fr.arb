@@ -5,6 +5,8 @@
   "fermer": "Fermer",
   "supprimer": "Supprimer",
   "enregistrer": "Enregistrer",
+  "champObligatoire": "Ce champ est obligatoire",
+  "urlInvalide": "URL invalide (ex: http://...)",
   "creer": "Créer",
   "connexion": "Connexion",
   "effacer": "Effacer",
@@ -396,5 +398,51 @@
 
   "splashLoadingConfig": "Chargement de la configuration…",
   "splashConnecting": "Connexion au serveur…",
-  "splashReady": "Prêt !"
+  "splashReady": "Prêt !",
+
+  "entrerPinParental": "Entrer le PIN parental",
+  "pinIncorrectReessayer": "PIN incorrect — réessayer",
+  "choisirPin": "Choisir un PIN (4 chiffres)",
+  "confirmerPin": "Confirmer le PIN",
+  "pinsNeCorrespondentPas": "Les PINs ne correspondent pas",
+  "pinActuel": "PIN actuel",
+  "pinIncorrect": "PIN incorrect",
+  "nouveauPin": "Nouveau PIN (4 chiffres)",
+  "confirmerNouveauPin": "Confirmer le nouveau PIN",
+  "pinModifie": "PIN modifié",
+  "supprimerControleParentalQ": "Supprimer le contrôle parental ?",
+  "pinEtCategoriesSupprimees": "Le PIN et toutes les catégories bloquées seront supprimés.",
+  "controleParental": "Contrôle parental",
+  "descriptionControleParental": "Le contrôle parental permet de masquer certaines catégories\nderrière un code PIN.",
+  "activerControleParental": "Activer le contrôle parental",
+  "entrerPinAcceder": "Entrez votre PIN pour accéder aux paramètres parentaux.",
+  "entrerLePin": "Entrer le PIN",
+  "changerLePin": "Changer le PIN",
+  "desactiverParental": "Désactiver",
+  "categoriesBloquees": "CATÉGORIES BLOQUÉES",
+  "categoriesMasquees": "Les catégories cochées seront masquées tant que le contrôle parental est verrouillé.",
+  "tvEnDirect": "TV en direct",
+  "filmsVod": "Films (VOD)",
+
+  "catchupNonDisponible": "Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-être pas le timeshift.",
+  "impossibleLireFlux": "Impossible de lire ce flux.\nVérifiez votre connexion ou réessayez.",
+
+  "connexionRetablie": "Connexion rétablie",
+
+  "cliquerPourRevoir": "Cliquer pour revoir (Catch-up)",
+
+  "toutEffacer": "Tout effacer",
+  "chiffre": "Chiffre {number}",
+  "@chiffre": {
+    "placeholders": {
+      "number": {"type": "String"}
+    }
+  },
+  "chiffresSaisis": "{count} chiffres sur {total} saisis",
+  "@chiffresSaisis": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

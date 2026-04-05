@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
 /// Day navigation bar for the EPG grid (Hier / Aujourd'hui / Demain).
@@ -25,6 +26,7 @@ class EpgDayNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Container(
       height: 36,
@@ -36,7 +38,7 @@ class EpgDayNavigator extends StatelessWidget {
           icon: const Icon(Icons.chevron_left, size: 18),
           label: Text(l10n.hier, style: const TextStyle(fontSize: 12)),
           style: TextButton.styleFrom(
-            foregroundColor: canGoPrev ? Colors.white70 : Colors.white24,
+            foregroundColor: canGoPrev ? tc.textSecondary : tc.borderColor,
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         ),
@@ -45,7 +47,7 @@ class EpgDayNavigator extends StatelessWidget {
           onTap: onTapDate,
           child: Text(
             formatDay(dayStart),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tc.textPrimary),
           ),
         ),
         const Spacer(),
@@ -54,7 +56,7 @@ class EpgDayNavigator extends StatelessWidget {
           icon: Text(l10n.demain, style: const TextStyle(fontSize: 12)),
           label: const Icon(Icons.chevron_right, size: 18),
           style: TextButton.styleFrom(
-            foregroundColor: canGoNext ? Colors.white70 : Colors.white24,
+            foregroundColor: canGoNext ? tc.textSecondary : tc.borderColor,
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         ),
