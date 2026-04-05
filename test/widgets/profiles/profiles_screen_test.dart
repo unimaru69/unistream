@@ -103,12 +103,12 @@ void main() {
       expect(find.text('http://server2.com'), findsOneWidget);
     });
 
-    testWidgets('active profile shows check_circle icon', (tester) async {
+    testWidgets('active profile shows avatar emoji', (tester) async {
       await tester.pumpWidget(buildProfiles(activeProfileId: '1'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
-      expect(find.byIcon(Icons.account_circle_outlined), findsOneWidget);
+      // Both profiles should show their avatar emoji (default '👤')
+      expect(find.text('👤'), findsNWidgets(2));
     });
 
     testWidgets('inactive profile shows Activer button', (tester) async {

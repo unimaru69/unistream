@@ -5,8 +5,10 @@ import '../core/colors.dart';
 import '../core/logger.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_config.dart';
+import '../models/profile.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
+import 'profiles/profile_selector_screen.dart';
 
 /// Allows injecting a custom HTTP client for testing.
 @visibleForTesting
@@ -87,7 +89,26 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // Step 3: Ready
+    // Step 3: Profile selection (if multiple profiles)
+    if (AppConfig.profiles.length > 1) {
+      setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+
+      final selected = await Navigator.push<Profile>(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileSelectorScreen(
+          profiles: AppConfig.profiles,
+          activeProfileId: AppConfig.activeProfileId,
+        )),
+      );
+      if (!mounted) return;
+      if (selected != null && selected.id != AppConfig.activeProfileId) {
+        await AppConfig.switchProfile(selected.id);
+      }
+    }
+
+    // Step 4: Ready
     setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');
     AppLogger.breadcrumb('splash', 'Ready, navigating to home');
 

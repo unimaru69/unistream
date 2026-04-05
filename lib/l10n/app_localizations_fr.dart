@@ -832,6 +832,30 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get quiRegarde => 'Qui regarde ?';
+
+  @override
+  String get entrerPinProfil => 'Entrez le PIN du profil';
+
+  @override
+  String get avatarProfil => 'Avatar';
+
+  @override
+  String get pinProfil => 'PIN du profil (optionnel)';
+
+  @override
+  String get pinProfilDesc => 'Protéger ce profil par un code PIN à 4 chiffres';
+
+  @override
+  String get definirPin => 'Définir un PIN';
+
+  @override
+  String get supprimerPin => 'Supprimer le PIN';
+
+  @override
+  String get pinDefini => 'PIN défini';
+
+  @override
   String chiffresSaisis(int count, int total) {
     return '$count chiffres sur $total saisis';
   }

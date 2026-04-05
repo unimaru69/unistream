@@ -289,6 +289,14 @@
       "count": {"type": "int"}
     }
   },
+  "quiRegarde": "Who's watching?",
+  "entrerPinProfil": "Enter profile PIN",
+  "avatarProfil": "Avatar",
+  "pinProfil": "Profile PIN (optional)",
+  "pinProfilDesc": "Protect this profile with a 4-digit PIN",
+  "definirPin": "Set PIN",
+  "supprimerPin": "Remove PIN",
+  "pinDefini": "PIN set",
   "programmesRecents": "Replay available",
   "ilYA": "{time} ago",
   "@ilYA": {

@@ -704,7 +704,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           if (AppConfig.profiles.length > 1)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.account_circle_outlined),
+              icon: Text(
+                AppConfig.profiles.firstWhere((p) => p.id == AppConfig.activeProfileId,
+                    orElse: () => AppConfig.profiles.first).avatar,
+                style: const TextStyle(fontSize: 22),
+              ),
               tooltip: AppLocalizations.of(context)!.changerProfil,
               onSelected: (id) async {
                 await ref.read(configProvider.notifier).switchProfile(id);
@@ -717,10 +721,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               itemBuilder: (_) => AppConfig.profiles.map((pr) => PopupMenuItem(
                 value: pr.id,
                 child: Row(children: [
-                  Icon(pr.id == AppConfig.activeProfileId ? Icons.radio_button_checked : Icons.radio_button_off,
-                      size: 16, color: AppColors.primaryBlue),
+                  Text(pr.avatar, style: const TextStyle(fontSize: 18)),
                   const SizedBox(width: 8),
                   Text(pr.name, style: const TextStyle(fontSize: 13)),
+                  if (pr.id == AppConfig.activeProfileId) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.check, size: 16, color: AppColors.primaryBlue),
+                  ],
                 ]),
               )).toList(),
             ),

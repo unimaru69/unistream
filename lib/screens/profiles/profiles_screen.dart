@@ -118,9 +118,25 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                   side: isActive ? const BorderSide(color: AppColors.primaryBlue, width: 1) : BorderSide.none,
                 ),
                 child: ListTile(
-                  leading: Icon(isActive ? Icons.check_circle : Icons.account_circle_outlined,
-                      color: isActive ? AppColors.primaryBlue : tc.textDisabled),
-                  title: Text(pr.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  leading: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.primaryBlue.withValues(alpha: 0.2)
+                          : tc.inputFill,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(child: Text(pr.avatar, style: const TextStyle(fontSize: 22))),
+                  ),
+                  title: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: Text(pr.name, style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis)),
+                    if (pr.hasPin)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Icon(Icons.lock_outline, size: 14, color: tc.textDisabled),
+                      ),
+                  ]),
                   subtitle: Text(pr.serverUrl, style: TextStyle(fontSize: 11, color: tc.textDisabled),
                       overflow: TextOverflow.ellipsis),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [

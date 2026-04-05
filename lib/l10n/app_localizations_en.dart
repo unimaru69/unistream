@@ -828,6 +828,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get quiRegarde => 'Who\'s watching?';
+
+  @override
+  String get entrerPinProfil => 'Enter profile PIN';
+
+  @override
+  String get avatarProfil => 'Avatar';
+
+  @override
+  String get pinProfil => 'Profile PIN (optional)';
+
+  @override
+  String get pinProfilDesc => 'Protect this profile with a 4-digit PIN';
+
+  @override
+  String get definirPin => 'Set PIN';
+
+  @override
+  String get supprimerPin => 'Remove PIN';
+
+  @override
+  String get pinDefini => 'PIN set';
+
+  @override
   String chiffresSaisis(int count, int total) {
     return '$count of $total digits entered';
   }

@@ -453,6 +453,14 @@
       "count": {"type": "int"}
     }
   },
+  "quiRegarde": "Qui regarde ?",
+  "entrerPinProfil": "Entrez le PIN du profil",
+  "avatarProfil": "Avatar",
+  "pinProfil": "PIN du profil (optionnel)",
+  "pinProfilDesc": "Protéger ce profil par un code PIN à 4 chiffres",
+  "definirPin": "Définir un PIN",
+  "supprimerPin": "Supprimer le PIN",
+  "pinDefini": "PIN défini",
   "chiffresSaisis": "{count} chiffres sur {total} saisis",
   "@chiffresSaisis": {
     "placeholders": {

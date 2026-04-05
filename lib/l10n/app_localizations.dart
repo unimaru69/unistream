@@ -1568,6 +1568,54 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{Aucune catégorie bloquée} =1{1 catégorie bloquée} other{{count} catégories bloquées}}'**
   String nCategoriesBloqueesLabel(int count);
 
+  /// No description provided for @quiRegarde.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qui regarde ?'**
+  String get quiRegarde;
+
+  /// No description provided for @entrerPinProfil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez le PIN du profil'**
+  String get entrerPinProfil;
+
+  /// No description provided for @avatarProfil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Avatar'**
+  String get avatarProfil;
+
+  /// No description provided for @pinProfil.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN du profil (optionnel)'**
+  String get pinProfil;
+
+  /// No description provided for @pinProfilDesc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Protéger ce profil par un code PIN à 4 chiffres'**
+  String get pinProfilDesc;
+
+  /// No description provided for @definirPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Définir un PIN'**
+  String get definirPin;
+
+  /// No description provided for @supprimerPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer le PIN'**
+  String get supprimerPin;
+
+  /// No description provided for @pinDefini.
+  ///
+  /// In fr, this message translates to:
+  /// **'PIN défini'**
+  String get pinDefini;
+
   /// No description provided for @chiffresSaisis.
   ///
   /// In fr, this message translates to:
