@@ -215,7 +215,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return l10n.tousChampRequis;
                   final uri = Uri.tryParse(v.trim());
-                  if (uri == null || !uri.hasScheme) return 'URL invalide';
+                  if (uri == null || !uri.hasScheme) return l10n.urlInvalide;
                   return null;
                 },
               ),

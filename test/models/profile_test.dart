@@ -92,5 +92,51 @@ void main() {
       expect(profile.name, '');
       expect(profile.serverUrl, '');
     });
+
+    test('default avatar is person emoji', () {
+      final profile = Profile(id: '1', name: 'Test', serverUrl: 'http://x.com',
+          username: 'u', password: 'p');
+      expect(profile.avatar, '👤');
+    });
+
+    test('hasPin returns false by default', () {
+      final profile = Profile(id: '1', name: 'Test', serverUrl: 'http://x.com',
+          username: 'u', password: 'p');
+      expect(profile.hasPin, false);
+    });
+
+    test('hasPin returns true when pinHash is set', () {
+      final profile = Profile(id: '1', name: 'Test', serverUrl: 'http://x.com',
+          username: 'u', password: 'p', pinHash: 'abc123');
+      expect(profile.hasPin, true);
+    });
+
+    test('avatar and pinHash roundtrip via JSON', () {
+      final original = Profile(id: '1', name: 'Kid', serverUrl: 'http://x.com',
+          username: 'u', password: 'p', avatar: '🧒', pinHash: 'hash123');
+      final json = original.toJson();
+      expect(json['avatar'], '🧒');
+      expect(json['pinHash'], 'hash123');
+      final restored = Profile.fromJson(json);
+      expect(restored.avatar, '🧒');
+      expect(restored.pinHash, 'hash123');
+      expect(restored.hasPin, true);
+    });
+
+    test('fromJson without avatar defaults to person emoji', () {
+      final json = {
+        'id': '1', 'name': 'Old', 'serverUrl': 'http://x.com',
+        'username': 'u', 'password': 'p',
+      };
+      final profile = Profile.fromJson(json);
+      expect(profile.avatar, '👤');
+      expect(profile.pinHash, null);
+      expect(profile.hasPin, false);
+    });
+
+    test('profileAvatars list is non-empty', () {
+      expect(profileAvatars, isNotEmpty);
+      expect(profileAvatars.length, 24);
+    });
   });
 }

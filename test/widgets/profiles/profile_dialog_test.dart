@@ -137,7 +137,7 @@ void main() {
       await tester.tap(find.text('Tester et ajouter'));
       await tester.pumpAndSettle();
 
-      expect(find.text('URL invalide'), findsOneWidget);
+      expect(find.text('URL invalide (ex: http://...)'), findsOneWidget);
     });
   });
 }

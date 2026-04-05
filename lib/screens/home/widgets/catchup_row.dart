@@ -128,9 +128,10 @@ class CatchupRow extends StatelessWidget {
                     ),
                     // Time ago + duration
                     Row(children: [
-                      Text(ago,
-                          style: TextStyle(fontSize: 9, color: tc.textDisabled)),
-                      const Spacer(),
+                      Flexible(child: Text(ago,
+                          style: TextStyle(fontSize: 9, color: tc.textDisabled),
+                          overflow: TextOverflow.ellipsis)),
+                      const SizedBox(width: 4),
                       Text('${prog.durationMin} min',
                           style: TextStyle(fontSize: 9, color: tc.textDisabled)),
                     ]),
