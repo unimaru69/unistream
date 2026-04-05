@@ -109,8 +109,17 @@ class _ParentalSettingsScreenState
       );
       return;
     }
-    await ref.read(parentalProvider.notifier).setPin(pin);
-    setState(() => _authenticated = true);
+    try {
+      await ref.read(parentalProvider.notifier).setPin(pin);
+      if (mounted) setState(() => _authenticated = true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.redAccent),
+      );
+    }
   }
 
   Future<void> _changePin() async {
