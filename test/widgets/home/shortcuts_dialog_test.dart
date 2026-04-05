@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/screens/home/widgets/shortcuts_dialog.dart';
 
 void main() {
+  // Platform-aware modifier key (Cmd on macOS, Ctrl on Linux/Windows)
+  final mod = Platform.isMacOS ? 'Cmd' : 'Ctrl';
+
   group('showShortcutsDialog', () {
     Widget buildApp() {
       return MaterialApp(
@@ -38,10 +42,10 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Global shortcuts
-      expect(find.text('Cmd+Q'), findsOneWidget);
-      expect(find.text('Cmd+F'), findsOneWidget);
-      expect(find.text('Cmd+,'), findsOneWidget);
+      // Global shortcuts (platform-aware modifier)
+      expect(find.text('$mod+Q'), findsOneWidget);
+      expect(find.text('$mod+F'), findsOneWidget);
+      expect(find.text('$mod+,'), findsOneWidget);
 
       // Player shortcuts
       expect(find.text('Espace'), findsOneWidget);
