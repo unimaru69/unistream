@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/services/parental_service.dart';
 import 'package:unistream/core/storage_keys.dart';
@@ -10,8 +9,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    // Use mock secure storage
-    FlutterSecureStorage.setMockInitialValues({});
     SharedPreferences.setMockInitialValues({});
   });
 
@@ -48,8 +45,8 @@ void main() {
 
     test('PIN is stored as SHA-256 hash', () async {
       await ParentalService.setPin('1234');
-      final storage = const FlutterSecureStorage();
-      final stored = await storage.read(key: StorageKeys.parentalPinHash);
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(StorageKeys.parentalPinHash);
       final expected = sha256.convert(utf8.encode('1234')).toString();
       expect(stored, equals(expected));
     });
