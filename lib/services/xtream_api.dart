@@ -154,6 +154,7 @@ class XtreamApi {
       '${AppConfig.serverUrl}/player_api.php?username=${AppConfig.username}&password=${AppConfig.password}';
 
   static Future<Map<String, dynamic>> authenticate() async {
+    AppLogger.breadcrumb('api', 'authenticate');
     final r = await httpGet(baseUrl);
     return jsonDecode(r.body);
   }
@@ -172,6 +173,7 @@ class XtreamApi {
   }
 
   static Future<List<dynamic>> getLiveStreams([String? catId]) async {
+    AppLogger.breadcrumb('api', 'getLiveStreams', data: {'categoryId': catId});
     final cacheKey = 'get_live_streams:${catId ?? ''}';
     final cached = _getStreamCached(cacheKey);
     if (cached != null) return cached;

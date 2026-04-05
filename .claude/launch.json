@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Flutter macOS (debug)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "macos"],
+      "port": 0
+    },
+    {
+      "name": "Flutter iOS Simulator",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "iPhone"],
+      "port": 0
+    },
+    {
+      "name": "Flutter Linux (debug)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "linux"],
+      "port": 0
+    },
+    {
+      "name": "Flutter Tests",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["test"],
+      "port": 0
+    },
+    {
+      "name": "Integration Tests (macOS)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["test", "integration_test/", "-d", "macos"],
+      "port": 0
+    }
+  ]
+}

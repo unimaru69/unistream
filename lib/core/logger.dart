@@ -33,6 +33,16 @@ class AppLogger {
       stackTrace: stackTrace,
     );
   }
+
+  /// Add a Sentry breadcrumb for navigation / action tracing.
+  static void breadcrumb(String category, String message, {Map<String, dynamic>? data}) {
+    Sentry.addBreadcrumb(Breadcrumb(
+      category: category,
+      message: message,
+      data: data ?? {},
+      level: SentryLevel.info,
+    ));
+  }
 }
 
 // Module name constants
@@ -45,4 +55,5 @@ class LogModule {
   static const String config = 'Config';
   static const String epg = 'EPG';
   static const String ui = 'UI';
+  static const String sync = 'Sync';
 }

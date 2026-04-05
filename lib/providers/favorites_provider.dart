@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/storage_keys.dart';
 import '../models/app_config.dart';
+import '../services/sync_service.dart';
 
 class FavoritesState {
   final Set<String> keys;
@@ -44,6 +45,16 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
 
     await p.setString(StorageKeys.favorites(AppConfig.activeProfileId), jsonEncode(items));
     state = FavoritesState(keys: keys, items: items);
+    _pushSync();
+  }
+
+  void _pushSync() {
+    final map = <String, dynamic>{};
+    for (final item in state.items) {
+      final k = (item['_key'] ?? item['key'])?.toString() ?? '';
+      if (k.isNotEmpty) map[k] = item;
+    }
+    SyncService.instance.pushFavorites(map, 'favorite');
   }
 
   bool isFavorite(String key) => state.keys.contains(key);
@@ -94,6 +105,16 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
 
     await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
     state = WatchlistState(keys: keys, items: items);
+    _pushSync();
+  }
+
+  void _pushSync() {
+    final map = <String, dynamic>{};
+    for (final item in state.items) {
+      final k = (item['_key'] ?? item['key'])?.toString() ?? '';
+      if (k.isNotEmpty) map[k] = item;
+    }
+    SyncService.instance.pushFavorites(map, 'watchlist');
   }
 
   bool isInWatchlist(String key) => state.keys.contains(key);

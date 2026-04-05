@@ -389,5 +389,12 @@
 
   "confirmerSupprimerCollection": "Supprimer cette collection ?",
   "confirmerRetirerCollection": "Retirer cet élément de la collection ?",
-  "confirmerViderCache": "Vider le cache EPG ?"
+  "confirmerViderCache": "Vider le cache EPG ?",
+
+  "listeChaines": "Liste des chaînes",
+  "numeroChaineDirecte": "Numéro de chaîne direct",
+
+  "splashLoadingConfig": "Chargement de la configuration…",
+  "splashConnecting": "Connexion au serveur…",
+  "splashReady": "Prêt !"
 }

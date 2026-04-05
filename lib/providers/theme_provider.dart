@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/storage_keys.dart';
+import '../services/sync_service.dart';
 
 class ThemeNotifier extends StateNotifier<ThemeMode> {
   ThemeNotifier() : super(ThemeMode.dark) {
@@ -26,6 +27,7 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
     final v = mode == ThemeMode.dark ? 'dark' : mode == ThemeMode.light ? 'light' : 'system';
     await p.setString(StorageKeys.themeMode, v);
     state = mode;
+    SyncService.instance.pushSetting('themeMode', v);
   }
 }
 

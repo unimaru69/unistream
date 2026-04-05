@@ -688,4 +688,19 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get confirmerViderCache => 'Vider le cache EPG ?';
+
+  @override
+  String get listeChaines => 'Liste des chaînes';
+
+  @override
+  String get numeroChaineDirecte => 'Numéro de chaîne direct';
+
+  @override
+  String get splashLoadingConfig => 'Chargement de la configuration…';
+
+  @override
+  String get splashConnecting => 'Connexion au serveur…';
+
+  @override
+  String get splashReady => 'Prêt !';
 }

@@ -1321,6 +1321,36 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Vider le cache EPG ?'**
   String get confirmerViderCache;
+
+  /// No description provided for @listeChaines.
+  ///
+  /// In fr, this message translates to:
+  /// **'Liste des chaînes'**
+  String get listeChaines;
+
+  /// No description provided for @numeroChaineDirecte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Numéro de chaîne direct'**
+  String get numeroChaineDirecte;
+
+  /// No description provided for @splashLoadingConfig.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement de la configuration…'**
+  String get splashLoadingConfig;
+
+  /// No description provided for @splashConnecting.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion au serveur…'**
+  String get splashConnecting;
+
+  /// No description provided for @splashReady.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prêt !'**
+  String get splashReady;
 }
 
 class _AppLocalizationsDelegate

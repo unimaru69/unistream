@@ -4,16 +4,19 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'core/logger.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
 import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
+import 'services/supabase_config.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
 import 'utils/theme.dart';
@@ -116,6 +119,7 @@ void showMiniOverlay(MiniPlayerState state) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  await SupabaseConfig.initialize();
   await AppConfig.load();
 
   // Window size/position persistence (macOS/Windows/Linux)
@@ -142,6 +146,12 @@ void main() async {
 
   await loadThemeMode();
 
+  // Global async error handler (catches errors outside of Flutter framework)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogger.error(LogModule.ui, 'Unhandled async error', error: error, stackTrace: stack);
+    return true;
+  };
+
   if (isSentryEnabled) {
     await SentryFlutter.init(
       (options) {
@@ -152,6 +162,11 @@ void main() async {
       appRunner: () => runApp(const ProviderScope(child: UniStreamApp())),
     );
   } else {
+    // In non-Sentry mode, still capture Flutter framework errors via AppLogger
+    FlutterError.onError = (details) {
+      AppLogger.error(LogModule.ui, 'Flutter framework error',
+          error: details.exception, stackTrace: details.stack);
+    };
     runApp(const ProviderScope(child: UniStreamApp()));
   }
 }

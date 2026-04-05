@@ -9,6 +9,10 @@ class PlayerKeyCallbacks {
   final void Function() enterFullscreen;
   final void Function() escape;
   final void Function(int delta)? zapChannel;
+  final void Function()? onVolumeOsd;
+  final void Function()? toggleChannelList;
+  final void Function(int digit)? onDigitInput;
+  final void Function()? onDigitConfirm;
 
   const PlayerKeyCallbacks({
     required this.playPause,
@@ -18,6 +22,10 @@ class PlayerKeyCallbacks {
     required this.enterFullscreen,
     required this.escape,
     this.zapChannel,
+    this.onVolumeOsd,
+    this.toggleChannelList,
+    this.onDigitInput,
+    this.onDigitConfirm,
   });
 }
 
@@ -65,10 +73,12 @@ bool handlePlayerKeyEvent(
     }
     if (!hasZapping && key == LogicalKeyboardKey.arrowUp) {
       callbacks.adjustVolume(5);
+      callbacks.onVolumeOsd?.call();
       return true;
     }
     if (!hasZapping && key == LogicalKeyboardKey.arrowDown) {
       callbacks.adjustVolume(-5);
+      callbacks.onVolumeOsd?.call();
       return true;
     }
     return false;
@@ -105,10 +115,16 @@ bool handlePlayerKeyEvent(
   }
   if (!hasZapping && key == LogicalKeyboardKey.arrowUp) {
     callbacks.adjustVolume(10);
+    callbacks.onVolumeOsd?.call();
     return true;
   }
   if (!hasZapping && key == LogicalKeyboardKey.arrowDown) {
     callbacks.adjustVolume(-10);
+    callbacks.onVolumeOsd?.call();
+    return true;
+  }
+  if (key == LogicalKeyboardKey.keyL && hasZapping) {
+    callbacks.toggleChannelList?.call();
     return true;
   }
   if (key == LogicalKeyboardKey.escape) {
@@ -125,5 +141,36 @@ bool handlePlayerKeyEvent(
       return true;
     }
   }
+
+  // ── Enter confirms buffered channel number ──
+  if (hasZapping && (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter)) {
+    callbacks.onDigitConfirm?.call();
+    return true;
+  }
+
+  // ── Digit keys 0-9 for direct channel number input ──
+  if (hasZapping) {
+    final digit = _digitFromKey(key);
+    if (digit != null) {
+      callbacks.onDigitInput?.call(digit);
+      return true;
+    }
+  }
+
   return false;
+}
+
+/// Returns 0-9 for digit keys (both main row and numpad), null otherwise.
+int? _digitFromKey(LogicalKeyboardKey key) {
+  if (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0) return 0;
+  if (key == LogicalKeyboardKey.digit1 || key == LogicalKeyboardKey.numpad1) return 1;
+  if (key == LogicalKeyboardKey.digit2 || key == LogicalKeyboardKey.numpad2) return 2;
+  if (key == LogicalKeyboardKey.digit3 || key == LogicalKeyboardKey.numpad3) return 3;
+  if (key == LogicalKeyboardKey.digit4 || key == LogicalKeyboardKey.numpad4) return 4;
+  if (key == LogicalKeyboardKey.digit5 || key == LogicalKeyboardKey.numpad5) return 5;
+  if (key == LogicalKeyboardKey.digit6 || key == LogicalKeyboardKey.numpad6) return 6;
+  if (key == LogicalKeyboardKey.digit7 || key == LogicalKeyboardKey.numpad7) return 7;
+  if (key == LogicalKeyboardKey.digit8 || key == LogicalKeyboardKey.numpad8) return 8;
+  if (key == LogicalKeyboardKey.digit9 || key == LogicalKeyboardKey.numpad9) return 9;
+  return null;
 }

@@ -232,5 +232,12 @@
 
   "confirmerSupprimerCollection": "Delete this collection?",
   "confirmerRetirerCollection": "Remove this item from the collection?",
-  "confirmerViderCache": "Clear the EPG cache?"
+  "confirmerViderCache": "Clear the EPG cache?",
+
+  "listeChaines": "Channel list",
+  "numeroChaineDirecte": "Direct channel number",
+
+  "splashLoadingConfig": "Loading configuration...",
+  "splashConnecting": "Connecting to server...",
+  "splashReady": "Ready!"
 }

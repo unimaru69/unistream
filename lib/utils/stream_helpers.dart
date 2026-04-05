@@ -33,6 +33,15 @@ String getStreamIcon(dynamic stream) {
   return '';
 }
 
+/// Extract the category ID from a typed stream object or a raw Map.
+String? getStreamCategoryId(dynamic stream) {
+  if (stream is Channel) return stream.categoryId;
+  if (stream is VodItem) return stream.categoryId;
+  if (stream is SeriesItem) return stream.categoryId;
+  if (stream is Map<String, dynamic>) return stream['category_id']?.toString();
+  return null;
+}
+
 /// Convert a typed model to a Map for storage in favorites/watchlist/collections.
 Map<String, dynamic> streamToMap(dynamic stream) {
   if (stream is Channel) {

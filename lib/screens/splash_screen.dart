@@ -1,8 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../core/colors.dart';
+import '../core/logger.dart';
+import '../l10n/app_localizations.dart';
 import '../models/app_config.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
+
+/// Allows injecting a custom HTTP client for testing.
+@visibleForTesting
+http.Client? splashHttpClient;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,6 +23,9 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
+
+  String? _statusMessage;
+  bool _showLoading = false;
 
   @override
   void initState() {
@@ -32,16 +43,62 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        Future.delayed(const Duration(milliseconds: 500), _navigate);
+        _startLoadingSequence();
       }
     });
   }
 
-  void _navigate() {
+  Future<void> _startLoadingSequence() async {
     if (!mounted) return;
-    final destination = AppConfig.isConfigured
-        ? const HomeScreen()
-        : const OnboardingScreen();
+
+    setState(() => _showLoading = true);
+
+    // Step 1: Check configuration
+    final l10n = AppLocalizations.of(context);
+    setState(() => _statusMessage = l10n?.splashLoadingConfig ?? 'Loading configuration...');
+    AppLogger.breadcrumb('splash', 'Loading configuration');
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    if (!AppConfig.isConfigured) {
+      _navigateTo(const OnboardingScreen());
+      return;
+    }
+
+    // Step 2: Connectivity check
+    setState(() => _statusMessage = l10n?.splashConnecting ?? 'Connecting to server...');
+    AppLogger.breadcrumb('splash', 'Connectivity check');
+
+    try {
+      final client = splashHttpClient ?? http.Client();
+      final shouldClose = splashHttpClient == null;
+      try {
+        await client
+            .head(Uri.parse(AppConfig.serverUrl))
+            .timeout(const Duration(seconds: 3));
+      } finally {
+        if (shouldClose) client.close();
+      }
+    } catch (e) {
+      AppLogger.warning(LogModule.api, 'Splash connectivity check failed', error: e);
+      // Still navigate to HomeScreen — it handles offline mode
+    }
+
+    if (!mounted) return;
+
+    // Step 3: Ready
+    setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');
+    AppLogger.breadcrumb('splash', 'Ready, navigating to home');
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    _navigateTo(const HomeScreen());
+  }
+
+  void _navigateTo(Widget destination) {
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => destination),
@@ -84,6 +141,25 @@ class _SplashScreenState extends State<SplashScreen>
                       color: Colors.white,
                     ),
                   ),
+                  if (_showLoading) ...[
+                    const SizedBox(height: 32),
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _statusMessage ?? '',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

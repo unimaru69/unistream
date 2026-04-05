@@ -14,9 +14,11 @@ import '../core/storage_keys.dart';
 import '../utils/api_error_localizer.dart';
 import '../utils/snackbar_helper.dart';
 import 'profiles/profiles_screen.dart';
+import 'settings/parental_settings_screen.dart';
 
 import '../utils/theme.dart';
 import '../providers/locale_provider.dart';
+import '../providers/parental_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -247,6 +249,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
+              const SizedBox(height: 16),
+              Builder(builder: (context) {
+                final parental = ref.watch(parentalProvider);
+                return OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const ParentalSettingsScreen()));
+                  },
+                  icon: Icon(
+                    parental.isEnabled ? Icons.lock : Icons.lock_open,
+                    size: 18,
+                  ),
+                  label: const Text('Contr\u00f4le parental'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }),
               const SizedBox(height: 16),
               const Divider(color: Colors.white12),
               const SizedBox(height: 16),

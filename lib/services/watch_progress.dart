@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
+import 'sync_service.dart';
 
 class WatchProgress {
   static String get _pid => AppConfig.activeProfileId;
@@ -14,6 +15,10 @@ class WatchProgress {
     final p = await SharedPreferences.getInstance();
     await p.setInt(StorageKeys.wpPosition(_pid, key), pos.inSeconds);
     await p.setInt(StorageKeys.wpDuration(_pid, key), dur.inSeconds);
+    // Sync to Supabase (fire-and-forget)
+    SyncService.instance.pushWatchProgress(
+      key, pos.inMilliseconds, dur.inMilliseconds, {},
+    );
   }
 
   static Future<Duration?> getPosition(String key) async {

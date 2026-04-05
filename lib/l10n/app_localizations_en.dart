@@ -685,4 +685,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get confirmerViderCache => 'Clear the EPG cache?';
+
+  @override
+  String get listeChaines => 'Channel list';
+
+  @override
+  String get numeroChaineDirecte => 'Direct channel number';
+
+  @override
+  String get splashLoadingConfig => 'Loading configuration...';
+
+  @override
+  String get splashConnecting => 'Connecting to server...';
+
+  @override
+  String get splashReady => 'Ready!';
 }

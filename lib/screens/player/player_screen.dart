@@ -23,6 +23,9 @@ import 'widgets/next_episode_overlay.dart';
 import 'widgets/subtitle_settings.dart';
 import 'widgets/epg_overlay.dart';
 import 'widgets/player_controls.dart';
+import 'widgets/volume_osd.dart';
+import 'widgets/channel_list_overlay.dart';
+import 'widgets/channel_number_osd.dart';
 import 'player_keyboard_handler.dart';
 
 // ── Fullscreen back button ──
@@ -110,6 +113,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // Quick zapping OSD
   Timer? _zapOsdTimer;
+
+  // Volume OSD
+  bool _showVolumeOsd = false;
+  Timer? _volumeOsdTimer;
+
+  // Channel list overlay
+  bool _showChannelList = false;
+
+  // Direct channel number input
+  String _digitBuffer = '';
+  Timer? _digitTimer;
 
   // Subtitle customization
   double _subtitleFontSize = 24;
@@ -206,6 +220,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         _reconnectAttempts = 0;
+        AppLogger.breadcrumb('player', 'Playback started', data: {'title': widget.title});
         if (_qualityTimer == null) _startQualityTimer();
       }
     });
@@ -568,6 +583,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _nextCountdown?.cancel();
     _qualityTimer?.cancel();
     _zapOsdTimer?.cancel();
+    _volumeOsdTimer?.cancel();
+    _digitTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_onKey);
     if (!_minimized) {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
@@ -614,11 +631,85 @@ class _PlayerScreenState extends State<PlayerScreen> {
         },
         escape: () => Navigator.of(context).pop(),
         zapChannel: _zapChannel,
+        onVolumeOsd: _showVolumeOsdBriefly,
+        toggleChannelList: _toggleChannelList,
+        onDigitInput: _onDigitInput,
+        onDigitConfirm: _tuneToBufferedChannel,
       ),
       isLiveMode: _isLiveMode,
       hasZapping: hasZapping,
       isRouteActive: route.isCurrent,
     );
+  }
+
+  // ── Volume OSD ──
+  void _showVolumeOsdBriefly() {
+    _volumeOsdTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _showVolumeOsd = true);
+    _volumeOsdTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _showVolumeOsd = false);
+    });
+  }
+
+  // ── Channel list overlay ──
+  void _toggleChannelList() {
+    if (!mounted) return;
+    setState(() => _showChannelList = !_showChannelList);
+  }
+
+  // ── Direct channel number input ──
+  void _onDigitInput(int digit) {
+    if (!mounted) return;
+    _digitTimer?.cancel();
+    setState(() => _digitBuffer += digit.toString());
+    _digitTimer = Timer(const Duration(seconds: 2), _tuneToBufferedChannel);
+  }
+
+  void _tuneToBufferedChannel() {
+    if (_digitBuffer.isEmpty) return;
+    final num = int.tryParse(_digitBuffer);
+    _digitBuffer = '';
+    _digitTimer?.cancel();
+    if (num == null || widget.channelList == null) {
+      if (mounted) setState(() {});
+      return;
+    }
+    // Find channel by 'num' field
+    final list = widget.channelList!;
+    int targetIdx = -1;
+    for (var i = 0; i < list.length; i++) {
+      final chNum = int.tryParse(list[i]['num']?.toString() ?? '');
+      if (chNum == num) {
+        targetIdx = i;
+        break;
+      }
+    }
+    // Fallback: treat as 1-based index
+    if (targetIdx < 0 && num >= 1 && num <= list.length) {
+      targetIdx = num - 1;
+    }
+    if (mounted) setState(() {});
+    if (targetIdx >= 0 && targetIdx != widget.channelIndex) {
+      _zapToIndex(targetIdx);
+    }
+  }
+
+  void _zapToIndex(int idx) {
+    final list = widget.channelList;
+    if (list == null || idx < 0 || idx >= list.length) return;
+    final ch = list[idx];
+    final sid = ch['stream_id'].toString();
+    final url = XtreamApi.getLiveStreamUrl(sid);
+    final name = ch['name'] ?? AppLocalizations.of(context)!.sansTitre;
+    Navigator.pushReplacement(context, slideRoute(PlayerScreen(
+      url: url,
+      title: name,
+      streamId: sid,
+      coverUrl: ch['stream_icon']?.toString(),
+      channelList: list,
+      channelIndex: idx,
+    )));
   }
 
   // ── EPG loading ──
@@ -1006,6 +1097,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ),
+          ),
+        // Volume OSD
+        if (_showVolumeOsd)
+          VolumeOsd(volume: _player.state.volume),
+        // Channel number OSD
+        if (_digitBuffer.isNotEmpty)
+          ChannelNumberOsd(digits: _digitBuffer),
+        // Channel list overlay
+        if (_showChannelList && widget.channelList != null && widget.channelIndex != null)
+          ChannelListOverlay(
+            channels: widget.channelList!,
+            currentIndex: widget.channelIndex!,
+            onSelect: (idx) {
+              setState(() => _showChannelList = false);
+              if (idx != widget.channelIndex) _zapToIndex(idx);
+            },
+            onClose: () => setState(() => _showChannelList = false),
           ),
       ]),
     );

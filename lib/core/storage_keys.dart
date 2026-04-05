@@ -90,4 +90,11 @@ class StorageKeys {
 
   static String subtitleBgOpacity(String profileId) =>
       '${_subPrefix(profileId)}_bgOpacity';
+
+  // ── Parental controls ──
+  static const parentalPinHash = 'parental_pin_hash';
+
+  /// Profile-scoped: blocked category IDs (JSON array).
+  static String blockedCategories(String profileId) =>
+      'parental_blocked_$profileId';
 }

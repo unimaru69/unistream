@@ -25,6 +25,7 @@ import '../../providers/collections_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/paginated_streams_provider.dart';
+import '../../providers/parental_provider.dart';
 import '../../services/connectivity_service.dart';
 import '../settings_screen.dart';
 import '../series_detail_screen.dart';
@@ -391,6 +392,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _playStream(dynamic stream) {
     final name = getStreamName(stream);
     final displayName = name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name;
+    AppLogger.breadcrumb('player', 'Stream play requested', data: {'title': displayName, 'mode': _mode.key});
 
     if (_mode == ContentMode.series) {
       final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
@@ -476,7 +478,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSidebarDrawer(List<Map<String, dynamic>> collections) {
+  Widget _buildSidebarDrawer(List<Map<String, dynamic>> collections, List<cat.Category> categories) {
     return Drawer(
       backgroundColor: AppColors.darkSurface,
       child: SafeArea(
@@ -486,7 +488,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           maxWidth: 280,
           onWidthChanged: (_) {},
           onDragEnd: () {},
-          categories: _categories,
+          categories: categories,
           collections: collections,
           mode: _mode,
           selectedCategory: _selectedCategory,
@@ -572,6 +574,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final continueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
     final collections = ref.watch(collectionsProvider);
 
+    // Parental controls: filter categories and streams when locked
+    final parental = ref.watch(parentalProvider);
+    final parentalActive = parental.isEnabled && !parental.isUnlocked;
+    final blockedIds = parental.blockedCategoryIds;
+    final filteredCategories = parentalActive
+        ? _categories.where((c) => !blockedIds.contains(c.categoryId)).toList()
+        : _categories;
+
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
@@ -610,7 +620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
       child: Scaffold(
       key: _scaffoldKey,
-      drawer: _buildSidebarDrawer(collections),
+      drawer: _buildSidebarDrawer(collections, filteredCategories),
       appBar: AppBar(
         title: const Text('UniStream', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         backgroundColor: Colors.transparent,
@@ -650,6 +660,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: (i) {
               final modes = ContentMode.values;
               setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _selectionMode = false; _selectedItems = {}; });
+              AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': modes[i].key});
               _loadGridView();
               _loadSortMode();
               _loadCategories();
@@ -731,7 +742,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 )).then((_) => _refreshProgress()),
               ),
               RecentlyAddedRow(
-                items: _recentlyAdded,
+                items: parentalActive
+                    ? _recentlyAdded.where((item) =>
+                        !blockedIds.contains(item['category_id']?.toString())).toList()
+                    : _recentlyAdded,
                 mode: _mode,
                 onTap: _playStream,
               ),
@@ -747,7 +761,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   setState(() => _sidebarWidth = (_sidebarWidth + delta).clamp(_sidebarMin, _sidebarMax));
                 },
                 onDragEnd: _saveSidebarWidth,
-                categories: _categories,
+                categories: filteredCategories,
                 collections: collections,
                 mode: _mode,
                 selectedCategory: _selectedCategory,
