@@ -297,15 +297,34 @@ class _MiniPlayerWidget extends StatefulWidget {
 }
 
 class _MiniPlayerWidgetState extends State<_MiniPlayerWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Offset? _offset;
   double _width = 320;
   double _height = 190;
   static const double _minW = 200, _minH = 120, _maxW = 480, _maxH = 300;
   static const double _edgeMargin = 16;
+  /// Distance threshold to trigger swipe-dismiss.
+  static const double _dismissThreshold = 100;
+  /// Velocity threshold to trigger swipe-dismiss (fast flick).
+  static const double _dismissVelocity = 800;
 
   late AnimationController _snapController;
   Animation<Offset>? _snapAnimation;
+
+  // Dismiss animation
+  late AnimationController _dismissController;
+  Animation<Offset>? _dismissAnimation;
+  Animation<double>? _dismissOpacity;
+  double _opacity = 1.0;
+
+  // Volume gesture state
+  bool _volumeDragging = false;
+  double _volumeAtDragStart = 1.0;
+  double _volumeOsdValue = -1; // -1 = hidden
+  Timer? _volumeOsdTimer;
+
+  // Drag tracking for dismiss detection
+  Offset _dragStartOffset = Offset.zero;
 
   @override
   void initState() {
@@ -316,11 +335,27 @@ class _MiniPlayerWidgetState extends State<_MiniPlayerWidget>
         setState(() => _offset = _snapAnimation!.value);
       }
     });
+    _dismissController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _dismissController.addListener(() {
+      if (_dismissAnimation != null && _dismissOpacity != null) {
+        setState(() {
+          _offset = _dismissAnimation!.value;
+          _opacity = _dismissOpacity!.value;
+        });
+      }
+    });
+    _dismissController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        widget.onClose();
+      }
+    });
   }
 
   @override
   void dispose() {
     _snapController.dispose();
+    _dismissController.dispose();
+    _volumeOsdTimer?.cancel();
     super.dispose();
   }
 
@@ -342,93 +377,243 @@ class _MiniPlayerWidgetState extends State<_MiniPlayerWidget>
     _snapController.forward(from: 0);
   }
 
+  /// Animate off-screen in the given direction and close.
+  void _animateDismiss(Offset velocity) {
+    final size = MediaQuery.of(context).size;
+    final current = _offset!;
+    // Determine dismiss target based on velocity or position
+    double targetX = current.dx;
+    double targetY = current.dy;
+    if (velocity.dy.abs() > velocity.dx.abs()) {
+      // Vertical dismiss
+      targetY = velocity.dy > 0 ? size.height + 50 : -_height - 50;
+    } else {
+      // Horizontal dismiss
+      targetX = velocity.dx > 0 ? size.width + 50 : -_width - 50;
+    }
+    _dismissAnimation = Tween<Offset>(
+      begin: current,
+      end: Offset(targetX, targetY),
+    ).animate(CurvedAnimation(parent: _dismissController, curve: Curves.easeIn));
+    _dismissOpacity = Tween<double>(begin: _opacity, end: 0.0)
+        .animate(CurvedAnimation(parent: _dismissController, curve: Curves.easeIn));
+    _dismissController.forward(from: 0);
+  }
+
+  void _onPanStart(DragStartDetails d) {
+    _dragStartOffset = _offset ?? Offset.zero;
+  }
+
+  void _onPanUpdate(DragUpdateDetails d) {
+    setState(() {
+      _offset = _offset! + d.delta;
+      // Fade out as user drags away from original position
+      final dist = (_offset! - _dragStartOffset).distance;
+      _opacity = (1.0 - (dist / (_dismissThreshold * 2))).clamp(0.3, 1.0);
+    });
+  }
+
+  void _onPanEnd(DragEndDetails d) {
+    final velocity = d.velocity.pixelsPerSecond;
+    final dist = (_offset! - _dragStartOffset).distance;
+    // Check if fast flick or dragged far enough
+    if (velocity.distance > _dismissVelocity || dist > _dismissThreshold) {
+      // Determine direction from velocity if fast enough, otherwise from offset delta
+      final dir = velocity.distance > _dismissVelocity
+          ? velocity
+          : Offset(_offset!.dx - _dragStartOffset.dx, _offset!.dy - _dragStartOffset.dy);
+      _animateDismiss(dir);
+    } else {
+      // Snap back
+      setState(() => _opacity = 1.0);
+      _snapToEdge();
+    }
+  }
+
+  void _onVolumeVerticalDrag(DragStartDetails d) {
+    _volumeDragging = true;
+    _volumeAtDragStart = widget.state.player.state.volume / 100.0;
+  }
+
+  void _onVolumeVerticalUpdate(DragUpdateDetails d) {
+    if (!_volumeDragging) return;
+    // Dragging up = louder, down = quieter
+    final delta = -d.delta.dy / _height;
+    final newVol = (_volumeAtDragStart + delta).clamp(0.0, 1.0);
+    _volumeAtDragStart = newVol;
+    widget.state.player.setVolume(newVol * 100);
+    setState(() => _volumeOsdValue = newVol);
+    _volumeOsdTimer?.cancel();
+    _volumeOsdTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _volumeOsdValue = -1);
+    });
+  }
+
+  void _onVolumeVerticalEnd(DragEndDetails d) {
+    _volumeDragging = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     _offset ??= Offset(size.width - _width - _edgeMargin, size.height - _height - _edgeMargin);
-    final dx = _offset!.dx.clamp(0.0, size.width  - _width);
-    final dy = _offset!.dy.clamp(0.0, size.height - _height);
+    final dx = _offset!.dx.clamp(-_width * 0.5, size.width  - _width * 0.5);
+    final dy = _offset!.dy.clamp(-_height * 0.5, size.height - _height * 0.5);
 
     return Positioned(
       left: dx, top: dy,
-      child: GestureDetector(
-        onPanUpdate: (d) => setState(() => _offset = _offset! + d.delta),
-        onPanEnd: (_) => _snapToEdge(),
-        onDoubleTap: widget.onRestore,
-        child: Material(
-          elevation: 16,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          color: AppColors.darkSurface,
-          child: SizedBox(
-            width: _width, height: _height,
-            child: Stack(fit: StackFit.expand, children: [
-              Video(controller: widget.state.controller, controls: NoVideoControls),
-              Positioned(
-                top: 0, left: 0, right: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.black87, Colors.transparent]),
+      child: Opacity(
+        opacity: _opacity,
+        child: GestureDetector(
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: _onPanEnd,
+          onDoubleTap: widget.onRestore,
+          child: Material(
+            elevation: 16,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            color: AppColors.darkSurface,
+            child: SizedBox(
+              width: _width, height: _height,
+              child: Stack(fit: StackFit.expand, children: [
+                Video(controller: widget.state.controller, controls: NoVideoControls),
+                // Title gradient (top)
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        colors: [Colors.black87, Colors.transparent]),
+                    ),
+                    child: Text(widget.state.title,
+                        style: const TextStyle(color: Colors.white, fontSize: 11,
+                            fontWeight: FontWeight.bold),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                  child: Text(widget.state.title,
-                      style: const TextStyle(color: Colors.white, fontSize: 11,
-                          fontWeight: FontWeight.bold),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
-              ),
-              Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                      colors: [Colors.black87, Colors.transparent]),
+                // Progress bar (thin, at the very bottom)
+                Positioned(
+                  bottom: 0, left: 0, right: 0,
+                  child: StreamBuilder<Duration>(
+                    stream: widget.state.player.stream.position,
+                    builder: (_, posSnap) {
+                      final pos = posSnap.data ?? Duration.zero;
+                      return StreamBuilder<Duration>(
+                        stream: widget.state.player.stream.duration,
+                        builder: (_, durSnap) {
+                          final dur = durSnap.data ?? Duration.zero;
+                          final ratio = dur.inMilliseconds > 0
+                              ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                              : 0.0;
+                          if (ratio == 0.0) return const SizedBox.shrink();
+                          return LinearProgressIndicator(
+                            value: ratio,
+                            backgroundColor: Colors.black45,
+                            color: AppColors.primaryBlue,
+                            minHeight: 3,
+                          );
+                        },
+                      );
+                    },
                   ),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    StreamBuilder<bool>(
-                      stream: widget.state.player.stream.playing,
-                      builder: (_, snap) => IconButton(
-                        icon: Icon(snap.data == true ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white, size: 24),
-                        onPressed: () => widget.state.player.playOrPause(),
+                ),
+                // Controls gradient (bottom)
+                Positioned(
+                  bottom: 3, left: 0, right: 0,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                        colors: [Colors.black87, Colors.transparent]),
+                    ),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      StreamBuilder<bool>(
+                        stream: widget.state.player.stream.playing,
+                        builder: (_, snap) => IconButton(
+                          icon: Icon(snap.data == true ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white, size: 24),
+                          onPressed: () => widget.state.player.playOrPause(),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.open_in_full, color: Colors.white70, size: 18),
+                        onPressed: widget.onRestore,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                        onPressed: widget.onClose,
+                      ),
+                    ]),
+                  ),
+                ),
+                // Drag indicator (top-right)
+                const Positioned(top: 6, right: 6,
+                    child: Icon(Icons.drag_indicator, color: Colors.white30, size: 14)),
+                // Volume gesture zone (right edge strip)
+                Positioned(
+                  top: 30, right: 0, bottom: 40,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onVerticalDragStart: _onVolumeVerticalDrag,
+                    onVerticalDragUpdate: _onVolumeVerticalUpdate,
+                    onVerticalDragEnd: _onVolumeVerticalEnd,
+                    child: SizedBox(width: 30, child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.volume_up, color: Colors.white.withValues(alpha: 0.3), size: 12),
+                      ],
+                    )),
+                  ),
+                ),
+                // Volume OSD
+                if (_volumeOsdValue >= 0)
+                  Positioned(
+                    top: 30, right: 6, bottom: 40,
+                    child: Container(
+                      width: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: FractionallySizedBox(
+                          heightFactor: _volumeOsdValue.clamp(0.0, 1.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBlue,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.open_in_full, color: Colors.white70, size: 18),
-                      onPressed: widget.onRestore,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70, size: 18),
-                      onPressed: widget.onClose,
-                    ),
-                  ]),
-                ),
-              ),
-              const Positioned(top: 6, right: 6,
-                  child: Icon(Icons.drag_indicator, color: Colors.white30, size: 14)),
-              Positioned(
-                bottom: 0, right: 0,
-                child: GestureDetector(
-                  onPanUpdate: (d) {
-                    setState(() {
-                      _width  = (_width  + d.delta.dx).clamp(_minW, _maxW);
-                      _height = (_height + d.delta.dy).clamp(_minH, _maxH);
-                    });
-                  },
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.resizeDownRight,
-                    child: Container(
-                      width: 20, height: 20,
-                      alignment: Alignment.bottomRight,
-                      child: const Icon(Icons.drag_handle, color: Colors.white30, size: 12),
+                  ),
+                // Resize handle (bottom-right)
+                Positioned(
+                  bottom: 0, right: 0,
+                  child: GestureDetector(
+                    onPanUpdate: (d) {
+                      setState(() {
+                        _width  = (_width  + d.delta.dx).clamp(_minW, _maxW);
+                        _height = (_height + d.delta.dy).clamp(_minH, _maxH);
+                      });
+                    },
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.resizeDownRight,
+                      child: Container(
+                        width: 20, height: 20,
+                        alignment: Alignment.bottomRight,
+                        child: const Icon(Icons.drag_handle, color: Colors.white30, size: 12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ]),
+              ]),
+            ),
           ),
         ),
       ),
