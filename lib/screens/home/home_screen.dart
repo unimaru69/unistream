@@ -37,6 +37,7 @@ import '../search_screen.dart';
 import 'widgets/category_sidebar.dart';
 import 'widgets/stream_list.dart';
 import 'widgets/continue_watching_row.dart';
+import 'widgets/catchup_row.dart';
 import 'widgets/collection_dialogs.dart';
 import 'widgets/shortcuts_dialog.dart';
 import 'widgets/offline_content.dart';
@@ -61,6 +62,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // Recently added (VOD/Series)
   List<Map<String, dynamic>> _recentlyAdded = [];
+
+  // Catch-up programs (Live mode only)
+  List<CatchupProgram> _catchupPrograms = [];
 
   // Search
   final _searchCtrl = TextEditingController();
@@ -317,6 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       };
       setState(() => _loading = false);
       _loadRecentlyAdded();
+      _loadCatchupPrograms();
     } catch (e) {
       setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
     }
@@ -348,6 +353,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) setState(() => _recentlyAdded = items.take(20).toList());
     } catch (e, st) {
       AppLogger.warning(LogModule.ui, 'Failed to load recently added items', error: e, stackTrace: st);
+    }
+  }
+
+  /// Load recently-aired programs from catch-up enabled channels.
+  Future<void> _loadCatchupPrograms() async {
+    if (_mode != ContentMode.live) {
+      if (_catchupPrograms.isNotEmpty) setState(() => _catchupPrograms = []);
+      return;
+    }
+    try {
+      // Get all live channels to find catch-up enabled ones
+      final allChannels = await XtreamApi.getLiveStreamsTyped();
+      final catchupChannels = allChannels.where((ch) => ch.hasCatchup).take(15).toList();
+      if (catchupChannels.isEmpty) return;
+
+      final now = DateTime.now().toUtc();
+      final programs = <CatchupProgram>[];
+
+      // Load short EPG (2 recent programs) for each catch-up channel in parallel
+      final futures = catchupChannels.map((ch) async {
+        try {
+          final data = await XtreamApi.getShortEpg(ch.streamId.toString(), limit: 8);
+          final listings = data['epg_listings'] as List?;
+          if (listings == null) return;
+          for (final raw in listings) {
+            final prog = raw as Map<String, dynamic>;
+            final startEpoch = int.tryParse(prog['start_timestamp']?.toString() ?? '');
+            final endEpoch = int.tryParse(prog['stop_timestamp']?.toString() ?? '');
+            if (startEpoch == null || endEpoch == null) continue;
+            final startUtc = DateTime.fromMillisecondsSinceEpoch(startEpoch * 1000, isUtc: true);
+            final endUtc = DateTime.fromMillisecondsSinceEpoch(endEpoch * 1000, isUtc: true);
+            // Only past programs (ended), within the last 24h
+            if (endUtc.isAfter(now) || now.difference(endUtc).inHours > 24) continue;
+            final durationMin = endUtc.difference(startUtc).inMinutes;
+            if (durationMin <= 0) continue;
+            final title = prog['title']?.toString() ?? '';
+            if (title.isEmpty) continue;
+            programs.add(CatchupProgram(
+              streamId: ch.streamId.toString(),
+              channelName: ch.name,
+              channelIcon: ch.displayIcon,
+              title: title,
+              description: prog['description']?.toString() ?? '',
+              startUtc: startUtc,
+              endUtc: endUtc,
+              durationMin: durationMin,
+              serverLocalStart: prog['start']?.toString() ?? '',
+            ));
+          }
+        } catch (_) {
+          // Skip channels where EPG fails
+        }
+      });
+      await Future.wait(futures);
+
+      // Sort by end time (most recent first), take top 20
+      programs.sort((a, b) => b.endUtc.compareTo(a.endUtc));
+      if (mounted) setState(() => _catchupPrograms = programs.take(20).toList());
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'Failed to load catch-up programs', error: e, stackTrace: st);
     }
   }
 
@@ -663,7 +728,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             isSelected: [_mode == ContentMode.live, _mode == ContentMode.vod, _mode == ContentMode.series],
             onPressed: (i) {
               final modes = ContentMode.values;
-              setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _selectionMode = false; _selectedItems = {}; });
+              setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
               AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': modes[i].key});
               _loadGridView();
               _loadSortMode();
@@ -745,6 +810,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 )).then((_) => _refreshProgress()),
               ),
+              if (_mode == ContentMode.live)
+                CatchupRow(
+                  programs: _catchupPrograms,
+                  onTap: (prog) {
+                    // Build timeshift URL and launch player in catch-up mode
+                    String url;
+                    if (prog.serverLocalStart.isNotEmpty) {
+                      url = XtreamApi.getTimeshiftUrlFromLocal(prog.streamId, prog.serverLocalStart, prog.durationMin);
+                    } else {
+                      url = XtreamApi.getTimeshiftUrl(prog.streamId, prog.startUtc, prog.durationMin);
+                    }
+                    Navigator.push(context, slideRoute(PlayerScreen(
+                      url: url,
+                      title: '${prog.title} (${AppLocalizations.of(context)!.replay})',
+                      streamId: prog.streamId,
+                      isCatchup: true,
+                    )));
+                  },
+                ),
               RecentlyAddedRow(
                 items: parentalActive
                     ? _recentlyAdded.where((item) =>

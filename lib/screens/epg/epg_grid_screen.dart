@@ -297,7 +297,12 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   List<Channel> get _filteredChannels {
     if (_searchQuery.isEmpty) return _channels;
     return _channels.where((ch) {
-      return ch.name.toLowerCase().contains(_searchQuery);
+      // Match channel name
+      if (ch.name.toLowerCase().contains(_searchQuery)) return true;
+      // Also match program titles for this channel
+      final progs = _epgData[ch.id] ?? [];
+      return progs.any((p) =>
+          (p['title'] as String? ?? '').toLowerCase().contains(_searchQuery));
     }).toList();
   }
 
@@ -310,9 +315,16 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     return '${_frDays[d.weekday - 1]} ${d.day} ${_frMonths[d.month - 1]} ${d.year}';
   }
 
+  /// Max archive days across loaded channels (at least 3).
+  int get _maxArchiveDays {
+    if (_channels.isEmpty) return 3;
+    final max = _channels.fold<int>(0, (prev, ch) => ch.archiveDays > prev ? ch.archiveDays : prev);
+    return max.clamp(3, 14);
+  }
+
   bool get _canGoPrev {
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    return _dayStart.isAfter(today.subtract(const Duration(days: 3)));
+    return _dayStart.isAfter(today.subtract(Duration(days: _maxArchiveDays)));
   }
 
   bool get _canGoNext {
@@ -323,7 +335,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   void _changeDay(int delta) {
     final newDay = _dayStart.add(Duration(days: delta));
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    if (newDay.isBefore(today.subtract(const Duration(days: 3))) ||
+    if (newDay.isBefore(today.subtract(Duration(days: _maxArchiveDays))) ||
         newDay.isAfter(today.add(const Duration(days: 3)))) return;
 
     setState(() {
@@ -467,6 +479,15 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           style: TextStyle(fontSize: 11, color: tc.textSecondary),
           overflow: TextOverflow.ellipsis,
         )),
+        if (ch.hasCatchup)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            decoration: BoxDecoration(
+                color: AppColors.accentGreen.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(3)),
+            child: Text('${ch.archiveDays}j',
+                style: TextStyle(fontSize: 9, color: AppColors.accentGreen, fontWeight: FontWeight.w600)),
+          ),
       ]),
     );
   }
@@ -553,7 +574,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       final durMin    = end.difference(start).inMinutes;
       final title     = '${canReplay ? '↻ ' : ''}${prog['title'] ?? ''}';
 
-      final cellColor = isCurrent
+      final matchesSearch = _searchQuery.isNotEmpty &&
+          (prog['title'] as String? ?? '').toLowerCase().contains(_searchQuery);
+      final cellColor = matchesSearch
+          ? Colors.amber.withValues(alpha: 0.35)
+          : isCurrent
           ? AppColors.primaryBlue.withValues(alpha: 0.4)
           : canReplay
           ? AppColors.accentGreen.withValues(alpha: 0.25)

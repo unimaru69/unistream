@@ -430,6 +430,13 @@
   "connexionRetablie": "Connexion rétablie",
 
   "cliquerPourRevoir": "Cliquer pour revoir (Catch-up)",
+  "programmesRecents": "Replay disponible",
+  "ilYA": "il y a {time}",
+  "@ilYA": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
 
   "toutEffacer": "Tout effacer",
   "chiffre": "Chiffre {number}",

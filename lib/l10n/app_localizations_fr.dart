@@ -798,6 +798,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cliquerPourRevoir => 'Cliquer pour revoir (Catch-up)';
 
   @override
+  String get programmesRecents => 'Replay disponible';
+
+  @override
+  String ilYA(String time) {
+    return 'il y a $time';
+  }
+
+  @override
   String get toutEffacer => 'Tout effacer';
 
   @override

@@ -87,6 +87,15 @@ Widget listIconTyped(dynamic stream, ContentMode mode, BuildContext context) {
   );
 }
 
+/// Whether a stream supports catch-up replay.
+bool streamHasCatchup(dynamic stream) {
+  if (stream is Channel) return stream.hasCatchup;
+  if (stream is Map<String, dynamic>) {
+    return stream['tv_archive']?.toString() == '1';
+  }
+  return false;
+}
+
 /// Extract display icon from a typed or map stream.
 String _streamDisplayIcon(dynamic stream) {
   if (stream is Channel) return stream.displayIcon;
@@ -182,6 +191,21 @@ class StreamGridTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 14),
                     ),
+                  ),
+                ),
+              // Catch-up badge for live channels
+              if (mode == ContentMode.live && stream is Channel && (stream as Channel).hasCatchup)
+                Positioned(bottom: 4, left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: AppColors.accentGreen.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(4)),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.replay, color: Colors.white, size: 10),
+                      SizedBox(width: 2),
+                      Text('Replay', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
+                    ]),
                   ),
                 ),
               // Watchlist bookmark

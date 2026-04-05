@@ -330,6 +330,17 @@ class _StreamListViewState extends State<StreamListView> {
                   style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
               subtitle: subtitle,
               trailing: widget.selectionMode ? null : Row(mainAxisSize: MainAxisSize.min, children: [
+                if (widget.mode == ContentMode.live && streamHasCatchup(s))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: AppColors.accentGreen.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: const Text('Replay', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
                 if (widget.activeCollectionId != null) IconButton(
                   icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
                   tooltip: l10n.retirerCollection,

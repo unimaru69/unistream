@@ -1526,6 +1526,18 @@ abstract class AppLocalizations {
   /// **'Cliquer pour revoir (Catch-up)'**
   String get cliquerPourRevoir;
 
+  /// No description provided for @programmesRecents.
+  ///
+  /// In fr, this message translates to:
+  /// **'Replay disponible'**
+  String get programmesRecents;
+
+  /// No description provided for @ilYA.
+  ///
+  /// In fr, this message translates to:
+  /// **'il y a {time}'**
+  String ilYA(String time);
+
   /// No description provided for @toutEffacer.
   ///
   /// In fr, this message translates to:

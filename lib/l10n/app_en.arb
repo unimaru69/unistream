@@ -289,6 +289,13 @@
       "count": {"type": "int"}
     }
   },
+  "programmesRecents": "Replay available",
+  "ilYA": "{time} ago",
+  "@ilYA": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
   "chiffresSaisis": "{count} of {total} digits entered",
   "@chiffresSaisis": {
     "placeholders": {
