@@ -21,17 +21,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmpv-dev libsecret-1-dev libjsoncpp-dev clang cmake ninja-build pkg-config libgtk-3-dev wget imagemagick libcurl4-openssl-dev libc-ares-dev ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
 
-      - name: Configure git for sentry-native FetchContent
+      - name: Configure git for sentry-native
         run: |
           git config --global protocol.file.allow always
           git config --global --add safe.directory '*'
-          git config --global submodule.recurse true
+          git config --global http.postBuffer 524288000
 
       - run: flutter pub get
+
+      - name: Pre-fetch sentry-native to avoid CMake FetchContent timeout
+        run: |
+          mkdir -p build/linux/x64/release/_deps
+          git clone --depth 1 --recurse-submodules --shallow-submodules \
+            https://github.com/getsentry/sentry-native.git \
+            build/linux/x64/release/_deps/sentry-native-src || true
+
       - name: Build Linux release
         run: flutter build linux --release
-        env:
-          SENTRY_NATIVE_BACKEND: inproc
 
       - name: Build AppImage
         run: bash packaging/linux/build-appimage.sh
@@ -59,17 +65,22 @@ jobs:
         with:
           channel: stable
 
-      - name: Configure git for sentry-native FetchContent
+      - name: Configure git for sentry-native
         run: |
           git config --global protocol.file.allow always
           git config --global --add safe.directory '*'
-          git config --global submodule.recurse true
+          git config --global http.postBuffer 524288000
 
       - run: flutter pub get
+
+      - name: Pre-fetch sentry-native
+        run: |
+          mkdir -p build/windows/x64/_deps
+          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/getsentry/sentry-native.git build/windows/x64/_deps/sentry-native-src
+        continue-on-error: true
+
       - name: Build Windows release
         run: flutter build windows --release
-        env:
-          SENTRY_NATIVE_BACKEND: inproc
 
       - name: Create MSIX
         run: flutter pub run msix:create
