@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -391,14 +392,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (endUtc.isAfter(now) || now.difference(endUtc).inHours > 24) continue;
             final durationMin = endUtc.difference(startUtc).inMinutes;
             if (durationMin <= 0) continue;
-            final title = prog['title']?.toString() ?? '';
-            if (title.isEmpty) continue;
+            final rawTitle = prog['title']?.toString() ?? '';
+            if (rawTitle.isEmpty) continue;
+            String decB64(String s) { try { return utf8.decode(base64.decode(s)); } catch (_) { return s; } }
+            final title = decB64(rawTitle);
             programs.add(CatchupProgram(
               streamId: ch.streamId.toString(),
               channelName: ch.name,
               channelIcon: ch.displayIcon,
               title: title,
-              description: prog['description']?.toString() ?? '',
+              description: decB64(prog['description']?.toString() ?? ''),
               startUtc: startUtc,
               endUtc: endUtc,
               durationMin: durationMin,
