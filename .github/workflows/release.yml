@@ -8,8 +8,6 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    env:
-      SENTRY_NATIVE_DEP: sentry-native
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +30,8 @@ jobs:
       - run: flutter pub get
       - name: Build Linux release
         run: flutter build linux --release
+        env:
+          SENTRY_NATIVE_BACKEND: inproc
 
       - name: Build AppImage
         run: bash packaging/linux/build-appimage.sh
@@ -68,6 +68,8 @@ jobs:
       - run: flutter pub get
       - name: Build Windows release
         run: flutter build windows --release
+        env:
+          SENTRY_NATIVE_BACKEND: inproc
 
       - name: Create MSIX
         run: flutter pub run msix:create
