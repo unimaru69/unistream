@@ -938,4 +938,15 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get descriptionAvances => 'Paramètres de connexion au serveur.';
+
+  @override
+  String get marquerVu => 'Marquer comme vu';
+
+  @override
+  String get marquerNonVu => 'Marquer comme non vu';
+
+  @override
+  String episodesMarquesVus(int count) {
+    return '$count épisodes marqués comme vus';
+  }
 }

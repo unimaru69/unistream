@@ -507,5 +507,14 @@
   "reglagesAvances": "RÉGLAGES AVANCÉS",
   "tentativesMax": "Tentatives max",
   "delaiConnexion": "Délai de connexion (sec)",
-  "descriptionAvances": "Paramètres de connexion au serveur."
+  "descriptionAvances": "Paramètres de connexion au serveur.",
+
+  "marquerVu": "Marquer comme vu",
+  "marquerNonVu": "Marquer comme non vu",
+  "episodesMarquesVus": "{count} épisodes marqués comme vus",
+  "@episodesMarquesVus": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }

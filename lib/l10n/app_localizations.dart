@@ -1753,6 +1753,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Paramètres de connexion au serveur.'**
   String get descriptionAvances;
+
+  /// No description provided for @marquerVu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Marquer comme vu'**
+  String get marquerVu;
+
+  /// No description provided for @marquerNonVu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Marquer comme non vu'**
+  String get marquerNonVu;
+
+  /// No description provided for @episodesMarquesVus.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} épisodes marqués comme vus'**
+  String episodesMarquesVus(int count);
 }
 
 class _AppLocalizationsDelegate

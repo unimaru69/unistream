@@ -345,5 +345,9 @@
   "reglagesAvances": "ADVANCED SETTINGS",
   "tentativesMax": "Max retries",
   "delaiConnexion": "Connection timeout (sec)",
-  "descriptionAvances": "Server connection parameters."
+  "descriptionAvances": "Server connection parameters.",
+
+  "marquerVu": "Mark as watched",
+  "marquerNonVu": "Mark as unwatched",
+  "episodesMarquesVus": "{count} episodes marked as watched"
 }

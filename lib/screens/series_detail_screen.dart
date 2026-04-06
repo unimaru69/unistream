@@ -13,6 +13,7 @@ import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
+import '../utils/snackbar_helper.dart';
 import 'player/player_screen.dart';
 
 class SeriesDetailScreen extends ConsumerStatefulWidget {
@@ -66,11 +67,100 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     }
   }
 
+  /// Mark all episodes before [ep] in the current season as watched.
+  /// Returns the list of episode IDs that were actually marked (for undo).
+  Future<List<String>> _markPreviousAsWatched(Episode ep) async {
+    if (_selectedSeason == null) return [];
+    final eps = _episodes[_selectedSeason!] ?? [];
+    final idx = eps.indexWhere((e) => e.idStr == ep.idStr);
+    if (idx <= 0) return [];
+
+    final marked = <String>[];
+    for (var i = 0; i < idx; i++) {
+      final prev = eps[i];
+      final prevId = prev.idStr;
+      final pos = await WatchProgress.getPosition(prevId);
+      if (pos == null || pos.inSeconds < 30) {
+        await WatchProgress.save(prevId, const Duration(minutes: 57), const Duration(hours: 1));
+        await WatchProgress.saveMeta(prevId, prev.displayTitle, widget.cover, '', 'series');
+        marked.add(prevId);
+      }
+    }
+    return marked;
+  }
+
+  /// Undo auto-marking: clear progress for the given episode IDs.
+  Future<void> _undoMarkAsWatched(List<String> episodeIds) async {
+    for (final id in episodeIds) {
+      await WatchProgress.clear(id);
+    }
+    if (mounted) {
+      ref.invalidate(watchProgressProvider);
+    }
+  }
+
+  /// Mark a single episode as watched or unwatched (context menu).
+  Future<void> _toggleEpisodeWatched(Episode ep) async {
+    final prog = await WatchProgress.getPosition(ep.idStr);
+    final isWatched = prog != null && prog.inSeconds > 30;
+    if (isWatched) {
+      await WatchProgress.clear(ep.idStr);
+    } else {
+      await WatchProgress.save(ep.idStr, const Duration(minutes: 57), const Duration(hours: 1));
+      await WatchProgress.saveMeta(ep.idStr, ep.displayTitle, widget.cover, '', 'series');
+    }
+    if (mounted) {
+      ref.invalidate(watchProgressProvider);
+    }
+  }
+
+  void _showEpisodeContextMenu(Episode ep, Offset position) {
+    final l10n = AppLocalizations.of(context)!;
+    final tc = AppThemeColors.of(context);
+    final progress = ref.read(watchProgressProvider).valueOrNull ?? {};
+    final prog = progress[ep.idStr];
+    final isWatched = prog != null && prog > 0.95;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      color: tc.surface,
+      items: [
+        PopupMenuItem(
+          value: 'toggle',
+          child: Row(children: [
+            Icon(isWatched ? Icons.visibility_off : Icons.check_circle,
+                size: 18, color: isWatched ? tc.textSecondary : Colors.green),
+            const SizedBox(width: 8),
+            Text(isWatched ? l10n.marquerNonVu : l10n.marquerVu,
+                style: const TextStyle(fontSize: 13)),
+          ]),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'toggle') _toggleEpisodeWatched(ep);
+    });
+  }
+
   void _playEpisode(Episode ep) {
     final epId = ep.idStr;
     final url = XtreamApi.getSeriesEpisodeUrl(epId, ep.containerExtension);
     WatchProgress.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
     WatchProgress.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
+
+    // Mark previous episodes as watched + show undo snackbar
+    _markPreviousAsWatched(ep).then((marked) {
+      if (marked.isNotEmpty && mounted) {
+        ref.invalidate(watchProgressProvider);
+        ScaffoldMessenger.of(context).clearSnackBars();
+        showAppSnackBar(
+          context,
+          AppLocalizations.of(context)!.episodesMarquesVus(marked.length),
+          actionLabel: AppLocalizations.of(context)!.annuler,
+          onAction: () => _undoMarkAsWatched(marked),
+        );
+      }
+    });
 
     // Find next episode in same season
     Map<String, dynamic>? nextEp;
@@ -151,9 +241,27 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                             ),
                           ),
                         ),
+                        // Back button
+                        Positioned(top: 8, left: 8,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            style: IconButton.styleFrom(backgroundColor: Colors.black38),
+                            onPressed: () => Navigator.of(context).pop(),
+                            tooltip: l10n.retour,
+                          ),
+                        ),
                       ])
-                    : Container(height: 200, color: tc.inputFill,
-                        child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
+                    : Stack(children: [
+                        Container(height: 200, color: tc.inputFill,
+                            child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
+                        Positioned(top: 8, left: 8,
+                          child: IconButton(
+                            icon: Icon(Icons.arrow_back, color: tc.textSecondary),
+                            onPressed: () => Navigator.of(context).pop(),
+                            tooltip: l10n.retour,
+                          ),
+                        ),
+                      ]),
               ),
 
               // Title + metadata
@@ -267,50 +375,54 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       final bool isWatched = prog != null && prog > 0.95;
                       final bool isPartial = prog != null && prog <= 0.95;
                       final bool isNew = prog == null;
-                      return ListTile(
-                        leading: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: isWatched
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : AppColors.primaryBlue.withValues(alpha: 0.2),
-                              child: isWatched
-                                  ? const Icon(Icons.check, size: 16, color: Colors.green)
-                                  : Text('$epNum',
-                                      style: TextStyle(fontSize: 12, color: tc.textSecondary)),
-                            ),
-                            if (isNew)
-                              Positioned(top: -2, right: -2,
-                                child: Container(
-                                  width: 10, height: 10,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primaryBlue,
-                                    shape: BoxShape.circle,
+                      return GestureDetector(
+                        onSecondaryTapUp: (details) => _showEpisodeContextMenu(ep, details.globalPosition),
+                        onLongPressStart: (details) => _showEpisodeContextMenu(ep, details.globalPosition),
+                        child: ListTile(
+                          leading: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: isWatched
+                                    ? Colors.green.withValues(alpha: 0.2)
+                                    : AppColors.primaryBlue.withValues(alpha: 0.2),
+                                child: isWatched
+                                    ? const Icon(Icons.check, size: 16, color: Colors.green)
+                                    : Text('$epNum',
+                                        style: TextStyle(fontSize: 12, color: tc.textSecondary)),
+                              ),
+                              if (isNew)
+                                Positioned(top: -2, right: -2,
+                                  child: Container(
+                                    width: 10, height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primaryBlue,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
+                          title: Text(title, style: TextStyle(fontSize: 14,
+                              color: isWatched ? tc.textDisabled : tc.textPrimary)),
+                          subtitle: isPartial
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: LinearProgressIndicator(
+                                    value: prog,
+                                    backgroundColor: tc.divider,
+                                    color: Colors.amber, minHeight: 3,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                )
+                              : isWatched
+                              ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
+                              : null,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+                          onTap: () => _playEpisode(ep),
                         ),
-                        title: Text(title, style: TextStyle(fontSize: 14,
-                            color: isWatched ? tc.textDisabled : tc.textPrimary)),
-                        subtitle: isPartial
-                            ? Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: LinearProgressIndicator(
-                                  value: prog,
-                                  backgroundColor: tc.divider,
-                                  color: Colors.amber, minHeight: 3,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              )
-                            : isWatched
-                            ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
-                            : null,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-                        onTap: () => _playEpisode(ep),
                       );
                     },
                   ),

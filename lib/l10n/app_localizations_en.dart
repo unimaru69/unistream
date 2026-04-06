@@ -934,4 +934,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get descriptionAvances => 'Server connection parameters.';
+
+  @override
+  String get marquerVu => 'Mark as watched';
+
+  @override
+  String get marquerNonVu => 'Mark as unwatched';
+
+  @override
+  String episodesMarquesVus(int count) {
+    return '$count episodes marked as watched';
+  }
 }

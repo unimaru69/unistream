@@ -20,6 +20,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void _play(Map<String, String> item) {
+    ScaffoldMessenger.of(context).clearSnackBars();
     final mode = item['mode'] ?? 'live';
     final l10n = AppLocalizations.of(context)!;
     final name = item['name'] ?? l10n.sansTitre;
