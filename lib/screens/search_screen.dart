@@ -5,6 +5,7 @@ import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/skeleton_list.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/cache_config.dart';
@@ -42,6 +43,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
   // Search history
   List<String> _searchHistory = [];
+
+  /// Decode base64-encoded EPG strings from Xtream API.
+  static String _decodeBase64(String s) {
+    if (s.isEmpty) return '';
+    try { return utf8.decode(base64.decode(s)); } catch (_) { return s; }
+  }
 
   @override
   void initState() {
@@ -181,8 +188,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         if (listings == null) return;
         for (final raw in listings) {
           final prog = raw as Map<String, dynamic>;
-          final title = prog['title']?.toString() ?? '';
-          final desc = prog['description']?.toString() ?? '';
+          final title = _decodeBase64(prog['title']?.toString() ?? '');
+          final desc = _decodeBase64(prog['description']?.toString() ?? '');
           if (!title.toLowerCase().contains(q) && !desc.toLowerCase().contains(q)) continue;
           final startEpoch = int.tryParse(prog['start_timestamp']?.toString() ?? '');
           final endEpoch = int.tryParse(prog['stop_timestamp']?.toString() ?? '');
