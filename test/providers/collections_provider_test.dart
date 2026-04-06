@@ -78,6 +78,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final col1 = await notifier.create('Col 1');
+      await Future<void>.delayed(const Duration(milliseconds: 5));
       await notifier.create('Col 2');
       await notifier.addItem(col1.id, _item('a', name: 'A'));
 
