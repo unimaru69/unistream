@@ -85,6 +85,9 @@ dev_dependencies:
   build_runner: any
   mocktail: ^1.0.4
 
+  # Windows MSIX packaging
+  msix: ^3.16.0
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -125,3 +128,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+msix_config:
+  display_name: UniStream
+  publisher_display_name: UniMaru
+  identity_name: fr.unimaru.unistream
+  msix_version: 1.0.0.0
+  publisher: CN=UniMaru
+  logo_path: windows/runner/resources/app_icon.ico
+  capabilities: internetClient
+  languages: fr-fr, en-us
