@@ -8,8 +8,12 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      SENTRY_NATIVE_DEP: sentry-native
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -49,6 +53,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
