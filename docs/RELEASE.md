@@ -110,7 +110,26 @@ The release build output at `build/linux/x64/release/bundle/` is self-contained.
    tar czf unistream-linux-x64.tar.gz bundle/
    ```
 
-2. **AppImage** (optional): use `appimage-builder` or `linuxdeploy` to package the bundle into a portable AppImage.
+2. **AppImage** (recommended):
+```bash
+bash packaging/linux/build-appimage.sh
+```
+
+3. **Flatpak** (for Flathub / sandboxed distribution):
+```bash
+# Prerequisites: flatpak-builder, org.freedesktop.Platform//24.08
+bash packaging/linux/build-flatpak.sh
+# Run: flatpak run fr.unimaru.unistream
+# Export bundle: flatpak build-bundle ~/.local/share/flatpak/repo UniStream.flatpak fr.unimaru.unistream
+```
+
+### Windows — MSIX
+
+```bash
+flutter pub run msix:create
+```
+
+Output: `build/windows/x64/runner/Release/unistream.msix`
 
 ## Running a Release Build Locally
 

@@ -1,0 +1,40 @@
+app-id: fr.unimaru.unistream
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: unistream
+
+finish-args:
+  # Network access (streaming)
+  - --share=network
+  # Display (X11 + Wayland)
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Audio/Video playback
+  - --socket=pulseaudio
+  # GPU acceleration
+  - --device=dri
+  # File picker (portals)
+  - --talk-name=org.freedesktop.portal.FileChooser
+  # Notifications
+  - --talk-name=org.freedesktop.Notifications
+  # Window management
+  - --talk-name=org.freedesktop.portal.Desktop
+
+modules:
+  - name: unistream
+    buildsystem: simple
+    build-commands:
+      - cp -r bundle /app/bin/
+      - install -Dm644 unistream.desktop /app/share/applications/fr.unimaru.unistream.desktop
+      - install -Dm644 unistream.png /app/share/icons/hicolor/256x256/apps/fr.unimaru.unistream.png
+      - ln -s /app/bin/bundle/unistream /app/bin/unistream
+    sources:
+      - type: dir
+        path: ../../build/linux/x64/release/bundle
+        dest: bundle
+      - type: file
+        path: unistream.desktop
+      - type: file
+        path: unistream.png
