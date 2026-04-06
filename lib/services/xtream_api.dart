@@ -121,13 +121,29 @@ class XtreamApi {
 
   static final Map<String, EpgCacheEntry> _epgCache = {};
   static const Duration _epgCacheTtl = Duration(minutes: 30);
+  static const int _epgCacheMaxSize = 500;
 
   static int get epgCacheSize => _epgCache.length;
   static void clearEpgCache() => _epgCache.clear();
 
+  /// Evict expired entries and trim to max size (oldest first).
+  static void _evictEpgCache() {
+    final now = DateTime.now();
+    _epgCache.removeWhere((_, e) => now.difference(e.timestamp) >= _epgCacheTtl);
+    if (_epgCache.length > _epgCacheMaxSize) {
+      final sorted = _epgCache.entries.toList()
+        ..sort((a, b) => a.value.timestamp.compareTo(b.value.timestamp));
+      final toRemove = sorted.take(_epgCache.length - _epgCacheMaxSize);
+      for (final e in toRemove) {
+        _epgCache.remove(e.key);
+      }
+    }
+  }
+
   // ── Stream list cache (action+categoryId -> list, TTL 5 min) ──
   static final Map<String, _StreamCacheEntry> _streamCache = {};
   static const Duration _streamCacheTtl = Duration(minutes: 5);
+  static const int _streamCacheMaxSize = 100;
 
   /// Visible for testing — allows overriding the clock.
   @visibleForTesting
@@ -148,6 +164,17 @@ class XtreamApi {
 
   static void _putStreamCache(String key, List<dynamic> data) {
     _streamCache[key] = _StreamCacheEntry(data, streamCacheNow());
+    if (_streamCache.length > _streamCacheMaxSize) {
+      final now = streamCacheNow();
+      _streamCache.removeWhere((_, e) => now.difference(e.timestamp) >= _streamCacheTtl);
+      if (_streamCache.length > _streamCacheMaxSize) {
+        final sorted = _streamCache.entries.toList()
+          ..sort((a, b) => a.value.timestamp.compareTo(b.value.timestamp));
+        for (final e in sorted.take(_streamCache.length - _streamCacheMaxSize)) {
+          _streamCache.remove(e.key);
+        }
+      }
+    }
   }
 
   static String get baseUrl =>
@@ -259,6 +286,7 @@ class XtreamApi {
     }
     final data = jsonDecode((await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body) as Map<String, dynamic>;
     _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+    if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
     return data;
   }
 
@@ -271,6 +299,7 @@ class XtreamApi {
     }
     final data = jsonDecode((await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body) as Map<String, dynamic>;
     _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+    if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
     return data;
   }
 

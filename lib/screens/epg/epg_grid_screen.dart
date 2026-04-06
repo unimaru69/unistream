@@ -12,6 +12,7 @@ import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/xtream_api.dart';
+import '../../services/epg_reminder_service.dart';
 import '../../utils/api_error_localizer.dart';
 import '../../utils/routes.dart';
 import '../player/player_screen.dart';
@@ -492,36 +493,77 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     );
   }
 
-  void _showProgramDetail(Map<String, dynamic> prog, DateTime start, DateTime end, String desc) {
+  void _showProgramDetail(Map<String, dynamic> prog, DateTime start, DateTime end, String desc, {Channel? channel}) {
     final tc = AppThemeColors.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final isFuture = DateTime.now().isBefore(start);
+    final reminderSvc = EpgReminderService.instance;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkText,
-        title: Text(prog['title'] ?? '', style: TextStyle(color: tc.textPrimary, fontSize: 15)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
-                ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}',
-                style: TextStyle(color: tc.textSecondary, fontSize: 13),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final nowHasReminder = channel != null && isFuture
+              && reminderSvc.hasReminder(channel.id, start.toUtc());
+          return AlertDialog(
+            backgroundColor: AppColors.darkText,
+            title: Text(prog['title'] ?? '', style: TextStyle(color: tc.textPrimary, fontSize: 15)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
+                    ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}',
+                    style: TextStyle(color: tc.textSecondary, fontSize: 13),
+                  ),
+                  if (channel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(channel.name,
+                          style: TextStyle(color: tc.textDisabled, fontSize: 12)),
+                    ),
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(desc, style: TextStyle(color: tc.textSecondary, fontSize: 13)),
+                  ],
+                ],
               ),
-              if (desc.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(desc, style: TextStyle(color: tc.textSecondary, fontSize: 13)),
-              ],
+            ),
+            actions: [
+              if (channel != null && isFuture)
+                nowHasReminder
+                    ? TextButton.icon(
+                        icon: const Icon(Icons.notifications_active, size: 16, color: Colors.amber),
+                        label: Text(l10n.rappelActif, style: const TextStyle(color: Colors.amber, fontSize: 12)),
+                        onPressed: () {
+                          final id = '${channel.id}_${start.toUtc().millisecondsSinceEpoch}';
+                          reminderSvc.remove(id);
+                          setDialogState(() {});
+                        },
+                      )
+                    : TextButton.icon(
+                        icon: const Icon(Icons.notifications_none, size: 16),
+                        label: Text(l10n.meRappeler, style: const TextStyle(fontSize: 12)),
+                        onPressed: () {
+                          reminderSvc.add(EpgReminder(
+                            streamId: channel.id,
+                            channelName: channel.name,
+                            programTitle: prog['title'] ?? '',
+                            startUtc: start.toUtc(),
+                            durationMin: end.difference(start).inMinutes,
+                          ));
+                          setDialogState(() {});
+                        },
+                      ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l10n.fermer),
+              ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(context)!.fermer),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -572,6 +614,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       final isPast    = now.isAfter(end);
       final canReplay = isPast && hasCatchup;
       final durMin    = end.difference(start).inMinutes;
+      final isFuture  = !isPast && !isCurrent;
+      final hasReminder = isFuture && EpgReminderService.instance.hasReminder(sid, start.toUtc());
       final title     = '${canReplay ? '↻ ' : ''}${prog['title'] ?? ''}';
 
       final matchesSearch = _searchQuery.isNotEmpty &&
@@ -630,8 +674,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 )));
               }
             },
-            onLongPress: () => _showProgramDetail(prog, start, end, desc),
-            onSecondaryTap: () => _showProgramDetail(prog, start, end, desc),
+            onLongPress: () => _showProgramDetail(prog, start, end, desc, channel: ch),
+            onSecondaryTap: () => _showProgramDetail(prog, start, end, desc, channel: ch),
             child: Container(
               decoration: BoxDecoration(
                 color: cellColor,
@@ -640,6 +684,11 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Row(children: [
+                if (hasReminder)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 3),
+                    child: Icon(Icons.notifications_active, size: 10, color: Colors.amber),
+                  ),
                 Expanded(child: Text(
                   title,
                   style: TextStyle(

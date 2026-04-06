@@ -296,7 +296,25 @@
   "pinProfilDesc": "Protect this profile with a 4-digit PIN",
   "definirPin": "Set PIN",
   "supprimerPin": "Remove PIN",
+  "programmesTV": "Programs",
+  "rechercheRecente": "Recent searches",
+  "effacerRecherches": "Clear",
+  "nResultats": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@nResultats": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "pinDefini": "PIN set",
+  "meRappeler": "Remind me",
+  "rappelActif": "Reminder active",
+  "rappelProgramme": "{title} starts soon on {channel}",
+  "@rappelProgramme": {
+    "placeholders": {
+      "title": {"type": "String"},
+      "channel": {"type": "String"}
+    }
+  },
   "programmesRecents": "Replay available",
   "ilYA": "{time} ago",
   "@ilYA": {

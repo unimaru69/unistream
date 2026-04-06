@@ -1610,11 +1610,53 @@ abstract class AppLocalizations {
   /// **'Supprimer le PIN'**
   String get supprimerPin;
 
+  /// No description provided for @programmesTV.
+  ///
+  /// In fr, this message translates to:
+  /// **'Programmes'**
+  String get programmesTV;
+
+  /// No description provided for @rechercheRecente.
+  ///
+  /// In fr, this message translates to:
+  /// **'Recherches récentes'**
+  String get rechercheRecente;
+
+  /// No description provided for @effacerRecherches.
+  ///
+  /// In fr, this message translates to:
+  /// **'Effacer'**
+  String get effacerRecherches;
+
+  /// No description provided for @nResultats.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{Aucun résultat} =1{1 résultat} other{{count} résultats}}'**
+  String nResultats(int count);
+
   /// No description provided for @pinDefini.
   ///
   /// In fr, this message translates to:
   /// **'PIN défini'**
   String get pinDefini;
+
+  /// No description provided for @meRappeler.
+  ///
+  /// In fr, this message translates to:
+  /// **'Me rappeler'**
+  String get meRappeler;
+
+  /// No description provided for @rappelActif.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappel actif'**
+  String get rappelActif;
+
+  /// No description provided for @rappelProgramme.
+  ///
+  /// In fr, this message translates to:
+  /// **'{title} commence bientôt sur {channel}'**
+  String rappelProgramme(String title, String channel);
 
   /// No description provided for @chiffresSaisis.
   ///

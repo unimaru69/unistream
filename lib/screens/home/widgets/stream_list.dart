@@ -314,7 +314,9 @@ class _StreamListViewState extends State<StreamListView> {
         final selKey = widget.itemSelectionKeyBuilder(s);
         final isSelected = widget.selectionMode && widget.selectedItems.contains(selKey);
         final streamName = StreamListView.getName(s);
+        final sid = StreamListView.getStreamId(s);
         return Padding(
+          key: ValueKey('list_$sid'),
           padding: const EdgeInsets.only(bottom: 4),
           child: GestureDetector(
             onSecondaryTapUp: widget.selectionMode ? null : (_) => widget.onShowStreamInfo(s),
@@ -406,6 +408,7 @@ class _StreamListViewState extends State<StreamListView> {
         final isSelected = widget.selectionMode && widget.selectedItems.contains(selKey);
 
         return StreamGridTile(
+          key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
           stream: s,
           mode: widget.mode,
           progress: prog,

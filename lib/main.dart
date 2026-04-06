@@ -20,6 +20,7 @@ import 'providers/favorites_provider.dart';
 import 'providers/collections_provider.dart';
 import 'providers/watch_progress_provider.dart';
 import 'services/supabase_config.dart';
+import 'services/epg_reminder_service.dart';
 import 'services/sync_service.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
@@ -190,6 +191,8 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       windowManager.addListener(this);
     }
+    // Init EPG reminder service
+    EpgReminderService.instance.init(onAlert: _onEpgReminderAlert);
     // Pull remote data and start realtime after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _initSync());
   }
@@ -237,9 +240,25 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     }
   }
 
+  void _onEpgReminderAlert(EpgReminder reminder) {
+    final ctx = navKey.currentContext;
+    if (ctx == null) return;
+    final l10n = AppLocalizations.of(ctx);
+    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+      content: Text(l10n?.rappelProgramme(reminder.programTitle, reminder.channelName)
+          ?? '${reminder.programTitle} starts soon on ${reminder.channelName}'),
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'OK',
+        onPressed: () {},
+      ),
+    ));
+  }
+
   @override
   void dispose() {
     _windowSaveTimer?.cancel();
+    EpgReminderService.instance.dispose();
     SyncService.instance.stopRealtime();
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       windowManager.removeListener(this);

@@ -853,7 +853,39 @@ class AppLocalizationsFr extends AppLocalizations {
   String get supprimerPin => 'Supprimer le PIN';
 
   @override
+  String get programmesTV => 'Programmes';
+
+  @override
+  String get rechercheRecente => 'Recherches récentes';
+
+  @override
+  String get effacerRecherches => 'Effacer';
+
+  @override
+  String nResultats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count résultats',
+      one: '1 résultat',
+      zero: 'Aucun résultat',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pinDefini => 'PIN défini';
+
+  @override
+  String get meRappeler => 'Me rappeler';
+
+  @override
+  String get rappelActif => 'Rappel actif';
+
+  @override
+  String rappelProgramme(String title, String channel) {
+    return '$title commence bientôt sur $channel';
+  }
 
   @override
   String chiffresSaisis(int count, int total) {

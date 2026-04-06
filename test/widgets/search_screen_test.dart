@@ -28,15 +28,15 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
-    testWidgets('renders tab bar with four tabs', (tester) async {
+    testWidgets('renders tab bar with five tabs', (tester) async {
       await tester.pumpWidget(buildSearchScreen());
       await tester.pumpAndSettle();
 
       expect(find.byType(TabBar), findsOneWidget);
-      expect(find.byType(Tab), findsNWidgets(4));
+      expect(find.byType(Tab), findsNWidgets(5));
     });
 
-    testWidgets('renders tab labels: Tout, Live, Films, Séries',
+    testWidgets('renders tab labels: Tout, Live, Films, Séries, Programmes',
         (tester) async {
       await tester.pumpWidget(buildSearchScreen());
       await tester.pumpAndSettle();
@@ -45,6 +45,7 @@ void main() {
       expect(find.text('Live'), findsOneWidget);
       expect(find.text('Films'), findsOneWidget);
       expect(find.text('Séries'), findsOneWidget);
+      expect(find.text('Programmes'), findsOneWidget);
     });
 
     testWidgets('shows empty state message before typing', (tester) async {

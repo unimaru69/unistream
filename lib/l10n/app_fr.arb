@@ -460,7 +460,25 @@
   "pinProfilDesc": "Protéger ce profil par un code PIN à 4 chiffres",
   "definirPin": "Définir un PIN",
   "supprimerPin": "Supprimer le PIN",
+  "programmesTV": "Programmes",
+  "rechercheRecente": "Recherches récentes",
+  "effacerRecherches": "Effacer",
+  "nResultats": "{count, plural, =0{Aucun résultat} =1{1 résultat} other{{count} résultats}}",
+  "@nResultats": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "pinDefini": "PIN défini",
+  "meRappeler": "Me rappeler",
+  "rappelActif": "Rappel actif",
+  "rappelProgramme": "{title} commence bientôt sur {channel}",
+  "@rappelProgramme": {
+    "placeholders": {
+      "title": {"type": "String"},
+      "channel": {"type": "String"}
+    }
+  },
   "chiffresSaisis": "{count} chiffres sur {total} saisis",
   "@chiffresSaisis": {
     "placeholders": {
