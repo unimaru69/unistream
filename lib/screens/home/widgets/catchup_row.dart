@@ -1,7 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+
+String _decodeEpgTitle(String s) {
+  if (s.isEmpty) return s;
+  try { return utf8.decode(base64.decode(s)); } catch (_) { return s; }
+}
 
 /// A single catch-up program entry for the horizontal carousel.
 class CatchupProgram {
@@ -118,9 +124,9 @@ class CatchupRow extends StatelessWidget {
                       ),
                     ]),
                     const SizedBox(height: 6),
-                    // Program title
+                    // Program title (decode base64 from EPG)
                     Expanded(
-                      child: Text(prog.title,
+                      child: Text(_decodeEpgTitle(prog.title),
                           style: TextStyle(fontSize: 12, color: tc.textPrimary,
                               fontWeight: FontWeight.w500),
                           maxLines: 2, overflow: TextOverflow.ellipsis),

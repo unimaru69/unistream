@@ -374,10 +374,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final now = DateTime.now().toUtc();
       final programs = <CatchupProgram>[];
-      String decEpg(String s) {
-        if (s.isEmpty) return s;
-        try { return utf8.decode(base64.decode(s)); } catch (_) { return s; }
-      }
 
       // Load short EPG (2 recent programs) for each catch-up channel in parallel
       final futures = catchupChannels.map((ch) async {
@@ -396,16 +392,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (endUtc.isAfter(now) || now.difference(endUtc).inHours > 24) continue;
             final durationMin = endUtc.difference(startUtc).inMinutes;
             if (durationMin <= 0) continue;
-            final rawTitle = prog['title']?.toString() ?? '';
-            if (rawTitle.isEmpty) continue;
-            final title = decEpg(rawTitle);
+            final title = prog['title']?.toString() ?? '';
             if (title.isEmpty) continue;
             programs.add(CatchupProgram(
               streamId: ch.streamId.toString(),
               channelName: ch.name,
               channelIcon: ch.displayIcon,
               title: title,
-              description: decEpg(prog['description']?.toString() ?? ''),
+              description: prog['description']?.toString() ?? '',
               startUtc: startUtc,
               endUtc: endUtc,
               durationMin: durationMin,
