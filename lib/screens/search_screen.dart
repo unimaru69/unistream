@@ -174,23 +174,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     }
   }
 
-  /// Search EPG program titles across live channels.
+  /// Search EPG program titles across live channels (full day EPG).
   Future<List<Map<String, dynamic>>> _searchEpg(String q, List<Channel> channels) async {
     final results = <Map<String, dynamic>>[];
-    // First, search channels that have EPG cached
-    // Then load a few more for catch-up channels
-    final channelsToSearch = channels.where((ch) => ch.hasCatchup).take(20).toList();
+    // Search all channels (not just catch-up) — take first 30 for performance
+    final channelsToSearch = channels.take(30).toList();
 
     final futures = channelsToSearch.map((ch) async {
       try {
-        final data = await XtreamApi.getShortEpg(ch.streamId.toString(), limit: 8);
+        final data = await XtreamApi.getFullDayEpg(ch.streamId.toString());
         final listings = data['epg_listings'] as List?;
         if (listings == null) return;
         for (final raw in listings) {
           final prog = raw as Map<String, dynamic>;
           final title = _decodeBase64(prog['title']?.toString() ?? '');
-          final desc = _decodeBase64(prog['description']?.toString() ?? '');
-          if (!title.toLowerCase().contains(q) && !desc.toLowerCase().contains(q)) continue;
+          if (title.isEmpty) continue;
+          // Match on title first (fast check), then description if needed
+          final titleMatch = title.toLowerCase().contains(q);
+          if (!titleMatch) {
+            final desc = _decodeBase64(prog['description']?.toString() ?? '');
+            if (!desc.toLowerCase().contains(q)) continue;
+          }
           final startEpoch = int.tryParse(prog['start_timestamp']?.toString() ?? '');
           final endEpoch = int.tryParse(prog['stop_timestamp']?.toString() ?? '');
           if (startEpoch == null || endEpoch == null) continue;
@@ -199,9 +203,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           final now = DateTime.now().toUtc();
           final isPast = endUtc.isBefore(now);
           final isCurrent = startUtc.isBefore(now) && endUtc.isAfter(now);
+          final desc = titleMatch ? _decodeBase64(prog['description']?.toString() ?? '') : '';
           results.add(<String, dynamic>{
             'name': title,
-            'description': desc,
+            'description': desc.length > 120 ? '${desc.substring(0, 120)}…' : desc,
             'channel_name': ch.name,
             'channel_icon': ch.displayIcon,
             'stream_id': ch.streamId.toString(),
