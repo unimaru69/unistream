@@ -2,34 +2,35 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
+import '../models/collection_data.dart';
+import '../models/favorite_item.dart';
 
 class CollectionsService {
   static String get _prefsKey => StorageKeys.collections(AppConfig.activeProfileId);
 
   /// Load all custom collections for the active profile.
-  /// Each collection: {id, name, items: [{key, name, cover, mode}]}
-  static Future<List<Map<String, dynamic>>> loadCollections() async {
+  static Future<List<CollectionData>> loadCollections() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_prefsKey);
     if (raw == null) return [];
     final list = jsonDecode(raw) as List;
-    return list.map((e) => Map<String, dynamic>.from(e)).toList();
+    return list.map((e) => CollectionData.fromLegacy(Map<String, dynamic>.from(e))).toList();
   }
 
-  static Future<void> _save(List<Map<String, dynamic>> collections) async {
+  static Future<void> _save(List<CollectionData> collections) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(_prefsKey, jsonEncode(collections));
+    await p.setString(_prefsKey, jsonEncode(collections.map((c) => c.toJson()).toList()));
   }
 
   /// Create a new collection with the given name, optionally scoped to a mode.
-  static Future<Map<String, dynamic>> saveCollection(String name, {String? mode}) async {
+  static Future<CollectionData> saveCollection(String name, {String? mode}) async {
     final collections = await loadCollections();
-    final col = <String, dynamic>{
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
-      'name': name,
-      'items': <Map<String, dynamic>>[],
-      if (mode != null) 'mode': mode,
-    };
+    final col = CollectionData(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      items: [],
+      mode: mode,
+    );
     collections.add(col);
     await _save(collections);
     return col;
@@ -38,37 +39,32 @@ class CollectionsService {
   /// Delete a collection by id.
   static Future<void> deleteCollection(String id) async {
     final collections = await loadCollections();
-    collections.removeWhere((c) => c['id'] == id);
+    collections.removeWhere((c) => c.id == id);
     await _save(collections);
   }
 
   /// Add an item to a collection.
-  static Future<void> addToCollection(String collectionId, Map<String, dynamic> item) async {
+  static Future<void> addToCollection(String collectionId, FavoriteItem item) async {
     final collections = await loadCollections();
-    for (final col in collections) {
-      if (col['id'] == collectionId) {
-        final items = (col['items'] as List).cast<Map<String, dynamic>>();
-        // Avoid duplicates
-        if (items.any((e) => e['key'] == item['key'])) return;
-        items.add(item);
-        col['items'] = items;
-        break;
+    final updated = collections.map((col) {
+      if (col.id == collectionId) {
+        if (col.items.any((e) => e.key == item.key)) return col;
+        return col.copyWith(items: [...col.items, item]);
       }
-    }
-    await _save(collections);
+      return col;
+    }).toList();
+    await _save(updated);
   }
 
   /// Remove an item from a collection by key.
   static Future<void> removeFromCollection(String collectionId, String itemKey) async {
     final collections = await loadCollections();
-    for (final col in collections) {
-      if (col['id'] == collectionId) {
-        final items = (col['items'] as List).cast<Map<String, dynamic>>();
-        items.removeWhere((e) => e['key'] == itemKey);
-        col['items'] = items;
-        break;
+    final updated = collections.map((col) {
+      if (col.id == collectionId) {
+        return col.copyWith(items: col.items.where((e) => e.key != itemKey).toList());
       }
-    }
-    await _save(collections);
+      return col;
+    }).toList();
+    await _save(updated);
   }
 }

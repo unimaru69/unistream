@@ -349,5 +349,14 @@
 
   "marquerVu": "Mark as watched",
   "marquerNonVu": "Mark as unwatched",
-  "episodesMarquesVus": "{count} episodes marked as watched"
+  "episodesMarquesVus": "{count} episodes marked as watched",
+
+  "notifRappelEpg": "EPG Reminder",
+  "notifBientot": "{title} starts soon on {channel}",
+  "@notifBientot": {
+    "placeholders": {
+      "title": {"type": "String"},
+      "channel": {"type": "String"}
+    }
+  }
 }

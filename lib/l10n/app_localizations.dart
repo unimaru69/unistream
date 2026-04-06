@@ -1771,6 +1771,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'{count} épisodes marqués comme vus'**
   String episodesMarquesVus(int count);
+
+  /// No description provided for @notifRappelEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappel EPG'**
+  String get notifRappelEpg;
+
+  /// No description provided for @notifBientot.
+  ///
+  /// In fr, this message translates to:
+  /// **'{title} commence bientôt sur {channel}'**
+  String notifBientot(String title, String channel);
 }
 
 class _AppLocalizationsDelegate

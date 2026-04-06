@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/storage_keys.dart';
 import '../models/app_config.dart';
+import '../models/collection_data.dart';
+import '../models/favorite_item.dart';
 import '../services/collections_service.dart';
 import '../services/sync_service.dart';
 
-class CollectionsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
+class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
   CollectionsNotifier() : super([]) {
     load();
   }
@@ -15,7 +17,7 @@ class CollectionsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     state = await CollectionsService.loadCollections();
   }
 
-  Future<Map<String, dynamic>> create(String name, {String? mode}) async {
+  Future<CollectionData> create(String name, {String? mode}) async {
     final col = await CollectionsService.saveCollection(name, mode: mode);
     await load();
     _pushSync();
@@ -28,7 +30,7 @@ class CollectionsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     _pushSync();
   }
 
-  Future<void> addItem(String collectionId, Map<String, dynamic> item) async {
+  Future<void> addItem(String collectionId, FavoriteItem item) async {
     await CollectionsService.addToCollection(collectionId, item);
     await load();
     _pushSync();
@@ -44,60 +46,54 @@ class CollectionsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   Future<void> mergeFromRemote(List<Map<String, dynamic>> remote) async {
     if (remote.isEmpty) return;
     final local = await CollectionsService.loadCollections();
-    final localIds = local.map((c) => c['id']?.toString() ?? c['collection_id']?.toString()).toSet();
+    final localIds = local.map((c) => c.id).toSet();
     bool changed = false;
 
     for (final rc in remote) {
       final remoteId = rc['collection_id']?.toString() ?? rc['id']?.toString() ?? '';
       if (remoteId.isEmpty) continue;
 
-      final localMatch = local.cast<Map<String, dynamic>?>().firstWhere(
-        (c) => (c!['id']?.toString() ?? '') == remoteId,
-        orElse: () => null,
-      );
+      final localIdx = local.indexWhere((c) => c.id == remoteId);
 
-      if (localMatch == null) {
+      if (localIdx < 0) {
         // Collection doesn't exist locally — add it
-        local.add({
-          'id': remoteId,
-          'name': rc['name'] ?? '',
-          'items': rc['items'] ?? [],
-          if (rc['mode'] != null) 'mode': rc['mode'],
-        });
+        local.add(CollectionData.fromLegacy({...rc, 'id': remoteId}));
         changed = true;
       } else {
         // Merge items: add remote items missing locally
-        final localItems = (localMatch['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final localItemKeys = localItems.map((e) => e['key']?.toString() ?? '').toSet();
+        final localCol = local[localIdx];
+        final localItemKeys = localCol.items.map((e) => e.key).toSet();
         final remoteItems = (rc['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final newItems = <FavoriteItem>[];
         for (final ri in remoteItems) {
           final rk = ri['key']?.toString() ?? '';
           if (rk.isNotEmpty && !localItemKeys.contains(rk)) {
-            localItems.add(Map<String, dynamic>.from(ri));
+            newItems.add(FavoriteItem.fromLegacy(rk, Map<String, dynamic>.from(ri)));
             changed = true;
           }
         }
-        localMatch['items'] = localItems;
+        if (newItems.isNotEmpty) {
+          local[localIdx] = localCol.copyWith(items: [...localCol.items, ...newItems]);
+        }
       }
     }
 
     if (changed) {
-      // Persist merged collections and update state
       final p = await SharedPreferences.getInstance();
       await p.setString(
         StorageKeys.collections(AppConfig.activeProfileId),
-        jsonEncode(local),
+        jsonEncode(local.map((c) => c.toJson()).toList()),
       );
       state = local;
     }
   }
 
   void _pushSync() {
-    SyncService.instance.pushCollections(state);
+    SyncService.instance.pushCollections(state.map((c) => c.toJson()).toList());
   }
 }
 
 final collectionsProvider =
-    StateNotifierProvider<CollectionsNotifier, List<Map<String, dynamic>>>((ref) {
+    StateNotifierProvider<CollectionsNotifier, List<CollectionData>>((ref) {
   return CollectionsNotifier();
 });

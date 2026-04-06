@@ -516,5 +516,14 @@
     "placeholders": {
       "count": {"type": "int"}
     }
+  },
+
+  "notifRappelEpg": "Rappel EPG",
+  "notifBientot": "{title} commence bientôt sur {channel}",
+  "@notifBientot": {
+    "placeholders": {
+      "title": {"type": "String"},
+      "channel": {"type": "String"}
+    }
   }
 }

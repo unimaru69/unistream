@@ -945,4 +945,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String episodesMarquesVus(int count) {
     return '$count episodes marked as watched';
   }
+
+  @override
+  String get notifRappelEpg => 'EPG Reminder';
+
+  @override
+  String notifBientot(String title, String channel) {
+    return '$title starts soon on $channel';
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import '../../../models/collection_data.dart';
 import '../../../models/content_mode.dart';
 
 /// Shows a dialog to create a new collection. Returns the collection name or null.
@@ -43,7 +44,7 @@ Future<String?> showCreateCollectionDialog(BuildContext context) async {
 /// Returns the selected collection ID or null.
 Future<String?> showCollectionPickerDialog(
   BuildContext context, {
-  required List<Map<String, dynamic>> collections,
+  required List<CollectionData> collections,
   required VoidCallback onCreateNew,
 }) async {
   final tc = AppThemeColors.of(context);
@@ -54,8 +55,8 @@ Future<String?> showCollectionPickerDialog(
       title: Text(AppLocalizations.of(context)!.ajouterCollection),
       children: [
         ...collections.map((col) => SimpleDialogOption(
-          onPressed: () => Navigator.pop(ctx, col['id'] as String),
-          child: Text(col['name'] as String, style: const TextStyle(fontSize: 14)),
+          onPressed: () => Navigator.pop(ctx, col.id),
+          child: Text(col.name, style: const TextStyle(fontSize: 14)),
         )),
         Divider(color: tc.divider),
         SimpleDialogOption(

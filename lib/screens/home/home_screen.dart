@@ -9,6 +9,7 @@ import 'package:unistream/core/logger.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
+import '../../models/collection_data.dart';
 import '../../models/favorite_item.dart';
 import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
@@ -137,21 +138,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final key = _favKey(_mode.key, stream);
     final name = getStreamName(stream);
     final cover = getStreamIcon(stream);
-    final item = <String, dynamic>{'key': key, 'name': name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name, 'cover': cover, 'mode': _mode.key};
+    final item = FavoriteItem(key: key, name: name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name, cover: cover, mode: _mode.key);
 
     final collections = ref.read(collectionsProvider);
     final modeCols = collections.where((c) =>
-        c['mode'] == null || c['mode'] == _mode.key).toList();
+        c.mode == null || c.mode == _mode.key).toList();
     if (modeCols.isEmpty) {
       await _createCollection();
       final updated = ref.read(collectionsProvider).where((c) =>
-          c['mode'] == null || c['mode'] == _mode.key).toList();
+          c.mode == null || c.mode == _mode.key).toList();
       if (updated.isEmpty) return;
     }
 
     if (!mounted) return;
     final currentModeCols = ref.read(collectionsProvider).where((c) =>
-        c['mode'] == null || c['mode'] == _mode.key).toList();
+        c.mode == null || c.mode == _mode.key).toList();
     final colId = await showCollectionPickerDialog(
       context,
       collections: currentModeCols,
@@ -164,7 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await ref.read(collectionsProvider.notifier).addItem(colId, item);
       if (mounted) {
         final cols = ref.read(collectionsProvider);
-        final colName = cols.firstWhere((c) => c['id'] == colId, orElse: () => {'name': 'collection'})['name'];
+        final colName = cols.firstWhere((c) => c.id == colId, orElse: () => const CollectionData(id: '', name: 'collection')).name;
         showAppSnackBar(context, AppLocalizations.of(context)!.ajouteACollection(colName));
       }
     }
@@ -186,10 +187,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : _favKey(_mode.key, s);
     await ref.read(collectionsProvider.notifier).removeItem(colId, key);
     final collections = ref.read(collectionsProvider);
-    final col = collections.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
-    final colItems = ((col['items'] as List?) ?? [])
-        .where((e) => col['mode'] != null || e['mode'] == _mode.key)
-        .map((e) => Map<String, dynamic>.from(e))
+    final col = collections.firstWhere((c) => c.id == colId, orElse: () => const CollectionData(id: '', name: ''));
+    final colItems = col.items
+        .where((e) => col.mode != null || e.mode == _mode.key)
+        .map((e) => e.toJson())
         .toList();
     setState(() => _streams = colItems);
   }
@@ -215,13 +216,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final name = await showCreateCollectionFromSelectedDialog(context, itemCount: items.length);
     if (name == null || name.isEmpty) return;
     final col = await ref.read(collectionsProvider.notifier).create(name, mode: _mode.key);
-    final colId = col['id'] as String;
     for (final s in items) {
       final key = _favKey(_mode.key, s);
       final itemName = getStreamName(s);
       final cover = getStreamIcon(s);
-      final item = <String, dynamic>{'key': key, 'name': itemName.isEmpty ? AppLocalizations.of(context)!.sansTitre : itemName, 'cover': cover, 'mode': _mode.key};
-      await ref.read(collectionsProvider.notifier).addItem(colId, item);
+      final item = FavoriteItem(key: key, name: itemName.isEmpty ? AppLocalizations.of(context)!.sansTitre : itemName, cover: cover, mode: _mode.key);
+      await ref.read(collectionsProvider.notifier).addItem(col.id, item);
     }
     _exitSelectionMode();
     if (mounted) {
@@ -569,7 +569,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSidebarDrawer(List<Map<String, dynamic>> collections, List<cat.Category> categories) {
+  Widget _buildSidebarDrawer(List<CollectionData> collections, List<cat.Category> categories) {
     final tc = AppThemeColors.of(context);
     return Drawer(
       backgroundColor: tc.surface,
@@ -610,10 +610,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onCollectionSelected: (colId) {
             Navigator.pop(context);
             final cols = ref.read(collectionsProvider);
-            final col = cols.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
-            final colItems = ((col['items'] as List?) ?? [])
-                .where((e) => e['mode'] == _mode.key)
-                .map((e) => Map<String, dynamic>.from(e))
+            final col = cols.firstWhere((c) => c.id == colId, orElse: () => const CollectionData(id: '', name: ''));
+            final colItems = col.items
+                .where((e) => e.mode == _mode.key)
+                .map((e) => e.toJson())
                 .toList();
             setState(() {
               _selectedCategory = '__col_${colId}__';
@@ -809,10 +809,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onCreateCollection: _createCollection,
                 onCollectionSelected: (colId) {
                   final cols = ref.read(collectionsProvider);
-                  final col = cols.firstWhere((c) => c['id'] == colId, orElse: () => <String, dynamic>{});
-                  final colItems = ((col['items'] as List?) ?? [])
-                      .where((e) => e['mode'] == _mode.key)
-                      .map((e) => Map<String, dynamic>.from(e))
+                  final col = cols.firstWhere((c) => c.id == colId, orElse: () => const CollectionData(id: '', name: ''));
+                  final colItems = col.items
+                      .where((e) => e.mode == _mode.key)
+                      .map((e) => e.toJson())
                       .toList();
                   setState(() {
                     _selectedCategory = '__col_${colId}__';

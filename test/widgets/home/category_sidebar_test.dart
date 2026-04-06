@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/models/content_mode.dart';
+import 'package:unistream/models/collection_data.dart';
 import 'package:unistream/models/favorite_item.dart';
 import 'package:unistream/screens/home/widgets/category_sidebar.dart';
 
@@ -14,7 +15,7 @@ void main() {
       String? selectedCategory,
       List<FavoriteItem> favItems = const [],
       List<FavoriteItem> wlItems = const [],
-      List<Map<String, dynamic>> collections = const [],
+      List<CollectionData> collections = const [],
       void Function(String)? onCategorySelected,
       void Function(String, List<Map<String, dynamic>>)? onSpecialCategorySelected,
       VoidCallback? onHistoryTap,

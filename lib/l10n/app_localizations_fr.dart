@@ -949,4 +949,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String episodesMarquesVus(int count) {
     return '$count épisodes marqués comme vus';
   }
+
+  @override
+  String get notifRappelEpg => 'Rappel EPG';
+
+  @override
+  String notifBientot(String title, String channel) {
+    return '$title commence bientôt sur $channel';
+  }
 }

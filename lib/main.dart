@@ -21,6 +21,7 @@ import 'providers/collections_provider.dart';
 import 'providers/watch_progress_provider.dart';
 import 'services/supabase_config.dart';
 import 'services/epg_reminder_service.dart';
+import 'services/notification_service.dart';
 import 'services/sync_service.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
@@ -149,6 +150,7 @@ void main() async {
     });
   }
 
+  await NotificationService.instance.init();
   await loadThemeMode();
 
   // Global async error handler (catches errors outside of Flutter framework)
@@ -265,6 +267,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   }
 
   void _onEpgReminderAlert(EpgReminder reminder) {
+    NotificationService.instance.showEpgReminder(reminder);
     final ctx = navKey.currentContext;
     if (ctx == null) return;
     final l10n = AppLocalizations.of(ctx);

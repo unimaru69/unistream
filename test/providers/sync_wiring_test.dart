@@ -101,7 +101,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final col = await notifier.create('Sync Test');
-      expect(col['name'], 'Sync Test');
+      expect(col.name, 'Sync Test');
       expect(notifier.state.length, 1);
     });
 
@@ -110,7 +110,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final col = await notifier.create('To Delete');
-      await notifier.delete(col['id'] as String);
+      await notifier.delete(col.id);
       expect(notifier.state, isEmpty);
     });
 
@@ -119,10 +119,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final col = await notifier.create('Items Col');
-      await notifier.addItem(col['id'] as String, {'key': 'x', 'name': 'X'});
-      final items =
-          (notifier.state[0]['items'] as List).cast<Map<String, dynamic>>();
-      expect(items.length, 1);
+      await notifier.addItem(col.id, FavoriteItem(key: 'x', name: 'X'));
+      expect(notifier.state[0].items.length, 1);
     });
 
     test('removeItem calls _pushSync without error', () async {
@@ -130,11 +128,9 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final col = await notifier.create('Items Col');
-      await notifier.addItem(col['id'] as String, {'key': 'x', 'name': 'X'});
-      await notifier.removeItem(col['id'] as String, 'x');
-      final items =
-          (notifier.state[0]['items'] as List).cast<Map<String, dynamic>>();
-      expect(items, isEmpty);
+      await notifier.addItem(col.id, FavoriteItem(key: 'x', name: 'X'));
+      await notifier.removeItem(col.id, 'x');
+      expect(notifier.state[0].items, isEmpty);
     });
   });
 

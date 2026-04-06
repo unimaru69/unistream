@@ -4,6 +4,7 @@ import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/category.dart' as cat;
+import '../../../models/collection_data.dart';
 import '../../../models/favorite_item.dart';
 
 /// Resizable category sidebar with favorites, watchlist, history, collections, and categories.
@@ -15,7 +16,7 @@ class CategorySidebar extends StatelessWidget {
   final VoidCallback onDragEnd;
 
   final List<cat.Category> categories;
-  final List<Map<String, dynamic>> collections;
+  final List<CollectionData> collections;
   final ContentMode mode;
   final String? selectedCategory;
   final Map<String, double> progress;
@@ -87,7 +88,7 @@ class CategorySidebar extends StatelessWidget {
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final modeCollections = collections.where((c) =>
-        c['mode'] == null || c['mode'] == mode.key).toList();
+        c.mode == null || c.mode == mode.key).toList();
 
     return ListView.builder(
       padding: const EdgeInsets.all(8),
@@ -212,25 +213,25 @@ class CategorySidebar extends StatelessWidget {
 
         if (i >= colStartIdx && i < colEndIdx) {
           final col = modeColList[i - colStartIdx];
-          final colId = '__col_${col['id']}__';
+          final colId = '__col_${col.id}__';
           final sel = selectedCategory == colId;
-          final items = (col['items'] as List?) ?? [];
-          final count = col['mode'] != null
+          final items = col.items;
+          final count = col.mode != null
               ? items.length
-              : items.where((e) => e['mode'] == mode.key).length;
+              : items.where((e) => e.mode == mode.key).length;
           return Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: ListTile(
               dense: true,
               leading: Icon(Icons.folder_outlined, size: 16,
                   color: sel ? AppColors.primaryBlue : tc.textDisabled),
-              title: Text('${col['name']} ($count)', style: TextStyle(fontSize: 13,
+              title: Text('${col.name} ($count)', style: TextStyle(fontSize: 13,
                   color: sel ? tc.textPrimary : tc.textSecondary,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
               selected: sel,
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              onTap: () => onCollectionSelected(col['id'] as String),
+              onTap: () => onCollectionSelected(col.id),
               trailing: SizedBox(
                 width: 24, height: 24,
                 child: IconButton(
@@ -259,7 +260,7 @@ class CategorySidebar extends StatelessWidget {
                       ),
                     );
                     if (confirmed == true) {
-                      onDeleteCollection(col['id'] as String);
+                      onDeleteCollection(col.id);
                     }
                   },
                 ),
