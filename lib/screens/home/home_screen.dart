@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/skeleton_list.dart';
+import '../channel_detail_screen.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
 import '../../core/theme_colors.dart';
@@ -533,6 +535,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showStreamInfoDialog(dynamic s) {
+    // For live channels, navigate to channel detail screen
+    if (_mode == ContentMode.live) {
+      final channel = s is Channel
+          ? s
+          : Channel.fromJson(streamToMap(s).map((k, v) => MapEntry(k, v)));
+      Navigator.push(context, slideRoute(ChannelDetailScreen(channel: channel)));
+      return;
+    }
     final map = streamToMap(s);
     showStreamInfoDialogWithEpg(
       context,
@@ -795,7 +805,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList()
           : _error != null
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.red),

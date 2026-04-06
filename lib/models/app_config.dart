@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/core/storage_keys.dart';
+import 'package:unistream/services/xtream_api.dart';
 import 'profile.dart';
 
 class AppConfig {
@@ -110,6 +111,9 @@ class AppConfig {
   static Future<void> switchProfile(String profileId) async {
     final pr = profiles.firstWhere((p) => p.id == profileId);
     _activate(pr);
+    // Clear API caches so the new server's data is fetched fresh
+    XtreamApi.clearEpgCache();
+    XtreamApi.clearStreamCache();
     final p = await SharedPreferences.getInstance();
     await p.setString(StorageKeys.activeProfile, profileId);
   }

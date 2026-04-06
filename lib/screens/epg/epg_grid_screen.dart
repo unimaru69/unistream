@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/skeleton_list.dart';
 import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
@@ -743,7 +744,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         ],
       ),
       body: _loadingCats
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(count: 8)
           : _error != null
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_error!, style: const TextStyle(color: Colors.red)),

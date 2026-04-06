@@ -485,5 +485,7 @@
       "count": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "aVenir": "À venir",
+  "detailChaine": "Détail de la chaîne"
 }

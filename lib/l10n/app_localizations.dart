@@ -1663,6 +1663,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'{count} chiffres sur {total} saisis'**
   String chiffresSaisis(int count, int total);
+
+  /// No description provided for @aVenir.
+  ///
+  /// In fr, this message translates to:
+  /// **'À venir'**
+  String get aVenir;
+
+  /// No description provided for @detailChaine.
+  ///
+  /// In fr, this message translates to:
+  /// **'Détail de la chaîne'**
+  String get detailChaine;
 }
 
 class _AppLocalizationsDelegate

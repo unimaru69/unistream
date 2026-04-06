@@ -887,4 +887,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String chiffresSaisis(int count, int total) {
     return '$count of $total digits entered';
   }
+
+  @override
+  String get aVenir => 'Upcoming';
+
+  @override
+  String get detailChaine => 'Channel details';
 }

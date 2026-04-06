@@ -182,12 +182,14 @@ class UniStreamApp extends ConsumerStatefulWidget {
   ConsumerState<UniStreamApp> createState() => _UniStreamAppState();
 }
 
-class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener {
+class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener, WidgetsBindingObserver {
   Timer? _windowSaveTimer;
+  bool _syncPaused = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       windowManager.addListener(this);
     }
@@ -195,6 +197,28 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     EpgReminderService.instance.init(onAlert: _onEpgReminderAlert);
     // Pull remote data and start realtime after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _initSync());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        if (!_syncPaused) {
+          _syncPaused = true;
+          SyncService.instance.stopRealtime();
+          AppLogger.info(LogModule.sync, 'App paused — realtime stopped');
+        }
+      case AppLifecycleState.resumed:
+        if (_syncPaused) {
+          _syncPaused = false;
+          _initSync();
+          AppLogger.info(LogModule.sync, 'App resumed — realtime restarted');
+        }
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   /// Pull remote data from Supabase and merge into local providers,
@@ -257,6 +281,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _windowSaveTimer?.cancel();
     EpgReminderService.instance.dispose();
     SyncService.instance.stopRealtime();

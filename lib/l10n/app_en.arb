@@ -328,5 +328,7 @@
       "count": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "aVenir": "Upcoming",
+  "detailChaine": "Channel details"
 }

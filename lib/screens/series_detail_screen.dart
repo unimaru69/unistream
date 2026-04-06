@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/skeleton_list.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/cache_config.dart';
 import '../models/episode.dart';
@@ -96,7 +97,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
         backgroundColor: Colors.transparent, elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(count: 6)
           : _error != null
           ? Center(child: Text('${l10n.erreur}: $_error', style: const TextStyle(color: Colors.red)))
           : Row(children: [

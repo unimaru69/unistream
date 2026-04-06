@@ -3,6 +3,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/skeleton_list.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -378,7 +379,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             style: TextStyle(color: tc.textDisabled)));
       }
     } else if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const SkeletonList();
     } else if (filtered.isEmpty) {
       body = Center(child: Text(l10n.aucunResultat,
           style: TextStyle(color: tc.textDisabled)));

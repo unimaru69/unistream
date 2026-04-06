@@ -891,4 +891,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String chiffresSaisis(int count, int total) {
     return '$count chiffres sur $total saisis';
   }
+
+  @override
+  String get aVenir => 'À venir';
+
+  @override
+  String get detailChaine => 'Détail de la chaîne';
 }
