@@ -20,7 +20,10 @@ jobs:
           sudo apt-get install -y libmpv-dev libsecret-1-dev libjsoncpp-dev clang cmake ninja-build pkg-config libgtk-3-dev wget imagemagick libcurl4-openssl-dev libc-ares-dev ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
 
       - name: Configure git for sentry-native FetchContent
-        run: git config --global protocol.file.allow always
+        run: |
+          git config --global protocol.file.allow always
+          git config --global --add safe.directory '*'
+          git config --global submodule.recurse true
 
       - run: flutter pub get
       - name: Build Linux release
@@ -51,7 +54,10 @@ jobs:
           channel: stable
 
       - name: Configure git for sentry-native FetchContent
-        run: git config --global protocol.file.allow always
+        run: |
+          git config --global protocol.file.allow always
+          git config --global --add safe.directory '*'
+          git config --global submodule.recurse true
 
       - run: flutter pub get
       - name: Build Windows release
