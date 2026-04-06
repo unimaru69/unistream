@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
 import '../channel_detail_screen.dart';
 import 'package:unistream/core/logger.dart';
-import '../../core/colors.dart';
-import '../../core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
@@ -43,6 +40,9 @@ import 'widgets/catchup_row.dart';
 import 'widgets/collection_dialogs.dart';
 import 'widgets/shortcuts_dialog.dart';
 import 'widgets/offline_content.dart';
+import '../vod/vod_detail_screen.dart';
+import 'widgets/home_app_bar.dart';
+import 'widgets/home_keyboard_handler.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -474,6 +474,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
+    // VOD → detail screen
+    if (_mode == ContentMode.vod) {
+      final vodItem = stream is VodItem
+          ? stream
+          : VodItem.fromJson(Map<String, dynamic>.from(streamToMap(stream)));
+      Navigator.push(context, slideRoute(VodDetailScreen(vod: vodItem)))
+          .then((_) => _refreshProgress());
+      return;
+    }
+
     final String url;
     final String? resumeKey;
     final cover = getStreamIcon(stream);
@@ -659,150 +669,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? _categories.where((c) => !blockedIds.contains(c.categoryId)).toList()
         : _categories;
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        final mod = Platform.isMacOS
-            ? HardwareKeyboard.instance.isMetaPressed
-            : HardwareKeyboard.instance.isControlPressed;
-        if (!mod) return KeyEventResult.ignored;
-        final key = event.logicalKey;
-        if (key == LogicalKeyboardKey.keyQ) {
-          exit(0);
-        }
-        if (key == LogicalKeyboardKey.comma) {
-          _openSettings();
-          return KeyEventResult.handled;
-        }
-        if (key == LogicalKeyboardKey.keyF) {
-          Navigator.push(context, fadeRoute(const SearchScreen()))
-              .then((_) => _refreshProgress());
-          return KeyEventResult.handled;
-        }
-        if (key == LogicalKeyboardKey.keyY) {
-          Navigator.push(context, fadeRoute(const HistoryScreen()))
-              .then((_) => _refreshProgress());
-          return KeyEventResult.handled;
-        }
-        if (key == LogicalKeyboardKey.keyG) {
-          Navigator.push(context, slideRoute(EpgGridScreen(
-            initialCategoryId: _mode == ContentMode.live ? _selectedCategory : null,
-          )));
-          return KeyEventResult.handled;
-        }
-        if (key == LogicalKeyboardKey.slash || key == LogicalKeyboardKey.question) {
-          _showShortcutsHelp();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
+    return HomeKeyboardHandler(
+      onSettings: _openSettings,
+      onSearch: () => Navigator.push(context, fadeRoute(const SearchScreen()))
+          .then((_) => _refreshProgress()),
+      onHistory: () => Navigator.push(context, fadeRoute(const HistoryScreen()))
+          .then((_) => _refreshProgress()),
+      onEpgGrid: () => Navigator.push(context, slideRoute(EpgGridScreen(
+        initialCategoryId: _mode == ContentMode.live ? _selectedCategory : null,
+      ))),
+      onShortcutsHelp: _showShortcutsHelp,
+      selectedCategory: _selectedCategory,
+      isLiveMode: _mode == ContentMode.live,
       child: Scaffold(
       key: _scaffoldKey,
       drawer: _buildSidebarDrawer(collections, filteredCategories),
-      appBar: AppBar(
-        title: const Text('UniStream', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: MediaQuery.of(context).size.width < 600
+      appBar: HomeAppBar(
+        mode: _mode,
+        showGrid: showGrid,
+        sortMode: _sortMode,
+        selectedCategory: _selectedCategory,
+        leadingMenuButton: MediaQuery.of(context).size.width < 600
             ? IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               )
             : null,
-        automaticallyImplyLeading: false,
-        actions: [
-          if (AppConfig.profiles.length > 1)
-            PopupMenuButton<String>(
-              icon: Text(
-                AppConfig.profiles.firstWhere((p) => p.id == AppConfig.activeProfileId,
-                    orElse: () => AppConfig.profiles.first).avatar,
-                style: const TextStyle(fontSize: 22),
-              ),
-              tooltip: AppLocalizations.of(context)!.changerProfil,
-              onSelected: (id) async {
-                await ref.read(configProvider.notifier).switchProfile(id);
-                ref.read(favoritesProvider.notifier).load();
-                ref.read(watchlistProvider.notifier).load();
-                _refreshProgress();
-                setState(() { _loading = true; _error = null; _categories = <cat.Category>[]; _streams = []; _selectedCategory = null; });
-                _init();
-              },
-              itemBuilder: (_) => AppConfig.profiles.map((pr) => PopupMenuItem(
-                value: pr.id,
-                child: Row(children: [
-                  Text(pr.avatar, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
-                  Text(pr.name, style: const TextStyle(fontSize: 13)),
-                  if (pr.id == AppConfig.activeProfileId) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.check, size: 16, color: AppColors.primaryBlue),
-                  ],
-                ]),
-              )).toList(),
-            ),
-          ToggleButtons(
-            isSelected: [_mode == ContentMode.live, _mode == ContentMode.vod, _mode == ContentMode.series],
-            onPressed: (i) {
-              final modes = ContentMode.values;
-              setState(() { _mode = modes[i]; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
-              AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': modes[i].key});
-              _loadGridView();
-              _loadSortMode();
-              _loadCategories();
-            },
-            borderRadius: BorderRadius.circular(8),
-            selectedColor: AppThemeColors.of(context).textPrimary,
-            fillColor: AppColors.primaryBlue,
-            children: [
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.live)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.vod)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(AppLocalizations.of(context)!.series)),
-            ],
-          ),
-          const SizedBox(width: 4),
-          if (_mode != ContentMode.live)
-            IconButton(
-              icon: Icon(showGrid ? Icons.view_list : Icons.grid_view),
-              tooltip: showGrid ? AppLocalizations.of(context)!.vueListe : AppLocalizations.of(context)!.vueGrille,
-              onPressed: () { setState(() => _gridView = !_gridView); _saveGridView(); },
-            ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort),
-            tooltip: AppLocalizations.of(context)!.trier,
-            onSelected: (v) { setState(() => _sortMode = v); _saveSortMode(); _resetPaginationIfActive(); },
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'default', child: Row(children: [
-                Icon(_sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.ordreParDefaut, style: const TextStyle(fontSize: 13)),
-              ])),
-              PopupMenuItem(value: 'alpha', child: Row(children: [
-                Icon(_sortMode == 'alpha' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.alphabetique, style: const TextStyle(fontSize: 13)),
-              ])),
-              PopupMenuItem(value: 'number', child: Row(children: [
-                Icon(_sortMode == 'number' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.parNumero, style: const TextStyle(fontSize: 13)),
-              ])),
-              PopupMenuItem(value: 'favFirst', child: Row(children: [
-                Icon(_sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8), Text(AppLocalizations.of(context)!.favorisPremier, style: const TextStyle(fontSize: 13)),
-              ])),
-            ],
-          ),
-          IconButton(icon: const Icon(Icons.live_tv), tooltip: AppLocalizations.of(context)!.guideTV,
-              onPressed: () => Navigator.push(context,
-                  slideRoute(EpgGridScreen(
-                    initialCategoryId: _mode == ContentMode.live ? _selectedCategory : null,
-                  )))),
-          IconButton(icon: const Icon(Icons.search), tooltip: AppLocalizations.of(context)!.rechercheGlobale,
-              onPressed: () => Navigator.push(context,
-                  fadeRoute(const SearchScreen()))
-                  .then((_) => _refreshProgress())),
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings, tooltip: AppLocalizations.of(context)!.parametres),
-          IconButton(icon: const Icon(Icons.help_outline, size: 20), onPressed: _showShortcutsHelp, tooltip: '${AppLocalizations.of(context)!.raccourcisClavier} (Cmd+?)'),
-          const SizedBox(width: 4),
-        ],
+        onModeChanged: (newMode) {
+          setState(() { _mode = newMode; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
+          AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': newMode.key});
+          _loadGridView();
+          _loadSortMode();
+          _loadCategories();
+        },
+        onGridToggle: () { setState(() => _gridView = !_gridView); _saveGridView(); },
+        onSortChanged: (v) { setState(() => _sortMode = v); _saveSortMode(); _resetPaginationIfActive(); },
+        onEpgPressed: () => Navigator.push(context,
+            slideRoute(EpgGridScreen(
+              initialCategoryId: _mode == ContentMode.live ? _selectedCategory : null,
+            ))),
+        onSearchPressed: () => Navigator.push(context,
+            fadeRoute(const SearchScreen()))
+            .then((_) => _refreshProgress()),
+        onSettingsPressed: _openSettings,
+        onShortcutsPressed: _showShortcutsHelp,
+        onProfileChanged: (id) async {
+          await ref.read(configProvider.notifier).switchProfile(id);
+          ref.read(favoritesProvider.notifier).load();
+          ref.read(watchlistProvider.notifier).load();
+          _refreshProgress();
+          setState(() { _loading = true; _error = null; _categories = <cat.Category>[]; _streams = []; _selectedCategory = null; });
+          _init();
+        },
       ),
       body: _loading
           ? const SkeletonList()

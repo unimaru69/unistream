@@ -97,4 +97,7 @@ class StorageKeys {
   /// Profile-scoped: blocked category IDs (JSON array).
   static String blockedCategories(String profileId) =>
       'parental_blocked_$profileId';
+
+  // ── EPG cache persistence ──
+  static String epgCache(String profileId) => 'epg_cache_$profileId';
 }

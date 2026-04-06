@@ -17,16 +17,13 @@ import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/routes.dart';
 import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
-import 'widgets/track_selector.dart';
-import 'widgets/quality_badge.dart';
-import 'widgets/sleep_timer_dialog.dart';
 import 'widgets/next_episode_overlay.dart';
 import 'widgets/subtitle_settings.dart';
-import 'widgets/epg_overlay.dart';
-import 'widgets/player_controls.dart';
 import 'widgets/volume_osd.dart';
 import 'widgets/channel_list_overlay.dart';
 import 'widgets/channel_number_osd.dart';
+import 'widgets/player_app_bar.dart';
+import 'channel_zapping_controller.dart';
 import 'player_keyboard_handler.dart';
 
 // ── Fullscreen back button ──
@@ -119,12 +116,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _showVolumeOsd = false;
   Timer? _volumeOsdTimer;
 
-  // Channel list overlay
-  bool _showChannelList = false;
-
-  // Direct channel number input
-  String _digitBuffer = '';
-  Timer? _digitTimer;
+  // Channel zapping controller
+  late final ChannelZappingController _zapping;
 
   // Subtitle customization
   double _subtitleFontSize = 24;
@@ -152,6 +145,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _zapping = ChannelZappingController(
+      channelList: widget.channelList,
+      channelIndex: widget.channelIndex,
+      onStateChanged: () { if (mounted) setState(() {}); },
+    );
     _player = widget.existingPlayer ?? Player(
       configuration: const PlayerConfiguration(
         logLevel: MPVLogLevel.warn,
@@ -595,7 +593,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _qualityTimer?.cancel();
     _zapOsdTimer?.cancel();
     _volumeOsdTimer?.cancel();
-    _digitTimer?.cancel();
+    _zapping.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     if (!_minimized) {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
@@ -620,8 +618,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final route = ModalRoute.of(context);
     if (route == null) return false;
 
-    final hasZapping = _isLiveMode && widget.channelList != null && widget.channelList!.length > 1;
-
     return handlePlayerKeyEvent(
       event,
       callbacks: PlayerKeyCallbacks(
@@ -643,12 +639,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         escape: () => Navigator.of(context).pop(),
         zapChannel: _zapChannel,
         onVolumeOsd: _showVolumeOsdBriefly,
-        toggleChannelList: _toggleChannelList,
-        onDigitInput: _onDigitInput,
-        onDigitConfirm: _tuneToBufferedChannel,
+        toggleChannelList: _zapping.toggleChannelList,
+        onDigitInput: _zapping.onDigitInput,
+        onDigitConfirm: () => _zapping.tuneToBufferedChannel(context),
       ),
       isLiveMode: _isLiveMode,
-      hasZapping: hasZapping,
+      hasZapping: _zapping.hasZapping,
       isRouteActive: route.isCurrent,
     );
   }
@@ -661,66 +657,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _volumeOsdTimer = Timer(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => _showVolumeOsd = false);
     });
-  }
-
-  // ── Channel list overlay ──
-  void _toggleChannelList() {
-    if (!mounted) return;
-    setState(() => _showChannelList = !_showChannelList);
-  }
-
-  // ── Direct channel number input ──
-  void _onDigitInput(int digit) {
-    if (!mounted) return;
-    _digitTimer?.cancel();
-    setState(() => _digitBuffer += digit.toString());
-    _digitTimer = Timer(const Duration(seconds: 2), _tuneToBufferedChannel);
-  }
-
-  void _tuneToBufferedChannel() {
-    if (_digitBuffer.isEmpty) return;
-    final num = int.tryParse(_digitBuffer);
-    _digitBuffer = '';
-    _digitTimer?.cancel();
-    if (num == null || widget.channelList == null) {
-      if (mounted) setState(() {});
-      return;
-    }
-    // Find channel by 'num' field
-    final list = widget.channelList!;
-    int targetIdx = -1;
-    for (var i = 0; i < list.length; i++) {
-      final chNum = int.tryParse(list[i]['num']?.toString() ?? '');
-      if (chNum == num) {
-        targetIdx = i;
-        break;
-      }
-    }
-    // Fallback: treat as 1-based index
-    if (targetIdx < 0 && num >= 1 && num <= list.length) {
-      targetIdx = num - 1;
-    }
-    if (mounted) setState(() {});
-    if (targetIdx >= 0 && targetIdx != widget.channelIndex) {
-      _zapToIndex(targetIdx);
-    }
-  }
-
-  void _zapToIndex(int idx) {
-    final list = widget.channelList;
-    if (list == null || idx < 0 || idx >= list.length) return;
-    final ch = list[idx];
-    final sid = ch['stream_id'].toString();
-    final url = XtreamApi.getLiveStreamUrl(sid);
-    final name = ch['name'] ?? AppLocalizations.of(context)!.sansTitre;
-    Navigator.pushReplacement(context, slideRoute(PlayerScreen(
-      url: url,
-      title: name,
-      streamId: sid,
-      coverUrl: ch['stream_icon']?.toString(),
-      channelList: list,
-      channelIndex: idx,
-    )));
   }
 
   // ── EPG loading ──
@@ -817,25 +753,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool get _isLiveMode => widget.streamId != null && !_isCatchupMode && widget.resumeKey == null;
   bool get _isCatchupMode => widget.isCatchup || widget.title.contains('(Replay)');
 
-  // ── Channel zapping ──
-  void _zapChannel(int delta) {
-    final list = widget.channelList;
-    final idx = widget.channelIndex;
-    if (list == null || idx == null || list.isEmpty) return;
-    final newIdx = (idx + delta) % list.length;
-    final ch = list[newIdx];
-    final sid = ch['stream_id'].toString();
-    final url = XtreamApi.getLiveStreamUrl(sid);
-    final name = ch['name'] ?? AppLocalizations.of(context)!.sansTitre;
-    Navigator.pushReplacement(context, slideRoute(PlayerScreen(
-      url: url,
-      title: name,
-      streamId: sid,
-      coverUrl: ch['stream_icon']?.toString(),
-      channelList: list,
-      channelIndex: newIdx,
-    )));
-  }
+  // ── Channel zapping (delegated to controller) ──
+  void _zapChannel(int delta) => _zapping.zapChannel(delta, context);
 
   void _returnToLive() {
     if (widget.streamId == null) return;
@@ -861,16 +780,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final epgTitle = _epgNow != null
-        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.title, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
-            Text(_epgNow!, style: const TextStyle(fontSize: 11, color: Colors.white54),
-                overflow: TextOverflow.ellipsis),
-          ])
-        : Text(widget.title, style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis);
-
-    final hasTracks = _audioTracks.length > 1 || _subtitleTracks.length > 1;
-
     // EPG progress bar
     double? epgProgress;
     if (_epgNowStart != null && _epgNowEnd != null) {
@@ -883,135 +792,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black87, elevation: 0,
-        title: epgTitle,
-        bottom: epgProgress != null
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(4),
-                child: SizedBox(
-                  height: 4,
-                  child: LinearProgressIndicator(
-                    value: epgProgress,
-                    backgroundColor: Colors.white12,
-                    color: AppColors.primaryBlue,
-                    minHeight: 4,
-                  ),
-                ),
-              )
-            : null,
-        actions: [
-          if (_isCatchupMode)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(AppLocalizations.of(context)!.replay, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
-            ),
-          if (_isCatchupMode && widget.streamId != null)
-            TextButton.icon(
-              icon: const Icon(Icons.circle, size: 10, color: Colors.redAccent),
-              label: Text(AppLocalizations.of(context)!.live, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.redAccent.withValues(alpha: 0.2),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-              onPressed: _returnToLive,
-            ),
-          if (_isLiveMode && widget.channelList != null && widget.channelList!.length > 1) ...[
-            IconButton(
-              icon: const Icon(Icons.keyboard_arrow_up, size: 22),
-              tooltip: '${AppLocalizations.of(context)!.chainePrecSuiv} (P)',
-              onPressed: () => _zapChannel(-1),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
-            IconButton(
-              icon: const Icon(Icons.keyboard_arrow_down, size: 22),
-              tooltip: '${AppLocalizations.of(context)!.chainePrecSuiv} (N)',
-              onPressed: () => _zapChannel(1),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
-          ],
-          QualityBadge(qualityBadge: _qualityBadge, bitrate: _bitrate),
-          if (_epgListings.length > 1)
-            IconButton(
-              icon: const Icon(Icons.calendar_today, size: 20),
-              tooltip: AppLocalizations.of(context)!.guideTV,
-              onPressed: () => showEpgGuide(context,
-                epgListings: _epgListings,
-                catchupSupported: _catchupSupported,
-                streamId: widget.streamId,
-              ),
-            ),
-          if (_epgNext != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Center(child: Text(AppLocalizations.of(context)!.suivantEpg(_epgNext!),
-                  style: const TextStyle(fontSize: 11, color: Colors.white38),
-                  overflow: TextOverflow.ellipsis)),
-            ),
-          if (hasTracks)
-            IconButton(icon: const Icon(Icons.tune), tooltip: '${AppLocalizations.of(context)!.langueAudio} / ${AppLocalizations.of(context)!.langueSousTitres}',
-                onPressed: () => showTrackPicker(context,
-                  player: _player,
-                  audioTracks: _audioTracks,
-                  subtitleTracks: _subtitleTracks,
-                )),
-          IconButton(
-            icon: const Icon(Icons.subtitles, size: 20),
-            tooltip: AppLocalizations.of(context)!.styleSousTitres,
-            onPressed: _onSubtitleStylePicker,
-          ),
-          IconButton(
-            icon: const Icon(Icons.aspect_ratio, size: 20),
-            tooltip: AppLocalizations.of(context)!.ratioAspect,
-            onPressed: () => showAspectRatioPicker(context,
-              currentRatio: _aspectRatio,
-              onRatioSelected: _setAspectRatio,
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.deblur, size: 20,
-                color: _deinterlace ? AppColors.primaryBlue : Colors.white),
-            tooltip: AppLocalizations.of(context)!.desentrelacement,
-            onPressed: _toggleDeinterlace,
-          ),
-          IconButton(
-            icon: const Icon(Icons.speed),
-            tooltip: AppLocalizations.of(context)!.vitesseLecture,
-            onPressed: () => showSpeedPicker(context,
-              currentSpeed: _speed,
-              onSpeedChanged: (v) {
-                _player.setRate(v);
-                setState(() => _speed = v);
-              },
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.timer, size: 20,
-                color: _sleepRemaining != null ? Colors.amber : Colors.white),
-            tooltip: _sleepRemaining != null
-                ? AppLocalizations.of(context)!.veilleActive(_sleepRemaining!.inMinutes)
-                : AppLocalizations.of(context)!.minuterieVeille,
-            onPressed: () => showSleepTimerPicker(context,
-              sleepRemaining: _sleepRemaining,
-              onCancel: _cancelSleepTimer,
-              onStart: _startSleepTimer,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_in_picture_alt, size: 20),
-            tooltip: AppLocalizations.of(context)!.miniPlayer,
-            onPressed: _minimize,
-          ),
-          const SizedBox(width: 4),
-        ],
+      appBar: PlayerAppBar(
+        title: widget.title,
+        epgNow: _epgNow,
+        epgNext: _epgNext,
+        epgProgress: epgProgress,
+        isCatchupMode: _isCatchupMode,
+        isLiveMode: _isLiveMode,
+        streamId: widget.streamId,
+        channelList: _zapping.hasZapping,
+        qualityBadge: _qualityBadge,
+        bitrate: _bitrate,
+        epgListings: _epgListings,
+        catchupSupported: _catchupSupported,
+        audioTracks: _audioTracks,
+        subtitleTracks: _subtitleTracks,
+        player: _player,
+        aspectRatio: _aspectRatio,
+        deinterlace: _deinterlace,
+        speed: _speed,
+        sleepRemaining: _sleepRemaining,
+        onReturnToLive: _returnToLive,
+        onZapChannel: _zapChannel,
+        onSubtitleStylePicker: _onSubtitleStylePicker,
+        onSetAspectRatio: _setAspectRatio,
+        onToggleDeinterlace: _toggleDeinterlace,
+        onSpeedChanged: (v) {
+          _player.setRate(v);
+          setState(() => _speed = v);
+        },
+        onStartSleepTimer: _startSleepTimer,
+        onCancelSleepTimer: _cancelSleepTimer,
+        onMinimize: _minimize,
       ),
       body: Stack(children: [
         MaterialVideoControlsTheme(
@@ -1119,18 +931,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (_showVolumeOsd)
           VolumeOsd(volume: _player.state.volume),
         // Channel number OSD
-        if (_digitBuffer.isNotEmpty)
-          ChannelNumberOsd(digits: _digitBuffer),
+        if (_zapping.digitBuffer.isNotEmpty)
+          ChannelNumberOsd(digits: _zapping.digitBuffer),
         // Channel list overlay
-        if (_showChannelList && widget.channelList != null && widget.channelIndex != null)
+        if (_zapping.showChannelList && widget.channelList != null && widget.channelIndex != null)
           ChannelListOverlay(
             channels: widget.channelList!,
             currentIndex: widget.channelIndex!,
             onSelect: (idx) {
-              setState(() => _showChannelList = false);
-              if (idx != widget.channelIndex) _zapToIndex(idx);
+              _zapping.closeChannelList();
+              if (idx != widget.channelIndex) _zapping.zapToIndex(idx, context);
             },
-            onClose: () => setState(() => _showChannelList = false),
+            onClose: _zapping.closeChannelList,
           ),
       ]),
     );

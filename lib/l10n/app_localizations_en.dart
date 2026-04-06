@@ -893,4 +893,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get detailChaine => 'Channel details';
+
+  @override
+  String get lire => 'Play';
+
+  @override
+  String reprendre(String time) {
+    return 'Resume ($time)';
+  }
+
+  @override
+  String get pasDeSynopsis => 'No synopsis available.';
+
+  @override
+  String get detailVod => 'Details';
 }

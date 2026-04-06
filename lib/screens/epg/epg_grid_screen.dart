@@ -13,11 +13,10 @@ import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/xtream_api.dart';
-import '../../services/epg_reminder_service.dart';
 import '../../utils/api_error_localizer.dart';
-import '../../utils/routes.dart';
-import '../player/player_screen.dart';
 import 'widgets/epg_day_navigator.dart';
+import 'widgets/epg_timeline_header.dart';
+import 'widgets/epg_program_row.dart';
 
 // ── EPG Grid Screen ──
 class EpgGridScreen extends ConsumerStatefulWidget {
@@ -413,38 +412,10 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
   }
 
-  String _fmtHour(int h) => '${h.toString().padLeft(2, '0')}:00';
-
-  Widget _buildTimelineHeader() {
-    final tc = AppThemeColors.of(context);
-    return SizedBox(
-      width: _hourWidth * 24,
-      height: 30,
-      child: Stack(children: [
-        for (var h = 0; h < 24; h++)
-          Positioned(
-            left: h * _hourWidth,
-            top: 0, bottom: 0,
-            child: Container(
-              width: _hourWidth,
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 8),
-              decoration: BoxDecoration(
-                color: AppColors.darkText,
-                border: Border(left: BorderSide(color: tc.divider, width: 0.5)),
-              ),
-              child: Text(_fmtHour(h), style: TextStyle(fontSize: 10, color: tc.textTertiary)),
-            ),
-          ),
-        // Current time marker
-        Positioned(
-          left: DateTime.now().difference(_dayStart).inMinutes * _hourWidth / 60,
-          top: 0, bottom: 0,
-          child: Container(width: 2, color: Colors.redAccent),
-        ),
-      ]),
-    );
-  }
+  Widget _buildTimelineHeader() => EpgTimelineHeader(
+    dayStart: _dayStart,
+    hourWidth: _hourWidth,
+  );
 
   Widget _buildChannelRow(int i, List<Channel> channels) {
     final tc = AppThemeColors.of(context);
@@ -494,235 +465,16 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     );
   }
 
-  void _showProgramDetail(Map<String, dynamic> prog, DateTime start, DateTime end, String desc, {Channel? channel}) {
-    final tc = AppThemeColors.of(context);
-    final l10n = AppLocalizations.of(context)!;
-    final isFuture = DateTime.now().isBefore(start);
-    final reminderSvc = EpgReminderService.instance;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final nowHasReminder = channel != null && isFuture
-              && reminderSvc.hasReminder(channel.id, start.toUtc());
-          return AlertDialog(
-            backgroundColor: tc.surface,
-            title: Text(prog['title'] ?? '', style: TextStyle(color: tc.textPrimary, fontSize: 15)),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
-                    ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}',
-                    style: TextStyle(color: tc.textSecondary, fontSize: 13),
-                  ),
-                  if (channel != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(channel.name,
-                          style: TextStyle(color: tc.textDisabled, fontSize: 12)),
-                    ),
-                  if (desc.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(desc, style: TextStyle(color: tc.textSecondary, fontSize: 13)),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              if (channel != null && isFuture)
-                nowHasReminder
-                    ? TextButton.icon(
-                        icon: const Icon(Icons.notifications_active, size: 16, color: Colors.amber),
-                        label: Text(l10n.rappelActif, style: const TextStyle(color: Colors.amber, fontSize: 12)),
-                        onPressed: () {
-                          final id = '${channel.id}_${start.toUtc().millisecondsSinceEpoch}';
-                          reminderSvc.remove(id);
-                          setDialogState(() {});
-                        },
-                      )
-                    : TextButton.icon(
-                        icon: const Icon(Icons.notifications_none, size: 16),
-                        label: Text(l10n.meRappeler, style: const TextStyle(fontSize: 12)),
-                        onPressed: () {
-                          reminderSvc.add(EpgReminder(
-                            streamId: channel.id,
-                            channelName: channel.name,
-                            programTitle: prog['title'] ?? '',
-                            startUtc: start.toUtc(),
-                            durationMin: end.difference(start).inMinutes,
-                          ));
-                          setDialogState(() {});
-                        },
-                      ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l10n.fermer),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildProgramRow(int i, List<Channel> channels) {
-    final tc = AppThemeColors.of(context);
     final ch = channels[i];
-    final sid = ch.id;
-    final progs = _epgData[sid] ?? [];
-    final now = DateTime.now();
-    final totalWidth = _hourWidth * 24;
-    final hasCatchup = ch.hasCatchup;
-
-    // Sort programs by start time to build a linear Row
-    final sorted = List<Map<String, dynamic>>.from(progs)
-      ..sort((a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
-
-    // Build cells: [gap, program, gap, program, ...] as SizedBox widgets
-    final cells = <Widget>[];
-    double cursorX = 0;
-
-    for (final prog in sorted) {
-      final start = prog['start'] as DateTime;
-      final end   = prog['end'] as DateTime;
-      var leftPx  = start.difference(_dayStart).inMinutes * _hourWidth / 60;
-      var widthPx = end.difference(start).inMinutes * _hourWidth / 60;
-
-      // Clamp to totalWidth bounds
-      if (leftPx < 0) { widthPx += leftPx; leftPx = 0; }
-      if (leftPx + widthPx > totalWidth) widthPx = totalWidth - leftPx;
-      if (widthPx <= 2) continue;
-
-      // Skip if this program starts before our cursor (overlap from data)
-      if (leftPx < cursorX) {
-        final overlap = cursorX - leftPx;
-        leftPx = cursorX;
-        widthPx -= overlap;
-        if (widthPx <= 2) continue;
-      }
-
-      // Insert gap before this program
-      if (leftPx > cursorX) {
-        cells.add(SizedBox(width: leftPx - cursorX));
-      }
-
-      // Build the program cell
-      final isCurrent = now.isAfter(start) && now.isBefore(end);
-      final isPast    = now.isAfter(end);
-      final canReplay = isPast && hasCatchup;
-      final durMin    = end.difference(start).inMinutes;
-      final isFuture  = !isPast && !isCurrent;
-      final hasReminder = isFuture && EpgReminderService.instance.hasReminder(sid, start.toUtc());
-      final title     = '${canReplay ? '↻ ' : ''}${prog['title'] ?? ''}';
-
-      final matchesSearch = _searchQuery.isNotEmpty &&
-          (prog['title'] as String? ?? '').toLowerCase().contains(_searchQuery);
-      final cellColor = matchesSearch
-          ? Colors.amber.withValues(alpha: 0.35)
-          : isCurrent
-          ? AppColors.primaryBlue.withValues(alpha: 0.4)
-          : canReplay
-          ? AppColors.accentGreen.withValues(alpha: 0.25)
-          : isPast
-          ? tc.divider.withValues(alpha: 0.3)
-          : tc.divider.withValues(alpha: 0.5);
-      final cellBorder = isCurrent
-          ? Border.all(color: AppColors.primaryBlue, width: 1)
-          : canReplay
-          ? Border.all(color: AppColors.accentGreen.withValues(alpha: 0.4), width: 0.5)
-          : null;
-      final textColor = isCurrent ? tc.textPrimary
-          : canReplay ? tc.textSecondary
-          : isPast ? tc.borderColor
-          : tc.textSecondary;
-
-      final cellWidth = widthPx - 1; // 1px visual gap
-
-      final desc = (prog['description'] ?? '') as String;
-      final descTrunc = desc.length > 100 ? '${desc.substring(0, 100)}…' : desc;
-
-      cells.add(SizedBox(
-        width: cellWidth > 0 ? cellWidth : 0,
-        child: Tooltip(
-          message: '${prog['title']}\n'
-              '${start.hour.toString().padLeft(2,'0')}:${start.minute.toString().padLeft(2,'0')}'
-              ' — ${end.hour.toString().padLeft(2,'0')}:${end.minute.toString().padLeft(2,'0')}'
-              '${descTrunc.isNotEmpty ? '\n$descTrunc' : ''}'
-              '${canReplay ? '\n▶ ${AppLocalizations.of(context)!.cliquerPourRevoir}' : ''}',
-          child: GestureDetector(
-            onTap: () {
-              if (canReplay) {
-                final serverLocal = prog['start_server_local'] as String?;
-                final url = (serverLocal != null && serverLocal.isNotEmpty)
-                    ? XtreamApi.getTimeshiftUrlFromLocal(sid, serverLocal, durMin)
-                    : XtreamApi.getTimeshiftUrl(sid, prog['start_utc'] as DateTime? ?? start.toUtc(), durMin);
-                Navigator.push(context, slideRoute(PlayerScreen(
-                  url: url,
-                  title: '${ch.name} — ${prog['title']} (Replay)',
-                  streamId: sid,
-                  isCatchup: true,
-                )));
-              } else {
-                final url = XtreamApi.getLiveStreamUrl(sid);
-                Navigator.push(context, slideRoute(PlayerScreen(
-                  url: url,
-                  title: '${ch.name}${isCurrent ? ' — ${prog['title']}' : ''}',
-                  streamId: sid,
-                )));
-              }
-            },
-            onLongPress: () => _showProgramDetail(prog, start, end, desc, channel: ch),
-            onSecondaryTap: () => _showProgramDetail(prog, start, end, desc, channel: ch),
-            child: Container(
-              decoration: BoxDecoration(
-                color: cellColor,
-                borderRadius: BorderRadius.circular(3),
-                border: cellBorder,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Row(children: [
-                if (hasReminder)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 3),
-                    child: Icon(Icons.notifications_active, size: 10, color: Colors.amber),
-                  ),
-                Expanded(child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: textColor,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                )),
-              ]),
-            ),
-          ),
-        ),
-      ));
-
-      cursorX = leftPx + widthPx; // advance past this program + gap
-    }
-
-    // Fill remaining space
-    if (cursorX < totalWidth) {
-      cells.add(SizedBox(width: totalWidth - cursorX));
-    }
-
-    return Container(
-      height: _rowHeight,
-      width: totalWidth,
-      decoration: BoxDecoration(
-        color: i.isEven ? tc.surface : tc.surfaceAlt,
-        border: Border(bottom: BorderSide(color: tc.inputFill, width: 0.5)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(children: cells),
+    return EpgProgramRow(
+      channel: ch,
+      programs: _epgData[ch.id] ?? [],
+      dayStart: _dayStart,
+      hourWidth: _hourWidth,
+      rowHeight: _rowHeight,
+      rowIndex: i,
+      searchQuery: _searchQuery,
     );
   }
 

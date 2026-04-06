@@ -6,6 +6,7 @@ import '../core/logger.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_config.dart';
 import '../models/profile.dart';
+import '../services/xtream_api.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
 import 'profiles/profile_selector_screen.dart';
@@ -108,7 +109,10 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
 
-    // Step 4: Ready
+    // Step 4: Load EPG cache from disk
+    XtreamApi.loadEpgCacheFromDisk();
+
+    // Step 5: Ready
     setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');
     AppLogger.breadcrumb('splash', 'Ready, navigating to home');
 

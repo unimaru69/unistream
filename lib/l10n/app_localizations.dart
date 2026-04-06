@@ -1675,6 +1675,30 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Détail de la chaîne'**
   String get detailChaine;
+
+  /// No description provided for @lire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lire'**
+  String get lire;
+
+  /// No description provided for @reprendre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reprendre ({time})'**
+  String reprendre(String time);
+
+  /// No description provided for @pasDeSynopsis.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun synopsis disponible.'**
+  String get pasDeSynopsis;
+
+  /// No description provided for @detailVod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Détail'**
+  String get detailVod;
 }
 
 class _AppLocalizationsDelegate

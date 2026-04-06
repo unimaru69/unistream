@@ -3,9 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/core/theme_colors.dart';
 import '../../../core/cache_config.dart';
+import '../../../core/colors.dart';
 import '../../../models/content_mode.dart';
 
-/// Horizontal carousel of "Continue watching" items.
+/// Horizontal carousel of "Continue watching" items with type badges.
 class ContinueWatchingRow extends StatelessWidget {
   final List<Map<String, dynamic>> items;
   final void Function(Map<String, dynamic> item) onTap;
@@ -15,6 +16,12 @@ class ContinueWatchingRow extends StatelessWidget {
     required this.items,
     required this.onTap,
   });
+
+  static const _modeBadges = {
+    'live': (label: 'LIVE', color: Colors.redAccent, icon: Icons.circle),
+    'vod': (label: 'FILM', color: AppColors.primaryBlue, icon: Icons.movie),
+    'series': (label: 'SERIE', color: AppColors.accentGreen, icon: Icons.tv),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +45,8 @@ class ContinueWatchingRow extends StatelessWidget {
             final ratio = item['_ratio'] as double;
             final cover = item['cover'] as String? ?? '';
             final name  = item['name']  as String? ?? '';
+            final mode  = item['mode']  as String? ?? '';
+            final badge = _modeBadges[mode];
             return GestureDetector(
               onTap: () => onTap(item),
               child: Container(
@@ -55,6 +64,31 @@ class ContinueWatchingRow extends StatelessWidget {
                                   child: Icon(Icons.movie, color: tc.borderColor)))
                           : Container(color: tc.inputFill,
                               child: Icon(Icons.movie, color: tc.borderColor)),
+                      // Mode badge
+                      if (badge != null)
+                        Positioned(top: 4, left: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: badge.color.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(badge.label,
+                                style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      // Play overlay
+                      Center(
+                        child: Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+                        ),
+                      ),
+                      // Progress bar
                       Positioned(bottom: 0, left: 0, right: 0,
                         child: LinearProgressIndicator(
                           value: ratio,

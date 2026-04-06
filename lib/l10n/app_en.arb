@@ -330,5 +330,9 @@
     }
   },
   "aVenir": "Upcoming",
-  "detailChaine": "Channel details"
+  "detailChaine": "Channel details",
+  "lire": "Play",
+  "reprendre": "Resume ({time})",
+  "pasDeSynopsis": "No synopsis available.",
+  "detailVod": "Details"
 }

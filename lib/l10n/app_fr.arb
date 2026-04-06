@@ -487,5 +487,14 @@
     }
   },
   "aVenir": "À venir",
-  "detailChaine": "Détail de la chaîne"
+  "detailChaine": "Détail de la chaîne",
+  "lire": "Lire",
+  "reprendre": "Reprendre ({time})",
+  "@reprendre": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "pasDeSynopsis": "Aucun synopsis disponible.",
+  "detailVod": "Détail"
 }

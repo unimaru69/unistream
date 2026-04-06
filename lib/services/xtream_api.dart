@@ -4,7 +4,9 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/logger.dart';
+import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
 import '../models/category.dart' as cat;
 import '../models/channel.dart';
@@ -125,6 +127,51 @@ class XtreamApi {
 
   static int get epgCacheSize => _epgCache.length;
   static void clearEpgCache() => _epgCache.clear();
+
+  static Timer? _epgSaveTimer;
+
+  /// Load persisted EPG cache from disk (SharedPreferences).
+  /// Call once at startup, after AppConfig is initialized.
+  static Future<void> loadEpgCacheFromDisk() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(StorageKeys.epgCache(AppConfig.activeProfileId));
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final now = DateTime.now();
+      for (final entry in decoded.entries) {
+        final ts = DateTime.tryParse(entry.value['ts'] as String? ?? '');
+        if (ts == null || now.difference(ts) >= _epgCacheTtl) continue;
+        final data = Map<String, dynamic>.from(entry.value['data'] as Map);
+        _epgCache[entry.key] = EpgCacheEntry(data, ts);
+      }
+      AppLogger.info(LogModule.epg, 'Loaded ${_epgCache.length} EPG entries from disk');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.epg, 'Failed to load EPG cache from disk', error: e, stackTrace: st);
+    }
+  }
+
+  /// Persist EPG cache to disk (debounced, called after each cache update).
+  static void _scheduleEpgSave() {
+    _epgSaveTimer?.cancel();
+    _epgSaveTimer = Timer(const Duration(seconds: 2), _saveEpgCacheToDisk);
+  }
+
+  static Future<void> _saveEpgCacheToDisk() async {
+    try {
+      final serialized = <String, dynamic>{};
+      for (final entry in _epgCache.entries) {
+        serialized[entry.key] = {
+          'data': entry.value.data,
+          'ts': entry.value.timestamp.toIso8601String(),
+        };
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(StorageKeys.epgCache(AppConfig.activeProfileId), jsonEncode(serialized));
+    } catch (e, st) {
+      AppLogger.warning(LogModule.epg, 'Failed to save EPG cache to disk', error: e, stackTrace: st);
+    }
+  }
 
   /// Evict expired entries and trim to max size (oldest first).
   static void _evictEpgCache() {
@@ -287,6 +334,7 @@ class XtreamApi {
     final data = jsonDecode((await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body) as Map<String, dynamic>;
     _epgCache[key] = EpgCacheEntry(data, DateTime.now());
     if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
+    _scheduleEpgSave();
     return data;
   }
 
@@ -300,6 +348,7 @@ class XtreamApi {
     final data = jsonDecode((await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body) as Map<String, dynamic>;
     _epgCache[key] = EpgCacheEntry(data, DateTime.now());
     if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
+    _scheduleEpgSave();
     return data;
   }
 
