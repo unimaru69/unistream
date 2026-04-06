@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/cache_config.dart';
+import '../../../core/storage_keys.dart';
 import '../../../core/theme_colors.dart';
+import '../../../models/app_config.dart';
 import '../../../services/xtream_api.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -13,6 +16,26 @@ class CacheSection extends StatefulWidget {
 }
 
 class _CacheSectionState extends State<CacheSection> {
+  int _persistedEpgEntries = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _countPersistedEpg();
+  }
+
+  Future<void> _countPersistedEpg() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(StorageKeys.epgCache(AppConfig.activeProfileId));
+      if (raw != null && raw.isNotEmpty) {
+        // Count top-level keys in the JSON map
+        final count = RegExp(r'"[^"]+"\s*:\s*\{').allMatches(raw).length;
+        if (mounted) setState(() => _persistedEpgEntries = count);
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
@@ -32,6 +55,7 @@ class _CacheSectionState extends State<CacheSection> {
                   letterSpacing: 1)),
         ),
         const SizedBox(height: 12),
+        // In-memory EPG cache
         Row(children: [
           Icon(Icons.data_usage, size: 20, color: tc.textTertiary),
           const SizedBox(width: 12),
@@ -39,7 +63,16 @@ class _CacheSectionState extends State<CacheSection> {
               child: Text(l10n.cacheEpgEntrees(XtreamApi.epgCacheSize),
                   style: const TextStyle(fontSize: 14))),
         ]),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        // Persisted EPG cache
+        Row(children: [
+          Icon(Icons.save_outlined, size: 20, color: tc.textTertiary),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Text('$_persistedEpgEntries ${_persistedEpgEntries == 1 ? 'entr\u00e9e' : 'entr\u00e9es'} EPG sur disque',
+                  style: TextStyle(fontSize: 13, color: tc.textSecondary))),
+        ]),
+        const SizedBox(height: 12),
         Row(children: [
           Expanded(
               child: OutlinedButton.icon(
@@ -64,8 +97,8 @@ class _CacheSectionState extends State<CacheSection> {
                 ),
               );
               if (confirmed != true) return;
-              XtreamApi.clearEpgCache();
-              setState(() {});
+              await XtreamApi.clearAllEpgCache();
+              setState(() => _persistedEpgEntries = 0);
               if (!mounted) return;
               showAppSnackBar(context, l10n.cacheEpgVide);
             },

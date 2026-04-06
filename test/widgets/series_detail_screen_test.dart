@@ -45,12 +45,13 @@ void main() {
       expect(find.textContaining('Erreur'), findsOneWidget);
     });
 
-    testWidgets('renders Scaffold with transparent app bar', (tester) async {
+    testWidgets('renders Scaffold with Row layout', (tester) async {
       await tester.pumpWidget(buildSeriesDetail());
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.byType(AppBar), findsOneWidget);
+      // New layout uses Row (left panel + episodes) instead of AppBar
+      expect(find.byType(Row), findsWidgets);
     });
 
     testWidgets('passes seriesId correctly', (tester) async {

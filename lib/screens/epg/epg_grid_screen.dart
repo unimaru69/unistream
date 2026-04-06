@@ -130,56 +130,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         _loadingChannels = false;
         _loadingEpg = true;
       });
-
-      // Load EPG for favorite channels
-      final Map<String, List<Map<String, dynamic>>> epg = {};
-      for (var i = 0; i < channels.length; i += 6) {
-        final chunk = channels.skip(i).take(6);
-        await Future.wait(chunk.map((ch) async {
-          final sid = ch.id;
-          try {
-            Map<String, dynamic> data;
-            try { data = await XtreamApi.getFullDayEpg(sid); }
-            catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back to short EPG', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
-            final listings = data['epg_listings'] as List? ?? [];
-            final today = _dayStart;
-            final tomorrow = _dayStart.add(const Duration(days: 1));
-            epg[sid] = listings.map((e) {
-              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
-              final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
-              final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
-              final rawStartStr = e['start']?.toString();
-              return {
-                'title': dec(e['title']?.toString() ?? ''),
-                'description': dec(e['description']?.toString() ?? ''),
-                'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
-                'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
-                'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
-                'start_server_local': rawStartStr,
-              };
-            }).where((p) {
-              if (p['start'] == null || p['end'] == null) return false;
-              final s = p['start'] as DateTime;
-              return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
-            }).toList();
-          } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
-        }));
-        if (mounted) setState(() {
-          _epgData = Map.from(epg);
-          _epgLoaded = (i + 6).clamp(0, channels.length);
-        });
-      }
-
-      if (mounted) setState(() => _loadingEpg = false);
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final now = DateTime.now();
-        final offset = now.difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
-        if (_gridHScroll.hasClients) {
-          final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
-          _gridHScroll.jumpTo(clamped);
-        }
-      });
+      await _loadEpgForChannels(channels);
     } catch (e) {
       if (mounted) setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
     }
@@ -231,65 +182,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         _loadingChannels = false;
         _loadingEpg = true;
       });
-
-      // Load full-day EPG in batches of 6 (heavier payload than short EPG)
-      final Map<String, List<Map<String, dynamic>>> epg = {};
-      for (var i = 0; i < channels.length; i += 6) {
-        final chunk = channels.skip(i).take(6);
-        await Future.wait(chunk.map((ch) async {
-          final sid = ch.id;
-          try {
-            // Try full-day EPG first, fallback to short EPG
-            Map<String, dynamic> data;
-            try {
-              data = await XtreamApi.getFullDayEpg(sid);
-            } catch (e, st) {
-              AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back to short EPG', error: e, stackTrace: st);
-              data = await XtreamApi.getShortEpg(sid, limit: 30);
-            }
-            final listings = data['epg_listings'] as List? ?? [];
-            final today = _dayStart;
-            final tomorrow = _dayStart.add(const Duration(days: 1));
-            epg[sid] = listings.map((e) {
-              String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
-              final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
-              final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
-              // Store raw 'start' string from API — this is in server local time
-              // e.g. "2026-03-30 08:30:00" — used directly for timeshift URL (DST-safe)
-              final rawStartStr = e['start']?.toString();
-              return {
-                'title': dec(e['title']?.toString() ?? ''),
-                'description': dec(e['description']?.toString() ?? ''),
-                'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
-                'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
-                'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
-                'start_server_local': rawStartStr,
-              };
-            }).where((p) {
-              if (p['start'] == null || p['end'] == null) return false;
-              final s = p['start'] as DateTime;
-              // Keep only today's programs
-              return s.isAfter(today.subtract(const Duration(hours: 1))) && s.isBefore(tomorrow);
-            }).toList();
-          } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
-        }));
-        if (mounted) setState(() {
-          _epgData = Map.from(epg);
-          _epgLoaded = (i + 6).clamp(0, channels.length);
-        });
-      }
-
-      if (mounted) setState(() => _loadingEpg = false);
-
-      // Scroll to current time
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final now = DateTime.now();
-        final offset = now.difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
-        if (_gridHScroll.hasClients) {
-          final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
-          _gridHScroll.jumpTo(clamped);
-        }
-      });
+      await _loadEpgForChannels(channels);
     } catch (e) {
       if (mounted) setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
     }
@@ -347,14 +240,20 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
 
     // Reload EPG for the new day
-    if (_selectedCatId == '__favorites__') {
-      _reloadEpgForChannels(_channels);
-    } else if (_selectedCatId != null) {
-      _reloadEpgForChannels(_channels);
+    if (_channels.isNotEmpty) {
+      _loadEpgForChannels(_channels);
     }
   }
 
-  Future<void> _reloadEpgForChannels(List<Channel> channels) async {
+  /// Shared EPG loading logic — loads EPG data in batches of 6 channels,
+  /// with full-day → short EPG fallback, base64 decoding, day filtering,
+  /// progressive state updates, and scroll-to-current-time.
+  Future<void> _loadEpgForChannels(List<Channel> channels) async {
+    String dec(String s) {
+      try { return utf8.decode(base64.decode(s)); }
+      catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; }
+    }
+
     final dayEnd = _dayStart.add(const Duration(days: 1));
     final Map<String, List<Map<String, dynamic>>> epg = {};
 
@@ -365,27 +264,25 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         try {
           Map<String, dynamic> data;
           try { data = await XtreamApi.getFullDayEpg(sid); }
-          catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG reload failed for $sid, falling back to short EPG', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
+          catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
           final listings = data['epg_listings'] as List? ?? [];
           epg[sid] = listings.map((e) {
-            String dec(String s) { try { return utf8.decode(base64.decode(s)); } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to decode base64 EPG string', error: e, stackTrace: st); return s; } }
             final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
             final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
-            final rawStartStr = e['start']?.toString();
             return {
               'title': dec(e['title']?.toString() ?? ''),
               'description': dec(e['description']?.toString() ?? ''),
               'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
               'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
               'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
-              'start_server_local': rawStartStr,
+              'start_server_local': e['start']?.toString(),
             };
           }).where((p) {
             if (p['start'] == null || p['end'] == null) return false;
             final s = p['start'] as DateTime;
             return s.isAfter(_dayStart.subtract(const Duration(hours: 1))) && s.isBefore(dayEnd);
           }).toList();
-        } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to reload EPG for channel $sid', error: e, stackTrace: st); }
+        } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
       }));
       if (mounted) setState(() {
         _epgData = Map.from(epg);
@@ -395,19 +292,15 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
 
     if (mounted) setState(() => _loadingEpg = false);
 
-    // Scroll to appropriate position
+    // Scroll to current time (or beginning of day for past/future days)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
       final isToday = _dayStart.year == today.year && _dayStart.month == today.month && _dayStart.day == today.day;
-      final double offset;
-      if (isToday) {
-        offset = DateTime.now().difference(_dayStart).inMinutes * _hourWidth / 60 - 200;
-      } else {
-        offset = 0; // beginning of day for non-today
-      }
+      final offset = isToday
+          ? DateTime.now().difference(_dayStart).inMinutes * _hourWidth / 60 - 200
+          : 0.0;
       if (_gridHScroll.hasClients) {
-        final clamped = offset.clamp(0.0, _gridHScroll.position.maxScrollExtent);
-        _gridHScroll.jumpTo(clamped);
+        _gridHScroll.jumpTo(offset.clamp(0.0, _gridHScroll.position.maxScrollExtent));
       }
     });
   }

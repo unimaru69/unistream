@@ -128,6 +128,16 @@ class XtreamApi {
   static int get epgCacheSize => _epgCache.length;
   static void clearEpgCache() => _epgCache.clear();
 
+  /// Clear both in-memory and persisted EPG cache.
+  static Future<void> clearAllEpgCache() async {
+    _epgCache.clear();
+    _epgSaveTimer?.cancel();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(StorageKeys.epgCache(AppConfig.activeProfileId));
+    } catch (_) {}
+  }
+
   static Timer? _epgSaveTimer;
 
   /// Load persisted EPG cache from disk (SharedPreferences).

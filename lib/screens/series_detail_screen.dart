@@ -7,6 +7,7 @@ import '../widgets/skeleton_list.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/cache_config.dart';
 import '../models/episode.dart';
+import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
 import '../services/watch_progress.dart';
@@ -17,7 +18,18 @@ class SeriesDetailScreen extends ConsumerStatefulWidget {
   final String seriesId;
   final String title;
   final String cover;
-  const SeriesDetailScreen({super.key, required this.seriesId, required this.title, required this.cover});
+  final String? rating;
+  final String? categoryName;
+  final String? plot;
+  const SeriesDetailScreen({
+    super.key,
+    required this.seriesId,
+    required this.title,
+    required this.cover,
+    this.rating,
+    this.categoryName,
+    this.plot,
+  });
   @override
   ConsumerState<SeriesDetailScreen> createState() => _SeriesDetailScreenState();
 }
@@ -28,6 +40,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   String? _selectedSeason;
   bool _loading = true;
   String? _error;
+
+  String get _favKey => 'series:${widget.seriesId}';
 
   @override
   void initState() {
@@ -57,7 +71,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     WatchProgress.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
     WatchProgress.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
 
-    // Trouver l'épisode suivant dans la même saison
+    // Find next episode in same season
     Map<String, dynamic>? nextEp;
     if (_selectedSeason != null) {
       final eps = _episodes[_selectedSeason!] ?? [];
@@ -81,7 +95,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       nextEpisode: nextEp,
       nextEpisodeCover: widget.cover,
     ))).then((_) {
-      if (mounted) ref.invalidate(watchProgressProvider);
+      if (mounted) {
+        ref.invalidate(watchProgressProvider);
+        ref.invalidate(continueWatchingProvider);
+      }
     });
   }
 
@@ -90,123 +107,233 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
+    final favState = ref.watch(favoritesProvider);
+    final wlState = ref.watch(watchlistProvider);
+    final isFav = favState.keys.contains(_favKey);
+    final isWl = wlState.keys.contains(_favKey);
+    final synopsis = widget.plot ?? '';
+
     return Scaffold(
-      backgroundColor: tc.surfaceAlt,
-      appBar: AppBar(
-        title: Text(widget.title, style: const TextStyle(fontSize: 16)),
-        backgroundColor: Colors.transparent, elevation: 0,
-      ),
-      body: _loading
-          ? const SkeletonList(count: 6)
-          : _error != null
-          ? Center(child: Text('${l10n.erreur}: $_error', style: const TextStyle(color: Colors.red)))
-          : Row(children: [
-              SizedBox(width: 220, child: Column(children: [
-                if (widget.cover.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(imageUrl: widget.cover, cacheManager: AppCacheManager.instance, height: 160, fit: BoxFit.cover,
+      backgroundColor: tc.surface,
+      body: Row(children: [
+        // Left panel: poster + metadata + seasons
+        SizedBox(
+          width: 260,
+          child: CustomScrollView(
+            slivers: [
+              // Poster
+              SliverToBoxAdapter(
+                child: widget.cover.isNotEmpty
+                    ? Stack(children: [
+                        CachedNetworkImage(
+                          imageUrl: widget.cover,
+                          cacheManager: AppCacheManager.instance,
+                          width: 260, height: 320, fit: BoxFit.cover,
                           fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, __) => SizedBox(height: 160, child: ColoredBox(color: tc.inputFill)),
-                          errorWidget: (_, __, ___) => const SizedBox(height: 160)),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Align(alignment: Alignment.centerLeft,
-                    child: Text(l10n.saisons, style: TextStyle(
-                        color: tc.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1))),
-                ),
-                Expanded(child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: _seasons.length,
-                  itemBuilder: (_, i) {
-                    final s   = _seasons[i];
-                    final sel = _selectedSeason == s;
-                    return ListTile(
-                      dense: true,
-                      title: Text(l10n.saison(s), style: TextStyle(fontSize: 13,
-                          color: sel ? tc.textPrimary : tc.textSecondary,
-                          fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-                      selected: sel,
-                      selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      onTap: () => setState(() => _selectedSeason = s),
-                    );
-                  },
-                )),
-              ])),
-              VerticalDivider(width: 1, color: tc.divider),
-              Expanded(
-                child: _selectedSeason == null
-                    ? Center(child: Text(l10n.selectionneSaison,
-                        style: TextStyle(color: tc.textDisabled)))
-                    : RefreshIndicator(
-                        onRefresh: _loadInfo,
-                        child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _episodes[_selectedSeason]?.length ?? 0,
-                        itemBuilder: (_, i) {
-                          final ep    = _episodes[_selectedSeason]![i];
-                          final epNum = ep.number != 0 ? ep.number : i + 1;
-                          final title = ep.displayTitle;
-                          final prog  = progress[ep.idStr];
-                          final bool isWatched = prog != null && prog > 0.95;
-                          final bool isPartial = prog != null && prog <= 0.95;
-                          final bool isNew     = prog == null;
-                          return ListTile(
-                            leading: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: isWatched
-                                      ? Colors.green.withValues(alpha: 0.2)
-                                      : AppColors.primaryBlue.withValues(alpha: 0.2),
-                                  child: isWatched
-                                      ? const Icon(Icons.check, size: 16, color: Colors.green)
-                                      : Text('$epNum',
-                                          style: TextStyle(fontSize: 12, color: tc.textSecondary)),
-                                ),
-                                if (isNew)
-                                  Positioned(top: -2, right: -2,
-                                    child: Container(
-                                      width: 10, height: 10,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.primaryBlue,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                          placeholder: (_, __) => SizedBox(height: 320, child: ColoredBox(color: tc.inputFill)),
+                          errorWidget: (_, __, ___) => SizedBox(
+                            height: 320,
+                            child: Container(color: tc.inputFill,
+                                child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
+                          ),
+                        ),
+                        // Gradient scrim
+                        Positioned(bottom: 0, left: 0, right: 0,
+                          child: Container(
+                            height: 80,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, tc.surface],
+                              ),
                             ),
-                            title: Text(title, style: TextStyle(fontSize: 14,
-                                color: isWatched ? tc.textDisabled : tc.textPrimary)),
-                            subtitle: isPartial
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: LinearProgressIndicator(
-                                      value: prog,
-                                      backgroundColor: tc.divider,
-                                      color: Colors.amber, minHeight: 3,
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  )
-                                : isWatched
-                                ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
-                                : null,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-                            onTap: () => _playEpisode(ep),
-                          );
+                          ),
+                        ),
+                      ])
+                    : Container(height: 200, color: tc.inputFill,
+                        child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
+              ),
+
+              // Title + metadata
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.title, style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold, color: tc.textPrimary,
+                    )),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 10, runSpacing: 4, children: [
+                      if (widget.rating != null && widget.rating!.isNotEmpty && widget.rating != '0')
+                        _MetaChip(icon: Icons.star, label: widget.rating!, color: Colors.amber),
+                      if (widget.categoryName != null && widget.categoryName!.isNotEmpty)
+                        _MetaChip(icon: Icons.category, label: widget.categoryName!, color: tc.textSecondary),
+                      if (_seasons.isNotEmpty)
+                        _MetaChip(icon: Icons.layers, label: '${_seasons.length} ${l10n.saisons.toLowerCase()}', color: tc.textSecondary),
+                    ]),
+                    const SizedBox(height: 12),
+
+                    // Favorite / Watchlist buttons
+                    Row(children: [
+                      IconButton(
+                        icon: Icon(isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? Colors.redAccent : tc.textSecondary),
+                        tooltip: l10n.favoris,
+                        onPressed: () {
+                          final map = <String, dynamic>{
+                            'series_id': widget.seriesId, 'name': widget.title,
+                            'cover': widget.cover,
+                          };
+                          ref.read(favoritesProvider.notifier).toggle(_favKey, {...map, '_mode': 'series'});
                         },
                       ),
+                      IconButton(
+                        icon: Icon(isWl ? Icons.bookmark : Icons.bookmark_border,
+                            color: isWl ? AppColors.primaryBlue : tc.textSecondary),
+                        tooltip: l10n.aRegarder,
+                        onPressed: () {
+                          final map = <String, dynamic>{
+                            'series_id': widget.seriesId, 'name': widget.title,
+                            'cover': widget.cover,
+                          };
+                          ref.read(watchlistProvider.notifier).toggle(_favKey, {...map, '_mode': 'series'});
+                        },
                       ),
+                    ]),
+
+                    // Synopsis
+                    if (synopsis.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(synopsis,
+                          style: TextStyle(fontSize: 13, color: tc.textSecondary, height: 1.4)),
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Seasons header
+                    Text(l10n.saisons.toUpperCase(), style: TextStyle(
+                        color: tc.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                    const SizedBox(height: 4),
+                  ]),
+                ),
               ),
-            ]),
+
+              // Season list
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) {
+                    final s = _seasons[i];
+                    final sel = _selectedSeason == s;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                      child: ListTile(
+                        dense: true,
+                        title: Text(l10n.saison(s), style: TextStyle(fontSize: 13,
+                            color: sel ? tc.textPrimary : tc.textSecondary,
+                            fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+                        selected: sel,
+                        selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        onTap: () => setState(() => _selectedSeason = s),
+                      ),
+                    );
+                  },
+                  childCount: _seasons.length,
+                ),
+              ),
+            ],
+          ),
+        ),
+        VerticalDivider(width: 1, color: tc.divider),
+
+        // Right panel: episodes
+        Expanded(
+          child: _loading
+              ? const SkeletonList(count: 6)
+              : _error != null
+              ? Center(child: Text('${l10n.erreur}: $_error', style: const TextStyle(color: Colors.red)))
+              : _selectedSeason == null
+              ? Center(child: Text(l10n.selectionneSaison,
+                  style: TextStyle(color: tc.textDisabled)))
+              : RefreshIndicator(
+                  onRefresh: _loadInfo,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _episodes[_selectedSeason]?.length ?? 0,
+                    itemBuilder: (_, i) {
+                      final ep = _episodes[_selectedSeason]![i];
+                      final epNum = ep.number != 0 ? ep.number : i + 1;
+                      final title = ep.displayTitle;
+                      final prog = progress[ep.idStr];
+                      final bool isWatched = prog != null && prog > 0.95;
+                      final bool isPartial = prog != null && prog <= 0.95;
+                      final bool isNew = prog == null;
+                      return ListTile(
+                        leading: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: isWatched
+                                  ? Colors.green.withValues(alpha: 0.2)
+                                  : AppColors.primaryBlue.withValues(alpha: 0.2),
+                              child: isWatched
+                                  ? const Icon(Icons.check, size: 16, color: Colors.green)
+                                  : Text('$epNum',
+                                      style: TextStyle(fontSize: 12, color: tc.textSecondary)),
+                            ),
+                            if (isNew)
+                              Positioned(top: -2, right: -2,
+                                child: Container(
+                                  width: 10, height: 10,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primaryBlue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        title: Text(title, style: TextStyle(fontSize: 14,
+                            color: isWatched ? tc.textDisabled : tc.textPrimary)),
+                        subtitle: isPartial
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: LinearProgressIndicator(
+                                  value: prog,
+                                  backgroundColor: tc.divider,
+                                  color: Colors.amber, minHeight: 3,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              )
+                            : isWatched
+                            ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
+                            : null,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+                        onTap: () => _playEpisode(ep),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ]),
     );
   }
 }
 
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label, required this.color});
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(fontSize: 12, color: color)),
+    ]);
+  }
+}

@@ -217,4 +217,40 @@ void main() {
       expect(result, isEmpty);
     });
   });
+
+  group('WatchProgress.getDuration', () {
+    test('returns duration after save', () async {
+      await WatchProgress.save('dur_1', const Duration(seconds: 100), const Duration(seconds: 3600));
+      final dur = await WatchProgress.getDuration('dur_1');
+      expect(dur, const Duration(seconds: 3600));
+    });
+
+    test('returns null for unknown key', () async {
+      final dur = await WatchProgress.getDuration('unknown');
+      expect(dur, isNull);
+    });
+  });
+
+  group('WatchProgress.getProgress', () {
+    test('returns both position and duration', () async {
+      await WatchProgress.save('prog_1', const Duration(seconds: 500), const Duration(seconds: 7200));
+      final p = await WatchProgress.getProgress('prog_1');
+      expect(p.position, const Duration(seconds: 500));
+      expect(p.duration, const Duration(seconds: 7200));
+    });
+
+    test('returns nulls for unknown key', () async {
+      final p = await WatchProgress.getProgress('nope');
+      expect(p.position, isNull);
+      expect(p.duration, isNull);
+    });
+
+    test('returns null after clear', () async {
+      await WatchProgress.save('clr_1', const Duration(seconds: 60), const Duration(seconds: 600));
+      await WatchProgress.clear('clr_1');
+      final p = await WatchProgress.getProgress('clr_1');
+      expect(p.position, isNull);
+      expect(p.duration, isNull);
+    });
+  });
 }

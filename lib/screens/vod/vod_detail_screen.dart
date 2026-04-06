@@ -5,9 +5,6 @@ import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/storage_keys.dart';
-import '../../models/app_config.dart';
 import '../../models/vod_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
@@ -40,11 +37,8 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
   }
 
   Future<void> _loadProgress() async {
-    final pos = await WatchProgress.getPosition(vod.id);
-    final p = await SharedPreferences.getInstance();
-    final durSec = p.getInt(StorageKeys.wpDuration(AppConfig.activeProfileId, vod.id));
-    final dur = durSec != null ? Duration(seconds: durSec) : null;
-    if (mounted) setState(() { _savedPosition = pos; _savedDuration = dur; });
+    final progress = await WatchProgress.getProgress(vod.id);
+    if (mounted) setState(() { _savedPosition = progress.position; _savedDuration = progress.duration; });
   }
 
   void _play({bool resume = false}) {

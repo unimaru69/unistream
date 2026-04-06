@@ -274,6 +274,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
       Navigator.push(context, slideRoute(SeriesDetailScreen(
         seriesId: item['series_id'].toString(),
         title: name, cover: item['cover'] ?? '',
+        rating: item['rating']?.toString(),
+        categoryName: item['category_name']?.toString(),
+        plot: item['plot']?.toString() ?? item['description']?.toString(),
       )));
       return;
     }

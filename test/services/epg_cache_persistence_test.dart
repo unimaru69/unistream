@@ -71,5 +71,29 @@ void main() {
     test('StorageKeys.epgCache returns correct key', () {
       expect(StorageKeys.epgCache('p1'), 'epg_cache_p1');
     });
+
+    test('clearAllEpgCache clears memory and disk', () async {
+      // Seed cache in memory
+      final now = DateTime.now();
+      final cacheData = {
+        'test_key': {
+          'data': {'epg_listings': []},
+          'ts': now.toIso8601String(),
+        },
+      };
+      SharedPreferences.setMockInitialValues({
+        StorageKeys.epgCache('test_profile'): jsonEncode(cacheData),
+      });
+      await XtreamApi.loadEpgCacheFromDisk();
+      expect(XtreamApi.epgCacheSize, 1);
+
+      // Clear all
+      await XtreamApi.clearAllEpgCache();
+      expect(XtreamApi.epgCacheSize, 0);
+
+      // Verify disk is also cleared
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(StorageKeys.epgCache('test_profile')), isNull);
+    });
   });
 }

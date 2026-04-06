@@ -470,6 +470,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         seriesId: seriesId,
         title: displayName,
         cover: cover,
+        rating: stream is SeriesItem ? stream.rating : (stream is Map<String, dynamic> ? stream['rating']?.toString() : null),
+        categoryName: stream is SeriesItem ? stream.categoryName : (stream is Map<String, dynamic> ? stream['category_name']?.toString() : null),
+        plot: stream is SeriesItem ? (stream.plot ?? stream.description) : (stream is Map<String, dynamic> ? (stream['plot']?.toString() ?? stream['description']?.toString()) : null),
       ))).then((_) => _refreshProgress());
       return;
     }

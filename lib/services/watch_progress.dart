@@ -27,6 +27,23 @@ class WatchProgress {
     return s != null ? Duration(seconds: s) : null;
   }
 
+  static Future<Duration?> getDuration(String key) async {
+    final p = await SharedPreferences.getInstance();
+    final s = p.getInt(StorageKeys.wpDuration(_pid, key));
+    return s != null ? Duration(seconds: s) : null;
+  }
+
+  /// Returns both position and duration in a single call.
+  static Future<({Duration? position, Duration? duration})> getProgress(String key) async {
+    final p = await SharedPreferences.getInstance();
+    final posSec = p.getInt(StorageKeys.wpPosition(_pid, key));
+    final durSec = p.getInt(StorageKeys.wpDuration(_pid, key));
+    return (
+      position: posSec != null ? Duration(seconds: posSec) : null,
+      duration: durSec != null ? Duration(seconds: durSec) : null,
+    );
+  }
+
   static Future<void> clear(String key) async {
     final p = await SharedPreferences.getInstance();
     await p.remove(StorageKeys.wpPosition(_pid, key));
