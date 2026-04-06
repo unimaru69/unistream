@@ -1,3 +1,20 @@
+# Flatpak manifest for UniStream
+#
+# For local builds (dev): use build-flatpak.sh which handles the local bundle.
+#
+# For Flathub submission: this manifest expects a pre-built Linux bundle
+# uploaded as a GitHub Release asset (tar.gz). Update the URL and sha256
+# below for each release.
+#
+# Build locally:
+#   flatpak-builder --force-clean --user --install build/flatpak packaging/linux/fr.unimaru.unistream.yml
+#
+# Build for Flathub:
+#   1. Create a GitHub Release with tag v1.0.0
+#   2. Attach the Linux bundle as unistream-linux-x86_64.tar.gz
+#   3. Update the url and sha256 below
+#   4. Submit PR to github.com/flathub/fr.unimaru.unistream
+
 app-id: fr.unimaru.unistream
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
@@ -5,7 +22,7 @@ sdk: org.freedesktop.Sdk
 command: unistream
 
 finish-args:
-  # Network access (streaming)
+  # Network access (IPTV streaming)
   - --share=network
   # Display (X11 + Wayland)
   - --share=ipc
@@ -13,11 +30,11 @@ finish-args:
   - --socket=wayland
   # Audio/Video playback
   - --socket=pulseaudio
-  # GPU acceleration
+  # GPU acceleration (hardware decoding)
   - --device=dri
-  # File picker (portals)
+  # File picker (XDG portals)
   - --talk-name=org.freedesktop.portal.FileChooser
-  # Notifications
+  # Notifications (EPG reminders)
   - --talk-name=org.freedesktop.Notifications
   # Window management
   - --talk-name=org.freedesktop.portal.Desktop
@@ -26,15 +43,27 @@ modules:
   - name: unistream
     buildsystem: simple
     build-commands:
-      - cp -r bundle /app/bin/
-      - install -Dm644 unistream.desktop /app/share/applications/fr.unimaru.unistream.desktop
-      - install -Dm644 unistream.png /app/share/icons/hicolor/256x256/apps/fr.unimaru.unistream.png
-      - ln -s /app/bin/bundle/unistream /app/bin/unistream
+      - install -d /app/bin/bundle
+      - cp -r . /app/bin/bundle/
+      - install -Dm755 unistream /app/bin/bundle/unistream
+      - ln -sf /app/bin/bundle/unistream /app/bin/unistream
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/../fr.unimaru.unistream.desktop /app/share/applications/fr.unimaru.unistream.desktop
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/../fr.unimaru.unistream.metainfo.xml /app/share/metainfo/fr.unimaru.unistream.metainfo.xml
     sources:
-      - type: dir
-        path: ../../build/linux/x64/release/bundle
-        dest: bundle
+      # For local dev builds: replace with type: dir, path: ../../build/linux/x64/release/bundle
+      - type: archive
+        url: https://github.com/unimaru69/unistream/releases/download/v1.0.0/unistream-linux-x86_64.tar.gz
+        sha256: "TODO_REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE"
+        # To generate: sha256sum unistream-linux-x86_64.tar.gz
+
+  - name: metadata
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 fr.unimaru.unistream.desktop /app/share/applications/fr.unimaru.unistream.desktop
+      - install -Dm644 fr.unimaru.unistream.metainfo.xml /app/share/metainfo/fr.unimaru.unistream.metainfo.xml
+    sources:
       - type: file
         path: unistream.desktop
+        dest-filename: fr.unimaru.unistream.desktop
       - type: file
-        path: unistream.png
+        path: fr.unimaru.unistream.metainfo.xml
