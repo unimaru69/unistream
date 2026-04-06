@@ -18,50 +18,61 @@ void main() {
     );
   }
 
+  List<CatchupProgram> samplePrograms() => [
+    CatchupProgram(
+      streamId: '1',
+      channelName: 'TF1',
+      channelIcon: '',
+      title: 'Journal 20h',
+      description: 'Les news',
+      startUtc: DateTime.now().toUtc().subtract(const Duration(hours: 2)),
+      endUtc: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
+      durationMin: 60,
+    ),
+    CatchupProgram(
+      streamId: '2',
+      channelName: 'France 2',
+      channelIcon: '',
+      title: 'Film du soir',
+      description: 'Un film',
+      startUtc: DateTime.now().toUtc().subtract(const Duration(hours: 3)),
+      endUtc: DateTime.now().toUtc().subtract(const Duration(minutes: 30)),
+      durationMin: 150,
+    ),
+  ];
+
   group('CatchupRow', () {
     testWidgets('renders nothing when programs list is empty', (tester) async {
       await tester.pumpWidget(buildApp(programs: []));
       await tester.pumpAndSettle();
       expect(find.byType(CatchupRow), findsOneWidget);
-      // SizedBox.shrink — no visible content
       expect(find.byIcon(Icons.replay), findsNothing);
     });
 
-    testWidgets('renders section title and programs', (tester) async {
-      final programs = [
-        CatchupProgram(
-          streamId: '1',
-          channelName: 'TF1',
-          channelIcon: '',
-          title: 'Journal 20h',
-          description: 'Les news',
-          startUtc: DateTime.now().toUtc().subtract(const Duration(hours: 2)),
-          endUtc: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
-          durationMin: 60,
-        ),
-        CatchupProgram(
-          streamId: '2',
-          channelName: 'France 2',
-          channelIcon: '',
-          title: 'Film du soir',
-          description: 'Un film',
-          startUtc: DateTime.now().toUtc().subtract(const Duration(hours: 3)),
-          endUtc: DateTime.now().toUtc().subtract(const Duration(minutes: 30)),
-          durationMin: 150,
-        ),
-      ];
-      await tester.pumpWidget(buildApp(programs: programs));
+    testWidgets('starts collapsed, shows header with count', (tester) async {
+      await tester.pumpWidget(buildApp(programs: samplePrograms()));
       await tester.pumpAndSettle();
 
-      // Section title
-      expect(find.text('Replay disponible'), findsOneWidget);
-      // Program titles
+      // Header visible with count
+      expect(find.textContaining('Replay disponible'), findsOneWidget);
+      expect(find.text('(2)'), findsOneWidget);
+      // Programs NOT visible (collapsed)
+      expect(find.text('Journal 20h'), findsNothing);
+    });
+
+    testWidgets('renders section title and programs after expanding', (tester) async {
+      await tester.pumpWidget(buildApp(programs: samplePrograms()));
+      await tester.pumpAndSettle();
+
+      // Tap header to expand
+      await tester.tap(find.textContaining('Replay disponible'));
+      await tester.pumpAndSettle();
+
+      // Program titles now visible
       expect(find.text('Journal 20h'), findsOneWidget);
       expect(find.text('Film du soir'), findsOneWidget);
-      // Channel names
       expect(find.text('TF1'), findsOneWidget);
       expect(find.text('France 2'), findsOneWidget);
-      // Duration
       expect(find.text('60 min'), findsOneWidget);
       expect(find.text('150 min'), findsOneWidget);
     });
@@ -84,6 +95,10 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      // Expand first
+      await tester.tap(find.textContaining('Replay disponible'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.text('Journal 20h'));
       expect(tapped?.streamId, '1');
     });
@@ -104,8 +119,26 @@ void main() {
       await tester.pumpWidget(buildApp(programs: programs));
       await tester.pumpAndSettle();
 
-      // Should show "il y a 10 min" (approximately)
+      // Expand first
+      await tester.tap(find.textContaining('Replay disponible'));
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('il y a'), findsOneWidget);
+    });
+
+    testWidgets('collapses on second tap', (tester) async {
+      await tester.pumpWidget(buildApp(programs: samplePrograms()));
+      await tester.pumpAndSettle();
+
+      // Expand
+      await tester.tap(find.textContaining('Replay disponible'));
+      await tester.pumpAndSettle();
+      expect(find.text('Journal 20h'), findsOneWidget);
+
+      // Collapse
+      await tester.tap(find.textContaining('Replay disponible'));
+      await tester.pumpAndSettle();
+      expect(find.text('Journal 20h'), findsNothing);
     });
   });
 }
