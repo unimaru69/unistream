@@ -29,8 +29,7 @@ class CatchupProgram {
   });
 }
 
-/// Dark background for channel logos (same as stream_tile.dart).
-const _logoDarkBg = Color(0xFF1E1E2E);
+// Logo background now from AppThemeColors.logoBg
 
 /// Horizontal carousel of recently-aired catch-up programs.
 ///
@@ -89,7 +88,7 @@ class CatchupRow extends StatelessWidget {
                       Container(
                         width: 20, height: 20,
                         decoration: BoxDecoration(
-                          color: _logoDarkBg,
+                          color: tc.logoBg,
                           borderRadius: BorderRadius.circular(3),
                         ),
                         child: prog.channelIcon.isNotEmpty

@@ -21,6 +21,8 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   final Color iconColor;
   final Color shimmerBase;
   final Color shimmerHighlight;
+  /// Dark background for channel logos (keeps contrast even in light theme).
+  final Color logoBg;
 
   const AppThemeColors({
     required this.surface,
@@ -35,6 +37,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     required this.iconColor,
     required this.shimmerBase,
     required this.shimmerHighlight,
+    required this.logoBg,
   });
 
   // ── Dark variant ──
@@ -51,6 +54,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     iconColor: Colors.white70,
     shimmerBase: AppColors.darkText,
     shimmerHighlight: AppColors.darkTextShimmer,
+    logoBg: Color(0xFF1E1E2E),
   );
 
   // ── Light variant ──
@@ -67,6 +71,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     iconColor: AppColors.lightIcon,
     shimmerBase: AppColors.lightShimmerBase,
     shimmerHighlight: AppColors.lightShimmerHighlight,
+    logoBg: Color(0xFFE8E8F0),
   );
 
   /// Convenience accessor.
@@ -88,6 +93,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     Color? iconColor,
     Color? shimmerBase,
     Color? shimmerHighlight,
+    Color? logoBg,
   }) {
     return AppThemeColors(
       surface: surface ?? this.surface,
@@ -102,6 +108,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       iconColor: iconColor ?? this.iconColor,
       shimmerBase: shimmerBase ?? this.shimmerBase,
       shimmerHighlight: shimmerHighlight ?? this.shimmerHighlight,
+      logoBg: logoBg ?? this.logoBg,
     );
   }
 
@@ -121,6 +128,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       iconColor: Color.lerp(iconColor, other.iconColor, t)!,
       shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t)!,
       shimmerHighlight: Color.lerp(shimmerHighlight, other.shimmerHighlight, t)!,
+      logoBg: Color.lerp(logoBg, other.logoBg, t)!,
     );
   }
 }

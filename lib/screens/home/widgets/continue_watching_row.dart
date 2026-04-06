@@ -58,7 +58,7 @@ class ContinueWatchingRow extends StatelessWidget {
                       Positioned(bottom: 0, left: 0, right: 0,
                         child: LinearProgressIndicator(
                           value: ratio,
-                          backgroundColor: Colors.black45,
+                          backgroundColor: tc.divider,
                           color: Colors.amber,
                           minHeight: 3,
                         ),

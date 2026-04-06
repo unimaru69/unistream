@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
@@ -30,7 +29,7 @@ class EpgDayNavigator extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Container(
       height: 36,
-      color: AppColors.darkText,
+      color: tc.surface,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(children: [
         TextButton.icon(

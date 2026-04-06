@@ -8,9 +8,7 @@ import '../../../models/channel.dart';
 import '../../../models/vod_item.dart';
 import '../../../models/series_item.dart';
 
-/// Background color for channel logos — dark even in light theme so white
-/// logos remain visible.
-const _logoDarkBg = Color(0xFF1E1E2E);
+
 
 /// Helper for cached network images used across the home screen widgets.
 ///
@@ -25,7 +23,7 @@ Widget networkImage(String url, {
 }) {
   final tc = AppThemeColors.of(context);
   final isLogo = mode == ContentMode.live;
-  final bgColor = isLogo ? _logoDarkBg : tc.inputFill;
+  final bgColor = isLogo ? tc.logoBg : tc.inputFill;
   final placeholderFit = isLogo ? BoxFit.contain : fit;
   return CachedNetworkImage(
     imageUrl: url,
@@ -55,7 +53,7 @@ Widget listIcon(Map<String, dynamic> stream, ContentMode mode, BuildContext cont
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
     child: Container(
-      color: mode == ContentMode.live ? _logoDarkBg : null,
+      color: mode == ContentMode.live ? tc.logoBg : null,
       child: networkImage(iconUrl.toString(), context: context, width: 40, height: 40, mode: mode),
     ),
   );
@@ -81,7 +79,7 @@ Widget listIconTyped(dynamic stream, ContentMode mode, BuildContext context) {
   return ClipRRect(
     borderRadius: BorderRadius.circular(4),
     child: Container(
-      color: mode == ContentMode.live ? _logoDarkBg : null,
+      color: mode == ContentMode.live ? tc.logoBg : null,
       child: networkImage(iconUrl, context: context, width: 40, height: 40, mode: mode),
     ),
   );
@@ -162,11 +160,11 @@ class StreamGridTile extends StatelessWidget {
             child: Stack(fit: StackFit.expand, children: [
               if (cover.isNotEmpty)
                 Container(
-                  color: mode == ContentMode.live ? _logoDarkBg : null,
+                  color: mode == ContentMode.live ? tc.logoBg : null,
                   child: networkImage(cover, context: context, mode: mode),
                 )
               else
-                Container(color: mode == ContentMode.live ? _logoDarkBg : tc.inputFill,
+                Container(color: mode == ContentMode.live ? tc.logoBg : tc.inputFill,
                     child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
                         color: tc.borderColor, size: 32)),
               // Progress bar
@@ -174,7 +172,7 @@ class StreamGridTile extends StatelessWidget {
                 Positioned(bottom: 0, left: 0, right: 0,
                   child: LinearProgressIndicator(
                     value: progress!,
-                    backgroundColor: Colors.black45,
+                    backgroundColor: tc.divider,
                     color: Colors.amber,
                     minHeight: 4,
                   ),

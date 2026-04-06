@@ -140,35 +140,67 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
 
     return Scaffold(
       backgroundColor: tc.surfaceAlt,
-      body: CustomScrollView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: CustomScrollView(
         slivers: [
           // ── Header ──
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 200,
             pinned: true,
             backgroundColor: tc.surface,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(ch.name,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                    colors: [AppColors.primaryBlue.withValues(alpha: 0.3), tc.surface],
+              background: Stack(fit: StackFit.expand, children: [
+                // Blurred background logo (decorative)
+                if (ch.displayIcon.isNotEmpty)
+                  Opacity(
+                    opacity: 0.15,
+                    child: CachedNetworkImage(
+                      imageUrl: ch.displayIcon,
+                      cacheManager: AppCacheManager.instance,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                // Gradient overlay
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.primaryBlue.withValues(alpha: 0.25),
+                        tc.surface.withValues(alpha: 0.7),
+                        tc.surface,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
                   ),
                 ),
-                child: Center(
-                  child: ch.displayIcon.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: ch.displayIcon,
-                          cacheManager: AppCacheManager.instance,
-                          height: 80, width: 80, fit: BoxFit.contain,
-                          errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 48),
-                        )
-                      : const Icon(Icons.tv, size: 48),
+                // Centered sharp logo
+                Center(
+                  child: Container(
+                    width: 88, height: 88,
+                    decoration: BoxDecoration(
+                      color: tc.logoBg,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: ch.displayIcon.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: ch.displayIcon,
+                            cacheManager: AppCacheManager.instance,
+                            fit: BoxFit.contain,
+                            errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 40),
+                          )
+                        : const Icon(Icons.tv, size: 40),
+                  ),
                 ),
-              ),
+              ]),
             ),
             actions: [
               IconButton(
@@ -288,6 +320,8 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
+      ),
+        ),
       ),
     );
   }

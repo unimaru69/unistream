@@ -462,7 +462,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
             borderRadius: BorderRadius.circular(4),
             child: Container(
               width: 28, height: 28,
-              color: const Color(0xFF1E1E2E),
+              color: tc.logoBg,
               child: CachedNetworkImage(
                 cacheManager: AppCacheManager.instance,
                 imageUrl: ch.displayIcon,
@@ -507,7 +507,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           final nowHasReminder = channel != null && isFuture
               && reminderSvc.hasReminder(channel.id, start.toUtc());
           return AlertDialog(
-            backgroundColor: AppColors.darkText,
+            backgroundColor: tc.surface,
             title: Text(prog['title'] ?? '', style: TextStyle(color: tc.textPrimary, fontSize: 15)),
             content: SingleChildScrollView(
               child: Column(
@@ -628,8 +628,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           : canReplay
           ? AppColors.accentGreen.withValues(alpha: 0.25)
           : isPast
-          ? Colors.white.withValues(alpha: 0.04)
-          : Colors.white.withValues(alpha: 0.08);
+          ? tc.divider.withValues(alpha: 0.3)
+          : tc.divider.withValues(alpha: 0.5);
       final cellBorder = isCurrent
           ? Border.all(color: AppColors.primaryBlue, width: 1)
           : canReplay
@@ -850,7 +850,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide.none),
                               filled: true,
-                              fillColor: Colors.white.withValues(alpha: 0.06),
+                              fillColor: tc.inputFill,
                             ),
                             onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
                           ),
