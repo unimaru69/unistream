@@ -4,6 +4,7 @@ import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/category.dart' as cat;
+import '../../../models/favorite_item.dart';
 
 /// Resizable category sidebar with favorites, watchlist, history, collections, and categories.
 class CategorySidebar extends StatelessWidget {
@@ -20,8 +21,8 @@ class CategorySidebar extends StatelessWidget {
   final Map<String, double> progress;
 
   // Favorites / Watchlist data
-  final List<Map<String, dynamic>> favItems;
-  final List<Map<String, dynamic>> wlItems;
+  final List<FavoriteItem> favItems;
+  final List<FavoriteItem> wlItems;
 
   // Callbacks
   final void Function(String categoryId) onCategorySelected;
@@ -112,8 +113,8 @@ class CategorySidebar extends StatelessWidget {
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: () {
-                final modeFavs = favItems.where((e) => e['_mode'] == mode.key).toList();
-                onSpecialCategorySelected('__favorites__', modeFavs);
+                final modeFavs = favItems.where((e) => e.mode == mode.key).toList();
+                onSpecialCategorySelected('__favorites__', modeFavs.map((e) => e.toJson()).toList());
               },
             ),
           );
@@ -122,10 +123,10 @@ class CategorySidebar extends StatelessWidget {
         // Watchlist row
         if (i == 1) {
           final sel = selectedCategory == '__watchlist__';
-          final wlModeItems = wlItems.where((e) => e['_mode'] == mode.key).toList();
+          final wlModeItems = wlItems.where((e) => e.mode == mode.key).toList();
           final wlCount = wlModeItems.length;
           final unwatchedCount = wlModeItems.where((e) {
-            final id = mode == ContentMode.series ? e['series_id']?.toString() : e['stream_id']?.toString();
+            final id = mode == ContentMode.series ? e.seriesId : e.streamId;
             if (id == null) return true;
             final p = progress[id];
             return p == null || p <= 0.95;
@@ -161,8 +162,8 @@ class CategorySidebar extends StatelessWidget {
               selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onTap: () {
-                final modeWl = wlItems.where((e) => e['_mode'] == mode.key).toList();
-                onSpecialCategorySelected('__watchlist__', modeWl);
+                final modeWl = wlItems.where((e) => e.mode == mode.key).toList();
+                onSpecialCategorySelected('__watchlist__', modeWl.map((e) => e.toJson()).toList());
               },
             ),
           );

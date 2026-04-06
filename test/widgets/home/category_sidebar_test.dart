@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/models/content_mode.dart';
+import 'package:unistream/models/favorite_item.dart';
 import 'package:unistream/screens/home/widgets/category_sidebar.dart';
 
 import '../../helpers/mock_data.dart';
@@ -11,8 +12,8 @@ void main() {
     Widget buildSidebar({
       List<dynamic>? categories,
       String? selectedCategory,
-      List<Map<String, dynamic>> favItems = const [],
-      List<Map<String, dynamic>> wlItems = const [],
+      List<FavoriteItem> favItems = const [],
+      List<FavoriteItem> wlItems = const [],
       List<Map<String, dynamic>> collections = const [],
       void Function(String)? onCategorySelected,
       void Function(String, List<Map<String, dynamic>>)? onSpecialCategorySelected,

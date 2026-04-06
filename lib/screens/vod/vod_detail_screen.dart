@@ -5,6 +5,7 @@ import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import '../../models/favorite_item.dart';
 import '../../models/vod_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
@@ -194,13 +195,12 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                           color: isFav ? Colors.redAccent : tc.textSecondary),
                       tooltip: l10n.favoris,
                       onPressed: () {
-                        final map = <String, dynamic>{
-                          'stream_id': vod.streamId, 'name': vod.name,
-                          'stream_icon': vod.streamIcon, 'cover': vod.cover,
-                          'container_extension': vod.containerExtension,
-                          'category_id': vod.categoryId,
-                        };
-                        ref.read(favoritesProvider.notifier).toggle(_favKey, {...map, '_mode': 'vod'});
+                        ref.read(favoritesProvider.notifier).toggle(_favKey, FavoriteItem(
+                          key: _favKey, name: vod.name, cover: vod.displayIcon,
+                          mode: 'vod', streamId: vod.id,
+                          categoryId: vod.categoryId, containerExtension: vod.containerExtension,
+                          streamIcon: vod.streamIcon,
+                        ));
                       },
                     ),
                     // Watchlist toggle
@@ -209,13 +209,12 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                           color: isWl ? AppColors.primaryBlue : tc.textSecondary),
                       tooltip: l10n.aRegarder,
                       onPressed: () {
-                        final map = <String, dynamic>{
-                          'stream_id': vod.streamId, 'name': vod.name,
-                          'stream_icon': vod.streamIcon, 'cover': vod.cover,
-                          'container_extension': vod.containerExtension,
-                          'category_id': vod.categoryId,
-                        };
-                        ref.read(watchlistProvider.notifier).toggle(_favKey, {...map, '_mode': 'vod'});
+                        ref.read(watchlistProvider.notifier).toggle(_favKey, FavoriteItem(
+                          key: _favKey, name: vod.name, cover: vod.displayIcon,
+                          mode: 'vod', streamId: vod.id,
+                          categoryId: vod.categoryId, containerExtension: vod.containerExtension,
+                          streamIcon: vod.streamIcon,
+                        ));
                       },
                     ),
                   ]),

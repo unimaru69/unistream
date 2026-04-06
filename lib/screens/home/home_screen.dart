@@ -8,6 +8,7 @@ import 'package:unistream/core/logger.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
+import '../../models/favorite_item.dart';
 import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
 import '../../models/vod_item.dart';
@@ -280,13 +281,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _toggleFavorite(dynamic stream) {
     final key = _favKey(_mode.key, stream);
     final map = streamToMap(stream);
-    ref.read(favoritesProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
+    ref.read(favoritesProvider.notifier).toggle(key, FavoriteItem.fromLegacy(key, {...map, '_mode': _mode.key}));
   }
 
   void _toggleWatchlist(dynamic stream) {
     final key = _favKey(_mode.key, stream);
     final map = streamToMap(stream);
-    ref.read(watchlistProvider.notifier).toggle(key, {...map, '_mode': _mode.key});
+    ref.read(watchlistProvider.notifier).toggle(key, FavoriteItem.fromLegacy(key, {...map, '_mode': _mode.key}));
   }
 
   // ── Init / loading ──

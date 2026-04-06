@@ -7,6 +7,7 @@ import '../widgets/skeleton_list.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/cache_config.dart';
 import '../models/episode.dart';
+import '../models/favorite_item.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
 import '../services/xtream_api.dart';
@@ -181,11 +182,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                             color: isFav ? Colors.redAccent : tc.textSecondary),
                         tooltip: l10n.favoris,
                         onPressed: () {
-                          final map = <String, dynamic>{
-                            'series_id': widget.seriesId, 'name': widget.title,
-                            'cover': widget.cover,
-                          };
-                          ref.read(favoritesProvider.notifier).toggle(_favKey, {...map, '_mode': 'series'});
+                          ref.read(favoritesProvider.notifier).toggle(_favKey, FavoriteItem(
+                            key: _favKey, name: widget.title, cover: widget.cover,
+                            mode: 'series', seriesId: widget.seriesId,
+                          ));
                         },
                       ),
                       IconButton(
@@ -193,11 +193,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                             color: isWl ? AppColors.primaryBlue : tc.textSecondary),
                         tooltip: l10n.aRegarder,
                         onPressed: () {
-                          final map = <String, dynamic>{
-                            'series_id': widget.seriesId, 'name': widget.title,
-                            'cover': widget.cover,
-                          };
-                          ref.read(watchlistProvider.notifier).toggle(_favKey, {...map, '_mode': 'series'});
+                          ref.read(watchlistProvider.notifier).toggle(_favKey, FavoriteItem(
+                            key: _favKey, name: widget.title, cover: widget.cover,
+                            mode: 'series', seriesId: widget.seriesId,
+                          ));
                         },
                       ),
                     ]),

@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/storage_keys.dart';
 import '../models/app_config.dart';
+import '../models/favorite_item.dart';
 import '../services/sync_service.dart';
 
 class FavoritesState {
   final Set<String> keys;
-  final List<Map<String, dynamic>> items;
+  final List<FavoriteItem> items;
 
   const FavoritesState({this.keys = const {}, this.items = const []});
 }
@@ -24,51 +25,54 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       state = const FavoritesState();
       return;
     }
-    final list = List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-    final keys = list.map((e) => (e['_key'] ?? e['key'] ?? e['stream_id'])?.toString() ?? '').toSet();
+    final list = (jsonDecode(raw) as List).map((e) {
+      final map = Map<String, dynamic>.from(e as Map);
+      final key = (map['_key'] ?? map['key'] ?? map['stream_id'])?.toString() ?? '';
+      return FavoriteItem.fromLegacy(key, map);
+    }).toList();
+    final keys = list.map((e) => e.key).toSet();
     state = FavoritesState(keys: keys, items: list);
   }
 
-  Future<void> toggle(String key, Map<String, dynamic> item) async {
+  Future<void> toggle(String key, FavoriteItem item) async {
     final p = await SharedPreferences.getInstance();
-    final items = List<Map<String, dynamic>>.from(state.items);
+    final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
 
     if (keys.contains(key)) {
       keys.remove(key);
-      items.removeWhere((e) => (e['_key'] ?? e['key']) == key);
+      items.removeWhere((e) => e.key == key);
     } else {
       keys.add(key);
-      items.add({...item, '_key': key});
+      items.add(item);
     }
 
-    await p.setString(StorageKeys.favorites(AppConfig.activeProfileId), jsonEncode(items));
+    await p.setString(StorageKeys.favorites(AppConfig.activeProfileId),
+        jsonEncode(items.map((e) => e.toJson()).toList()));
     state = FavoritesState(keys: keys, items: items);
     _pushSync();
   }
 
   /// Merge remote items into local state (union, remote fills gaps).
-  /// Called after a pull from Supabase.
   Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
     if (remote.isEmpty) return;
     final p = await SharedPreferences.getInstance();
-    final items = List<Map<String, dynamic>>.from(state.items);
+    final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
     bool changed = false;
 
     for (final entry in remote.entries) {
       if (!keys.contains(entry.key)) {
         keys.add(entry.key);
-        final item = Map<String, dynamic>.from(entry.value as Map);
-        if (!item.containsKey('_key')) item['_key'] = entry.key;
-        items.add(item);
+        final map = Map<String, dynamic>.from(entry.value as Map);
+        items.add(FavoriteItem.fromLegacy(entry.key, map));
         changed = true;
       }
     }
 
     if (changed) {
-      await p.setString(StorageKeys.favorites(AppConfig.activeProfileId), jsonEncode(items));
+      await p.setString(StorageKeys.favorites(AppConfig.activeProfileId),
+          jsonEncode(items.map((e) => e.toJson()).toList()));
       state = FavoritesState(keys: keys, items: items);
     }
   }
@@ -76,8 +80,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
   void _pushSync() {
     final map = <String, dynamic>{};
     for (final item in state.items) {
-      final k = (item['_key'] ?? item['key'])?.toString() ?? '';
-      if (k.isNotEmpty) map[k] = item;
+      if (item.key.isNotEmpty) map[item.key] = item.toJson();
     }
     SyncService.instance.pushFavorites(map, 'favorite');
   }
@@ -92,7 +95,7 @@ final favoritesProvider = StateNotifierProvider<FavoritesNotifier, FavoritesStat
 // Watchlist uses the same pattern
 class WatchlistState {
   final Set<String> keys;
-  final List<Map<String, dynamic>> items;
+  final List<FavoriteItem> items;
 
   const WatchlistState({this.keys = const {}, this.items = const []});
 }
@@ -109,26 +112,30 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
       state = const WatchlistState();
       return;
     }
-    final list = List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
-    final keys = list.map((e) => (e['_key'] ?? e['key'])?.toString() ?? '').toSet();
+    final list = (jsonDecode(raw) as List).map((e) {
+      final map = Map<String, dynamic>.from(e as Map);
+      final key = (map['_key'] ?? map['key'])?.toString() ?? '';
+      return FavoriteItem.fromLegacy(key, map);
+    }).toList();
+    final keys = list.map((e) => e.key).toSet();
     state = WatchlistState(keys: keys, items: list);
   }
 
-  Future<void> toggle(String key, Map<String, dynamic> item) async {
+  Future<void> toggle(String key, FavoriteItem item) async {
     final p = await SharedPreferences.getInstance();
-    final items = List<Map<String, dynamic>>.from(state.items);
+    final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
 
     if (keys.contains(key)) {
       keys.remove(key);
-      items.removeWhere((e) => (e['_key'] ?? e['key']) == key);
+      items.removeWhere((e) => e.key == key);
     } else {
       keys.add(key);
-      items.add({...item, '_key': key});
+      items.add(item);
     }
 
-    await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
+    await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId),
+        jsonEncode(items.map((e) => e.toJson()).toList()));
     state = WatchlistState(keys: keys, items: items);
     _pushSync();
   }
@@ -137,22 +144,22 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
   Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
     if (remote.isEmpty) return;
     final p = await SharedPreferences.getInstance();
-    final items = List<Map<String, dynamic>>.from(state.items);
+    final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
     bool changed = false;
 
     for (final entry in remote.entries) {
       if (!keys.contains(entry.key)) {
         keys.add(entry.key);
-        final item = Map<String, dynamic>.from(entry.value as Map);
-        if (!item.containsKey('_key')) item['_key'] = entry.key;
-        items.add(item);
+        final map = Map<String, dynamic>.from(entry.value as Map);
+        items.add(FavoriteItem.fromLegacy(entry.key, map));
         changed = true;
       }
     }
 
     if (changed) {
-      await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId), jsonEncode(items));
+      await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId),
+          jsonEncode(items.map((e) => e.toJson()).toList()));
       state = WatchlistState(keys: keys, items: items);
     }
   }
@@ -160,8 +167,7 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
   void _pushSync() {
     final map = <String, dynamic>{};
     for (final item in state.items) {
-      final k = (item['_key'] ?? item['key'])?.toString() ?? '';
-      if (k.isNotEmpty) map[k] = item;
+      if (item.key.isNotEmpty) map[item.key] = item.toJson();
     }
     SyncService.instance.pushFavorites(map, 'watchlist');
   }

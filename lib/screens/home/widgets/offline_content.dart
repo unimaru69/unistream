@@ -105,8 +105,8 @@ class OfflineContent extends ConsumerWidget {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tc.textSecondary)),
             const SizedBox(height: 8),
             ...(offlineFavItems.take(20).map((item) {
-              final name = item['name'] as String? ?? '';
-              final cover = item['cover']?.toString() ?? item['stream_icon']?.toString() ?? '';
+              final name = item.name;
+              final cover = item.cover.isNotEmpty ? item.cover : (item.streamIcon ?? '');
               return Tooltip(
                 message: l10n.connexionRequise,
                 child: ListTile(

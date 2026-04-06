@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/models/app_config.dart';
+import 'package:unistream/models/favorite_item.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/providers/collections_provider.dart';
 import 'package:unistream/providers/theme_provider.dart';
@@ -61,7 +62,7 @@ void main() {
 
       // toggle internally calls _pushSync -> SyncService.instance.pushFavorites
       // which is a no-op because Supabase is not initialized.
-      await notifier.toggle('ch_1', {'name': 'Channel 1', 'stream_id': 1});
+      await notifier.toggle('ch_1', FavoriteItem(key: 'ch_1', name: 'Channel 1', streamId: '1'));
       expect(notifier.isFavorite('ch_1'), true);
     });
 
@@ -69,8 +70,8 @@ void main() {
       final notifier = FavoritesNotifier();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      await notifier.toggle('ch_1', {'name': 'Channel 1'});
-      await notifier.toggle('ch_1', {'name': 'Channel 1'});
+      await notifier.toggle('ch_1', FavoriteItem(key: 'ch_1', name: 'Channel 1'));
+      await notifier.toggle('ch_1', FavoriteItem(key: 'ch_1', name: 'Channel 1'));
       expect(notifier.isFavorite('ch_1'), false);
     });
   });
@@ -80,7 +81,7 @@ void main() {
       final notifier = WatchlistNotifier();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      await notifier.toggle('movie_1', {'name': 'Movie 1'});
+      await notifier.toggle('movie_1', FavoriteItem(key: 'movie_1', name: 'Movie 1'));
       expect(notifier.isInWatchlist('movie_1'), true);
     });
 
@@ -88,8 +89,8 @@ void main() {
       final notifier = WatchlistNotifier();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      await notifier.toggle('movie_1', {'name': 'Movie 1'});
-      await notifier.toggle('movie_1', {'name': 'Movie 1'});
+      await notifier.toggle('movie_1', FavoriteItem(key: 'movie_1', name: 'Movie 1'));
+      await notifier.toggle('movie_1', FavoriteItem(key: 'movie_1', name: 'Movie 1'));
       expect(notifier.isInWatchlist('movie_1'), false);
     });
   });

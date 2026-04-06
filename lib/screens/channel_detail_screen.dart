@@ -7,6 +7,7 @@ import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/models/channel.dart';
+import 'package:unistream/models/favorite_item.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/services/epg_reminder_service.dart';
 import 'package:unistream/services/xtream_api.dart';
@@ -209,12 +210,11 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
                 icon: Icon(isFav ? Icons.star : Icons.star_border,
                     color: isFav ? Colors.amber : null),
                 onPressed: () {
-                  ref.read(favoritesProvider.notifier).toggle(favKey, {
-                    'stream_id': ch.streamId,
-                    'name': ch.name,
-                    'stream_icon': ch.streamIcon,
-                    '_mode': 'live',
-                  });
+                  ref.read(favoritesProvider.notifier).toggle(favKey, FavoriteItem(
+                    key: favKey, name: ch.name, cover: ch.displayIcon,
+                    mode: 'live', streamId: ch.streamId.toString(),
+                    streamIcon: ch.streamIcon,
+                  ));
                 },
                 tooltip: l10n.favoris,
               ),
