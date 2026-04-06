@@ -20,6 +20,16 @@ const _defaultBaseDelay = Duration(seconds: 1);
 const _defaultMaxDelay = Duration(seconds: 10);
 const _defaultMaxJitterMs = 500;
 
+// ── Configurable retry defaults (loaded from SharedPreferences) ──
+int _configMaxRetries = 3;
+int _configTimeoutSec = 15;
+
+Future<void> _loadRetryConfig() async {
+  final p = await SharedPreferences.getInstance();
+  _configMaxRetries = p.getInt(StorageKeys.retryMaxAttempts) ?? 3;
+  _configTimeoutSec = p.getInt(StorageKeys.retryTimeoutSec) ?? 15;
+}
+
 /// Visible for testing — override to control jitter in tests.
 @visibleForTesting
 Random httpGetRandom = Random();
@@ -27,29 +37,31 @@ Random httpGetRandom = Random();
 Future<http.Response> httpGet(
   String url, {
   http.Client? client,
-  int maxRetries = 3,
-  Duration timeout = const Duration(seconds: 15),
+  int? maxRetries,
+  Duration? timeout,
   void Function(int attempt, dynamic error)? onRetry,
 }) async {
+  final effectiveMaxRetries = maxRetries ?? _configMaxRetries;
+  final effectiveTimeout = timeout ?? Duration(seconds: _configTimeoutSec);
   final effectiveClient = client ?? http.Client();
   final shouldCloseClient = client == null;
   try {
-    for (int i = 0; i < maxRetries; i++) {
+    for (int i = 0; i < effectiveMaxRetries; i++) {
       try {
         return await effectiveClient
             .get(Uri.parse(url))
-            .timeout(timeout);
+            .timeout(effectiveTimeout);
       } on TimeoutException catch (e) {
-        if (i == maxRetries - 1) rethrow;
+        if (i == effectiveMaxRetries - 1) rethrow;
         onRetry?.call(i, e);
       } on SocketException catch (e) {
-        if (i == maxRetries - 1) rethrow;
+        if (i == effectiveMaxRetries - 1) rethrow;
         onRetry?.call(i, e);
       } on HandshakeException catch (e) {
-        if (i == maxRetries - 1) rethrow;
+        if (i == effectiveMaxRetries - 1) rethrow;
         onRetry?.call(i, e);
       } on http.ClientException catch (e) {
-        if (i == maxRetries - 1) rethrow;
+        if (i == effectiveMaxRetries - 1) rethrow;
         onRetry?.call(i, e);
       }
       // Exponential backoff with jitter:
@@ -61,7 +73,7 @@ Future<http.Response> httpGet(
           min(exponentialMs + jitterMs, _defaultMaxDelay.inMilliseconds);
       await Future.delayed(Duration(milliseconds: delayMs));
     }
-    throw Exception('Retry limit reached after $maxRetries attempts');
+    throw Exception('Retry limit reached after $effectiveMaxRetries attempts');
   } finally {
     if (shouldCloseClient) effectiveClient.close();
   }
@@ -86,6 +98,9 @@ class _StreamCacheEntry {
 
 // ── API Xtream Codes ──
 class XtreamApi {
+  /// Load retry configuration from SharedPreferences.
+  static Future<void> loadRetryConfig() => _loadRetryConfig();
+
   /// Map a technical error to an [ApiErrorKey] for localization at the UI layer.
   static ApiErrorKey errorKey(dynamic error) {
     final msg = error.toString();

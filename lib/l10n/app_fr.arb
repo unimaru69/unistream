@@ -496,5 +496,16 @@
     }
   },
   "pasDeSynopsis": "Aucun synopsis disponible.",
-  "detailVod": "Détail"
+  "detailVod": "Détail",
+
+  "importerM3u": "Importer un fichier M3U",
+  "testerConnexion": "Tester la connexion",
+  "connexionReussie": "Connexion réussie !",
+  "fichierM3uInvalide": "Fichier M3U invalide ou non reconnu.",
+  "importReussi": "Identifiants importés avec succès !",
+
+  "reglagesAvances": "RÉGLAGES AVANCÉS",
+  "tentativesMax": "Tentatives max",
+  "delaiConnexion": "Délai de connexion (sec)",
+  "descriptionAvances": "Paramètres de connexion au serveur."
 }

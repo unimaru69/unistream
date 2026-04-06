@@ -1699,6 +1699,60 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Détail'**
   String get detailVod;
+
+  /// No description provided for @importerM3u.
+  ///
+  /// In fr, this message translates to:
+  /// **'Importer un fichier M3U'**
+  String get importerM3u;
+
+  /// No description provided for @testerConnexion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tester la connexion'**
+  String get testerConnexion;
+
+  /// No description provided for @connexionReussie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion réussie !'**
+  String get connexionReussie;
+
+  /// No description provided for @fichierM3uInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fichier M3U invalide ou non reconnu.'**
+  String get fichierM3uInvalide;
+
+  /// No description provided for @importReussi.
+  ///
+  /// In fr, this message translates to:
+  /// **'Identifiants importés avec succès !'**
+  String get importReussi;
+
+  /// No description provided for @reglagesAvances.
+  ///
+  /// In fr, this message translates to:
+  /// **'RÉGLAGES AVANCÉS'**
+  String get reglagesAvances;
+
+  /// No description provided for @tentativesMax.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tentatives max'**
+  String get tentativesMax;
+
+  /// No description provided for @delaiConnexion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Délai de connexion (sec)'**
+  String get delaiConnexion;
+
+  /// No description provided for @descriptionAvances.
+  ///
+  /// In fr, this message translates to:
+  /// **'Paramètres de connexion au serveur.'**
+  String get descriptionAvances;
 }
 
 class _AppLocalizationsDelegate

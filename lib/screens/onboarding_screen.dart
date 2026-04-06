@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io' show File;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
 import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
+import '../services/m3u_parser.dart';
 import '../services/xtream_api.dart';
 import 'home/home_screen.dart';
 
@@ -22,6 +27,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _saving = false;
   bool _obscure = true;
   String? _error;
+  bool _testing = false;
+  bool? _testSuccess;
 
   @override
   void dispose() {
@@ -38,6 +45,78 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
     );
+  }
+
+  Future<void> _importM3u() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      String content;
+      if (bytes != null) {
+        content = utf8.decode(bytes, allowMalformed: true);
+      } else {
+        final path = result.files.first.path;
+        if (path == null) return;
+        content = await File(path).readAsString();
+      }
+      final creds = parseM3uCredentials(content);
+      if (creds == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.fichierM3uInvalide)),
+          );
+        }
+        return;
+      }
+      _serverCtrl.text = creds.serverUrl;
+      _userCtrl.text = creds.username;
+      _passCtrl.text = creds.password;
+      _goToPage(1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.importReussi)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.fichierM3uInvalide)),
+        );
+      }
+    }
+  }
+
+  Future<void> _testConnection() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _testing = true;
+      _testSuccess = null;
+      _error = null;
+    });
+    try {
+      final server = _serverCtrl.text.trim();
+      final user = _userCtrl.text.trim();
+      final pass = _passCtrl.text.trim();
+      final url =
+          '$server/player_api.php?username=$user&password=$pass';
+      final r = await httpGet(url, maxRetries: 1,
+          timeout: const Duration(seconds: 10));
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      final auth = data['user_info']?['auth'];
+      setState(() {
+        _testing = false;
+        _testSuccess = auth == 1;
+        if (auth != 1) _error = AppLocalizations.of(context)!.authEchouee;
+      });
+    } catch (e) {
+      setState(() {
+        _testing = false;
+        _testSuccess = false;
+        _error = XtreamApi.friendlyError(e);
+      });
+    }
   }
 
   Future<void> _authenticate() async {
@@ -141,6 +220,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child:
                   Text(l10n.commencer, style: const TextStyle(fontSize: 16)),
             ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _importM3u,
+              icon: const Icon(Icons.file_open, size: 18),
+              label: Text(l10n.importerM3u),
+              style: TextButton.styleFrom(
+                foregroundColor: tc.textTertiary,
+              ),
+            ),
           ],
         ),
       ),
@@ -235,7 +323,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       style:
                           const TextStyle(color: Colors.redAccent, fontSize: 13)),
                 ],
-                const SizedBox(height: 24),
+                if (_testSuccess == true) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.connexionReussie,
+                          style: const TextStyle(color: Colors.green, fontSize: 13)),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _testing ? null : _testConnection,
+                    icon: _testing
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.wifi_find, size: 18),
+                    label: Text(l10n.testerConnexion),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _saving ? null : _authenticate,
                   style: FilledButton.styleFrom(

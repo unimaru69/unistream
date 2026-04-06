@@ -143,6 +143,8 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
+          child: RefreshIndicator(
+          onRefresh: _loadEpg,
           child: CustomScrollView(
         slivers: [
           // ── Header ──
@@ -320,6 +322,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
+      ),
       ),
         ),
       ),

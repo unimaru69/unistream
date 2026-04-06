@@ -386,6 +386,15 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               child: Center(child: Text(AppLocalizations.of(context)!.chargementEpg(_epgLoaded, _channels.length),
                   style: TextStyle(fontSize: 11, color: tc.textDisabled))),
             ),
+          if (!_loadingEpg && _channels.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              tooltip: AppLocalizations.of(context)!.reessayer,
+              onPressed: () {
+                setState(() { _epgData = {}; _epgLoaded = 0; _loadingEpg = true; });
+                _loadEpgForChannels(_channels);
+              },
+            ),
         ],
       ),
       body: _loadingCats

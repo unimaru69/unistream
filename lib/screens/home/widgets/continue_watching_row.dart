@@ -47,7 +47,10 @@ class ContinueWatchingRow extends StatelessWidget {
             final name  = item['name']  as String? ?? '';
             final mode  = item['mode']  as String? ?? '';
             final badge = _modeBadges[mode];
-            return GestureDetector(
+            return Semantics(
+              label: '${name.isNotEmpty ? name : 'Contenu'}, ${(ratio * 100).round()}% regard\u00e9${badge != null ? ', ${badge.label}' : ''}',
+              button: true,
+              child: GestureDetector(
               onTap: () => onTap(item),
               child: Container(
                 width: 90,
@@ -104,6 +107,7 @@ class ContinueWatchingRow extends StatelessWidget {
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ]),
               ),
+            ),
             );
           },
         ),

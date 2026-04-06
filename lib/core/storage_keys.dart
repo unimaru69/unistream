@@ -100,4 +100,8 @@ class StorageKeys {
 
   // ── EPG cache persistence ──
   static String epgCache(String profileId) => 'epg_cache_$profileId';
+
+  // ── HTTP retry configuration ──
+  static const retryMaxAttempts = 'retry_max_attempts';
+  static const retryTimeoutSec = 'retry_timeout_sec';
 }

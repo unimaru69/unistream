@@ -334,5 +334,16 @@
   "lire": "Play",
   "reprendre": "Resume ({time})",
   "pasDeSynopsis": "No synopsis available.",
-  "detailVod": "Details"
+  "detailVod": "Details",
+
+  "importerM3u": "Import M3U file",
+  "testerConnexion": "Test connection",
+  "connexionReussie": "Connection successful!",
+  "fichierM3uInvalide": "Invalid or unrecognized M3U file.",
+  "importReussi": "Credentials imported successfully!",
+
+  "reglagesAvances": "ADVANCED SETTINGS",
+  "tentativesMax": "Max retries",
+  "delaiConnexion": "Connection timeout (sec)",
+  "descriptionAvances": "Server connection parameters."
 }

@@ -109,8 +109,9 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
 
-    // Step 4: Load EPG cache from disk
+    // Step 4: Load EPG cache from disk + retry config
     XtreamApi.loadEpgCacheFromDisk();
+    XtreamApi.loadRetryConfig();
 
     // Step 5: Ready
     setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');

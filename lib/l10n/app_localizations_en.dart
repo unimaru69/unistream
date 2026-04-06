@@ -907,4 +907,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get detailVod => 'Details';
+
+  @override
+  String get importerM3u => 'Import M3U file';
+
+  @override
+  String get testerConnexion => 'Test connection';
+
+  @override
+  String get connexionReussie => 'Connection successful!';
+
+  @override
+  String get fichierM3uInvalide => 'Invalid or unrecognized M3U file.';
+
+  @override
+  String get importReussi => 'Credentials imported successfully!';
+
+  @override
+  String get reglagesAvances => 'ADVANCED SETTINGS';
+
+  @override
+  String get tentativesMax => 'Max retries';
+
+  @override
+  String get delaiConnexion => 'Connection timeout (sec)';
+
+  @override
+  String get descriptionAvances => 'Server connection parameters.';
 }

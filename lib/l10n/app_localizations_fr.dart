@@ -911,4 +911,31 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get detailVod => 'Détail';
+
+  @override
+  String get importerM3u => 'Importer un fichier M3U';
+
+  @override
+  String get testerConnexion => 'Tester la connexion';
+
+  @override
+  String get connexionReussie => 'Connexion réussie !';
+
+  @override
+  String get fichierM3uInvalide => 'Fichier M3U invalide ou non reconnu.';
+
+  @override
+  String get importReussi => 'Identifiants importés avec succès !';
+
+  @override
+  String get reglagesAvances => 'RÉGLAGES AVANCÉS';
+
+  @override
+  String get tentativesMax => 'Tentatives max';
+
+  @override
+  String get delaiConnexion => 'Délai de connexion (sec)';
+
+  @override
+  String get descriptionAvances => 'Paramètres de connexion au serveur.';
 }
