@@ -229,17 +229,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // Connectivity monitoring
     _connectivitySubscription = _connectivityService.statusStream.listen((status) {
       if (!mounted || _minimized) return;
-      final wasOffline = _connectivityStatus == ConnectivityStatus.offline;
+      final wasDown = _connectivityStatus != ConnectivityStatus.online;
       setState(() => _connectivityStatus = status);
 
       if (status == ConnectivityStatus.offline) {
         setState(() => _showConnectivityBanner = true);
-      } else if (status == ConnectivityStatus.online && wasOffline) {
+      } else if (status == ConnectivityStatus.reconnecting) {
+        // Keep banner visible during reconnection attempt
+        setState(() => _showConnectivityBanner = true);
+      } else if (status == ConnectivityStatus.online && wasDown) {
         // Auto-retry stream on reconnection
         _reconnectAttempts = 0;
         _player.open(Media(widget.url));
-        // Hide banner after a short delay
+        // Show "Connexion rétablie" briefly, then hide
+        setState(() => _showConnectivityBanner = true);
         Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _showConnectivityBanner = false);
+        });
+      } else if (status == ConnectivityStatus.online) {
+        // Already online, dismiss any lingering banner
+        Future.delayed(const Duration(seconds: 1), () {
           if (mounted) setState(() => _showConnectivityBanner = false);
         });
       }
@@ -1071,25 +1080,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
             right: 0,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              color: _connectivityStatus == ConnectivityStatus.offline
-                  ? Colors.red.withValues(alpha: 0.85)
-                  : Colors.green.withValues(alpha: 0.85),
+              color: _connectivityStatus == ConnectivityStatus.online
+                  ? Colors.green.withValues(alpha: 0.85)
+                  : _connectivityStatus == ConnectivityStatus.reconnecting
+                  ? Colors.orange.withValues(alpha: 0.85)
+                  : Colors.red.withValues(alpha: 0.85),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    _connectivityStatus == ConnectivityStatus.offline
-                        ? Icons.cloud_off
-                        : Icons.cloud_done,
+                    _connectivityStatus == ConnectivityStatus.online
+                        ? Icons.cloud_done
+                        : _connectivityStatus == ConnectivityStatus.reconnecting
+                        ? Icons.sync
+                        : Icons.cloud_off,
                     color: Colors.white,
                     size: 16,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _connectivityStatus == ConnectivityStatus.offline
-                        ? 'Connexion perdue'
-                        : 'Connexion r\u00e9tablie',
+                    _connectivityStatus == ConnectivityStatus.online
+                        ? 'Connexion r\u00e9tablie'
+                        : _connectivityStatus == ConnectivityStatus.reconnecting
+                        ? 'Reconnexion\u2026'
+                        : 'Connexion perdue',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
