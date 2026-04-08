@@ -4,9 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart' as http_testing;
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/models/app_config.dart';
 import 'package:unistream/models/profile.dart';
+import 'package:unistream/services/xtream_api.dart' show httpGetTestClient;
 
 // ---------------------------------------------------------------------------
 // Mock HTTP overrides
@@ -345,6 +348,55 @@ const String mockSeriesJson = '''
 ]
 ''';
 
+const String mockEpgEmptyJson = '[]';
+
+const String mockVodInfoJson = '''
+{
+  "info": {
+    "movie_image": "",
+    "plot": "A great action movie.",
+    "cast": "Actor One, Actor Two",
+    "director": "Director Name",
+    "genre": "Action",
+    "releasedate": "2025-01-01",
+    "duration_secs": 7200,
+    "duration": "02:00:00",
+    "rating": "7.5"
+  },
+  "movie_data": {
+    "stream_id": 201,
+    "name": "Action Movie 1",
+    "container_extension": "mp4"
+  }
+}
+''';
+
+const String mockSeriesInfoJson = '''
+{
+  "info": {
+    "name": "Drama Series",
+    "cover": "",
+    "plot": "An intense drama series.",
+    "cast": "Actor A, Actor B",
+    "genre": "Drama",
+    "rating": "8.2"
+  },
+  "episodes": {
+    "1": [
+      {"id": "1001", "episode_num": 1, "title": "Pilot", "container_extension": "mkv", "info": {"duration_secs": 2700, "movie_image": ""}},
+      {"id": "1002", "episode_num": 2, "title": "Episode 2", "container_extension": "mkv", "info": {"duration_secs": 2700, "movie_image": ""}}
+    ],
+    "2": [
+      {"id": "1003", "episode_num": 1, "title": "Season 2 Premiere", "container_extension": "mkv", "info": {"duration_secs": 3000, "movie_image": ""}}
+    ]
+  },
+  "seasons": [
+    {"season_number": 1, "name": "Season 1", "episode_count": 2},
+    {"season_number": 2, "name": "Season 2", "episode_count": 1}
+  ]
+}
+''';
+
 // ---------------------------------------------------------------------------
 // Helper to setup mock HTTP overrides with standard responses
 // ---------------------------------------------------------------------------
@@ -359,9 +411,60 @@ MockHttpOverrides setupMockHttp() {
   overrides.addResponse('action=get_live_streams', body: mockLiveStreamsJson);
   overrides.addResponse('action=get_vod_streams', body: mockVodStreamsJson);
   overrides.addResponse('action=get_series', body: mockSeriesJson);
+  // EPG endpoint
+  overrides.addResponse('action=get_short_epg', body: mockEpgEmptyJson);
+  overrides.addResponse('action=get_simple_data_table', body: mockEpgEmptyJson);
+  // VOD info
+  overrides.addResponse('action=get_vod_info', body: mockVodInfoJson);
+  // Series info
+  overrides.addResponse('action=get_series_info', body: mockSeriesInfoJson);
   // Auth endpoint (base URL without action -- matches last due to shortest pattern)
   overrides.addResponse('player_api.php', body: mockAuthSuccessJson);
   return overrides;
+}
+
+/// Set up a mock HTTP client for the `http` package (used by httpGet).
+/// This injects into the global [httpGetTestClient] variable.
+http_testing.MockClient setupMockHttpClient() {
+  final responses = <String, String>{
+    'action=get_live_categories': mockLiveCategoriesJson,
+    'action=get_vod_categories': mockVodCategoriesJson,
+    'action=get_series_categories': mockSeriesCategoriesJson,
+    'action=get_live_streams': mockLiveStreamsJson,
+    'action=get_vod_streams': mockVodStreamsJson,
+    'action=get_series': mockSeriesJson,
+    'action=get_short_epg': mockEpgEmptyJson,
+    'action=get_simple_data_table': mockEpgEmptyJson,
+    'action=get_vod_info': mockVodInfoJson,
+    'action=get_series_info': mockSeriesInfoJson,
+  };
+
+  final client = http_testing.MockClient((request) async {
+    final url = request.url.toString();
+    // Match longest pattern first
+    final sorted = responses.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    for (final entry in sorted) {
+      if (url.contains(entry.key)) {
+        return http.Response(entry.value, 200,
+            headers: {'content-type': 'application/json'});
+      }
+    }
+    // Default: auth endpoint
+    if (url.contains('player_api.php')) {
+      return http.Response(mockAuthSuccessJson, 200,
+          headers: {'content-type': 'application/json'});
+    }
+    return http.Response('{}', 200);
+  });
+
+  httpGetTestClient = client;
+  return client;
+}
+
+/// Tear down the mock HTTP client.
+void teardownMockHttpClient() {
+  httpGetTestClient = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,6 +517,14 @@ Widget buildTestApp({
       home: home,
     ),
   );
+}
+
+/// Set the test window to a wide desktop size so the sidebar is visible.
+/// Call in setUp() or at the start of each test.
+void setWideWindowSize(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1400, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() => tester.view.resetPhysicalSize());
 }
 
 // ---------------------------------------------------------------------------

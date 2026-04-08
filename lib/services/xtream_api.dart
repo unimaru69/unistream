@@ -34,6 +34,10 @@ Future<void> _loadRetryConfig() async {
 @visibleForTesting
 Random httpGetRandom = Random();
 
+/// Visible for testing — override to inject a mock HTTP client globally.
+@visibleForTesting
+http.Client? httpGetTestClient;
+
 Future<http.Response> httpGet(
   String url, {
   http.Client? client,
@@ -43,8 +47,8 @@ Future<http.Response> httpGet(
 }) async {
   final effectiveMaxRetries = maxRetries ?? _configMaxRetries;
   final effectiveTimeout = timeout ?? Duration(seconds: _configTimeoutSec);
-  final effectiveClient = client ?? http.Client();
-  final shouldCloseClient = client == null;
+  final effectiveClient = client ?? httpGetTestClient ?? http.Client();
+  final shouldCloseClient = client == null && httpGetTestClient == null;
   try {
     for (int i = 0; i < effectiveMaxRetries; i++) {
       try {
