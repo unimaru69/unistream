@@ -5,10 +5,13 @@ on:
     tags:
       - 'v*'
 
+env:
+  SENTRY_NATIVE_REPO: https://github.com/getsentry/sentry-native.git
+  SENTRY_NATIVE_VERSION: "0.7.20"
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    continue-on-error: true  # sentry-native submodule clone can fail in CI
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,12 +33,22 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Pre-fetch sentry-native to avoid CMake FetchContent timeout
+      - name: Cache sentry-native source
+        id: cache-sentry
+        uses: actions/cache@v4
+        with:
+          path: build/linux/x64/release/_deps/sentry-native-src
+          key: sentry-native-linux-${{ env.SENTRY_NATIVE_VERSION }}
+
+      - name: Pre-fetch sentry-native (cache miss)
+        if: steps.cache-sentry.outputs.cache-hit != 'true'
         run: |
           mkdir -p build/linux/x64/release/_deps
-          git clone --depth 1 --recurse-submodules --shallow-submodules \
-            https://github.com/getsentry/sentry-native.git \
-            build/linux/x64/release/_deps/sentry-native-src || true
+          git clone --depth 1 --branch ${{ env.SENTRY_NATIVE_VERSION }} \
+            --recurse-submodules --shallow-submodules \
+            ${{ env.SENTRY_NATIVE_REPO }} \
+            build/linux/x64/release/_deps/sentry-native-src
+        timeout-minutes: 10
 
       - name: Build Linux release
         run: flutter build linux --release
@@ -58,7 +71,6 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    continue-on-error: true  # sentry-native submodule clone can fail in CI
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,11 +87,22 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Pre-fetch sentry-native
+      - name: Cache sentry-native source
+        id: cache-sentry
+        uses: actions/cache@v4
+        with:
+          path: build/windows/x64/_deps/sentry-native-src
+          key: sentry-native-windows-${{ env.SENTRY_NATIVE_VERSION }}
+
+      - name: Pre-fetch sentry-native (cache miss)
+        if: steps.cache-sentry.outputs.cache-hit != 'true'
         run: |
           mkdir -p build/windows/x64/_deps
-          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/getsentry/sentry-native.git build/windows/x64/_deps/sentry-native-src
-        continue-on-error: true
+          git clone --depth 1 --branch ${{ env.SENTRY_NATIVE_VERSION }} `
+            --recurse-submodules --shallow-submodules `
+            ${{ env.SENTRY_NATIVE_REPO }} `
+            build/windows/x64/_deps/sentry-native-src
+        timeout-minutes: 10
 
       - name: Build Windows release
         run: flutter build windows --release
@@ -91,7 +114,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-builds
-          path: build/windows/x64/runner/Release/
+          path: |
+            build/windows/x64/runner/Release/
+            build/windows/x64/runner/Release/*.msix
 
   build-macos:
     runs-on: macos-latest
@@ -112,8 +137,8 @@ jobs:
           path: build/macos/Build/Products/Release/
 
   create-release:
-    needs: [build-macos]
-    if: always()
+    needs: [build-macos, build-linux, build-windows]
+    if: always() && needs.build-macos.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -124,6 +149,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+        continue-on-error: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -132,5 +158,7 @@ jobs:
           files: |
             artifacts/linux-builds/UniStream-x86_64.AppImage
             artifacts/linux-builds/unistream-linux-x86_64.tar.gz
+            artifacts/windows-builds/*.msix
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false

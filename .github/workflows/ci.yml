@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:  # Allow manual trigger for builds
 
+env:
+  SENTRY_NATIVE_REPO: https://github.com/getsentry/sentry-native.git
+  SENTRY_NATIVE_VERSION: "0.7.20"
+
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
@@ -40,7 +44,32 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Configure git for sentry-native
+        run: |
+          git config --global protocol.file.allow always
+          git config --global --add safe.directory '*'
+          git config --global http.postBuffer 524288000
+
       - run: flutter pub get
+
+      - name: Cache sentry-native source
+        id: cache-sentry
+        uses: actions/cache@v4
+        with:
+          path: build/windows/x64/_deps/sentry-native-src
+          key: sentry-native-windows-${{ env.SENTRY_NATIVE_VERSION }}
+
+      - name: Pre-fetch sentry-native (cache miss)
+        if: steps.cache-sentry.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p build/windows/x64/_deps
+          git clone --depth 1 --branch ${{ env.SENTRY_NATIVE_VERSION }} `
+            --recurse-submodules --shallow-submodules `
+            ${{ env.SENTRY_NATIVE_REPO }} `
+            build/windows/x64/_deps/sentry-native-src
+        timeout-minutes: 10
+
       - run: flutter build windows
 
   build-linux:
@@ -52,20 +81,43 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libmpv-dev libsecret-1-dev libjsoncpp-dev clang cmake ninja-build pkg-config libgtk-3-dev wget imagemagick libcurl4-openssl-dev libc-ares-dev ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
-      - name: Configure git for sentry-native FetchContent
+
+      - name: Configure git for sentry-native
         run: |
           git config --global protocol.file.allow always
           git config --global --add safe.directory '*'
-          git config --global submodule.recurse true
+          git config --global http.postBuffer 524288000
+
       - run: flutter pub get
+
+      - name: Cache sentry-native source
+        id: cache-sentry
+        uses: actions/cache@v4
+        with:
+          path: build/linux/x64/release/_deps/sentry-native-src
+          key: sentry-native-linux-${{ env.SENTRY_NATIVE_VERSION }}
+
+      - name: Pre-fetch sentry-native (cache miss)
+        if: steps.cache-sentry.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p build/linux/x64/release/_deps
+          git clone --depth 1 --branch ${{ env.SENTRY_NATIVE_VERSION }} \
+            --recurse-submodules --shallow-submodules \
+            ${{ env.SENTRY_NATIVE_REPO }} \
+            build/linux/x64/release/_deps/sentry-native-src
+        timeout-minutes: 10
+
       - name: Build Linux release
         run: flutter build linux --release
+
       - name: Build AppImage
         run: bash packaging/linux/build-appimage.sh
+
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
