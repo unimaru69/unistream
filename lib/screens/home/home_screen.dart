@@ -16,6 +16,7 @@ import '../../models/channel.dart';
 import '../../models/vod_item.dart';
 import '../../models/series_item.dart';
 import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/api_error_localizer.dart';
 import '../../utils/snackbar_helper.dart';
@@ -54,6 +55,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   List<cat.Category> _categories = [];
   List<dynamic> _streams    = [];
   String? _selectedCategory;
@@ -294,9 +296,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Init / loading ──
   Future<void> _init() async {
     try {
-      final auth = await XtreamApi.authenticate();
+      final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] == 1) {
-        XtreamApi.loadServerTimezone();
+        _repo.loadServerTimezone();
         await _loadCategories();
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
@@ -319,15 +321,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _loading = true);
     try {
       _categories = switch (_mode) {
-        ContentMode.live   => await XtreamApi.getLiveCategoriesTyped(),
-        ContentMode.vod    => await XtreamApi.getVodCategoriesTyped(),
-        ContentMode.series => await XtreamApi.getSeriesCategoriesTyped(),
+        ContentMode.live   => await _repo.getLiveCategories(),
+        ContentMode.vod    => await _repo.getVodCategories(),
+        ContentMode.series => await _repo.getSeriesCategories(),
       };
       setState(() => _loading = false);
       _loadRecentlyAdded();
       _loadCatchupPrograms();
     } catch (e) {
-      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
+      setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
     }
   }
 
@@ -338,8 +340,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     try {
       final List<dynamic> all = _mode == ContentMode.vod
-          ? await XtreamApi.getVodStreamsTyped()
-          : await XtreamApi.getSeriesTyped();
+          ? await _repo.getVodStreams()
+          : await _repo.getSeries();
       final items = all.where((s) {
         final added = (s is VodItem ? s.added : s is SeriesItem ? s.added : null)?.toString() ?? '0';
         final lastMod = (s is VodItem ? s.lastModified : s is SeriesItem ? s.lastModified : null)?.toString() ?? '0';
@@ -368,7 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     try {
       // Get all live channels to find catch-up enabled ones
-      final allChannels = await XtreamApi.getLiveStreamsTyped();
+      final allChannels = await _repo.getLiveStreams();
       final catchupChannels = allChannels.where((ch) => ch.hasCatchup).take(15).toList();
       if (catchupChannels.isEmpty) return;
 
@@ -378,7 +380,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Load short EPG (2 recent programs) for each catch-up channel in parallel
       final futures = catchupChannels.map((ch) async {
         try {
-          final data = await XtreamApi.getShortEpg(ch.streamId.toString(), limit: 8);
+          final data = await _repo.getShortEpg(ch.streamId.toString(), limit: 8);
           final listings = data['epg_listings'] as List?;
           if (listings == null) return;
           for (final raw in listings) {
@@ -431,14 +433,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       _streams = switch (_mode) {
-        ContentMode.live   => await XtreamApi.getLiveStreamsTyped(categoryId),
-        ContentMode.vod    => await XtreamApi.getVodStreamsTyped(categoryId),
-        ContentMode.series => await XtreamApi.getSeriesTyped(categoryId),
+        ContentMode.live   => await _repo.getLiveStreams(categoryId),
+        ContentMode.vod    => await _repo.getVodStreams(categoryId),
+        ContentMode.series => await _repo.getSeries(categoryId),
       };
       _resetPagination();
       setState(() => _loadingStreams = false);
     } catch (e) {
-      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingStreams = false; });
+      setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loadingStreams = false; });
     }
   }
 
@@ -494,11 +496,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final cover = getStreamIcon(stream);
     final streamId = getStreamId(stream);
     if (_mode == ContentMode.live) {
-      url = XtreamApi.getLiveStreamUrl(streamId);
+      url = _repo.getLiveStreamUrl(streamId);
       resumeKey = null;
     } else {
       final ext = stream is VodItem ? stream.containerExtension : (stream is Map<String, dynamic> ? (stream['container_extension'] ?? 'mp4') : 'mp4');
-      url = XtreamApi.getVodStreamUrl(streamId, ext);
+      url = _repo.getVodStreamUrl(streamId, ext);
       resumeKey = streamId;
       WatchProgress.saveMeta(resumeKey, displayName,
           stream is VodItem ? (stream.streamIcon ?? '') : (stream is Map<String, dynamic> ? (stream['stream_icon']?.toString() ?? '') : ''), url, _mode.key);
@@ -564,8 +566,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       stream: map,
       mode: _mode,
       onAddToCollection: () => _showAddToCollectionPicker(s),
-      getCachedEpgNow: (streamId) => XtreamApi.getCachedEpgNow(streamId),
-      getShortEpg: (streamId, {int limit = 1}) => XtreamApi.getShortEpg(streamId, limit: limit),
+      getCachedEpgNow: (streamId) => _repo.getCachedEpgNow(streamId),
+      getShortEpg: (streamId, {int limit = 1}) => _repo.getShortEpg(streamId, limit: limit),
     );
   }
 
@@ -757,9 +759,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Build timeshift URL and launch player in catch-up mode
                     String url;
                     if (prog.serverLocalStart.isNotEmpty) {
-                      url = XtreamApi.getTimeshiftUrlFromLocal(prog.streamId, prog.serverLocalStart, prog.durationMin);
+                      url = _repo.getTimeshiftUrlFromLocal(prog.streamId, prog.serverLocalStart, prog.durationMin);
                     } else {
-                      url = XtreamApi.getTimeshiftUrl(prog.streamId, prog.startUtc, prog.durationMin);
+                      url = _repo.getTimeshiftUrl(prog.streamId, prog.startUtc, prog.durationMin);
                     }
                     Navigator.push(context, slideRoute(PlayerScreen(
                       url: url,
