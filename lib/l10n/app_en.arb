@@ -358,5 +358,15 @@
       "title": {"type": "String"},
       "channel": {"type": "String"}
     }
-  }
+  },
+
+  "qualiteStream": "Stream quality",
+  "qualiteAuto": "Auto",
+  "qualiteActuelle": "Current quality: {quality}",
+  "@qualiteActuelle": {
+    "placeholders": {
+      "quality": {"type": "String"}
+    }
+  },
+  "qualiteUniqueDisponible": "Only one quality available for this stream."
 }

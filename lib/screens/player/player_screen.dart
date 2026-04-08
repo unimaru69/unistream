@@ -23,6 +23,7 @@ import 'widgets/volume_osd.dart';
 import 'widgets/channel_list_overlay.dart';
 import 'widgets/channel_number_osd.dart';
 import 'widgets/player_app_bar.dart';
+import 'widgets/quality_selector.dart';
 import 'channel_zapping_controller.dart';
 import 'player_keyboard_handler.dart';
 
@@ -98,6 +99,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _qualityBadge = '';
   String _bitrate = '';
   Timer? _qualityTimer;
+
+  // HLS variant selection
+  List<HlsVariant> _hlsVariants = [];
+  String? _activeVariantUrl;
 
   // Sleep timer
   Timer? _sleepTimer;
@@ -175,6 +180,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     HardwareKeyboard.instance.addHandler(_onKey);
     _loadSubtitleSettings();
+    _detectHlsVariants();
 
     // Tracks
     _tracksSubscription = _player.stream.tracks.listen((t) {
@@ -406,6 +412,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
       },
       onDismissed: _saveSubtitleSettings,
     );
+  }
+
+  // ── HLS variant detection ──
+  Future<void> _detectHlsVariants() async {
+    if (!widget.url.contains('.m3u8')) return;
+    try {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 5);
+      final request = await client.getUrl(Uri.parse(widget.url));
+      final response = await request.close();
+      if (response.statusCode != 200) return;
+      final body = await response.transform(const Utf8Decoder()).join();
+      client.close(force: true);
+      final variants = parseHlsMasterPlaylist(body, widget.url);
+      if (mounted && variants.isNotEmpty) {
+        setState(() => _hlsVariants = variants);
+      }
+    } catch (e) {
+      AppLogger.warning(LogModule.player, 'Failed to fetch HLS variants', error: e);
+    }
+  }
+
+  void _selectVariant(HlsVariant? variant) {
+    if (variant == null) {
+      // Auto — reload original URL
+      setState(() => _activeVariantUrl = null);
+      _player.open(Media(widget.url));
+    } else {
+      setState(() => _activeVariantUrl = variant.url);
+      _player.open(Media(variant.url));
+    }
   }
 
   // ── Aspect ratio ──
@@ -824,6 +861,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         onStartSleepTimer: _startSleepTimer,
         onCancelSleepTimer: _cancelSleepTimer,
         onMinimize: _minimize,
+        hlsVariants: _hlsVariants,
+        activeVariantUrl: _activeVariantUrl,
+        onVariantSelected: _selectVariant,
       ),
       body: Stack(children: [
         MaterialVideoControlsTheme(

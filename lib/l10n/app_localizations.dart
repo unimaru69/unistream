@@ -1783,6 +1783,30 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'{title} commence bientôt sur {channel}'**
   String notifBientot(String title, String channel);
+
+  /// No description provided for @qualiteStream.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qualité du flux'**
+  String get qualiteStream;
+
+  /// No description provided for @qualiteAuto.
+  ///
+  /// In fr, this message translates to:
+  /// **'Auto'**
+  String get qualiteAuto;
+
+  /// No description provided for @qualiteActuelle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qualité actuelle : {quality}'**
+  String qualiteActuelle(String quality);
+
+  /// No description provided for @qualiteUniqueDisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une seule qualité disponible pour ce flux.'**
+  String get qualiteUniqueDisponible;
 }
 
 class _AppLocalizationsDelegate

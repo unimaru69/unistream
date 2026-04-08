@@ -7,6 +7,7 @@ import 'sleep_timer_dialog.dart';
 import 'track_selector.dart';
 import 'epg_overlay.dart';
 import 'player_controls.dart';
+import 'quality_selector.dart';
 
 /// Extracted AppBar for PlayerScreen — replay/live badges, channel zapping,
 /// quality, EPG, tracks, subtitles, aspect ratio, speed, sleep, mini-player.
@@ -41,6 +42,9 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onStartSleepTimer,
     required this.onCancelSleepTimer,
     required this.onMinimize,
+    required this.hlsVariants,
+    required this.activeVariantUrl,
+    required this.onVariantSelected,
   });
 
   final String title;
@@ -71,6 +75,9 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
   final void Function(Duration duration) onStartSleepTimer;
   final VoidCallback onCancelSleepTimer;
   final VoidCallback onMinimize;
+  final List<HlsVariant> hlsVariants;
+  final String? activeVariantUrl;
+  final void Function(HlsVariant? variant) onVariantSelected;
 
   @override
   Size get preferredSize {
@@ -153,6 +160,19 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
         QualityBadge(qualityBadge: qualityBadge, bitrate: bitrate),
+        if (hlsVariants.isNotEmpty)
+          IconButton(
+            icon: Icon(Icons.hd, size: 22,
+                color: activeVariantUrl != null ? AppColors.primaryBlue : Colors.white),
+            tooltip: l10n.qualiteStream,
+            onPressed: () => showQualityPicker(context,
+              qualityBadge: qualityBadge,
+              bitrate: bitrate,
+              variants: hlsVariants,
+              activeVariantUrl: activeVariantUrl,
+              onVariantSelected: onVariantSelected,
+            ),
+          ),
         if (epgListings.length > 1)
           IconButton(
             icon: const Icon(Icons.calendar_today, size: 20),

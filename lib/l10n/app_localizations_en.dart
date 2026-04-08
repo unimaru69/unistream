@@ -953,4 +953,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifBientot(String title, String channel) {
     return '$title starts soon on $channel';
   }
+
+  @override
+  String get qualiteStream => 'Stream quality';
+
+  @override
+  String get qualiteAuto => 'Auto';
+
+  @override
+  String qualiteActuelle(String quality) {
+    return 'Current quality: $quality';
+  }
+
+  @override
+  String get qualiteUniqueDisponible =>
+      'Only one quality available for this stream.';
 }
