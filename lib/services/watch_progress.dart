@@ -162,7 +162,6 @@ class WatchProgress {
   static Future<bool> mergeFromRemote(Map<String, dynamic> remote) async {
     if (remote.isEmpty) return false;
     final p = await SharedPreferences.getInstance();
-    final prefix = StorageKeys.wpPositionPrefix(_pid);
     bool changed = false;
 
     for (final entry in remote.entries) {

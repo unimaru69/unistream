@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/channel.dart';
-import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../utils/routes.dart';
 import 'player_screen.dart';
 
@@ -13,7 +13,10 @@ class ChannelZappingController {
     required this.channelList,
     required this.channelIndex,
     required this.onStateChanged,
-  });
+    required ContentRepository repo,
+  }) : _repo = repo;
+
+  final ContentRepository _repo;
 
   final List<Channel>? channelList;
   final int? channelIndex;
@@ -82,7 +85,7 @@ class ChannelZappingController {
     if (list == null || idx < 0 || idx >= list.length) return;
     final ch = list[idx];
     final sid = ch.id;
-    final url = XtreamApi.getLiveStreamUrl(sid);
+    final url = _repo.getLiveStreamUrl(sid);
     final name = ch.name.isNotEmpty ? ch.name : AppLocalizations.of(context)!.sansTitre;
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,

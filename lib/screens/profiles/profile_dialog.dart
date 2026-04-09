@@ -99,7 +99,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
         onCancel: () => Navigator.pop(ctx),
       ),
     );
-    if (firstPin == null) return;
+    if (firstPin == null || !context.mounted) return;
 
     // Confirm
     await showDialog(

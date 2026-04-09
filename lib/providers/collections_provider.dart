@@ -46,7 +46,6 @@ class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
   Future<void> mergeFromRemote(List<Map<String, dynamic>> remote) async {
     if (remote.isEmpty) return;
     final local = await CollectionsService.loadCollections();
-    final localIds = local.map((c) => c.id).toSet();
     bool changed = false;
 
     for (final rc in remote) {

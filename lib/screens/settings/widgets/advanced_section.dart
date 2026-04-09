@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/storage_keys.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme_colors.dart';
-import '../../../services/xtream_api.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/repositories/content_repository.dart';
+import 'package:unistream/repositories/preferences_repository.dart';
 
-class AdvancedSection extends StatefulWidget {
+class AdvancedSection extends ConsumerStatefulWidget {
   const AdvancedSection({super.key});
 
   @override
-  State<AdvancedSection> createState() => _AdvancedSectionState();
+  ConsumerState<AdvancedSection> createState() => _AdvancedSectionState();
 }
 
-class _AdvancedSectionState extends State<AdvancedSection> {
+class _AdvancedSectionState extends ConsumerState<AdvancedSection> {
   double _maxRetries = 3;
   double _timeoutSec = 15;
 
@@ -23,28 +23,28 @@ class _AdvancedSectionState extends State<AdvancedSection> {
   }
 
   Future<void> _loadValues() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = ref.read(preferencesRepositoryProvider);
+    final retries = await prefs.getRetryMaxAttempts();
+    final timeout = await prefs.getRetryTimeoutSec();
     if (!mounted) return;
     setState(() {
-      _maxRetries =
-          (prefs.getInt(StorageKeys.retryMaxAttempts) ?? 3).toDouble();
-      _timeoutSec =
-          (prefs.getInt(StorageKeys.retryTimeoutSec) ?? 15).toDouble();
+      _maxRetries = retries.toDouble();
+      _timeoutSec = timeout.toDouble();
     });
   }
 
   Future<void> _saveMaxRetries(double value) async {
     setState(() => _maxRetries = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(StorageKeys.retryMaxAttempts, value.round());
-    await XtreamApi.loadRetryConfig();
+    final prefs = ref.read(preferencesRepositoryProvider);
+    await prefs.setRetryMaxAttempts(value.round());
+    await ref.read(contentRepositoryProvider).loadRetryConfig();
   }
 
   Future<void> _saveTimeout(double value) async {
     setState(() => _timeoutSec = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(StorageKeys.retryTimeoutSec, value.round());
-    await XtreamApi.loadRetryConfig();
+    final prefs = ref.read(preferencesRepositoryProvider);
+    await prefs.setRetryTimeoutSec(value.round());
+    await ref.read(contentRepositoryProvider).loadRetryConfig();
   }
 
   @override

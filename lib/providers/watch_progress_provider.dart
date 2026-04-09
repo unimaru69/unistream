@@ -13,6 +13,55 @@ final continueWatchingProvider = FutureProvider<List<ContinueWatchingItem>>((ref
   return WatchProgress.loadContinueWatching();
 });
 
+/// ── Write facade for watch progress ──
+///
+/// Exposes all WatchProgress write operations and automatically invalidates
+/// the read providers so the UI stays in sync.
+class WatchProgressActions {
+  WatchProgressActions(this._ref);
+  final Ref _ref;
+
+  /// Save playback position. Removes entry if content is >95% done.
+  Future<void> save(String key, Duration pos, Duration dur) async {
+    await WatchProgress.save(key, pos, dur);
+    _invalidate();
+  }
+
+  /// Save metadata for "Continue watching" banner.
+  Future<void> saveMeta(String key, String name, String cover, String url, String mode) async {
+    await WatchProgress.saveMeta(key, name, cover, url, mode);
+    _invalidate();
+  }
+
+  /// Save an entry in the watch history.
+  Future<void> saveHistory(String key, String name, String cover, String url, String mode) async {
+    await WatchProgress.saveHistory(key, name, cover, url, mode);
+    _ref.invalidate(historyProvider);
+  }
+
+  /// Get saved position for a key.
+  Future<Duration?> getPosition(String key) => WatchProgress.getPosition(key);
+
+  /// Get both position and duration for a key.
+  Future<({Duration? position, Duration? duration})> getProgress(String key) =>
+      WatchProgress.getProgress(key);
+
+  /// Clear progress for a key.
+  Future<void> clear(String key) async {
+    await WatchProgress.clear(key);
+    _invalidate();
+  }
+
+  void _invalidate() {
+    _ref.invalidate(watchProgressProvider);
+    _ref.invalidate(continueWatchingProvider);
+  }
+}
+
+final watchProgressActionsProvider = Provider<WatchProgressActions>((ref) {
+  return WatchProgressActions(ref);
+});
+
 /// Watch history
 class HistoryNotifier extends StateNotifier<AsyncValue<List<HistoryEntry>>> {
   HistoryNotifier() : super(const AsyncValue.loading()) {

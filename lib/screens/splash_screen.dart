@@ -6,7 +6,7 @@ import '../core/logger.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_config.dart';
 import '../models/profile.dart';
-import '../services/xtream_api.dart';
+import '../repositories/content_repository.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
 import 'profiles/profile_selector_screen.dart';
@@ -110,8 +110,9 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // Step 4: Load EPG cache from disk + retry config
-    XtreamApi.loadEpgCacheFromDisk();
-    XtreamApi.loadRetryConfig();
+    final repo = ContentRepository();
+    repo.loadEpgCacheFromDisk();
+    repo.loadRetryConfig();
 
     // Step 5: Ready
     setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');

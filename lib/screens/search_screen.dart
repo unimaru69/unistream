@@ -16,7 +16,6 @@ import '../models/series_item.dart';
 import '../models/search_result.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
-import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
 import 'player/player_screen.dart';
@@ -308,7 +307,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
       case VodSearchResult v:
         final url = _repo.getVodStreamUrl(v.streamId.toString(), v.containerExtension);
-        WatchProgress.saveMeta(v.streamId.toString(), v.name,
+        ref.read(watchProgressActionsProvider).saveMeta(v.streamId.toString(), v.name,
             v.streamIcon, url, 'vod');
         Navigator.push(context, slideRoute(PlayerScreen(
           url: url, title: v.name,

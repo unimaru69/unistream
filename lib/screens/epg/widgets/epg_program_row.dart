@@ -5,7 +5,7 @@ import '../../../core/colors.dart';
 import '../../../models/channel.dart';
 import '../../../models/parsed_epg_program.dart';
 import '../../../services/epg_reminder_service.dart';
-import '../../../services/xtream_api.dart';
+import '../../../repositories/content_repository.dart';
 import '../../../utils/routes.dart';
 import '../../player/player_screen.dart';
 import 'epg_program_detail_dialog.dart';
@@ -21,6 +21,7 @@ class EpgProgramRow extends StatelessWidget {
     required this.rowHeight,
     required this.rowIndex,
     required this.searchQuery,
+    required this.repo,
   });
 
   final Channel channel;
@@ -30,6 +31,7 @@ class EpgProgramRow extends StatelessWidget {
   final double rowHeight;
   final int rowIndex;
   final String searchQuery;
+  final ContentRepository repo;
 
   @override
   Widget build(BuildContext context) {
@@ -106,8 +108,8 @@ class EpgProgramRow extends StatelessWidget {
               onTap: () {
                 if (canReplay) {
                   final url = (prog.startServerLocal.isNotEmpty)
-                      ? XtreamApi.getTimeshiftUrlFromLocal(sid, prog.startServerLocal, prog.durationMin)
-                      : XtreamApi.getTimeshiftUrl(sid, prog.startUtc ?? prog.start.toUtc(), prog.durationMin);
+                      ? repo.getTimeshiftUrlFromLocal(sid, prog.startServerLocal, prog.durationMin)
+                      : repo.getTimeshiftUrl(sid, prog.startUtc ?? prog.start.toUtc(), prog.durationMin);
                   Navigator.push(context, slideRoute(PlayerScreen(
                     url: url,
                     title: '${channel.name} \u2014 ${prog.title} (Replay)',
@@ -115,7 +117,7 @@ class EpgProgramRow extends StatelessWidget {
                     isCatchup: true,
                   )));
                 } else {
-                  final url = XtreamApi.getLiveStreamUrl(sid);
+                  final url = repo.getLiveStreamUrl(sid);
                   Navigator.push(context, slideRoute(PlayerScreen(
                     url: url,
                     title: '${channel.name}${isCurrent ? ' \u2014 ${prog.title}' : ''}',

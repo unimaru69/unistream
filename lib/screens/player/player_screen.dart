@@ -14,7 +14,7 @@ import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/app_config.dart';
 import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
-import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/routes.dart';
 import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
@@ -76,6 +76,7 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final _prefs = PreferencesRepository();
+  final _repo = ContentRepository();
   late final Player _player;
   late final VideoController _controller;
   bool _minimized = false;
@@ -154,6 +155,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       channelList: widget.channelList,
       channelIndex: widget.channelIndex,
       onStateChanged: () { if (mounted) setState(() {}); },
+      repo: _repo,
     );
     _player = widget.existingPlayer ?? Player(
       configuration: const PlayerConfiguration(
@@ -339,7 +341,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _playNextEpisode() {
     _nextCountdown?.cancel();
     final ep = widget.nextEpisode!;
-    final url = XtreamApi.getSeriesEpisodeUrl(ep.id, ep.containerExtension);
+    final url = _repo.getSeriesEpisodeUrl(ep.id, ep.containerExtension);
     WatchProgress.saveMeta(ep.id, ep.title, ep.coverUrl ?? '', url, 'series');
     if (widget.resumeKey != null && _lastDur > Duration.zero) {
       WatchProgress.save(widget.resumeKey!, _lastDur, _lastDur);
@@ -695,13 +697,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // ── EPG loading ──
   Future<void> _loadEpg() async {
     try {
-      final channelInfoFuture = XtreamApi.getLiveStreamsTyped();
+      final channelInfoFuture = _repo.getLiveStreams();
       Map<String, dynamic> data;
       try {
-        data = await XtreamApi.getFullDayEpg(widget.streamId!);
+        data = await _repo.getFullDayEpg(widget.streamId!);
       } catch (e, st) {
         AppLogger.warning(LogModule.epg, 'Full-day EPG failed, falling back to short EPG', error: e, stackTrace: st);
-        data = await XtreamApi.getShortEpg(widget.streamId!, limit: 30);
+        data = await _repo.getShortEpg(widget.streamId!, limit: 30);
       }
       bool catchup = false;
       try {
@@ -788,7 +790,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _returnToLive() {
     if (widget.streamId == null) return;
-    final liveUrl = XtreamApi.getLiveStreamUrl(widget.streamId!);
+    final liveUrl = _repo.getLiveStreamUrl(widget.streamId!);
     final liveTitle = widget.title
         .replaceAll('(Replay)', '')
         .replaceFirst(RegExp(r'^.*? \u2014 '), '')
@@ -857,6 +859,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         hlsVariants: _hlsVariants,
         activeVariantUrl: _activeVariantUrl,
         onVariantSelected: _selectVariant,
+        repo: _repo,
       ),
       body: Stack(children: [
         MaterialVideoControlsTheme(

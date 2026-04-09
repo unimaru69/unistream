@@ -14,7 +14,6 @@ import '../../models/channel.dart';
 import '../../models/vod_item.dart';
 import '../../models/series_item.dart';
 import '../../repositories/content_repository.dart';
-import '../../services/watch_progress.dart';
 import '../../utils/api_error_localizer.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/routes.dart';
@@ -206,6 +205,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .where((s) => _selectedItems.contains(_itemSelectionKey(s)))
         .toList();
     if (items.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
 
     final name = await showCreateCollectionFromSelectedDialog(context, itemCount: items.length);
     if (name == null || name.isEmpty) return;
@@ -214,12 +214,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final key = _favKey(_mode.key, s);
       final itemName = getStreamName(s);
       final cover = getStreamIcon(s);
-      final item = FavoriteItem(key: key, name: itemName.isEmpty ? AppLocalizations.of(context)!.sansTitre : itemName, cover: cover, mode: _mode.key);
+      final item = FavoriteItem(key: key, name: itemName.isEmpty ? l10n.sansTitre : itemName, cover: cover, mode: _mode.key);
       await ref.read(collectionsProvider.notifier).addItem(col.id, item);
     }
     _exitSelectionMode();
     if (mounted) {
-      showAppSnackBar(context, AppLocalizations.of(context)!.collectionCreeAvec(name, items.length));
+      showAppSnackBar(context, l10n.collectionCreeAvec(name, items.length));
     }
   }
 
@@ -459,7 +459,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (_mode == ContentMode.series) {
       final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
       final cover = stream is SeriesItem ? stream.displayIcon : (stream as Map<String, dynamic>)['cover']?.toString() ?? '';
-      WatchProgress.saveHistory('series:$seriesId', displayName, cover, '', _mode.key);
+      ref.read(watchProgressActionsProvider).saveHistory('series:$seriesId', displayName, cover, '', _mode.key);
       Navigator.push(context, slideRoute(SeriesDetailScreen(
         seriesId: seriesId,
         title: displayName,
@@ -492,10 +492,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final ext = stream is VodItem ? stream.containerExtension : (stream is Map<String, dynamic> ? (stream['container_extension'] ?? 'mp4') : 'mp4');
       url = _repo.getVodStreamUrl(streamId, ext);
       resumeKey = streamId;
-      WatchProgress.saveMeta(resumeKey, displayName,
+      ref.read(watchProgressActionsProvider).saveMeta(resumeKey, displayName,
           stream is VodItem ? (stream.streamIcon ?? '') : (stream is Map<String, dynamic> ? (stream['stream_icon']?.toString() ?? '') : ''), url, _mode.key);
     }
-    WatchProgress.saveHistory('${_mode.key}:$streamId', displayName, cover, url, _mode.key);
+    ref.read(watchProgressActionsProvider).saveHistory('${_mode.key}:$streamId', displayName, cover, url, _mode.key);
 
     List<Channel>? channelList;
     int? channelIndex;

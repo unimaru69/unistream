@@ -95,6 +95,49 @@ class PreferencesRepository {
     return p.getString(StorageKeys.prefSubLang);
   }
 
+  // ── Language preferences ──
+
+  Future<void> setPreferredAudioLang(String lang) async {
+    final p = await _p;
+    await p.setString(StorageKeys.prefAudioLang, lang);
+  }
+
+  Future<void> setPreferredSubLang(String lang) async {
+    final p = await _p;
+    await p.setString(StorageKeys.prefSubLang, lang);
+  }
+
+  // ── Advanced / retry settings ──
+
+  Future<int> getRetryMaxAttempts() async {
+    final p = await _p;
+    return p.getInt(StorageKeys.retryMaxAttempts) ?? 3;
+  }
+
+  Future<void> setRetryMaxAttempts(int value) async {
+    final p = await _p;
+    await p.setInt(StorageKeys.retryMaxAttempts, value);
+  }
+
+  Future<int> getRetryTimeoutSec() async {
+    final p = await _p;
+    return p.getInt(StorageKeys.retryTimeoutSec) ?? 15;
+  }
+
+  Future<void> setRetryTimeoutSec(int value) async {
+    final p = await _p;
+    await p.setInt(StorageKeys.retryTimeoutSec, value);
+  }
+
+  // ── EPG cache on disk ──
+
+  Future<int> countPersistedEpgEntries(String profileId) async {
+    final p = await _p;
+    final raw = p.getString(StorageKeys.epgCache(profileId));
+    if (raw == null || raw.isEmpty) return 0;
+    return RegExp(r'"[^"]+"\s*:\s*\{').allMatches(raw).length;
+  }
+
   // ── Search history ──
 
   Future<List<String>> getSearchHistory() async {

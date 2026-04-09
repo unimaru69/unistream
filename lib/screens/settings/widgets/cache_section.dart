@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache_config.dart';
-import '../../../core/storage_keys.dart';
 import '../../../core/theme_colors.dart';
 import '../../../models/app_config.dart';
-import '../../../services/xtream_api.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/repositories/content_repository.dart';
+import 'package:unistream/repositories/preferences_repository.dart';
 
-class CacheSection extends StatefulWidget {
+class CacheSection extends ConsumerStatefulWidget {
   const CacheSection({super.key});
 
   @override
-  State<CacheSection> createState() => _CacheSectionState();
+  ConsumerState<CacheSection> createState() => _CacheSectionState();
 }
 
-class _CacheSectionState extends State<CacheSection> {
+class _CacheSectionState extends ConsumerState<CacheSection> {
   int _persistedEpgEntries = 0;
 
   @override
@@ -26,13 +26,9 @@ class _CacheSectionState extends State<CacheSection> {
 
   Future<void> _countPersistedEpg() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(StorageKeys.epgCache(AppConfig.activeProfileId));
-      if (raw != null && raw.isNotEmpty) {
-        // Count top-level keys in the JSON map
-        final count = RegExp(r'"[^"]+"\s*:\s*\{').allMatches(raw).length;
-        if (mounted) setState(() => _persistedEpgEntries = count);
-      }
+      final prefs = ref.read(preferencesRepositoryProvider);
+      final count = await prefs.countPersistedEpgEntries(AppConfig.activeProfileId);
+      if (mounted) setState(() => _persistedEpgEntries = count);
     } catch (_) {}
   }
 
@@ -40,6 +36,7 @@ class _CacheSectionState extends State<CacheSection> {
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final contentRepo = ref.read(contentRepositoryProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -63,7 +60,7 @@ class _CacheSectionState extends State<CacheSection> {
           ExcludeSemantics(child: Icon(Icons.data_usage, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Expanded(
-              child: Text(l10n.cacheEpgEntrees(XtreamApi.epgCacheSize),
+              child: Text(l10n.cacheEpgEntrees(contentRepo.epgCacheSize),
                   style: const TextStyle(fontSize: 14))),
         ]),
         const SizedBox(height: 4),
@@ -100,7 +97,7 @@ class _CacheSectionState extends State<CacheSection> {
                 ),
               );
               if (confirmed != true) return;
-              await XtreamApi.clearAllEpgCache();
+              await ref.read(contentRepositoryProvider).clearAllEpgCache();
               setState(() => _persistedEpgEntries = 0);
               if (!mounted) return;
               showAppSnackBar(context, l10n.cacheEpgVide);

@@ -12,7 +12,6 @@ import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
 import '../models/next_episode_info.dart';
-import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
 import 'player/player_screen.dart';
@@ -39,6 +38,7 @@ class SeriesDetailScreen extends ConsumerStatefulWidget {
 
 class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   ContentRepository get _repo => ref.read(contentRepositoryProvider);
+  WatchProgressActions get _wp => ref.read(watchProgressActionsProvider);
   Map<String, List<Episode>> _episodes = {};
   List<String> _seasons = [];
   String? _selectedSeason;
@@ -81,10 +81,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     for (var i = 0; i < idx; i++) {
       final prev = eps[i];
       final prevId = prev.idStr;
-      final pos = await WatchProgress.getPosition(prevId);
+      final pos = await _wp.getPosition(prevId);
       if (pos == null || pos.inSeconds < 30) {
-        await WatchProgress.save(prevId, const Duration(minutes: 57), const Duration(hours: 1));
-        await WatchProgress.saveMeta(prevId, prev.displayTitle, widget.cover, '', 'series');
+        await _wp.save(prevId, const Duration(minutes: 57), const Duration(hours: 1));
+        await _wp.saveMeta(prevId, prev.displayTitle, widget.cover, '', 'series');
         marked.add(prevId);
       }
     }
@@ -94,25 +94,19 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   /// Undo auto-marking: clear progress for the given episode IDs.
   Future<void> _undoMarkAsWatched(List<String> episodeIds) async {
     for (final id in episodeIds) {
-      await WatchProgress.clear(id);
-    }
-    if (mounted) {
-      ref.invalidate(watchProgressProvider);
+      await _wp.clear(id);
     }
   }
 
   /// Mark a single episode as watched or unwatched (context menu).
   Future<void> _toggleEpisodeWatched(Episode ep) async {
-    final prog = await WatchProgress.getPosition(ep.idStr);
+    final prog = await _wp.getPosition(ep.idStr);
     final isWatched = prog != null && prog.inSeconds > 30;
     if (isWatched) {
-      await WatchProgress.clear(ep.idStr);
+      await _wp.clear(ep.idStr);
     } else {
-      await WatchProgress.save(ep.idStr, const Duration(minutes: 57), const Duration(hours: 1));
-      await WatchProgress.saveMeta(ep.idStr, ep.displayTitle, widget.cover, '', 'series');
-    }
-    if (mounted) {
-      ref.invalidate(watchProgressProvider);
+      await _wp.save(ep.idStr, const Duration(minutes: 57), const Duration(hours: 1));
+      await _wp.saveMeta(ep.idStr, ep.displayTitle, widget.cover, '', 'series');
     }
   }
 
@@ -147,13 +141,12 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   void _playEpisode(Episode ep) {
     final epId = ep.idStr;
     final url = _repo.getSeriesEpisodeUrl(epId, ep.containerExtension);
-    WatchProgress.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
-    WatchProgress.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
+    _wp.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
+    _wp.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
 
     // Mark previous episodes as watched + show undo snackbar
     _markPreviousAsWatched(ep).then((marked) {
       if (marked.isNotEmpty && mounted) {
-        ref.invalidate(watchProgressProvider);
         ScaffoldMessenger.of(context).clearSnackBars();
         showAppSnackBar(
           context,
@@ -187,10 +180,6 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       coverUrl: widget.cover,
       nextEpisode: nextEp,
     ))).then((_) {
-      if (mounted) {
-        ref.invalidate(watchProgressProvider);
-        ref.invalidate(continueWatchingProvider);
-      }
     });
   }
 

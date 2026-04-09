@@ -369,6 +369,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       rowHeight: _rowHeight,
       rowIndex: i,
       searchQuery: _searchQuery,
+      repo: _repo,
     );
   }
 

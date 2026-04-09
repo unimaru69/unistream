@@ -9,7 +9,6 @@ import '../../models/favorite_item.dart';
 import '../../models/vod_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
-import '../../services/watch_progress.dart';
 import '../../repositories/content_repository.dart';
 import '../../utils/routes.dart';
 import '../player/player_screen.dart';
@@ -38,8 +37,10 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     _loadProgress();
   }
 
+  WatchProgressActions get _wp => ref.read(watchProgressActionsProvider);
+
   Future<void> _loadProgress() async {
-    final progress = await WatchProgress.getProgress(vod.id);
+    final progress = await _wp.getProgress(vod.id);
     if (mounted) setState(() { _savedPosition = progress.position; _savedDuration = progress.duration; });
   }
 
@@ -47,18 +48,14 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     final ext = vod.containerExtension;
     final url = _repo.getVodStreamUrl(vod.id, ext);
     final title = vod.name.isEmpty ? AppLocalizations.of(context)!.sansTitre : vod.name;
-    WatchProgress.saveMeta(vod.id, title, vod.displayIcon, url, 'vod');
-    WatchProgress.saveHistory('vod:${vod.id}', title, vod.displayIcon, url, 'vod');
+    _wp.saveMeta(vod.id, title, vod.displayIcon, url, 'vod');
+    _wp.saveHistory('vod:${vod.id}', title, vod.displayIcon, url, 'vod');
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
       title: title,
       resumeKey: resume ? vod.id : null,
       coverUrl: vod.displayIcon.isNotEmpty ? vod.displayIcon : null,
-    ))).then((_) {
-      ref.invalidate(watchProgressProvider);
-      ref.invalidate(continueWatchingProvider);
-      _loadProgress();
-    });
+    ))).then((_) => _loadProgress());
   }
 
   String _fmtDuration(Duration d) {

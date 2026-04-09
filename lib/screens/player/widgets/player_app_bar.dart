@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../core/colors.dart';
+import '../../../repositories/content_repository.dart';
 import 'quality_badge.dart';
 import 'sleep_timer_dialog.dart';
 import 'track_selector.dart';
@@ -45,6 +46,7 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.hlsVariants,
     required this.activeVariantUrl,
     required this.onVariantSelected,
+    required this.repo,
   });
 
   final String title;
@@ -78,6 +80,7 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<HlsVariant> hlsVariants;
   final String? activeVariantUrl;
   final void Function(HlsVariant? variant) onVariantSelected;
+  final ContentRepository repo;
 
   @override
   Size get preferredSize {
@@ -189,6 +192,7 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
               epgListings: epgListings,
               catchupSupported: catchupSupported,
               streamId: streamId,
+              repo: repo,
             ),
           ),
         if (epgNext != null)

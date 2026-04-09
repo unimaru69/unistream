@@ -75,6 +75,16 @@ class ContentRepository {
       XtreamApi.getTimeshiftUrlFromLocal(
           streamId, serverLocalStart, durationMin);
 
+  // ── Cache management ──
+
+  int get epgCacheSize => XtreamApi.epgCacheSize;
+
+  Future<void> clearAllEpgCache() => XtreamApi.clearAllEpgCache();
+
+  void loadEpgCacheFromDisk() => XtreamApi.loadEpgCacheFromDisk();
+
+  Future<void> loadRetryConfig() => XtreamApi.loadRetryConfig();
+
   // ── Utilities ──
 
   bool channelHasCatchup(Map<String, dynamic> channel) =>
@@ -84,6 +94,8 @@ class ContentRepository {
       XtreamApi.channelArchiveDays(channel);
 
   ApiErrorKey errorKey(Object error) => XtreamApi.errorKey(error);
+
+  String friendlyError(Object error) => XtreamApi.friendlyError(error);
 }
 
 /// Riverpod provider for [ContentRepository].

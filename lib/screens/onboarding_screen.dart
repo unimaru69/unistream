@@ -10,7 +10,7 @@ import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
 import '../services/m3u_parser.dart';
 import '../repositories/content_repository.dart';
-import '../services/xtream_api.dart';
+import '../services/xtream_api.dart' show httpGet;
 import 'home/home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -116,7 +116,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() {
         _testing = false;
         _testSuccess = false;
-        _error = XtreamApi.friendlyError(e);
+        _error = _repo.friendlyError(e);
       });
     }
   }
@@ -152,7 +152,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = XtreamApi.friendlyError(e);
+        _error = _repo.friendlyError(e);
         _saving = false;
       });
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
-import '../../../services/xtream_api.dart';
+import '../../../repositories/content_repository.dart';
 import '../../../utils/routes.dart';
 import '../player_screen.dart';
 
@@ -9,6 +9,7 @@ void showEpgGuide(BuildContext context, {
   required List<Map<String, String>> epgListings,
   required bool catchupSupported,
   required String? streamId,
+  required ContentRepository repo,
 }) {
   final now = DateTime.now();
   showModalBottomSheet(
@@ -111,13 +112,13 @@ void showEpgGuide(BuildContext context, {
                             final serverLocal = prog['start_server_local'] ?? '';
                             String url;
                             if (serverLocal.isNotEmpty) {
-                              url = XtreamApi.getTimeshiftUrlFromLocal(streamId, serverLocal, durMin);
+                              url = repo.getTimeshiftUrlFromLocal(streamId, serverLocal, durMin);
                             } else {
                               final rawEpoch = int.tryParse(prog['start_epoch'] ?? '');
                               final startUtc = rawEpoch != null
                                   ? DateTime.fromMillisecondsSinceEpoch(rawEpoch * 1000, isUtc: true)
                                   : DateTime.fromMillisecondsSinceEpoch(startTs, isUtc: true);
-                              url = XtreamApi.getTimeshiftUrl(streamId, startUtc, durMin);
+                              url = repo.getTimeshiftUrl(streamId, startUtc, durMin);
                             }
                             Navigator.pushReplacement(context, slideRoute(PlayerScreen(
                               url: url,

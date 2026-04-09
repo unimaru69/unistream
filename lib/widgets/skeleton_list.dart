@@ -20,7 +20,7 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
   @override
   void dispose() { _anim.dispose(); super.dispose(); }
 
-  Widget _tile(Color color, {double? height, double? aspectRatio}) => Container(
+  Widget _tile(Color color, {double? height}) => Container(
     margin: const EdgeInsets.all(4),
     height: height,
     decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: color),

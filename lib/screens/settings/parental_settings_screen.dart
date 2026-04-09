@@ -5,7 +5,7 @@ import '../../core/colors.dart';
 import '../../core/theme_colors.dart';
 import '../../models/category.dart' as cat;
 import '../../providers/parental_provider.dart';
-import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../widgets/pin_dialog.dart';
 
 /// Screen for managing parental control settings.
@@ -59,10 +59,11 @@ class _ParentalSettingsScreenState
 
   Future<void> _loadAllCategories() async {
     try {
+      final repo = ref.read(contentRepositoryProvider);
       final results = await Future.wait([
-        XtreamApi.getLiveCategoriesTyped(),
-        XtreamApi.getVodCategoriesTyped(),
-        XtreamApi.getSeriesCategoriesTyped(),
+        repo.getLiveCategories(),
+        repo.getVodCategories(),
+        repo.getSeriesCategories(),
       ]);
       if (mounted) {
         setState(() {

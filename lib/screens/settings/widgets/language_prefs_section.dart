@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme_colors.dart';
-import '../../../core/storage_keys.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/repositories/preferences_repository.dart';
 
-class LanguagePrefsSection extends StatefulWidget {
+class LanguagePrefsSection extends ConsumerStatefulWidget {
   const LanguagePrefsSection({super.key});
 
   @override
-  State<LanguagePrefsSection> createState() => _LanguagePrefsSectionState();
+  ConsumerState<LanguagePrefsSection> createState() => _LanguagePrefsSectionState();
 }
 
-class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
+class _LanguagePrefsSectionState extends ConsumerState<LanguagePrefsSection> {
   String _prefAudioLang = 'original';
   String _prefSubLang = 'off';
 
@@ -39,16 +39,13 @@ class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
   }
 
   Future<void> _loadLangPrefs() async {
-    final p = await SharedPreferences.getInstance();
+    final prefs = ref.read(preferencesRepositoryProvider);
+    final audio = await prefs.getPreferredAudioLang();
+    final sub = await prefs.getPreferredSubLang();
     setState(() {
-      _prefAudioLang = p.getString(StorageKeys.prefAudioLang) ?? 'original';
-      _prefSubLang = p.getString(StorageKeys.prefSubLang) ?? 'off';
+      _prefAudioLang = audio ?? 'original';
+      _prefSubLang = sub ?? 'off';
     });
-  }
-
-  Future<void> _saveLangPref(String key, String value) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(key, value);
   }
 
   @override
@@ -93,7 +90,7 @@ class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
             onChanged: (v) {
               if (v == null) return;
               setState(() => _prefAudioLang = v);
-              _saveLangPref(StorageKeys.prefAudioLang, v);
+              ref.read(preferencesRepositoryProvider).setPreferredAudioLang(v);
             },
           ),
         ]),
@@ -118,7 +115,7 @@ class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
             onChanged: (v) {
               if (v == null) return;
               setState(() => _prefSubLang = v);
-              _saveLangPref(StorageKeys.prefSubLang, v);
+              ref.read(preferencesRepositoryProvider).setPreferredSubLang(v);
             },
           ),
         ]),
