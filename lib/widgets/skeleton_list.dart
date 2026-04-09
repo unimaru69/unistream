@@ -29,7 +29,7 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
-    return AnimatedBuilder(
+    return ExcludeSemantics(child: AnimatedBuilder(
     animation: _anim,
     builder: (_, __) {
       final c = Color.lerp(tc.shimmerBase, tc.shimmerHighlight, _anim.value)!;
@@ -47,6 +47,6 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
         itemBuilder: (_, __) => _tile(c, height: 36),
       );
     },
-  );
+  ));
   }
 }

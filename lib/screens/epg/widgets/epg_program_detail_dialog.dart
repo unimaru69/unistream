@@ -25,8 +25,11 @@ void showProgramDetailDialog(
             && reminderSvc.hasReminder(channel.id, prog.start.toUtc());
         return AlertDialog(
           backgroundColor: tc.surface,
-          title: Text(prog.title,
-              style: TextStyle(color: tc.textPrimary, fontSize: 15)),
+          title: Semantics(
+            header: true,
+            child: Text(prog.title,
+                style: TextStyle(color: tc.textPrimary, fontSize: 15)),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

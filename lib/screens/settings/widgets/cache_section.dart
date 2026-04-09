@@ -47,17 +47,20 @@ class _CacheSectionState extends State<CacheSection> {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.cacheSection,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: tc.textDisabled,
-                  letterSpacing: 1)),
+          child: Semantics(
+            header: true,
+            child: Text(l10n.cacheSection,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tc.textDisabled,
+                    letterSpacing: 1)),
+          ),
         ),
         const SizedBox(height: 12),
         // In-memory EPG cache
         Row(children: [
-          Icon(Icons.data_usage, size: 20, color: tc.textTertiary),
+          ExcludeSemantics(child: Icon(Icons.data_usage, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Expanded(
               child: Text(l10n.cacheEpgEntrees(XtreamApi.epgCacheSize),
@@ -66,7 +69,7 @@ class _CacheSectionState extends State<CacheSection> {
         const SizedBox(height: 4),
         // Persisted EPG cache
         Row(children: [
-          Icon(Icons.save_outlined, size: 20, color: tc.textTertiary),
+          ExcludeSemantics(child: Icon(Icons.save_outlined, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Expanded(
               child: Text('$_persistedEpgEntries ${_persistedEpgEntries == 1 ? 'entr\u00e9e' : 'entr\u00e9es'} EPG sur disque',

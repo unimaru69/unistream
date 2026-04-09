@@ -81,7 +81,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
         TabBar(
           tabs: [Tab(text: AppLocalizations.of(context)!.audioTab), Tab(text: AppLocalizations.of(context)!.sousTitresTab)],
           indicatorColor: AppColors.primaryBlue,
-        ),
+        ), // Tabs provide built-in Semantics
         SizedBox(height: 280, child: TabBarView(children: [
           // Audio
           RadioGroup<AudioTrack>(

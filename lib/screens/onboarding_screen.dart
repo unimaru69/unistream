@@ -185,14 +185,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
+            ExcludeSemantics(child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Image.asset(
                 'assets/images/logo.jpg',
                 width: 100,
                 height: 100,
               ),
-            ),
+            )),
             const SizedBox(height: 24),
             Text(
               l10n.bienvenue,
@@ -321,20 +321,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
-                  Text(_error!,
-                      style:
-                          const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(_error!,
+                        style:
+                            const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  ),
                 ],
                 if (_testSuccess == true) ...[
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      const SizedBox(width: 8),
-                      Text(l10n.connexionReussie,
-                          style: const TextStyle(color: Colors.green, fontSize: 13)),
-                    ],
+                  Semantics(
+                    liveRegion: true,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ExcludeSemantics(child: const Icon(Icons.check_circle, color: Colors.green, size: 20)),
+                        const SizedBox(width: 8),
+                        Text(l10n.connexionReussie,
+                            style: const TextStyle(color: Colors.green, fontSize: 13)),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -383,14 +389,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const _SuccessCheckAnimation(),
+          const ExcludeSemantics(child: _SuccessCheckAnimation()),
           const SizedBox(height: 24),
-          Text(
-            l10n.serveurConfigure,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: tc.textPrimary,
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              l10n.serveurConfigure,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: tc.textPrimary,
+              ),
             ),
           ),
         ],

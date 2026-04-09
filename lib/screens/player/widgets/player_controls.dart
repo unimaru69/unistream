@@ -29,8 +29,11 @@ void showSpeedPicker(BuildContext context, {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(AppLocalizations.of(context)!.vitesseLecture,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                child: Semantics(
+                  header: true,
+                  child: Text(AppLocalizations.of(context)!.vitesseLecture,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
               ),
               ...speeds.map((sp) => ListTile(
                 dense: true,
@@ -76,7 +79,10 @@ void showAspectRatioPicker(BuildContext context, {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(AppLocalizations.of(context)!.ratioAspect, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Semantics(
+              header: true,
+              child: Text(AppLocalizations.of(context)!.ratioAspect, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
           ),
           for (final (value, label) in options)
             ListTile(

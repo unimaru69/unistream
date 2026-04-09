@@ -20,18 +20,21 @@ class AppearanceSection extends ConsumerWidget {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.apparence,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: tc.textDisabled,
-                  letterSpacing: 1)),
+          child: Semantics(
+            header: true,
+            child: Text(l10n.apparence,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tc.textDisabled,
+                    letterSpacing: 1)),
+          ),
         ),
         const SizedBox(height: 12),
         ValueListenableBuilder<ThemeMode>(
           valueListenable: themeNotifier,
           builder: (context, mode, _) => Row(children: [
-            Icon(Icons.brightness_6, size: 20, color: tc.textTertiary),
+            ExcludeSemantics(child: Icon(Icons.brightness_6, size: 20, color: tc.textTertiary)),
             const SizedBox(width: 12),
             Text(l10n.themeMode, style: const TextStyle(fontSize: 14)),
             const Spacer(),
@@ -60,7 +63,7 @@ class AppearanceSection extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          Icon(Icons.language, size: 20, color: tc.textTertiary),
+          ExcludeSemantics(child: Icon(Icons.language, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Text(l10n.langueInterface,
               style: const TextStyle(fontSize: 14)),

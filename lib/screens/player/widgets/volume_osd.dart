@@ -56,6 +56,7 @@ class _VolumeOsdState extends State<VolumeOsd>
       top: 16,
       right: 16,
       child: Semantics(
+        liveRegion: true,
         label: 'Volume ${pct.round()}%',
         child: FadeTransition(
         opacity: _anim,

@@ -148,14 +148,14 @@ void showStreamInfoDialogWithEpg(
     TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.fermer)),
   ];
 
-  Widget modeTag() => Container(
+  Widget modeTag() => ExcludeSemantics(child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
       color: (modeColors[mode] ?? Colors.grey).withValues(alpha: 0.2),
       borderRadius: BorderRadius.circular(4)),
     child: Text(modeLabels[mode] ?? mode.label,
         style: TextStyle(fontSize: 11, color: modeColors[mode] ?? Colors.grey)),
-  );
+  ));
 
   if (mode == ContentMode.live) {
     final streamId = stream['stream_id']?.toString() ?? '';

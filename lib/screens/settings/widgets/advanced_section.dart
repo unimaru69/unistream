@@ -58,12 +58,15 @@ class _AdvancedSectionState extends State<AdvancedSection> {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.reglagesAvances,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: tc.textDisabled,
-                  letterSpacing: 1)),
+          child: Semantics(
+            header: true,
+            child: Text(l10n.reglagesAvances,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tc.textDisabled,
+                    letterSpacing: 1)),
+          ),
         ),
         const SizedBox(height: 12),
         // Max retries slider

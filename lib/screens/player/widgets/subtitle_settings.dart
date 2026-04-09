@@ -66,19 +66,24 @@ void showSubtitleStylePicker(BuildContext context, {
               const SizedBox(width: 16),
               ...colorOptions.map((opt) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () {
-                    setLocal(() => localColor = opt.$1);
-                    onColorChanged(opt.$1);
-                  },
-                  child: Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      color: opt.$1, shape: BoxShape.circle,
-                      border: Border.all(
-                        color: localColor.toARGB32() == opt.$1.toARGB32()
-                            ? AppColors.primaryBlue : Colors.transparent,
-                        width: 3,
+                child: Semantics(
+                  button: true,
+                  label: opt.$2,
+                  selected: localColor.toARGB32() == opt.$1.toARGB32(),
+                  child: GestureDetector(
+                    onTap: () {
+                      setLocal(() => localColor = opt.$1);
+                      onColorChanged(opt.$1);
+                    },
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: opt.$1, shape: BoxShape.circle,
+                        border: Border.all(
+                          color: localColor.toARGB32() == opt.$1.toARGB32()
+                              ? AppColors.primaryBlue : Colors.transparent,
+                          width: 3,
+                        ),
                       ),
                     ),
                   ),

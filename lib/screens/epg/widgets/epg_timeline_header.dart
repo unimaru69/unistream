@@ -16,7 +16,7 @@ class EpgTimelineHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
-    return SizedBox(
+    return ExcludeSemantics(child: SizedBox(
       width: hourWidth * 24,
       height: 30,
       child: Stack(children: [
@@ -45,6 +45,6 @@ class EpgTimelineHeader extends StatelessWidget {
           child: Container(width: 2, color: Colors.redAccent),
         ),
       ]),
-    );
+    ));
   }
 }

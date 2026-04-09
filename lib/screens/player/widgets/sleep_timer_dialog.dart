@@ -18,7 +18,10 @@ void showSleepTimerPicker(BuildContext context, {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(AppLocalizations.of(context)!.minuterieVeille, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Semantics(
+              header: true,
+              child: Text(AppLocalizations.of(context)!.minuterieVeille, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
           ),
           if (sleepRemaining != null)
             ListTile(

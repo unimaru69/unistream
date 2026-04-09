@@ -150,14 +150,14 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ClipRRect(
+                  ExcludeSemantics(child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: Image.asset(
                       'assets/images/logo.jpg',
                       width: 120,
                       height: 120,
                     ),
-                  ),
+                  )),
                   const SizedBox(height: 16),
                   const Text(
                     'UniStream',
@@ -178,11 +178,14 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      _statusMessage ?? '',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _statusMessage ?? '',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
                       ),
                     ),
                   ],

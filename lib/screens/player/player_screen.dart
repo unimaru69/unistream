@@ -12,6 +12,8 @@ import '../../core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/app_config.dart';
+import '../../models/channel.dart';
+import '../../models/next_episode_info.dart';
 import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/routes.dart';
@@ -47,12 +49,11 @@ class PlayerScreen extends StatefulWidget {
   final Player? existingPlayer;    // restauration depuis mini-player
   final VideoController? existingController;
   // Auto-play next episode
-  final Map<String, dynamic>? nextEpisode;
-  final String? nextEpisodeCover;
+  final NextEpisodeInfo? nextEpisode;
   // Catch-up / replay mode
   final bool isCatchup;
   // Quick zapping (live channel +/-)
-  final List<Map<String, dynamic>>? channelList;
+  final List<Channel>? channelList;
   final int? channelIndex;
 
   const PlayerScreen({
@@ -65,7 +66,6 @@ class PlayerScreen extends StatefulWidget {
     this.existingPlayer,
     this.existingController,
     this.nextEpisode,
-    this.nextEpisodeCover,
     this.isCatchup = false,
     this.channelList,
     this.channelIndex,
@@ -339,17 +339,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _playNextEpisode() {
     _nextCountdown?.cancel();
     final ep = widget.nextEpisode!;
-    final epId = ep['id'].toString();
-    final url = XtreamApi.getSeriesEpisodeUrl(epId, ep['container_extension'] ?? 'mp4');
-    WatchProgress.saveMeta(epId, ep['title'] ?? '', widget.nextEpisodeCover ?? '', url, 'series');
+    final url = XtreamApi.getSeriesEpisodeUrl(ep.id, ep.containerExtension);
+    WatchProgress.saveMeta(ep.id, ep.title, ep.coverUrl ?? '', url, 'series');
     if (widget.resumeKey != null && _lastDur > Duration.zero) {
       WatchProgress.save(widget.resumeKey!, _lastDur, _lastDur);
     }
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,
-      title: ep['title'] ?? '',
-      resumeKey: epId,
-      coverUrl: widget.nextEpisodeCover,
+      title: ep.title,
+      resumeKey: ep.id,
+      coverUrl: ep.coverUrl,
     )));
   }
 
@@ -696,7 +695,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // ── EPG loading ──
   Future<void> _loadEpg() async {
     try {
-      final channelInfoFuture = XtreamApi.getLiveStreams();
+      final channelInfoFuture = XtreamApi.getLiveStreamsTyped();
       Map<String, dynamic> data;
       try {
         data = await XtreamApi.getFullDayEpg(widget.streamId!);
@@ -707,11 +706,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       bool catchup = false;
       try {
         final allChannels = await channelInfoFuture;
-        final thisChannel = allChannels.firstWhere(
-          (c) => c['stream_id']?.toString() == widget.streamId,
-          orElse: () => <String, dynamic>{},
-        );
-        catchup = XtreamApi.channelHasCatchup(Map<String, dynamic>.from(thisChannel));
+        final thisChannel = allChannels.where((c) => c.id == widget.streamId).firstOrNull;
+        catchup = thisChannel?.hasCatchup ?? false;
       } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to check channel catchup support', error: e, stackTrace: st); }
       final listings = data['epg_listings'] as List?;
       if (listings == null || listings.isEmpty) return;

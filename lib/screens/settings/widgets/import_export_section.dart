@@ -27,12 +27,15 @@ class ImportExportSection extends StatelessWidget {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.importExport,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: tc.textDisabled,
-                  letterSpacing: 1)),
+          child: Semantics(
+            header: true,
+            child: Text(l10n.importExport,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tc.textDisabled,
+                    letterSpacing: 1)),
+          ),
         ),
         const SizedBox(height: 12),
         Row(children: [

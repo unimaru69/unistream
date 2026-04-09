@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:unistream/models/next_episode_info.dart';
 import 'package:unistream/screens/player/widgets/next_episode_overlay.dart';
 
 import '../../helpers/test_wrapper.dart';
@@ -7,7 +8,7 @@ import '../../helpers/test_wrapper.dart';
 void main() {
   group('NextEpisodeOverlay', () {
     Widget buildOverlay({
-      Map<String, dynamic>? episode,
+      NextEpisodeInfo? episode,
       int countdownSec = 10,
       VoidCallback? onPlayNow,
       VoidCallback? onCancel,
@@ -16,7 +17,11 @@ void main() {
         Stack(
           children: [
             NextEpisodeOverlay(
-              nextEpisode: episode ?? {'title': 'S01E02 - Le retour'},
+              nextEpisode: episode ?? const NextEpisodeInfo(
+                id: '123',
+                title: 'S01E02 - Le retour',
+                containerExtension: 'mp4',
+              ),
               countdownSec: countdownSec,
               onPlayNow: onPlayNow ?? () {},
               onCancel: onCancel ?? () {},

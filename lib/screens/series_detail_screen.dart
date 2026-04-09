@@ -11,6 +11,7 @@ import '../models/favorite_item.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
+import '../models/next_episode_info.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
@@ -164,18 +165,18 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     });
 
     // Find next episode in same season
-    Map<String, dynamic>? nextEp;
+    NextEpisodeInfo? nextEp;
     if (_selectedSeason != null) {
       final eps = _episodes[_selectedSeason!] ?? [];
       final idx = eps.indexWhere((e) => e.idStr == epId);
       if (idx >= 0 && idx < eps.length - 1) {
         final next = eps[idx + 1];
-        nextEp = {
-          'id': next.id,
-          'title': next.displayTitle,
-          'container_extension': next.containerExtension,
-          'episode_num': next.episodeNum,
-        };
+        nextEp = NextEpisodeInfo(
+          id: next.idStr,
+          title: next.displayTitle,
+          containerExtension: next.containerExtension,
+          coverUrl: widget.cover,
+        );
       }
     }
 
@@ -185,7 +186,6 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       resumeKey: epId,
       coverUrl: widget.cover,
       nextEpisode: nextEp,
-      nextEpisodeCover: widget.cover,
     ))).then((_) {
       if (mounted) {
         ref.invalidate(watchProgressProvider);

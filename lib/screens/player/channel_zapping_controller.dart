@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import '../../models/channel.dart';
 import '../../services/xtream_api.dart';
 import '../../utils/routes.dart';
 import 'player_screen.dart';
@@ -14,7 +15,7 @@ class ChannelZappingController {
     required this.onStateChanged,
   });
 
-  final List<Map<String, dynamic>>? channelList;
+  final List<Channel>? channelList;
   final int? channelIndex;
   final VoidCallback onStateChanged;
 
@@ -53,7 +54,7 @@ class ChannelZappingController {
     final list = channelList!;
     int targetIdx = -1;
     for (var i = 0; i < list.length; i++) {
-      final chNum = int.tryParse(list[i]['num']?.toString() ?? '');
+      final chNum = int.tryParse(list[i].num?.toString() ?? '');
       if (chNum == num) {
         targetIdx = i;
         break;
@@ -80,14 +81,14 @@ class ChannelZappingController {
     final list = channelList;
     if (list == null || idx < 0 || idx >= list.length) return;
     final ch = list[idx];
-    final sid = ch['stream_id'].toString();
+    final sid = ch.id;
     final url = XtreamApi.getLiveStreamUrl(sid);
-    final name = ch['name'] ?? AppLocalizations.of(context)!.sansTitre;
+    final name = ch.name.isNotEmpty ? ch.name : AppLocalizations.of(context)!.sansTitre;
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,
       title: name,
       streamId: sid,
-      coverUrl: ch['stream_icon']?.toString(),
+      coverUrl: ch.displayIcon.isNotEmpty ? ch.displayIcon : null,
       channelList: list,
       channelIndex: idx,
     )));

@@ -108,9 +108,12 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
         ),
         if (widget.error != null) ...[
           const SizedBox(height: 16),
-          Text(widget.error!,
-              style:
-                  const TextStyle(color: Colors.redAccent, fontSize: 13)),
+          Semantics(
+            liveRegion: true,
+            child: Text(widget.error!,
+                style:
+                    const TextStyle(color: Colors.redAccent, fontSize: 13)),
+          ),
         ],
         const SizedBox(height: 24),
         FilledButton(

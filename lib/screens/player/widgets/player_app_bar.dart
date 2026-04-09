@@ -91,15 +91,20 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
     final l10n = AppLocalizations.of(context)!;
     final hasTracks = audioTracks.length > 1 || subtitleTracks.length > 1;
 
-    final titleWidget = epgNow != null
-        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontSize: 14),
+    final titleWidget = Semantics(
+      label: epgNow != null ? '$title — $epgNow' : title,
+      child: ExcludeSemantics(
+        child: epgNow != null
+            ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(fontSize: 14),
+                    overflow: TextOverflow.ellipsis),
+                Text(epgNow!, style: const TextStyle(fontSize: 11, color: Colors.white54),
+                    overflow: TextOverflow.ellipsis),
+              ])
+            : Text(title, style: const TextStyle(fontSize: 15),
                 overflow: TextOverflow.ellipsis),
-            Text(epgNow!, style: const TextStyle(fontSize: 11, color: Colors.white54),
-                overflow: TextOverflow.ellipsis),
-          ])
-        : Text(title, style: const TextStyle(fontSize: 15),
-            overflow: TextOverflow.ellipsis);
+      ),
+    );
 
     return AppBar(
       backgroundColor: Colors.black87,
@@ -108,7 +113,7 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: epgProgress != null
           ? PreferredSize(
               preferredSize: const Size.fromHeight(4),
-              child: SizedBox(
+              child: ExcludeSemantics(child: SizedBox(
                 height: 4,
                 child: LinearProgressIndicator(
                   value: epgProgress!,
@@ -116,20 +121,23 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
                   color: AppColors.primaryBlue,
                   minHeight: 4,
                 ),
-              ),
+              )),
             )
           : null,
       actions: [
         if (isCatchupMode)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(l10n.replay,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
+          Semantics(
+            label: l10n.replay,
+            child: ExcludeSemantics(child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(l10n.replay,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
+            )),
           ),
         if (isCatchupMode && streamId != null)
           TextButton.icon(
@@ -184,11 +192,14 @@ class PlayerAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
         if (epgNext != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Center(child: Text(l10n.suivantEpg(epgNext!),
-                style: const TextStyle(fontSize: 11, color: Colors.white38),
-                overflow: TextOverflow.ellipsis)),
+          Semantics(
+            label: l10n.suivantEpg(epgNext!),
+            child: ExcludeSemantics(child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(child: Text(l10n.suivantEpg(epgNext!),
+                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                  overflow: TextOverflow.ellipsis)),
+            )),
           ),
         if (hasTracks)
           IconButton(

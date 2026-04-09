@@ -497,11 +497,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     WatchProgress.saveHistory('${_mode.key}:$streamId', displayName, cover, url, _mode.key);
 
-    List<Map<String, dynamic>>? channelList;
+    List<Channel>? channelList;
     int? channelIndex;
     if (_mode == ContentMode.live) {
-      channelList = _sortedStreams.map((e) => streamToMap(e)).toList();
-      channelIndex = channelList.indexWhere((ch) => ch['stream_id']?.toString() == streamId);
+      channelList = _sortedStreams
+          .whereType<Channel>()
+          .toList();
+      channelIndex = channelList.indexWhere((ch) => ch.id == streamId);
       if (channelIndex < 0) channelIndex = null;
     }
 
@@ -723,9 +725,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ? const SkeletonList()
           : _error != null
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const ExcludeSemantics(child: Icon(Icons.error_outline, size: 48, color: Colors.red)),
               const SizedBox(height: 16),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Semantics(liveRegion: true, child: Text(_error!, style: const TextStyle(color: Colors.red))),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _init, child: Text(AppLocalizations.of(context)!.reessayer)),
             ]))

@@ -62,25 +62,32 @@ void showEpgGuide(BuildContext context, {
                 }
 
                 final progDesc = prog['description'] ?? '';
-                return ListTile(
+                final l10n = AppLocalizations.of(context)!;
+                final statusLabel = isCurrent ? l10n.enCoursProg : isPast ? l10n.passe : '';
+                final semanticLabel = '${prog['title'] ?? ''}, ${prog['start'] ?? ''} — ${prog['end'] ?? ''}'
+                    '${statusLabel.isNotEmpty ? ', $statusLabel' : ''}';
+                return Semantics(
+                  button: catchupSupported && isPast,
+                  label: semanticLabel,
+                  child: ListTile(
                   dense: true,
-                  leading: SizedBox(
+                  leading: ExcludeSemantics(child: SizedBox(
                     width: 44,
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Text(prog['start'] ?? '',
                           style: TextStyle(fontSize: 11,
                               color: isCurrent ? AppColors.primaryBlue : isPast ? Colors.white24 : Colors.white38)),
                       if (isPast)
-                        Text(AppLocalizations.of(context)!.passe, style: const TextStyle(fontSize: 8, color: Colors.white24))
+                        Text(l10n.passe, style: const TextStyle(fontSize: 8, color: Colors.white24))
                       else if (isCurrent)
-                        Text(AppLocalizations.of(context)!.enCoursProg, style: const TextStyle(fontSize: 8, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                        Text(l10n.enCoursProg, style: const TextStyle(fontSize: 8, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
                     ]),
-                  ),
-                  title: Text(prog['title'] ?? '',
+                  )),
+                  title: ExcludeSemantics(child: Text(prog['title'] ?? '',
                       style: TextStyle(fontSize: 13,
                           color: isCurrent ? Colors.white : isPast ? Colors.white38 : Colors.white70,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal)),
-                  subtitle: Column(
+                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal))),
+                  subtitle: ExcludeSemantics(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -92,7 +99,7 @@ void showEpgGuide(BuildContext context, {
                             color: isPast ? Colors.white24 : Colors.white38),
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                     ],
-                  ),
+                  )),
                   trailing: (catchupSupported && isPast && startTs != null && streamId != null)
                       ? TextButton.icon(
                           icon: const Icon(Icons.replay, size: 16),
@@ -122,7 +129,7 @@ void showEpgGuide(BuildContext context, {
                         )
                       : null,
                   tileColor: isCurrent ? AppColors.primaryBlue.withValues(alpha: 0.1) : null,
-                );
+                ));
               },
             ),
           ),

@@ -62,16 +62,19 @@ class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text(l10n.langues,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: tc.textDisabled,
-                  letterSpacing: 1)),
+          child: Semantics(
+            header: true,
+            child: Text(l10n.langues,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tc.textDisabled,
+                    letterSpacing: 1)),
+          ),
         ),
         const SizedBox(height: 12),
         Row(children: [
-          Icon(Icons.audiotrack, size: 20, color: tc.textTertiary),
+          ExcludeSemantics(child: Icon(Icons.audiotrack, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Expanded(
               child: Text(l10n.langueAudioPreferee,
@@ -96,7 +99,7 @@ class _LanguagePrefsSectionState extends State<LanguagePrefsSection> {
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Icon(Icons.subtitles, size: 20, color: tc.textTertiary),
+          ExcludeSemantics(child: Icon(Icons.subtitles, size: 20, color: tc.textTertiary)),
           const SizedBox(width: 12),
           Expanded(
               child: Text(l10n.langueSousTitresPreferee,

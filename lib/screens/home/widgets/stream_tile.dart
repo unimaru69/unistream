@@ -44,22 +44,7 @@ Widget networkImage(String url, {
   );
 }
 
-/// Small icon for list view rows (legacy Map version).
-Widget listIcon(Map<String, dynamic> stream, ContentMode mode, BuildContext context) {
-  final tc = AppThemeColors.of(context);
-  final iconUrl = mode == ContentMode.series ? stream['cover'] : stream['stream_icon'];
-  final fallback = Icon(mode == ContentMode.series ? Icons.movie : Icons.tv, color: tc.textDisabled);
-  if (iconUrl == null || iconUrl.toString().isEmpty) return fallback;
-  return ClipRRect(
-    borderRadius: BorderRadius.circular(4),
-    child: Container(
-      color: mode == ContentMode.live ? tc.logoBg : null,
-      child: networkImage(iconUrl.toString(), context: context, width: 40, height: 40, mode: mode),
-    ),
-  );
-}
-
-/// Small icon for list view rows (typed version).
+/// Small icon for list view rows.
 Widget listIconTyped(dynamic stream, ContentMode mode, BuildContext context) {
   final tc = AppThemeColors.of(context);
   final String iconUrl;

@@ -228,7 +228,7 @@ class _ParentalSettingsScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock_outline, size: 64, color: tc.borderColor),
+          ExcludeSemantics(child: Icon(Icons.lock_outline, size: 64, color: tc.borderColor)),
           const SizedBox(height: 16),
           Text(
             AppLocalizations.of(context)!.descriptionControleParental,
@@ -260,7 +260,7 @@ class _ParentalSettingsScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock, size: 64, color: tc.borderColor),
+          ExcludeSemantics(child: Icon(Icons.lock, size: 64, color: tc.borderColor)),
           const SizedBox(height: 16),
           Text(
             AppLocalizations.of(context)!.entrerPinAcceder,

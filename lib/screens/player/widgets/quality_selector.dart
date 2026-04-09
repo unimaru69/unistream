@@ -108,8 +108,11 @@ void showQualityPicker(BuildContext context, {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.qualiteStream,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Semantics(
+                  header: true,
+                  child: Text(l10n.qualiteStream,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
                 if (qualityBadge.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import '../../../models/channel.dart';
 
 /// Full-screen overlay listing all channels for quick selection.
 /// Triggered by 'L' key during live playback.
 class ChannelListOverlay extends StatefulWidget {
-  final List<Map<String, dynamic>> channels;
+  final List<Channel> channels;
   final int currentIndex;
   final void Function(int index) onSelect;
   final VoidCallback onClose;
@@ -148,58 +149,62 @@ class _ChannelListOverlayState extends State<ChannelListOverlay>
                           itemExtent: 48,
                           itemBuilder: (_, i) {
                             final ch = widget.channels[i];
-                            final name = ch['name']?.toString() ?? loc.sansTitre;
-                            final num = ch['num']?.toString() ?? '';
+                            final name = ch.name.isNotEmpty ? ch.name : loc.sansTitre;
+                            final num = ch.num?.toString() ?? '';
                             final isCurrent = i == widget.currentIndex;
                             final isHighlighted = i == _highlightedIndex;
 
-                            return Material(
-                              color: isHighlighted
-                                  ? AppColors.primaryBlue.withValues(alpha: 0.3)
-                                  : isCurrent
-                                      ? AppColors.primaryBlue.withValues(alpha: 0.12)
-                                      : Colors.transparent,
-                              child: InkWell(
-                                onTap: () => widget.onSelect(i),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Row(
-                                    children: [
-                                      if (num.isNotEmpty)
-                                        SizedBox(
-                                          width: 36,
-                                          child: Text(
-                                            num,
+                            return Semantics(
+                              button: true,
+                              label: '${num.isNotEmpty ? '$num. ' : ''}$name${isCurrent ? ', en cours' : ''}',
+                              child: Material(
+                                color: isHighlighted
+                                    ? AppColors.primaryBlue.withValues(alpha: 0.3)
+                                    : isCurrent
+                                        ? AppColors.primaryBlue.withValues(alpha: 0.12)
+                                        : Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => widget.onSelect(i),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Row(
+                                      children: [
+                                        if (num.isNotEmpty)
+                                          SizedBox(
+                                            width: 36,
+                                            child: ExcludeSemantics(child: Text(
+                                              num,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isCurrent
+                                                    ? AppColors.primaryBlue
+                                                    : Colors.white38,
+                                                fontWeight: isCurrent
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                              ),
+                                            )),
+                                          ),
+                                        Expanded(
+                                          child: ExcludeSemantics(child: Text(
+                                            name,
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 13,
                                               color: isCurrent
-                                                  ? AppColors.primaryBlue
-                                                  : Colors.white38,
+                                                  ? Colors.white
+                                                  : Colors.white70,
                                               fontWeight: isCurrent
                                                   ? FontWeight.bold
                                                   : FontWeight.normal,
                                             ),
-                                          ),
+                                            overflow: TextOverflow.ellipsis,
+                                          )),
                                         ),
-                                      Expanded(
-                                        child: Text(
-                                          name,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: isCurrent
-                                                ? Colors.white
-                                                : Colors.white70,
-                                            fontWeight: isCurrent
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (isCurrent)
-                                        const Icon(Icons.play_arrow,
-                                            size: 16, color: AppColors.primaryBlue),
-                                    ],
+                                        if (isCurrent)
+                                          const ExcludeSemantics(child: Icon(Icons.play_arrow,
+                                              size: 16, color: AppColors.primaryBlue)),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

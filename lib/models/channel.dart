@@ -12,6 +12,7 @@ abstract class Channel with _$Channel {
     String? cover,
     @JsonKey(name: 'category_id') String? categoryId,
     @JsonKey(name: 'category_name') String? categoryName,
+    @JsonKey(name: 'num') dynamic num,
     @JsonKey(name: 'tv_archive') @Default(0) dynamic tvArchive,
     @JsonKey(name: 'tv_archive_duration') @Default('0') dynamic tvArchiveDuration,
     String? added,
