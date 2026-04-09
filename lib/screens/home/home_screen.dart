@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
@@ -14,7 +13,6 @@ import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
 import '../../models/vod_item.dart';
 import '../../models/series_item.dart';
-import '../../services/xtream_api.dart';
 import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
 import '../../utils/api_error_localizer.dart';

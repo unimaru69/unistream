@@ -42,11 +42,15 @@ class EpgDayNavigator extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: onTapDate,
-          child: Text(
-            formatDay(dayStart),
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tc.textPrimary),
+        Semantics(
+          button: true,
+          label: "${l10n.guideTV}: ${formatDay(dayStart)}",
+          child: GestureDetector(
+            onTap: onTapDate,
+            child: Text(
+              formatDay(dayStart),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tc.textPrimary),
+            ),
           ),
         ),
         const Spacer(),

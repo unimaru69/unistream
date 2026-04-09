@@ -11,6 +11,7 @@ import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
+import '../../models/parsed_epg_program.dart';
 import '../../providers/favorites_provider.dart';
 import '../../repositories/content_repository.dart';
 import '../../utils/api_error_localizer.dart';
@@ -38,7 +39,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   bool _loadingChannels = false;
 
   // EPG data: channelId → programs
-  Map<String, List<Map<String, dynamic>>> _epgData = {};
+  Map<String, List<ParsedEpgProgram>> _epgData = {};
   bool _loadingEpg = false;
   int _epgLoaded = 0; // progress counter
 
@@ -196,8 +197,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       if (ch.name.toLowerCase().contains(_searchQuery)) return true;
       // Also match program titles for this channel
       final progs = _epgData[ch.id] ?? [];
-      return progs.any((p) =>
-          (p['title'] as String? ?? '').toLowerCase().contains(_searchQuery));
+      return progs.any((p) => p.title.toLowerCase().contains(_searchQuery));
     }).toList();
   }
 
@@ -256,7 +256,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     }
 
     final dayEnd = _dayStart.add(const Duration(days: 1));
-    final Map<String, List<Map<String, dynamic>>> epg = {};
+    final Map<String, List<ParsedEpgProgram>> epg = {};
 
     for (var i = 0; i < channels.length; i += 6) {
       final chunk = channels.skip(i).take(6);
@@ -270,19 +270,19 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           epg[sid] = listings.map((e) {
             final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());
             final stopTs  = int.tryParse((e['stop_timestamp']  ?? e['stop']  ?? '').toString());
-            return {
-              'title': dec(e['title']?.toString() ?? ''),
-              'description': dec(e['description']?.toString() ?? ''),
-              'start': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000) : null,
-              'end':   stopTs  != null ? DateTime.fromMillisecondsSinceEpoch(stopTs  * 1000) : null,
-              'start_utc': startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true) : null,
-              'start_server_local': e['start']?.toString(),
-            };
+            if (startTs == null || stopTs == null) return null;
+            return ParsedEpgProgram(
+              title: dec(e['title']?.toString() ?? ''),
+              description: dec(e['description']?.toString() ?? ''),
+              start: DateTime.fromMillisecondsSinceEpoch(startTs * 1000),
+              end: DateTime.fromMillisecondsSinceEpoch(stopTs * 1000),
+              startUtc: DateTime.fromMillisecondsSinceEpoch(startTs * 1000, isUtc: true),
+              startServerLocal: e['start']?.toString() ?? '',
+            );
           }).where((p) {
-            if (p['start'] == null || p['end'] == null) return false;
-            final s = p['start'] as DateTime;
-            return s.isAfter(_dayStart.subtract(const Duration(hours: 1))) && s.isBefore(dayEnd);
-          }).toList();
+            if (p == null) return false;
+            return p.start.isAfter(_dayStart.subtract(const Duration(hours: 1))) && p.start.isBefore(dayEnd);
+          }).cast<ParsedEpgProgram>().toList();
         } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
       }));
       if (mounted) setState(() {

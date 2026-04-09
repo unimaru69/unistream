@@ -8,6 +8,7 @@ import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/models/channel.dart';
 import 'package:unistream/models/favorite_item.dart';
+import 'package:unistream/models/parsed_epg_program.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/services/epg_reminder_service.dart';
 import 'package:unistream/repositories/content_repository.dart';
@@ -27,7 +28,7 @@ class ChannelDetailScreen extends ConsumerStatefulWidget {
 
 class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
   ContentRepository get _repo => ref.read(contentRepositoryProvider);
-  List<Map<String, dynamic>> _programs = [];
+  List<ParsedEpgProgram> _programs = [];
   bool _loading = true;
   String? _error;
 
@@ -44,7 +45,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     try {
       final data = await _repo.getFullDayEpg(ch.id);
       final listings = data['epg_listings'] as List<dynamic>? ?? [];
-      final parsed = <Map<String, dynamic>>[];
+      final parsed = <ParsedEpgProgram>[];
       for (final e in listings) {
         final m = e as Map<String, dynamic>;
         final startTs = int.tryParse(m['start_timestamp']?.toString() ?? '');
@@ -52,18 +53,15 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
         if (startTs == null || endTs == null) continue;
         final start = DateTime.fromMillisecondsSinceEpoch(startTs * 1000);
         final end = DateTime.fromMillisecondsSinceEpoch(endTs * 1000);
-        final title = _decodeBase64(m['title']?.toString() ?? '');
-        final desc = _decodeBase64(m['description']?.toString() ?? '');
-        parsed.add({
-          'title': title,
-          'description': desc,
-          'start': start,
-          'end': end,
-          'start_server_local': m['start']?.toString() ?? '',
-          'duration_min': end.difference(start).inMinutes,
-        });
+        parsed.add(ParsedEpgProgram(
+          title: _decodeBase64(m['title']?.toString() ?? ''),
+          description: _decodeBase64(m['description']?.toString() ?? ''),
+          start: start,
+          end: end,
+          startServerLocal: m['start']?.toString() ?? '',
+        ));
       }
-      parsed.sort((a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
+      parsed.sort((a, b) => a.start.compareTo(b.start));
       if (mounted) setState(() { _programs = parsed; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
@@ -80,26 +78,21 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     }
   }
 
-  Map<String, dynamic>? get _currentProgram {
-    final now = DateTime.now();
+  ParsedEpgProgram? get _currentProgram {
     for (final p in _programs) {
-      if (now.isAfter(p['start'] as DateTime) && now.isBefore(p['end'] as DateTime)) {
-        return p;
-      }
+      if (p.isCurrent) return p;
     }
     return null;
   }
 
-  List<Map<String, dynamic>> get _upcomingPrograms {
-    final now = DateTime.now();
-    return _programs.where((p) => (p['start'] as DateTime).isAfter(now)).toList();
+  List<ParsedEpgProgram> get _upcomingPrograms {
+    return _programs.where((p) => p.isFuture).toList();
   }
 
-  List<Map<String, dynamic>> get _replayablePrograms {
+  List<ParsedEpgProgram> get _replayablePrograms {
     if (!ch.hasCatchup) return [];
-    final now = DateTime.now();
     return _programs
-        .where((p) => (p['end'] as DateTime).isBefore(now))
+        .where((p) => p.isPast)
         .toList()
         .reversed
         .toList();
@@ -110,23 +103,20 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     final current = _currentProgram;
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
-      title: current != null ? '${ch.name} — ${current['title']}' : ch.name,
+      title: current != null ? '${ch.name} — ${current.title}' : ch.name,
       streamId: ch.id,
       coverUrl: ch.displayIcon.isNotEmpty ? ch.displayIcon : null,
     )));
   }
 
-  void _playReplay(Map<String, dynamic> prog) {
-    final serverLocal = prog['start_server_local'] as String?;
-    final durMin = prog['duration_min'] as int;
-    final start = prog['start'] as DateTime;
-    final url = (serverLocal != null && serverLocal.isNotEmpty)
-        ? _repo.getTimeshiftUrlFromLocal(ch.id, serverLocal, durMin)
-        : _repo.getTimeshiftUrl(ch.id, start.toUtc(), durMin);
+  void _playReplay(ParsedEpgProgram prog) {
+    final url = (prog.startServerLocal.isNotEmpty)
+        ? _repo.getTimeshiftUrlFromLocal(ch.id, prog.startServerLocal, prog.durationMin)
+        : _repo.getTimeshiftUrl(ch.id, prog.start.toUtc(), prog.durationMin);
     final l10n = AppLocalizations.of(context)!;
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
-      title: '${ch.name} — ${prog['title']} (${l10n.replay})',
+      title: '${ch.name} — ${prog.title} (${l10n.replay})',
       streamId: ch.id,
       isCatchup: true,
     )));
@@ -161,7 +151,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
               background: Stack(fit: StackFit.expand, children: [
                 // Blurred background logo (decorative)
                 if (ch.displayIcon.isNotEmpty)
-                  Opacity(
+                  ExcludeSemantics(child: Opacity(
                     opacity: 0.15,
                     child: CachedNetworkImage(
                       imageUrl: ch.displayIcon,
@@ -169,9 +159,9 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => const SizedBox.shrink(),
                     ),
-                  ),
+                  )),
                 // Gradient overlay
-                Container(
+                ExcludeSemantics(child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -183,7 +173,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
                       stops: const [0.0, 0.6, 1.0],
                     ),
                   ),
-                ),
+                )),
                 // Centered sharp logo
                 Center(
                   child: Container(
@@ -356,101 +346,104 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     );
   }
 
-  Widget _buildProgramTile(Map<String, dynamic> prog, AppThemeColors tc, {
+  Widget _buildProgramTile(ParsedEpgProgram prog, AppThemeColors tc, {
     bool isCurrent = false,
     bool isFuture = false,
     bool isReplay = false,
   }) {
-    final start = prog['start'] as DateTime;
-    final end = prog['end'] as DateTime;
-    final title = prog['title'] as String? ?? '';
-    final desc = prog['description'] as String? ?? '';
-    final durMin = prog['duration_min'] as int;
-    final timeStr = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}'
-        ' - ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
-
     // Progress for current program
     double? progress;
     if (isCurrent) {
-      final total = end.difference(start).inSeconds;
-      final elapsed = DateTime.now().difference(start).inSeconds;
+      final total = prog.end.difference(prog.start).inSeconds;
+      final elapsed = DateTime.now().difference(prog.start).inSeconds;
       if (total > 0) progress = (elapsed / total).clamp(0.0, 1.0);
     }
 
     // Reminder check for future programs
     final hasReminder = isFuture &&
-        EpgReminderService.instance.hasReminder(ch.id, start.toUtc());
+        EpgReminderService.instance.hasReminder(ch.id, prog.start.toUtc());
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: isCurrent
-            ? AppColors.primaryBlue.withValues(alpha: 0.12)
-            : isReplay
-            ? AppColors.accentGreen.withValues(alpha: 0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
+    return Semantics(
+      button: isReplay || isCurrent,
+      label: [
+        prog.title,
+        prog.timeRange,
+        '${prog.durationMin} min',
+        if (isCurrent) 'en direct',
+        if (isReplay) 'replay disponible',
+        if (hasReminder) 'rappel actif',
+      ].join(', '),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Material(
+          color: isCurrent
+              ? AppColors.primaryBlue.withValues(alpha: 0.12)
+              : isReplay
+              ? AppColors.accentGreen.withValues(alpha: 0.08)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          onTap: isReplay ? () => _playReplay(prog) : isCurrent ? _playLive : null,
-          onLongPress: isFuture ? () => _toggleReminder(prog) : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Text(timeStr, style: TextStyle(fontSize: 11, color: tc.textDisabled,
-                      fontWeight: FontWeight.w500)),
-                  const SizedBox(width: 8),
-                  Text('${durMin}min', style: TextStyle(fontSize: 10, color: tc.textDisabled)),
-                  const Spacer(),
-                  if (isReplay)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGreen.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(4),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: isReplay ? () => _playReplay(prog) : isCurrent ? _playLive : null,
+            onLongPress: isFuture ? () => _toggleReminder(prog) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    ExcludeSemantics(child: Text(prog.timeRange, style: TextStyle(fontSize: 11, color: tc.textDisabled,
+                        fontWeight: FontWeight.w500))),
+                    const SizedBox(width: 8),
+                    ExcludeSemantics(child: Text('${prog.durationMin}min', style: TextStyle(fontSize: 10, color: tc.textDisabled))),
+                    const Spacer(),
+                    if (isReplay)
+                      ExcludeSemantics(child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentGreen.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('REPLAY', style: TextStyle(
+                            fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                      )),
+                    if (isCurrent)
+                      ExcludeSemantics(child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red, borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('LIVE', style: TextStyle(
+                            fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                      )),
+                    if (hasReminder)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(Icons.notifications_active, size: 14, color: Colors.amber),
                       ),
-                      child: const Text('REPLAY', style: TextStyle(
-                          fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ]),
+                  const SizedBox(height: 4),
+                  ExcludeSemantics(child: Text(prog.title, style: TextStyle(fontSize: 13, color: tc.textPrimary,
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal))),
+                  if (prog.description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: ExcludeSemantics(child: Text(prog.description, style: TextStyle(fontSize: 11, color: tc.textSecondary),
+                          maxLines: 2, overflow: TextOverflow.ellipsis)),
                     ),
-                  if (isCurrent)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red, borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text('LIVE', style: TextStyle(
-                          fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                  if (progress != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: ExcludeSemantics(child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: tc.divider,
+                        color: Colors.red,
+                        minHeight: 3,
+                        borderRadius: BorderRadius.circular(2),
+                      )),
                     ),
-                  if (hasReminder)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6),
-                      child: Icon(Icons.notifications_active, size: 14, color: Colors.amber),
-                    ),
-                ]),
-                const SizedBox(height: 4),
-                Text(title, style: TextStyle(fontSize: 13, color: tc.textPrimary,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal)),
-                if (desc.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(desc, style: TextStyle(fontSize: 11, color: tc.textSecondary),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ),
-                if (progress != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: tc.divider,
-                      color: Colors.red,
-                      minHeight: 3,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -458,19 +451,18 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     );
   }
 
-  void _toggleReminder(Map<String, dynamic> prog) {
-    final start = prog['start'] as DateTime;
+  void _toggleReminder(ParsedEpgProgram prog) {
     final svc = EpgReminderService.instance;
-    final has = svc.hasReminder(ch.id, start.toUtc());
+    final has = svc.hasReminder(ch.id, prog.start.toUtc());
     if (has) {
-      svc.remove('${ch.id}_${start.toUtc().millisecondsSinceEpoch}');
+      svc.remove('${ch.id}_${prog.start.toUtc().millisecondsSinceEpoch}');
     } else {
       svc.add(EpgReminder(
         streamId: ch.id,
         channelName: ch.name,
-        programTitle: prog['title'] ?? '',
-        startUtc: start.toUtc(),
-        durationMin: prog['duration_min'] as int,
+        programTitle: prog.title,
+        startUtc: prog.start.toUtc(),
+        durationMin: prog.durationMin,
       ));
     }
     setState(() {});

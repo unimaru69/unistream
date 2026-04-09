@@ -13,6 +13,7 @@ import 'package:unistream/core/logger.dart';
 import '../models/channel.dart';
 import '../models/vod_item.dart';
 import '../models/series_item.dart';
+import '../models/search_result.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
 import '../services/watch_progress.dart';
@@ -35,7 +36,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
   final _ctrl = TextEditingController();
   late final TabController _tabCtrl;
   String _query = '';
-  List<Map<String, dynamic>> _results = [];
+  List<SearchResult> _results = [];
   bool _loading = false;
   Timer? _debounce;
 
@@ -118,49 +119,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
       final vodItems = results[1] as List<VodItem>;
       final seriesItems = results[2] as List<SeriesItem>;
 
-      List<Map<String, dynamic>> tagLive(List<Channel> list) => list
+      final liveResults = liveChannels
           .where((ch) => ch.name.toLowerCase().contains(q))
           .take(30)
-          .map((ch) => <String, dynamic>{
-                'stream_id': ch.streamId,
-                'name': ch.name,
-                'stream_icon': ch.displayIcon,
-                '_mode': 'live',
-              })
+          .map((ch) => LiveSearchResult(
+                name: ch.name,
+                streamId: ch.streamId,
+                streamIcon: ch.displayIcon,
+              ))
           .toList();
 
-      List<Map<String, dynamic>> tagVod(List<VodItem> list) => list
+      final vodResults = vodItems
           .where((v) => v.name.toLowerCase().contains(q))
           .take(30)
-          .map((v) => <String, dynamic>{
-                'stream_id': v.streamId,
-                'name': v.name,
-                'stream_icon': v.displayIcon,
-                'container_extension': v.containerExtension,
-                '_mode': 'vod',
-              })
+          .map((v) => VodSearchResult(
+                name: v.name,
+                streamId: v.streamId,
+                streamIcon: v.displayIcon,
+                containerExtension: v.containerExtension,
+              ))
           .toList();
 
-      List<Map<String, dynamic>> tagSeries(List<SeriesItem> list) => list
+      final seriesResults = seriesItems
           .where((s) => s.name.toLowerCase().contains(q))
           .take(30)
-          .map((s) => <String, dynamic>{
-                'series_id': s.seriesId,
-                'name': s.name,
-                'cover': s.displayIcon,
-                '_mode': 'series',
-              })
+          .map((s) => SeriesSearchResult(
+                name: s.name,
+                seriesId: s.seriesId,
+                cover: s.displayIcon,
+                rating: s.rating?.toString(),
+                categoryName: s.categoryName,
+                plot: s.plot ?? s.description,
+              ))
           .toList();
 
-      // EPG program search — scan cached EPG and also load for catch-up channels
+      // EPG program search
       final epgResults = await _searchEpg(q, liveChannels);
 
       if (mounted) {
         setState(() {
           _results = [
-            ...tagLive(liveChannels),
-            ...tagVod(vodItems),
-            ...tagSeries(seriesItems),
+            ...liveResults,
+            ...vodResults,
+            ...seriesResults,
             ...epgResults,
           ];
           _loading = false;
@@ -173,9 +174,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
   }
 
   /// Search EPG program titles across live channels (full day EPG).
-  Future<List<Map<String, dynamic>>> _searchEpg(String q, List<Channel> channels) async {
-    final results = <Map<String, dynamic>>[];
-    // Search all channels (not just catch-up) — take first 30 for performance
+  Future<List<EpgSearchResult>> _searchEpg(String q, List<Channel> channels) async {
+    final results = <EpgSearchResult>[];
     final channelsToSearch = channels.take(30).toList();
 
     final futures = channelsToSearch.map((ch) async {
@@ -187,7 +187,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           final prog = raw as Map<String, dynamic>;
           final title = _decodeBase64(prog['title']?.toString() ?? '');
           if (title.isEmpty) continue;
-          // Match on title first (fast check), then description if needed
           final titleMatch = title.toLowerCase().contains(q);
           if (!titleMatch) {
             final desc = _decodeBase64(prog['description']?.toString() ?? '');
@@ -199,62 +198,64 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           final startUtc = DateTime.fromMillisecondsSinceEpoch(startEpoch * 1000, isUtc: true);
           final endUtc = DateTime.fromMillisecondsSinceEpoch(endEpoch * 1000, isUtc: true);
           final now = DateTime.now().toUtc();
-          final isPast = endUtc.isBefore(now);
-          final isCurrent = startUtc.isBefore(now) && endUtc.isAfter(now);
           final desc = titleMatch ? _decodeBase64(prog['description']?.toString() ?? '') : '';
-          results.add(<String, dynamic>{
-            'name': title,
-            'description': desc.length > 120 ? '${desc.substring(0, 120)}…' : desc,
-            'channel_name': ch.name,
-            'channel_icon': ch.displayIcon,
-            'stream_id': ch.streamId.toString(),
-            'start_utc': startUtc.toIso8601String(),
-            'end_utc': endUtc.toIso8601String(),
-            'start_server_local': prog['start']?.toString() ?? '',
-            'duration_min': endUtc.difference(startUtc).inMinutes,
-            'is_past': isPast,
-            'is_current': isCurrent,
-            'has_catchup': ch.hasCatchup,
-            '_mode': 'epg',
-          });
+          results.add(EpgSearchResult(
+            name: title,
+            description: desc.length > 120 ? '${desc.substring(0, 120)}\u2026' : desc,
+            channelName: ch.name,
+            channelIcon: ch.displayIcon,
+            streamId: ch.streamId.toString(),
+            startUtc: startUtc,
+            endUtc: endUtc,
+            startServerLocal: prog['start']?.toString() ?? '',
+            durationMin: endUtc.difference(startUtc).inMinutes,
+            isPast: endUtc.isBefore(now),
+            isCurrent: startUtc.isBefore(now) && endUtc.isAfter(now),
+            hasCatchup: ch.hasCatchup,
+          ));
         }
       } catch (_) {}
     });
     await Future.wait(futures);
 
-    // Sort: current first, then future, then past
     results.sort((a, b) {
-      final aCur = a['is_current'] == true ? 0 : (a['is_past'] == true ? 2 : 1);
-      final bCur = b['is_current'] == true ? 0 : (b['is_past'] == true ? 2 : 1);
+      final aCur = a.isCurrent ? 0 : (a.isPast ? 2 : 1);
+      final bCur = b.isCurrent ? 0 : (b.isPast ? 2 : 1);
       if (aCur != bCur) return aCur.compareTo(bCur);
-      return (a['start_utc'] as String).compareTo(b['start_utc'] as String);
+      return a.startUtc.toIso8601String().compareTo(b.startUtc.toIso8601String());
     });
     return results.take(30).toList();
   }
 
-  List<Map<String, dynamic>> _filtered(Map<String, double> progress) {
-    List<Map<String, dynamic>> list;
+  List<SearchResult> _filtered(Map<String, double> progress) {
+    List<SearchResult> list;
     switch (_tabCtrl.index) {
-      case 1: list = _results.where((r) => r['_mode'] == 'live').toList(); break;
-      case 2: list = _results.where((r) => r['_mode'] == 'vod').toList(); break;
-      case 3: list = _results.where((r) => r['_mode'] == 'series').toList(); break;
-      case 4: list = _results.where((r) => r['_mode'] == 'epg').toList(); break;
+      case 1: list = _results.whereType<LiveSearchResult>().toList(); break;
+      case 2: list = _results.whereType<VodSearchResult>().toList(); break;
+      case 3: list = _results.whereType<SeriesSearchResult>().toList(); break;
+      case 4: list = _results.whereType<EpgSearchResult>().toList(); break;
       default: list = List.from(_results);
     }
     // Apply watch status filter (only for VOD/series items)
     if (_statusFilter == 1) {
       list = list.where((r) {
-        final mode = r['_mode'] as String;
-        if (mode == 'live' || mode == 'epg') return true;
-        final id = mode == 'series' ? r['series_id']?.toString() : r['stream_id']?.toString();
+        if (r is LiveSearchResult || r is EpgSearchResult) return true;
+        final id = switch (r) {
+          VodSearchResult v => v.streamId.toString(),
+          SeriesSearchResult s => s.seriesId.toString(),
+          _ => null,
+        };
         if (id == null) return true;
         return progress[id] == null;
       }).toList();
     } else if (_statusFilter == 2) {
       list = list.where((r) {
-        final mode = r['_mode'] as String;
-        if (mode == 'live' || mode == 'epg') return false;
-        final id = mode == 'series' ? r['series_id']?.toString() : r['stream_id']?.toString();
+        if (r is LiveSearchResult || r is EpgSearchResult) return false;
+        final id = switch (r) {
+          VodSearchResult v => v.streamId.toString(),
+          SeriesSearchResult s => s.seriesId.toString(),
+          _ => null,
+        };
         if (id == null) return false;
         final p = progress[id];
         return p != null && p > 0 && p <= 0.95;
@@ -263,69 +264,58 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     return list;
   }
 
-  void _open(Map<String, dynamic> item) {
-    final mode = item['_mode'] as String;
+  void _open(SearchResult item) {
     final l10n = AppLocalizations.of(context)!;
-    final name = item['name'] as String? ?? l10n.sansTitre;
 
-    if (mode == 'series') {
-      Navigator.push(context, slideRoute(SeriesDetailScreen(
-        seriesId: item['series_id'].toString(),
-        title: name, cover: item['cover'] ?? '',
-        rating: item['rating']?.toString(),
-        categoryName: item['category_name']?.toString(),
-        plot: item['plot']?.toString() ?? item['description']?.toString(),
-      )));
-      return;
-    }
+    switch (item) {
+      case SeriesSearchResult s:
+        Navigator.push(context, slideRoute(SeriesDetailScreen(
+          seriesId: s.seriesId.toString(),
+          title: s.name, cover: s.cover,
+          rating: s.rating,
+          categoryName: s.categoryName,
+          plot: s.plot,
+        )));
 
-    if (mode == 'epg') {
-      // Open catch-up or live depending on timing
-      final streamId = item['stream_id'] as String;
-      final isPast = item['is_past'] == true;
-      final hasCatchup = item['has_catchup'] == true;
-      if (isPast && hasCatchup) {
-        final serverLocal = item['start_server_local'] as String? ?? '';
-        final durMin = item['duration_min'] as int? ?? 60;
-        String url;
-        if (serverLocal.isNotEmpty) {
-          url = _repo.getTimeshiftUrlFromLocal(streamId, serverLocal, durMin);
+      case EpgSearchResult e:
+        if (e.isPast && e.hasCatchup) {
+          String url;
+          if (e.startServerLocal.isNotEmpty) {
+            url = _repo.getTimeshiftUrlFromLocal(e.streamId, e.startServerLocal, e.durationMin);
+          } else {
+            url = _repo.getTimeshiftUrl(e.streamId, e.startUtc, e.durationMin);
+          }
+          Navigator.push(context, slideRoute(PlayerScreen(
+            url: url,
+            title: '${e.name} (${l10n.replay})',
+            streamId: e.streamId,
+            isCatchup: true,
+          )));
         } else {
-          final startUtc = DateTime.parse(item['start_utc'] as String);
-          url = _repo.getTimeshiftUrl(streamId, startUtc, durMin);
+          final url = _repo.getLiveStreamUrl(e.streamId);
+          Navigator.push(context, slideRoute(PlayerScreen(
+            url: url, title: e.channelName.isNotEmpty ? e.channelName : e.name,
+            streamId: e.streamId,
+          )));
         }
-        Navigator.push(context, slideRoute(PlayerScreen(
-          url: url,
-          title: '$name (${l10n.replay})',
-          streamId: streamId,
-          isCatchup: true,
-        )));
-      } else {
-        // Live or future — open live stream
-        final url = _repo.getLiveStreamUrl(streamId);
-        Navigator.push(context, slideRoute(PlayerScreen(
-          url: url, title: item['channel_name'] as String? ?? name,
-          streamId: streamId,
-        )));
-      }
-      return;
-    }
 
-    final url = mode == 'live'
-        ? _repo.getLiveStreamUrl(item['stream_id'].toString())
-        : _repo.getVodStreamUrl(item['stream_id'].toString(), item['container_extension'] ?? 'mp4');
-    final resumeKey = mode == 'vod' ? item['stream_id'].toString() : null;
-    if (resumeKey != null) {
-      WatchProgress.saveMeta(resumeKey, name,
-          item['stream_icon']?.toString() ?? '', url, mode);
+      case LiveSearchResult l:
+        final url = _repo.getLiveStreamUrl(l.streamId.toString());
+        Navigator.push(context, slideRoute(PlayerScreen(
+          url: url, title: l.name,
+          streamId: l.streamId.toString(),
+        )));
+
+      case VodSearchResult v:
+        final url = _repo.getVodStreamUrl(v.streamId.toString(), v.containerExtension);
+        WatchProgress.saveMeta(v.streamId.toString(), v.name,
+            v.streamIcon, url, 'vod');
+        Navigator.push(context, slideRoute(PlayerScreen(
+          url: url, title: v.name,
+          resumeKey: v.streamId.toString(),
+          coverUrl: v.streamIcon.isNotEmpty ? v.streamIcon : null,
+        )));
     }
-    Navigator.push(context, slideRoute(PlayerScreen(
-      url: url, title: name,
-      streamId: mode == 'live' ? item['stream_id'].toString() : null,
-      resumeKey: resumeKey,
-      coverUrl: mode == 'series' ? item['cover']?.toString()
-          : item['stream_icon']?.toString(),
-    )));
   }
 
   @override
@@ -349,10 +339,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
     // Count per tab for badges
     final counts = {
-      'live': _results.where((r) => r['_mode'] == 'live').length,
-      'vod': _results.where((r) => r['_mode'] == 'vod').length,
-      'series': _results.where((r) => r['_mode'] == 'series').length,
-      'epg': _results.where((r) => r['_mode'] == 'epg').length,
+      'live': _results.whereType<LiveSearchResult>().length,
+      'vod': _results.whereType<VodSearchResult>().length,
+      'series': _results.whereType<SeriesSearchResult>().length,
+      'epg': _results.whereType<EpgSearchResult>().length,
     };
 
     Widget body;
@@ -383,6 +373,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             onTap: () => _setQuery(_searchHistory[i]),
             trailing: IconButton(
               icon: Icon(Icons.north_west, color: tc.textDisabled, size: 14),
+              tooltip: l10n.rechercherDots,
               onPressed: () => _setQuery(_searchHistory[i]),
             ),
           )),
@@ -413,41 +404,50 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             itemCount: filtered.length,
             itemBuilder: (_, i) {
               final item = filtered[i];
-              final mode = item['_mode'] as String;
 
-              if (mode == 'epg') return _buildEpgTile(item, tc, modeColor);
+              if (item is EpgSearchResult) return _buildEpgTile(item, tc, modeColor);
 
-              final iconUrl = mode == 'series' ? item['cover'] : item['stream_icon'];
-              final id = mode == 'series' ? item['series_id']?.toString() : item['stream_id']?.toString();
-              final prog = (mode != 'live' && id != null) ? progress[id] : null;
+              final iconUrl = switch (item) {
+                LiveSearchResult l => l.streamIcon,
+                VodSearchResult v => v.streamIcon,
+                SeriesSearchResult s => s.cover,
+                _ => '',
+              };
+              final id = switch (item) {
+                LiveSearchResult l => l.streamId.toString(),
+                VodSearchResult v => v.streamId.toString(),
+                SeriesSearchResult s => s.seriesId.toString(),
+                _ => '',
+              };
+              final prog = (item is! LiveSearchResult && id.isNotEmpty) ? progress[id] : null;
               return ListTile(
-                leading: iconUrl != null && iconUrl.toString().isNotEmpty
+                leading: iconUrl.isNotEmpty
                     ? ClipRRect(borderRadius: BorderRadius.circular(4),
                         child: Container(
-                          color: mode == 'live' ? tc.logoBg : null,
-                          child: CachedNetworkImage(imageUrl: iconUrl.toString(), cacheManager: AppCacheManager.instance,
-                            width: 40, height: 40, fit: mode == 'live' ? BoxFit.contain : BoxFit.cover,
+                          color: item.mode == 'live' ? tc.logoBg : null,
+                          child: CachedNetworkImage(imageUrl: iconUrl, cacheManager: AppCacheManager.instance,
+                            width: 40, height: 40, fit: item.mode == 'live' ? BoxFit.contain : BoxFit.cover,
                             fadeInDuration: const Duration(milliseconds: 200),
-                            placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: mode == 'live' ? tc.logoBg : tc.inputFill)),
+                            placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: item.mode == 'live' ? tc.logoBg : tc.inputFill)),
                             errorWidget: (_, __, ___) =>
-                                Icon(modeIcons[mode], color: tc.borderColor, size: 24)),
+                                Icon(modeIcons[item.mode], color: tc.borderColor, size: 24)),
                         ))
-                    : Icon(modeIcons[mode], color: modeColor[mode]),
-                title: Text(item['name'] ?? '',
+                    : Icon(modeIcons[item.mode], color: modeColor[item.mode]),
+                title: Text(item.name,
                     style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
                 subtitle: prog != null
                     ? Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: LinearProgressIndicator(
+                        child: ExcludeSemantics(child: LinearProgressIndicator(
                           value: prog,
                           backgroundColor: tc.divider,
                           color: prog > 0.95 ? Colors.green : Colors.amber,
                           minHeight: 3,
                           borderRadius: BorderRadius.circular(2),
-                        ),
+                        )),
                       )
                     : null,
-                trailing: Icon(modeIcons[mode], color: tc.divider, size: 14),
+                trailing: ExcludeSemantics(child: Icon(modeIcons[item.mode], color: tc.divider, size: 14)),
                 hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 onTap: () => _open(item),
@@ -472,6 +472,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             suffixIcon: _query.isNotEmpty
                 ? IconButton(
                     icon: Icon(Icons.clear, size: 18, color: tc.textDisabled),
+                    tooltip: l10n.annuler,
                     onPressed: () {
                       _ctrl.clear();
                       setState(() { _query = ''; _results = []; });
@@ -559,67 +560,69 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     ]));
   }
 
-  Widget _buildEpgTile(Map<String, dynamic> item, AppThemeColors tc,
+  Widget _buildEpgTile(EpgSearchResult item, AppThemeColors tc,
       Map<String, Color> modeColor) {
-    final isPast = item['is_past'] == true;
-    final isCurrent = item['is_current'] == true;
-    final hasCatchup = item['has_catchup'] == true;
-    final channelName = item['channel_name'] as String? ?? '';
-    final durMin = item['duration_min'] as int? ?? 0;
-
     // Format time
-    final startUtc = DateTime.tryParse(item['start_utc'] ?? '');
-    final timeStr = startUtc != null
-        ? '${startUtc.toLocal().hour.toString().padLeft(2, '0')}:${startUtc.toLocal().minute.toString().padLeft(2, '0')}'
-        : '';
+    final timeStr = '${item.startUtc.toLocal().hour.toString().padLeft(2, '0')}:${item.startUtc.toLocal().minute.toString().padLeft(2, '0')}';
 
-    return ListTile(
-      leading: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.schedule, color: isCurrent ? Colors.green : Colors.orange, size: 20),
-          Text(timeStr, style: TextStyle(fontSize: 9, color: tc.textDisabled)),
-        ],
+    return Semantics(
+      button: true,
+      label: [
+        item.name,
+        item.channelName,
+        timeStr,
+        '${item.durationMin} min',
+        if (item.isCurrent) 'en direct',
+        if (item.isPast && item.hasCatchup) 'replay disponible',
+      ].join(', '),
+      child: ListTile(
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.schedule, color: item.isCurrent ? Colors.green : Colors.orange, size: 20),
+            Text(timeStr, style: TextStyle(fontSize: 9, color: tc.textDisabled)),
+          ],
+        ),
+        title: Text(item.name, style: const TextStyle(fontSize: 14),
+            overflow: TextOverflow.ellipsis),
+        subtitle: Row(children: [
+          Text(item.channelName, style: TextStyle(fontSize: 11, color: tc.textDisabled)),
+          const SizedBox(width: 6),
+          Text('${item.durationMin}min', style: TextStyle(fontSize: 10, color: tc.textDisabled)),
+          if (item.isCurrent) ...[
+            const SizedBox(width: 6),
+            ExcludeSemantics(child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: const Text('EN DIRECT', style: TextStyle(fontSize: 8,
+                  fontWeight: FontWeight.bold, color: Colors.green)),
+            )),
+          ],
+          if (item.isPast && item.hasCatchup) ...[
+            const SizedBox(width: 6),
+            ExcludeSemantics(child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.accentGreen.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.replay, size: 8, color: AppColors.accentGreen),
+                SizedBox(width: 2),
+                Text('REPLAY', style: TextStyle(fontSize: 8,
+                    fontWeight: FontWeight.bold, color: AppColors.accentGreen)),
+              ]),
+            )),
+          ],
+        ]),
+        trailing: ExcludeSemantics(child: Icon(Icons.schedule, color: tc.divider, size: 14)),
+        hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        onTap: () => _open(item),
       ),
-      title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 14),
-          overflow: TextOverflow.ellipsis),
-      subtitle: Row(children: [
-        Text(channelName, style: TextStyle(fontSize: 11, color: tc.textDisabled)),
-        const SizedBox(width: 6),
-        Text('${durMin}min', style: TextStyle(fontSize: 10, color: tc.textDisabled)),
-        if (isCurrent) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: const Text('EN DIRECT', style: TextStyle(fontSize: 8,
-                fontWeight: FontWeight.bold, color: Colors.green)),
-          ),
-        ],
-        if (isPast && hasCatchup) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            decoration: BoxDecoration(
-              color: AppColors.accentGreen.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.replay, size: 8, color: AppColors.accentGreen),
-              SizedBox(width: 2),
-              Text('REPLAY', style: TextStyle(fontSize: 8,
-                  fontWeight: FontWeight.bold, color: AppColors.accentGreen)),
-            ]),
-          ),
-        ],
-      ]),
-      trailing: Icon(Icons.schedule, color: tc.divider, size: 14),
-      hoverColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onTap: () => _open(item),
     );
   }
 }

@@ -6,7 +6,6 @@ import '../../../core/cache_config.dart';
 import '../../../core/colors.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/continue_watching_item.dart';
-import '../../../models/vod_item.dart';
 import '../../../utils/stream_helpers.dart';
 
 /// Horizontal carousel of "Continue watching" items with type badges.
