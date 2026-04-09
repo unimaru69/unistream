@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
+import 'package:unistream/models/history_entry.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
@@ -19,30 +20,25 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  void _play(Map<String, String> item) {
+  void _play(HistoryEntry item) {
     ScaffoldMessenger.of(context).clearSnackBars();
-    final mode = item['mode'] ?? 'live';
     final l10n = AppLocalizations.of(context)!;
-    final name = item['name'] ?? l10n.sansTitre;
-    final url  = item['url'] ?? '';
-    final cover = item['cover'] ?? '';
 
-    if (mode == 'series' && url.isEmpty) {
-      final key = item['key'] ?? '';
-      final seriesId = key.startsWith('series:') ? key.substring(7) : key;
+    if (item.mode == 'series' && item.url.isEmpty) {
+      final seriesId = item.key.startsWith('series:') ? item.key.substring(7) : item.key;
       Navigator.push(context, slideRoute(SeriesDetailScreen(
-        seriesId: seriesId, title: name, cover: cover,
+        seriesId: seriesId, title: item.name, cover: item.cover,
       )));
       return;
     }
 
-    final resumeKey = mode == 'vod' || mode == 'series'
-        ? (item['key']?.replaceFirst(RegExp(r'^(vod|series):'), '') ?? '')
+    final resumeKey = item.mode == 'vod' || item.mode == 'series'
+        ? item.key.replaceFirst(RegExp(r'^(vod|series):'), '')
         : null;
     Navigator.push(context, slideRoute(PlayerScreen(
-      url: url, title: name,
+      url: item.url, title: item.name,
       resumeKey: resumeKey,
-      coverUrl: cover.isNotEmpty ? cover : null,
+      coverUrl: item.cover.isNotEmpty ? item.cover : null,
     )));
   }
 
@@ -111,10 +107,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             itemCount: history.length,
             itemBuilder: (_, i) {
               final item = history[i];
-              final cover = item['cover'] ?? '';
-              final mode  = item['mode'] ?? '';
-              final ts    = item['timestamp'] ?? '';
-              final itemKey = item['key'] ?? '$mode:${item['name']}';
+              final itemKey = item.key.isNotEmpty ? item.key : '${item.mode}:${item.name}';
               return Dismissible(
                 key: ValueKey(itemKey),
                 direction: DismissDirection.endToStart,
@@ -128,7 +121,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   child: const Icon(Icons.delete, color: Colors.redAccent),
                 ),
                 onDismissed: (_) {
-                  final removedItem = Map<String, String>.from(item);
+                  final removedItem = item;
                   ref.read(historyProvider.notifier).deleteEntry(itemKey);
                   ScaffoldMessenger.of(context).clearSnackBars();
                   showAppSnackBar(context, l10n.entreeSupprimee,
@@ -140,32 +133,32 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: ListTile(
-                    leading: cover.isNotEmpty
+                    leading: item.cover.isNotEmpty
                         ? ClipRRect(borderRadius: BorderRadius.circular(4),
-                            child: CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
+                            child: CachedNetworkImage(imageUrl: item.cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
                               fadeInDuration: const Duration(milliseconds: 200),
                               placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
                               errorWidget: (_, __, ___) => Icon(Icons.play_circle, color: tc.borderColor)))
                         : Icon(Icons.play_circle, color: tc.textDisabled),
-                    title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 14),
+                    title: Text(item.name, style: const TextStyle(fontSize: 14),
                         overflow: TextOverflow.ellipsis),
                     subtitle: Row(children: [
-                      Container(
+                      ExcludeSemantics(child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: (_modeColors[mode] ?? Colors.grey).withValues(alpha: 0.2),
+                          color: (_modeColors[item.mode] ?? Colors.grey).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4)),
-                        child: Text(_modeLabels(l10n)[mode] ?? mode,
-                            style: TextStyle(fontSize: 10, color: _modeColors[mode] ?? Colors.grey)),
-                      ),
+                        child: Text(_modeLabels(l10n)[item.mode] ?? item.mode,
+                            style: TextStyle(fontSize: 10, color: _modeColors[item.mode] ?? Colors.grey)),
+                      )),
                       const SizedBox(width: 8),
-                      Text(_formatDate(ts, l10n), style: TextStyle(fontSize: 11, color: tc.textDisabled)),
+                      Text(_formatDate(item.timestamp, l10n), style: TextStyle(fontSize: 11, color: tc.textDisabled)),
                     ]),
                     trailing: IconButton(
                       icon: Icon(Icons.delete_outline, size: 18, color: tc.borderColor),
                       tooltip: l10n.supprimer,
                       onPressed: () {
-                        final removedItem = Map<String, String>.from(item);
+                        final removedItem = item;
                         ref.read(historyProvider.notifier).deleteEntry(itemKey);
                         ScaffoldMessenger.of(context).clearSnackBars();
                         showAppSnackBar(context, l10n.entreeSupprimee,

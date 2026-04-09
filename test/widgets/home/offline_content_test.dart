@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/models/continue_watching_item.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
 import 'package:unistream/screens/home/widgets/offline_content.dart';
@@ -10,13 +11,13 @@ void main() {
   group('OfflineContent', () {
     Widget buildOfflineContent({
       VoidCallback? onRetry,
-      List<Map<String, dynamic>>? continueItems,
+      List<ContinueWatchingItem>? continueItems,
       FavoritesState? favState,
     }) {
       return ProviderScope(
         overrides: [
           continueWatchingProvider.overrideWith(
-            (ref) => Future.value(continueItems ?? []),
+            (ref) => Future.value(continueItems ?? <ContinueWatchingItem>[]),
           ),
           favoritesProvider.overrideWith((ref) {
             final notifier = FavoritesNotifier();

@@ -113,8 +113,8 @@ void main() {
 
       final result = await WatchProgress.loadContinueWatching();
       expect(result.length, 1);
-      expect(result[0]['name'], 'Test Movie');
-      expect(result[0]['_id'], 'movie_cw');
+      expect(result[0].name, 'Test Movie');
+      expect(result[0].id, 'movie_cw');
     });
 
     test('excludes items with position < 30s', () async {
@@ -171,7 +171,7 @@ void main() {
       );
       final result = await WatchProgress.loadHistory();
       expect(result.length, 1);
-      expect(result[0]['name'], 'Movie 1 new');
+      expect(result[0].name, 'Movie 1 new');
     });
 
     test('deleteHistoryEntry removes entry', () async {
@@ -184,7 +184,7 @@ void main() {
       await WatchProgress.deleteHistoryEntry('h1');
       final result = await WatchProgress.loadHistory();
       expect(result.length, 1);
-      expect(result[0]['key'], 'h2');
+      expect(result[0].key, 'h2');
     });
 
     test('clearHistory removes all entries', () async {
@@ -208,7 +208,7 @@ void main() {
       await WatchProgress.reInsertHistoryEntry(entry);
       final restored = await WatchProgress.loadHistory();
       expect(restored.length, 1);
-      expect(restored[0]['key'], 'h1');
+      expect(restored[0].key, 'h1');
     });
 
     test('deleteHistoryEntry with no data is a no-op', () async {

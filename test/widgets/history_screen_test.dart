@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/models/history_entry.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
 import 'package:unistream/screens/history_screen.dart';
 
 /// A fake HistoryNotifier that returns controlled data without touching SharedPreferences.
-class FakeHistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, String>>>>
+class FakeHistoryNotifier extends StateNotifier<AsyncValue<List<HistoryEntry>>>
     implements HistoryNotifier {
-  FakeHistoryNotifier(List<Map<String, String>> data)
+  FakeHistoryNotifier(List<HistoryEntry> data)
       : super(AsyncValue.data(data));
 
   @override
@@ -18,7 +19,7 @@ class FakeHistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, Stri
   Future<void> deleteEntry(String key) async {}
 
   @override
-  Future<void> reInsertEntry(Map<String, String> entry) async {}
+  Future<void> reInsertEntry(HistoryEntry entry) async {}
 
   @override
   Future<void> clearAll() async {
@@ -28,7 +29,7 @@ class FakeHistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, Stri
 
 void main() {
   group('HistoryScreen', () {
-    Widget buildHistory({List<Map<String, String>>? items}) {
+    Widget buildHistory({List<HistoryEntry>? items}) {
       final data = items ?? [];
       return ProviderScope(
         overrides: [
@@ -60,14 +61,14 @@ void main() {
     testWidgets('renders history items', (tester) async {
       final now = DateTime.now().toIso8601String();
       await tester.pumpWidget(buildHistory(items: [
-        {
-          'name': 'Test Movie',
-          'mode': 'vod',
-          'cover': '',
-          'url': 'http://test.com/movie.mp4',
-          'timestamp': now,
-          'key': 'vod:1',
-        },
+        HistoryEntry(
+          name: 'Test Movie',
+          mode: 'vod',
+          cover: '',
+          url: 'http://test.com/movie.mp4',
+          timestamp: now,
+          key: 'vod:1',
+        ),
       ]));
       await tester.pumpAndSettle();
 
@@ -78,14 +79,14 @@ void main() {
     testWidgets('renders mode badge with correct label', (tester) async {
       final now = DateTime.now().toIso8601String();
       await tester.pumpWidget(buildHistory(items: [
-        {
-          'name': 'Live Channel',
-          'mode': 'live',
-          'cover': '',
-          'url': 'http://test.com/live',
-          'timestamp': now,
-          'key': 'live:1',
-        },
+        HistoryEntry(
+          name: 'Live Channel',
+          mode: 'live',
+          cover: '',
+          url: 'http://test.com/live',
+          timestamp: now,
+          key: 'live:1',
+        ),
       ]));
       await tester.pumpAndSettle();
 
@@ -95,14 +96,14 @@ void main() {
     testWidgets('shows clear button when history is not empty', (tester) async {
       final now = DateTime.now().toIso8601String();
       await tester.pumpWidget(buildHistory(items: [
-        {
-          'name': 'Something',
-          'mode': 'vod',
-          'cover': '',
-          'url': '',
-          'timestamp': now,
-          'key': 'vod:1',
-        },
+        HistoryEntry(
+          name: 'Something',
+          mode: 'vod',
+          cover: '',
+          url: '',
+          timestamp: now,
+          key: 'vod:1',
+        ),
       ]));
       await tester.pumpAndSettle();
 
@@ -121,14 +122,14 @@ void main() {
     testWidgets('each item has a delete icon button', (tester) async {
       final now = DateTime.now().toIso8601String();
       await tester.pumpWidget(buildHistory(items: [
-        {
-          'name': 'Item 1',
-          'mode': 'vod',
-          'cover': '',
-          'url': '',
-          'timestamp': now,
-          'key': 'vod:1',
-        },
+        HistoryEntry(
+          name: 'Item 1',
+          mode: 'vod',
+          cover: '',
+          url: '',
+          timestamp: now,
+          key: 'vod:1',
+        ),
       ]));
       await tester.pumpAndSettle();
 
@@ -139,14 +140,14 @@ void main() {
     testWidgets('shows play_circle icon when no cover', (tester) async {
       final now = DateTime.now().toIso8601String();
       await tester.pumpWidget(buildHistory(items: [
-        {
-          'name': 'No Cover Item',
-          'mode': 'vod',
-          'cover': '',
-          'url': '',
-          'timestamp': now,
-          'key': 'vod:1',
-        },
+        HistoryEntry(
+          name: 'No Cover Item',
+          mode: 'vod',
+          cover: '',
+          url: '',
+          timestamp: now,
+          key: 'vod:1',
+        ),
       ]));
       await tester.pumpAndSettle();
 

@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/continue_watching_item.dart';
+import '../models/history_entry.dart';
 import '../services/watch_progress.dart';
 
 /// All watch progress ratios: key -> [0.0, 1.0]
@@ -7,12 +9,12 @@ final watchProgressProvider = FutureProvider<Map<String, double>>((ref) async {
 });
 
 /// Items currently being watched (for "Continuer a regarder" banner)
-final continueWatchingProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final continueWatchingProvider = FutureProvider<List<ContinueWatchingItem>>((ref) async {
   return WatchProgress.loadContinueWatching();
 });
 
 /// Watch history
-class HistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, String>>>> {
+class HistoryNotifier extends StateNotifier<AsyncValue<List<HistoryEntry>>> {
   HistoryNotifier() : super(const AsyncValue.loading()) {
     load();
   }
@@ -27,7 +29,7 @@ class HistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, String>>
     await load();
   }
 
-  Future<void> reInsertEntry(Map<String, String> entry) async {
+  Future<void> reInsertEntry(HistoryEntry entry) async {
     await WatchProgress.reInsertHistoryEntry(entry);
     await load();
   }
@@ -39,6 +41,6 @@ class HistoryNotifier extends StateNotifier<AsyncValue<List<Map<String, String>>
 }
 
 final historyProvider =
-    StateNotifierProvider<HistoryNotifier, AsyncValue<List<Map<String, String>>>>((ref) {
+    StateNotifierProvider<HistoryNotifier, AsyncValue<List<HistoryEntry>>>((ref) {
   return HistoryNotifier();
 });

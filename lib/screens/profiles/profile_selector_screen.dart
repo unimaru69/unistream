@@ -103,7 +103,14 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      label: [
+        profile.name,
+        if (profile.hasPin) 'protégé par PIN',
+        if (isActive) 'profil actif',
+      ].join(', '),
+      child: GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -132,11 +139,11 @@ class _ProfileCard extends StatelessWidget {
           if (profile.hasPin)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Icon(Icons.lock_outline, size: 12,
-                  color: Colors.white.withValues(alpha: 0.5)),
+              child: ExcludeSemantics(child: Icon(Icons.lock_outline, size: 12,
+                  color: Colors.white.withValues(alpha: 0.5))),
             ),
         ],
       ),
-    );
+    ));
   }
 }

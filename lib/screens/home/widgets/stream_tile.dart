@@ -149,122 +149,145 @@ class StreamGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
     final cover = _streamDisplayIcon(stream);
+    final name = _streamName(stream);
 
-    return GestureDetector(
-      onTap: onTap,
-      onSecondaryTapUp: selectionMode ? null : onSecondaryTap,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Stack(fit: StackFit.expand, children: [
-              if (cover.isNotEmpty)
-                Container(
-                  color: mode == ContentMode.live ? tc.logoBg : null,
-                  child: networkImage(cover, context: context, mode: mode),
-                )
-              else
-                Container(color: mode == ContentMode.live ? tc.logoBg : tc.inputFill,
-                    child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
-                        color: tc.borderColor, size: 32)),
-              // Progress bar
-              if (progress != null)
-                Positioned(bottom: 0, left: 0, right: 0,
-                  child: LinearProgressIndicator(
-                    value: progress!,
-                    backgroundColor: tc.divider,
-                    color: Colors.amber,
-                    minHeight: 4,
+    return Semantics(
+      button: true,
+      label: [
+        name,
+        if (isFav) 'favori',
+        if (isInWatchlist) 'à regarder',
+        if (progress != null) '${(progress! * 100).round()}%',
+        if (selectionMode && isSelected) 'sélectionné',
+      ].join(', '),
+      child: GestureDetector(
+        onTap: onTap,
+        onSecondaryTapUp: selectionMode ? null : onSecondaryTap,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Stack(fit: StackFit.expand, children: [
+                if (cover.isNotEmpty)
+                  Container(
+                    color: mode == ContentMode.live ? tc.logoBg : null,
+                    child: networkImage(cover, context: context, mode: mode),
+                  )
+                else
+                  Container(color: mode == ContentMode.live ? tc.logoBg : tc.inputFill,
+                      child: Icon(mode == ContentMode.series ? Icons.movie : Icons.tv,
+                          color: tc.borderColor, size: 32)),
+                // Progress bar
+                if (progress != null)
+                  Positioned(bottom: 0, left: 0, right: 0,
+                    child: ExcludeSemantics(child: LinearProgressIndicator(
+                      value: progress!,
+                      backgroundColor: tc.divider,
+                      color: Colors.amber,
+                      minHeight: 4,
+                    )),
                   ),
-                ),
-              // Remove from collection
-              if (!selectionMode && isInCollection)
-                Positioned(bottom: 4, right: 4,
-                  child: GestureDetector(
-                    onTap: onRemoveFromCollection,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
+                // Remove from collection
+                if (!selectionMode && isInCollection)
+                  Positioned(bottom: 4, right: 4,
+                    child: Semantics(
+                      button: true,
+                      label: 'Retirer de la collection',
+                      child: GestureDetector(
+                        onTap: onRemoveFromCollection,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Catch-up badge for live channels
+                if (mode == ContentMode.live && stream is Channel && (stream as Channel).hasCatchup)
+                  Positioned(bottom: 4, left: 4,
+                    child: ExcludeSemantics(child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 14),
+                          color: AppColors.accentGreen.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.replay, color: Colors.white, size: 10),
+                        SizedBox(width: 2),
+                        Text('Replay', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
+                      ]),
+                    )),
+                  ),
+                // Watchlist bookmark
+                if (mode != ContentMode.live)
+                  Positioned(top: 4, left: 4,
+                    child: Semantics(
+                      button: true,
+                      label: isInWatchlist ? 'Retirer de la liste' : 'Ajouter à regarder plus tard',
+                      child: GestureDetector(
+                        onTap: onToggleWatchlist,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Icon(isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
+                              color: isInWatchlist ? Colors.tealAccent : tc.textTertiary, size: 14),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              // Catch-up badge for live channels
-              if (mode == ContentMode.live && stream is Channel && (stream as Channel).hasCatchup)
-                Positioned(bottom: 4, left: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: AppColors.accentGreen.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(4)),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.replay, color: Colors.white, size: 10),
-                      SizedBox(width: 2),
-                      Text('Replay', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600)),
-                    ]),
+                // Favorite star
+                if (!selectionMode)
+                  Positioned(top: 4, right: 4,
+                    child: Semantics(
+                      button: true,
+                      label: isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                      child: GestureDetector(
+                        onTap: onToggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Icon(isFav ? Icons.star : Icons.star_border,
+                              color: isFav ? Colors.amber : tc.textTertiary, size: 14),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              // Watchlist bookmark
-              if (mode != ContentMode.live)
-                Positioned(top: 4, left: 4,
-                  child: GestureDetector(
-                    onTap: onToggleWatchlist,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
+                // Selection checkbox
+                if (selectionMode)
+                  Positioned(top: 4, right: 4,
+                    child: ExcludeSemantics(child: Container(
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                          color: Colors.black54,
+                          color: isSelected ? AppColors.primaryBlue : Colors.black54,
                           borderRadius: BorderRadius.circular(12)),
-                      child: Icon(isInWatchlist ? Icons.bookmark : Icons.bookmark_border,
-                          color: isInWatchlist ? Colors.tealAccent : tc.textTertiary, size: 14),
-                    ),
+                      child: Icon(isSelected ? Icons.check : Icons.circle_outlined,
+                          color: tc.textPrimary, size: 16),
+                    )),
                   ),
-                ),
-              // Favorite star
-              if (!selectionMode)
-                Positioned(top: 4, right: 4,
-                  child: GestureDetector(
-                    onTap: onToggleFavorite,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
+                // Selection border
+                if (isSelected)
+                  Positioned.fill(
+                    child: ExcludeSemantics(child: Container(
                       decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Icon(isFav ? Icons.star : Icons.star_border,
-                          color: isFav ? Colors.amber : tc.textTertiary, size: 14),
-                    ),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.primaryBlue, width: 2),
+                      ),
+                    )),
                   ),
-                ),
-              // Selection checkbox
-              if (selectionMode)
-                Positioned(top: 4, right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryBlue : Colors.black54,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Icon(isSelected ? Icons.check : Icons.circle_outlined,
-                        color: tc.textPrimary, size: 16),
-                  ),
-                ),
-              // Selection border
-              if (isSelected)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.primaryBlue, width: 2),
-                    ),
-                  ),
-                ),
-            ]),
+              ]),
+            ),
           ),
-        ),
-        const SizedBox(height: 5),
-        Text(_streamName(stream), style: TextStyle(fontSize: 11, color: tc.textSecondary),
-            maxLines: 2, overflow: TextOverflow.ellipsis),
-      ]),
+          const SizedBox(height: 5),
+          ExcludeSemantics(child: Text(name, style: TextStyle(fontSize: 11, color: tc.textSecondary),
+              maxLines: 2, overflow: TextOverflow.ellipsis)),
+        ]),
+      ),
     );
   }
 }

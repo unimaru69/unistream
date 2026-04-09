@@ -55,9 +55,9 @@ class OfflineContent extends ConsumerWidget {
                 itemCount: offlineContinueItems.length,
                 itemBuilder: (_, i) {
                   final item  = offlineContinueItems[i];
-                  final ratio = item['_ratio'] as double;
-                  final cover = item['cover'] as String? ?? '';
-                  final name  = item['name']  as String? ?? '';
+                  final ratio = item.ratio;
+                  final cover = item.cover;
+                  final name  = item.name;
                   return Tooltip(
                     message: l10n.connexionRequise,
                     child: Opacity(

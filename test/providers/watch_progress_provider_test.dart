@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/models/app_config.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
+import 'package:unistream/models/continue_watching_item.dart';
 import 'package:unistream/services/watch_progress.dart';
 
 void main() {
@@ -29,7 +30,7 @@ void main() {
       final notifier = HistoryNotifier();
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(notifier.state.value!.length, 1);
-      expect(notifier.state.value![0]['key'], 'h1');
+      expect(notifier.state.value![0].key, 'h1');
     });
 
     test('deleteEntry removes entry and reloads', () async {
@@ -45,7 +46,7 @@ void main() {
       await notifier.deleteEntry('h1');
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(notifier.state.value!.length, 1);
-      expect(notifier.state.value![0]['key'], 'h2');
+      expect(notifier.state.value![0].key, 'h2');
     });
 
     test('reInsertEntry restores an entry', () async {
@@ -96,7 +97,7 @@ void main() {
       addTearDown(container.dispose);
 
       final result = await container.read(continueWatchingProvider.future);
-      expect(result, isA<List<Map<String, dynamic>>>());
+      expect(result, isA<List<ContinueWatchingItem>>());
       expect(result, isEmpty);
     });
   });

@@ -61,7 +61,11 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
     final l10n = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // Tappable header
-      InkWell(
+      Semantics(
+        button: true,
+        label: '${l10n.programmesRecents} (${widget.programs.length})',
+        hint: _expanded ? 'Replier' : 'Déplier',
+        child: InkWell(
         onTap: () => setState(() => _expanded = !_expanded),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
@@ -82,7 +86,7 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
             ),
           ]),
         ),
-      ),
+      )),
       // Animated carousel
       AnimatedCrossFade(
         firstChild: const SizedBox.shrink(),
@@ -95,7 +99,10 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
             itemBuilder: (_, i) {
               final prog = widget.programs[i];
               final ago = _timeAgo(prog.endUtc, l10n);
-              return GestureDetector(
+              return Semantics(
+                button: true,
+                label: '${_decodeEpgTitle(prog.title)}, ${prog.channelName}, ${prog.durationMin} min, replay',
+                child: GestureDetector(
                 onTap: () => widget.onTap(prog),
                 child: Container(
                   width: 180,
@@ -163,6 +170,7 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
+              ),
               );
             },
           ),

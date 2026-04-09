@@ -5,11 +5,14 @@ import 'package:unistream/core/theme_colors.dart';
 import '../../../core/cache_config.dart';
 import '../../../core/colors.dart';
 import '../../../models/content_mode.dart';
+import '../../../models/continue_watching_item.dart';
+import '../../../models/vod_item.dart';
+import '../../../utils/stream_helpers.dart';
 
 /// Horizontal carousel of "Continue watching" items with type badges.
 class ContinueWatchingRow extends StatelessWidget {
-  final List<Map<String, dynamic>> items;
-  final void Function(Map<String, dynamic> item) onTap;
+  final List<ContinueWatchingItem> items;
+  final void Function(ContinueWatchingItem item) onTap;
 
   const ContinueWatchingRow({
     super.key,
@@ -42,13 +45,9 @@ class ContinueWatchingRow extends StatelessWidget {
           itemCount: items.length,
           itemBuilder: (_, i) {
             final item  = items[i];
-            final ratio = item['_ratio'] as double;
-            final cover = item['cover'] as String? ?? '';
-            final name  = item['name']  as String? ?? '';
-            final mode  = item['mode']  as String? ?? '';
-            final badge = _modeBadges[mode];
+            final badge = _modeBadges[item.mode];
             return Semantics(
-              label: '${name.isNotEmpty ? name : 'Contenu'}, ${(ratio * 100).round()}% regard\u00e9${badge != null ? ', ${badge.label}' : ''}',
+              label: '${item.name.isNotEmpty ? item.name : 'Contenu'}, ${(item.ratio * 100).round()}% regard\u00e9${badge != null ? ', ${badge.label}' : ''}',
               button: true,
               child: GestureDetector(
               onTap: () => onTap(item),
@@ -59,8 +58,8 @@ class ContinueWatchingRow extends StatelessWidget {
                   Expanded(child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Stack(fit: StackFit.expand, children: [
-                      cover.isNotEmpty
-                          ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
+                      item.cover.isNotEmpty
+                          ? CachedNetworkImage(imageUrl: item.cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
                               fadeInDuration: const Duration(milliseconds: 200),
                               placeholder: (_, __) => ColoredBox(color: tc.inputFill),
                               errorWidget: (_, __, ___) => Container(color: tc.inputFill,
@@ -70,7 +69,7 @@ class ContinueWatchingRow extends StatelessWidget {
                       // Mode badge
                       if (badge != null)
                         Positioned(top: 4, left: 4,
-                          child: Container(
+                          child: ExcludeSemantics(child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               color: badge.color.withValues(alpha: 0.85),
@@ -78,10 +77,10 @@ class ContinueWatchingRow extends StatelessWidget {
                             ),
                             child: Text(badge.label,
                                 style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
-                          ),
+                          )),
                         ),
                       // Play overlay
-                      Center(
+                      ExcludeSemantics(child: Center(
                         child: Container(
                           width: 28, height: 28,
                           decoration: BoxDecoration(
@@ -90,21 +89,21 @@ class ContinueWatchingRow extends StatelessWidget {
                           ),
                           child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
                         ),
-                      ),
+                      )),
                       // Progress bar
                       Positioned(bottom: 0, left: 0, right: 0,
-                        child: LinearProgressIndicator(
-                          value: ratio,
+                        child: ExcludeSemantics(child: LinearProgressIndicator(
+                          value: item.ratio,
                           backgroundColor: tc.divider,
                           color: Colors.amber,
                           minHeight: 3,
-                        ),
+                        )),
                       ),
                     ]),
                   )),
                   const SizedBox(height: 3),
-                  Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ExcludeSemantics(child: Text(item.name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
+                      maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ]),
               ),
             ),
@@ -119,9 +118,9 @@ class ContinueWatchingRow extends StatelessWidget {
 
 /// Horizontal carousel of "Recently added" items.
 class RecentlyAddedRow extends StatelessWidget {
-  final List<Map<String, dynamic>> items;
+  final List<dynamic> items;
   final ContentMode mode;
-  final void Function(Map<String, dynamic> item) onTap;
+  final void Function(dynamic item) onTap;
 
   const RecentlyAddedRow({
     super.key,
@@ -148,32 +147,34 @@ class RecentlyAddedRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           itemCount: items.length,
           itemBuilder: (_, i) {
-            final item  = items[i];
-            final cover = mode == ContentMode.series
-                ? (item['cover'] as String? ?? '')
-                : (item['stream_icon'] as String? ?? '');
-            final name  = item['name'] as String? ?? '';
-            return GestureDetector(
-              onTap: () => onTap(item),
-              child: Container(
-                width: 90,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Expanded(child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: cover.isNotEmpty
-                        ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
-                            fadeInDuration: const Duration(milliseconds: 200),
-                            placeholder: (_, __) => ColoredBox(color: tc.inputFill),
-                            errorWidget: (_, __, ___) => Container(color: tc.inputFill,
-                                child: Icon(Icons.fiber_new, color: tc.borderColor)))
-                        : Container(color: tc.inputFill,
-                            child: Icon(Icons.fiber_new, color: tc.borderColor)),
-                  )),
-                  const SizedBox(height: 3),
-                  Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                ]),
+            final item = items[i];
+            final cover = getStreamIcon(item);
+            final name = getStreamName(item);
+            return Semantics(
+              label: name.isNotEmpty ? name : 'Contenu',
+              button: true,
+              child: GestureDetector(
+                onTap: () => onTap(item),
+                child: Container(
+                  width: 90,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Expanded(child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: cover.isNotEmpty
+                          ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
+                              fadeInDuration: const Duration(milliseconds: 200),
+                              placeholder: (_, __) => ColoredBox(color: tc.inputFill),
+                              errorWidget: (_, __, ___) => Container(color: tc.inputFill,
+                                  child: Icon(Icons.fiber_new, color: tc.borderColor)))
+                          : Container(color: tc.inputFill,
+                              child: Icon(Icons.fiber_new, color: tc.borderColor)),
+                    )),
+                    const SizedBox(height: 3),
+                    ExcludeSemantics(child: Text(name, style: TextStyle(fontSize: 10, color: tc.textSecondary),
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ]),
+                ),
               ),
             );
           },

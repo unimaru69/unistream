@@ -68,7 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ConnectivityStatus? _prevConnectivity;
 
   // Recently added (VOD/Series)
-  List<Map<String, dynamic>> _recentlyAdded = [];
+  List<dynamic> _recentlyAdded = [];
 
   // Catch-up programs (Live mode only)
   List<CatchupProgram> _catchupPrograms = [];
@@ -338,12 +338,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final added = (s is VodItem ? s.added : s is SeriesItem ? s.added : null)?.toString() ?? '0';
         final lastMod = (s is VodItem ? s.lastModified : s is SeriesItem ? s.lastModified : null)?.toString() ?? '0';
         return (added.isNotEmpty && added != '0') || (lastMod.isNotEmpty && lastMod != '0');
-      }).map((s) => streamToMap(s)).toList();
+      }).toList();
       items.sort((a, b) {
-        final ta = int.tryParse(a['added']?.toString() ?? '0') ?? 0;
-        final tb = int.tryParse(b['added']?.toString() ?? '0') ?? 0;
-        final ma = int.tryParse(a['last_modified']?.toString() ?? '0') ?? 0;
-        final mb = int.tryParse(b['last_modified']?.toString() ?? '0') ?? 0;
+        final ta = int.tryParse((a is VodItem ? a.added : a is SeriesItem ? a.added : null)?.toString() ?? '0') ?? 0;
+        final tb = int.tryParse((b is VodItem ? b.added : b is SeriesItem ? b.added : null)?.toString() ?? '0') ?? 0;
+        final ma = int.tryParse((a is VodItem ? a.lastModified : a is SeriesItem ? a.lastModified : null)?.toString() ?? '0') ?? 0;
+        final mb = int.tryParse((b is VodItem ? b.lastModified : b is SeriesItem ? b.lastModified : null)?.toString() ?? '0') ?? 0;
         final sa = ta > ma ? ta : ma;
         final sb = tb > mb ? tb : mb;
         return sb.compareTo(sa);
@@ -695,7 +695,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               )
             : null,
         onModeChanged: (newMode) {
-          setState(() { _mode = newMode; _streams = []; _selectedCategory = null; _recentlyAdded = <Map<String, dynamic>>[]; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
+          setState(() { _mode = newMode; _streams = []; _selectedCategory = null; _recentlyAdded = []; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
           AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': newMode.key});
           _loadGridView();
           _loadSortMode();
@@ -738,9 +738,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 items: continueItems,
                 onTap: (item) => Navigator.push(context, slideRoute(
                   PlayerScreen(
-                    url: item['url'] as String? ?? '',
-                    title: item['name'] as String? ?? '',
-                    resumeKey: item['_id'] as String,
+                    url: item.url,
+                    title: item.name,
+                    resumeKey: item.id,
                   ),
                 )).then((_) => _refreshProgress()),
               ),
@@ -766,7 +766,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               RecentlyAddedRow(
                 items: parentalActive
                     ? _recentlyAdded.where((item) =>
-                        !blockedIds.contains(item['category_id']?.toString())).toList()
+                        !blockedIds.contains(getStreamCategoryId(item))).toList()
                     : _recentlyAdded,
                 mode: _mode,
                 onTap: _playStream,

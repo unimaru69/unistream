@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
+import '../models/continue_watching_item.dart';
+import '../models/history_entry.dart';
 import 'sync_service.dart';
 
 class WatchProgress {
@@ -76,10 +78,10 @@ class WatchProgress {
   }
 
   /// Retourne la liste des items en cours de visionnage, tries par date de derniere lecture.
-  static Future<List<Map<String, dynamic>>> loadContinueWatching() async {
+  static Future<List<ContinueWatchingItem>> loadContinueWatching() async {
     final p = await SharedPreferences.getInstance();
     final prefix = StorageKeys.wpPositionPrefix(_pid);
-    final result = <Map<String, dynamic>>[];
+    final result = <ContinueWatchingItem>[];
     for (final k in p.getKeys()) {
       if (!k.startsWith(prefix)) continue;
       final id  = k.substring(prefix.length);
@@ -89,9 +91,9 @@ class WatchProgress {
       final metaStr = p.getString(StorageKeys.wpMeta(_pid, id));
       if (metaStr == null) continue;
       final meta = Map<String, dynamic>.from(jsonDecode(metaStr) as Map);
-      result.add({...meta, '_id': id, '_ratio': (pos / dur).clamp(0.0, 1.0)});
+      result.add(ContinueWatchingItem.fromMap({...meta, '_id': id, '_ratio': (pos / dur).clamp(0.0, 1.0)}));
     }
-    result.sort((a, b) => (b['ts'] as int? ?? 0).compareTo(a['ts'] as int? ?? 0));
+    result.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return result;
   }
   // ── Historique de lecture ──
@@ -113,14 +115,14 @@ class WatchProgress {
     await p.setString(histKey, jsonEncode(list));
   }
 
-  static Future<List<Map<String, String>>> loadHistory() async {
+  static Future<List<HistoryEntry>> loadHistory() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(StorageKeys.history(_pid));
     if (raw == null) return [];
     final list = List<Map<String, dynamic>>.from(
         (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
     list.sort((a, b) => (b['timestamp'] as String).compareTo(a['timestamp'] as String));
-    return list.map((e) => e.map((k, v) => MapEntry(k, v.toString()))).toList();
+    return list.map((e) => HistoryEntry.fromMap(e)).toList();
   }
 
   static Future<void> clearHistory() async {
@@ -141,7 +143,7 @@ class WatchProgress {
   }
 
   /// Re-insere une entree dans l'historique (pour undo).
-  static Future<void> reInsertHistoryEntry(Map<String, String> entry) async {
+  static Future<void> reInsertHistoryEntry(HistoryEntry entry) async {
     final p = await SharedPreferences.getInstance();
     final histKey = StorageKeys.history(_pid);
     final raw = p.getString(histKey);
@@ -150,7 +152,7 @@ class WatchProgress {
       list = List<Map<String, dynamic>>.from(
           (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e)));
     }
-    list.insert(0, Map<String, dynamic>.from(entry));
+    list.insert(0, Map<String, dynamic>.from(entry.toMap()));
     list.sort((a, b) => (b['timestamp'] as String? ?? '').compareTo(a['timestamp'] as String? ?? ''));
     await p.setString(histKey, jsonEncode(list));
   }
