@@ -7,21 +7,20 @@ import '../widgets/skeleton_list.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../repositories/preferences_repository.dart';
 import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import '../models/channel.dart';
 import '../models/vod_item.dart';
 import '../models/series_item.dart';
 import '../providers/watch_progress_provider.dart';
-import '../services/xtream_api.dart';
+import '../repositories/content_repository.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
 import 'player/player_screen.dart';
 
 /// Key for storing search history in SharedPreferences.
-const _searchHistoryKey = 'search_history';
 const _maxHistory = 10;
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -31,6 +30,8 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerProviderStateMixin {
+  PreferencesRepository get _prefs => ref.read(preferencesRepositoryProvider);
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   final _ctrl = TextEditingController();
   late final TabController _tabCtrl;
   String _query = '';
@@ -67,9 +68,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
   }
 
   Future<void> _loadHistory() async {
-    final p = await SharedPreferences.getInstance();
-    final raw = p.getStringList(_searchHistoryKey);
-    if (raw != null && mounted) setState(() => _searchHistory = raw);
+    final raw = await _prefs.getSearchHistory();
+    if (raw.isNotEmpty && mounted) setState(() => _searchHistory = raw);
   }
 
   Future<void> _addToHistory(String query) async {
@@ -80,13 +80,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     if (_searchHistory.length > _maxHistory) {
       _searchHistory = _searchHistory.sublist(0, _maxHistory);
     }
-    final p = await SharedPreferences.getInstance();
-    await p.setStringList(_searchHistoryKey, _searchHistory);
+    await _prefs.setSearchHistory(_searchHistory);
   }
 
   Future<void> _clearHistory() async {
-    final p = await SharedPreferences.getInstance();
-    await p.remove(_searchHistoryKey);
+    await _prefs.clearSearchHistory();
     setState(() => _searchHistory = []);
   }
 
@@ -112,9 +110,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     setState(() => _loading = true);
     try {
       final results = await Future.wait([
-        XtreamApi.getLiveStreamsTyped(),
-        XtreamApi.getVodStreamsTyped(),
-        XtreamApi.getSeriesTyped(),
+        _repo.getLiveStreams(),
+        _repo.getVodStreams(),
+        _repo.getSeries(),
       ]);
       final liveChannels = results[0] as List<Channel>;
       final vodItems = results[1] as List<VodItem>;
@@ -182,7 +180,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
     final futures = channelsToSearch.map((ch) async {
       try {
-        final data = await XtreamApi.getFullDayEpg(ch.streamId.toString());
+        final data = await _repo.getFullDayEpg(ch.streamId.toString());
         final listings = data['epg_listings'] as List?;
         if (listings == null) return;
         for (final raw in listings) {
@@ -291,10 +289,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         final durMin = item['duration_min'] as int? ?? 60;
         String url;
         if (serverLocal.isNotEmpty) {
-          url = XtreamApi.getTimeshiftUrlFromLocal(streamId, serverLocal, durMin);
+          url = _repo.getTimeshiftUrlFromLocal(streamId, serverLocal, durMin);
         } else {
           final startUtc = DateTime.parse(item['start_utc'] as String);
-          url = XtreamApi.getTimeshiftUrl(streamId, startUtc, durMin);
+          url = _repo.getTimeshiftUrl(streamId, startUtc, durMin);
         }
         Navigator.push(context, slideRoute(PlayerScreen(
           url: url,
@@ -304,7 +302,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
         )));
       } else {
         // Live or future — open live stream
-        final url = XtreamApi.getLiveStreamUrl(streamId);
+        final url = _repo.getLiveStreamUrl(streamId);
         Navigator.push(context, slideRoute(PlayerScreen(
           url: url, title: item['channel_name'] as String? ?? name,
           streamId: streamId,
@@ -314,8 +312,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     }
 
     final url = mode == 'live'
-        ? XtreamApi.getLiveStreamUrl(item['stream_id'].toString())
-        : XtreamApi.getVodStreamUrl(item['stream_id'].toString(), item['container_extension'] ?? 'mp4');
+        ? _repo.getLiveStreamUrl(item['stream_id'].toString())
+        : _repo.getVodStreamUrl(item['stream_id'].toString(), item['container_extension'] ?? 'mp4');
     final resumeKey = mode == 'vod' ? item['stream_id'].toString() : null;
     if (resumeKey != null) {
       WatchProgress.saveMeta(resumeKey, name,

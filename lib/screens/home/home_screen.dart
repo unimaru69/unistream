@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../repositories/preferences_repository.dart';
 import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
 import '../channel_detail_screen.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/l10n/app_localizations.dart';
-import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../models/collection_data.dart';
 import '../../models/favorite_item.dart';
@@ -56,6 +55,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   ContentRepository get _repo => ref.read(contentRepositoryProvider);
+  PreferencesRepository get _prefs => ref.read(preferencesRepositoryProvider);
   List<cat.Category> _categories = [];
   List<dynamic> _streams    = [];
   String? _selectedCategory;
@@ -105,27 +105,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ── Grid view preference per mode ──
-  String get _gridViewKey => StorageKeys.gridView(AppConfig.activeProfileId, _mode.key);
   Future<void> _loadGridView() async {
-    final p = await SharedPreferences.getInstance();
-    final v = p.getBool(_gridViewKey);
+    final v = await _prefs.getGridView(AppConfig.activeProfileId, _mode.key);
     if (v != null) setState(() => _gridView = v);
   }
   Future<void> _saveGridView() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(_gridViewKey, _gridView);
+    await _prefs.setGridView(AppConfig.activeProfileId, _mode.key, _gridView);
   }
 
   // ── Sort preference per mode ──
-  String get _sortKey => StorageKeys.sortMode(AppConfig.activeProfileId, _mode.key);
   Future<void> _loadSortMode() async {
-    final p = await SharedPreferences.getInstance();
-    final v = p.getString(_sortKey);
+    final v = await _prefs.getSortMode(AppConfig.activeProfileId, _mode.key);
     if (v != null) setState(() => _sortMode = v);
   }
   Future<void> _saveSortMode() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_sortKey, _sortMode);
+    await _prefs.setSortMode(AppConfig.activeProfileId, _mode.key, _sortMode);
   }
 
   // ── Collections ──
@@ -262,13 +256,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Sidebar width ──
   Future<void> _loadSidebarWidth() async {
-    final p = await SharedPreferences.getInstance();
-    final w = p.getDouble(StorageKeys.sidebarWidth);
+    final w = await _prefs.getSidebarWidth();
     if (w != null) setState(() => _sidebarWidth = w.clamp(_sidebarMin, _sidebarMax));
   }
   Future<void> _saveSidebarWidth() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setDouble(StorageKeys.sidebarWidth, _sidebarWidth);
+    await _prefs.setSidebarWidth(_sidebarWidth);
   }
 
   // ── Favorites / Watchlist ──

@@ -10,7 +10,7 @@ import '../../models/vod_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
 import '../../services/watch_progress.dart';
-import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../utils/routes.dart';
 import '../player/player_screen.dart';
 
@@ -25,6 +25,7 @@ class VodDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   VodItem get vod => widget.vod;
   String get _favKey => 'vod:${vod.id}';
 
@@ -44,7 +45,7 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
 
   void _play({bool resume = false}) {
     final ext = vod.containerExtension;
-    final url = XtreamApi.getVodStreamUrl(vod.id, ext);
+    final url = _repo.getVodStreamUrl(vod.id, ext);
     final title = vod.name.isEmpty ? AppLocalizations.of(context)!.sansTitre : vod.name;
     WatchProgress.saveMeta(vod.id, title, vod.displayIcon, url, 'vod');
     WatchProgress.saveHistory('vod:${vod.id}', title, vod.displayIcon, url, 'vod');

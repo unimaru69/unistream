@@ -10,7 +10,7 @@ import '../models/episode.dart';
 import '../models/favorite_item.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
-import '../services/xtream_api.dart';
+import '../repositories/content_repository.dart';
 import '../services/watch_progress.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
@@ -37,6 +37,7 @@ class SeriesDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   Map<String, List<Episode>> _episodes = {};
   List<String> _seasons = [];
   String? _selectedSeason;
@@ -53,7 +54,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   Future<void> _loadInfo() async {
     try {
-      final episodesMap = await XtreamApi.getSeriesEpisodesTyped(widget.seriesId);
+      final episodesMap = await _repo.getSeriesEpisodes(widget.seriesId);
       final seasons = episodesMap.keys.toList()
         ..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
       setState(() {
@@ -144,7 +145,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   void _playEpisode(Episode ep) {
     final epId = ep.idStr;
-    final url = XtreamApi.getSeriesEpisodeUrl(epId, ep.containerExtension);
+    final url = _repo.getSeriesEpisodeUrl(epId, ep.containerExtension);
     WatchProgress.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
     WatchProgress.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
 

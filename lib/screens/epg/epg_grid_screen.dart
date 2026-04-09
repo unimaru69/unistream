@@ -12,7 +12,7 @@ import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/category.dart' as cat;
 import '../../models/channel.dart';
 import '../../providers/favorites_provider.dart';
-import '../../services/xtream_api.dart';
+import '../../repositories/content_repository.dart';
 import '../../utils/api_error_localizer.dart';
 import 'widgets/epg_day_navigator.dart';
 import 'widgets/epg_timeline_header.dart';
@@ -27,6 +27,7 @@ class EpgGridScreen extends ConsumerStatefulWidget {
 }
 
 class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   // Categories
   List<cat.Category> _categories = [];
   String? _selectedCatId;
@@ -120,7 +121,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
 
     try {
-      final streams = await XtreamApi.getLiveStreamsTyped();
+      final streams = await _repo.getLiveStreams();
       final channels = streams
           .where((ch) => ref.read(favoritesProvider).keys.contains(ch.id))
           .toList();
@@ -132,13 +133,13 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       });
       await _loadEpgForChannels(channels);
     } catch (e) {
-      if (mounted) setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
+      if (mounted) setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
     }
   }
 
   Future<void> _loadCategories() async {
     try {
-      final cats = await XtreamApi.getLiveCategoriesTyped();
+      final cats = await _repo.getLiveCategories();
       if (!mounted) return;
       setState(() {
         _categories = cats;
@@ -153,7 +154,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         _selectCategory(match.categoryId);
       }
     } catch (e) {
-      if (mounted) setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingCats = false; });
+      if (mounted) setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loadingCats = false; });
     }
   }
 
@@ -167,7 +168,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     });
 
     try {
-      final channels = await XtreamApi.getLiveStreamsTyped(catId);
+      final channels = await _repo.getLiveStreams(catId);
       // Sort favorites first
       if (ref.read(favoritesProvider).keys.isNotEmpty) {
         channels.sort((a, b) {
@@ -184,7 +185,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       });
       await _loadEpgForChannels(channels);
     } catch (e) {
-      if (mounted) setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
+      if (mounted) setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loadingChannels = false; });
     }
   }
 
@@ -263,8 +264,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         final sid = ch.id;
         try {
           Map<String, dynamic> data;
-          try { data = await XtreamApi.getFullDayEpg(sid); }
-          catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back', error: e, stackTrace: st); data = await XtreamApi.getShortEpg(sid, limit: 30); }
+          try { data = await _repo.getFullDayEpg(sid); }
+          catch (e, st) { AppLogger.warning(LogModule.epg, 'Full-day EPG failed for $sid, falling back', error: e, stackTrace: st); data = await _repo.getShortEpg(sid, limit: 30); }
           final listings = data['epg_listings'] as List? ?? [];
           epg[sid] = listings.map((e) {
             final startTs = int.tryParse((e['start_timestamp'] ?? e['start'] ?? '').toString());

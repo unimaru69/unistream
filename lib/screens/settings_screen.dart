@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import '../models/app_config.dart';
 import '../providers/config_provider.dart';
-import '../services/xtream_api.dart';
+import '../repositories/content_repository.dart';
 import '../services/import_export.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../utils/api_error_localizer.dart';
@@ -24,6 +24,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   final _serverCtrl = TextEditingController(text: AppConfig.serverUrl);
   final _userCtrl   = TextEditingController(text: AppConfig.username);
   final _passCtrl   = TextEditingController(text: AppConfig.password);
@@ -47,7 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() { _saving = true; _error = null; });
     try {
       await ref.read(configProvider.notifier).save(server, user, pass);
-      final auth = await XtreamApi.authenticate();
+      final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] != 1) {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _saving = false; });
         return;
@@ -55,7 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
-      setState(() { _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!); _saving = false; });
+      setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _saving = false; });
     }
   }
 

@@ -9,6 +9,7 @@ import '../core/colors.dart';
 import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
 import '../services/m3u_parser.dart';
+import '../repositories/content_repository.dart';
 import '../services/xtream_api.dart';
 import 'home/home_screen.dart';
 
@@ -19,6 +20,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   final _pageController = PageController();
   final _formKey = GlobalKey<FormState>();
   final _serverCtrl = TextEditingController();
@@ -131,7 +133,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
     try {
       await ref.read(configProvider.notifier).save(server, user, pass);
-      final auth = await XtreamApi.authenticate();
+      final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] != 1) {
         setState(() {
           _error = l10n.authEchouee;

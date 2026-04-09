@@ -10,7 +10,7 @@ import 'package:unistream/models/channel.dart';
 import 'package:unistream/models/favorite_item.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/services/epg_reminder_service.dart';
-import 'package:unistream/services/xtream_api.dart';
+import 'package:unistream/repositories/content_repository.dart';
 import 'package:unistream/utils/routes.dart';
 import 'package:unistream/widgets/skeleton_list.dart';
 import 'player/player_screen.dart';
@@ -26,6 +26,7 @@ class ChannelDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
+  ContentRepository get _repo => ref.read(contentRepositoryProvider);
   List<Map<String, dynamic>> _programs = [];
   bool _loading = true;
   String? _error;
@@ -41,7 +42,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
   Future<void> _loadEpg() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await XtreamApi.getFullDayEpg(ch.id);
+      final data = await _repo.getFullDayEpg(ch.id);
       final listings = data['epg_listings'] as List<dynamic>? ?? [];
       final parsed = <Map<String, dynamic>>[];
       for (final e in listings) {
@@ -105,7 +106,7 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
   }
 
   void _playLive() {
-    final url = XtreamApi.getLiveStreamUrl(ch.id);
+    final url = _repo.getLiveStreamUrl(ch.id);
     final current = _currentProgram;
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
@@ -120,8 +121,8 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     final durMin = prog['duration_min'] as int;
     final start = prog['start'] as DateTime;
     final url = (serverLocal != null && serverLocal.isNotEmpty)
-        ? XtreamApi.getTimeshiftUrlFromLocal(ch.id, serverLocal, durMin)
-        : XtreamApi.getTimeshiftUrl(ch.id, start.toUtc(), durMin);
+        ? _repo.getTimeshiftUrlFromLocal(ch.id, serverLocal, durMin)
+        : _repo.getTimeshiftUrl(ch.id, start.toUtc(), durMin);
     final l10n = AppLocalizations.of(context)!;
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,

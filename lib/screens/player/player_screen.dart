@@ -6,12 +6,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../../services/connectivity_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../repositories/preferences_repository.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
-import '../../core/storage_keys.dart';
 import '../../models/app_config.dart';
 import '../../services/xtream_api.dart';
 import '../../services/watch_progress.dart';
@@ -76,6 +75,7 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  final _prefs = PreferencesRepository();
   late final Player _player;
   late final VideoController _controller;
   bool _minimized = false;
@@ -357,21 +357,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String get _pid => AppConfig.activeProfileId;
 
   Future<void> _loadSubtitleSettings() async {
-    final p = await SharedPreferences.getInstance();
-    final fs = p.getDouble(StorageKeys.subtitleFontSize(_pid));
-    final colorVal = p.getInt(StorageKeys.subtitleColor(_pid));
-    final bgOp = p.getDouble(StorageKeys.subtitleBgOpacity(_pid));
-    if (fs != null) _subtitleFontSize = fs;
-    if (colorVal != null) _subtitleColor = Color(colorVal);
-    if (bgOp != null) _subtitleBgOpacity = bgOp;
+    final s = await _prefs.getSubtitleSettings(_pid);
+    _subtitleFontSize = s.fontSize;
+    _subtitleColor = s.color;
+    _subtitleBgOpacity = s.bgOpacity;
     _applySubtitleSettings();
   }
 
   Future<void> _saveSubtitleSettings() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setDouble(StorageKeys.subtitleFontSize(_pid), _subtitleFontSize);
-    await p.setInt(StorageKeys.subtitleColor(_pid), _subtitleColor.toARGB32());
-    await p.setDouble(StorageKeys.subtitleBgOpacity(_pid), _subtitleBgOpacity);
+    await _prefs.setSubtitleSettings(_pid, SubtitleSettings(
+      fontSize: _subtitleFontSize,
+      color: _subtitleColor,
+      bgOpacity: _subtitleBgOpacity,
+    ));
   }
 
   void _applySubtitleSettings() {
@@ -525,9 +523,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Auto-select preferred audio/subtitle language from settings
   Future<void> _applyPreferredLanguages() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final prefAudio = prefs.getString(StorageKeys.prefAudioLang) ?? '';
-      final prefSub = prefs.getString(StorageKeys.prefSubLang) ?? '';
+      final prefAudio = await _prefs.getPreferredAudioLang() ?? '';
+      final prefSub = await _prefs.getPreferredSubLang() ?? '';
 
       bool matchLang(String trackLang, String pref) {
         if (pref.isEmpty) return false;

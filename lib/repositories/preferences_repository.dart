@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,14 +99,17 @@ class PreferencesRepository {
 
   Future<List<String>> getSearchHistory() async {
     final p = await _p;
-    final raw = p.getString('search_history');
-    if (raw == null) return [];
-    return List<String>.from(jsonDecode(raw));
+    return p.getStringList('search_history') ?? [];
   }
 
   Future<void> setSearchHistory(List<String> history) async {
     final p = await _p;
-    await p.setString('search_history', jsonEncode(history));
+    await p.setStringList('search_history', history);
+  }
+
+  Future<void> clearSearchHistory() async {
+    final p = await _p;
+    await p.remove('search_history');
   }
 }
 
