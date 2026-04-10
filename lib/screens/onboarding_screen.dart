@@ -10,7 +10,9 @@ import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
 import '../services/m3u_parser.dart';
 import '../repositories/content_repository.dart';
-import '../services/xtream_api.dart' show httpGet;
+import '../core/logger.dart';
+import '../services/xtream_api.dart' show XtreamApi, httpGet;
+import '../utils/api_error_localizer.dart';
 import 'home/home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -81,7 +83,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           SnackBar(content: Text(l10n.importReussi)),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning('onboarding', 'M3U import failed', error: e, stackTrace: st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.fichierM3uInvalide)),
@@ -112,11 +115,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _testSuccess = auth == 1;
         if (auth != 1) _error = AppLocalizations.of(context)!.authEchouee;
       });
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.warning('onboarding', 'Connection test failed', error: e, stackTrace: st);
       setState(() {
         _testing = false;
         _testSuccess = false;
-        _error = _repo.friendlyError(e);
+        _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!);
       });
     }
   }
@@ -150,9 +154,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       });
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.warning('onboarding', 'Authentication failed', error: e, stackTrace: st);
       setState(() {
-        _error = _repo.friendlyError(e);
+        _error = localizeApiError(XtreamApi.errorKey(e), AppLocalizations.of(context)!);
         _saving = false;
       });
     }

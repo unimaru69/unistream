@@ -398,8 +398,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               serverLocalStart: prog['start']?.toString() ?? '',
             ));
           }
-        } catch (_) {
-          // Skip channels where EPG fails
+        } catch (e) {
+          AppLogger.debug('epg', 'Catch-up EPG skipped for channel: $e');
         }
       });
       await Future.wait(futures);
@@ -872,8 +872,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onCreateCollectionFromSelected: _createCollectionFromSelected,
                     onToggleSelection: (key) {
                       setState(() {
-                        if (_selectedItems.contains(key)) _selectedItems.remove(key);
-                        else _selectedItems.add(key);
+                        if (_selectedItems.contains(key)) {
+                          _selectedItems.remove(key);
+                        } else {
+                          _selectedItems.add(key);
+                        }
                       });
                     },
                     activeCollectionId: _activeCollectionId,

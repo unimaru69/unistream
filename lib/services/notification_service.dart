@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../core/logger.dart';
 import '../services/epg_reminder_service.dart';
 
 /// Singleton service for system notifications (EPG reminders, etc.).
@@ -34,8 +35,8 @@ class NotificationService {
 
       await _plugin.initialize(settings: settings);
       _initialized = true;
-    } catch (_) {
-      // Notification init failed — app continues without system notifications
+    } catch (e, st) {
+      AppLogger.warning('notifications', 'Notification init failed, continuing without', error: e, stackTrace: st);
       _initialized = false;
     }
   }

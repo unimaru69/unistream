@@ -285,10 +285,12 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           }).cast<ParsedEpgProgram>().toList();
         } catch (e, st) { AppLogger.warning(LogModule.epg, 'Failed to load EPG for channel $sid', error: e, stackTrace: st); }
       }));
-      if (mounted) setState(() {
-        _epgData = Map.from(epg);
-        _epgLoaded = (i + 6).clamp(0, channels.length);
-      });
+      if (mounted) {
+        setState(() {
+          _epgData = Map.from(epg);
+          _epgLoaded = (i + 6).clamp(0, channels.length);
+        });
+      }
     }
 
     if (mounted) setState(() => _loadingEpg = false);

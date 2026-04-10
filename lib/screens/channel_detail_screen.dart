@@ -12,6 +12,7 @@ import 'package:unistream/models/parsed_epg_program.dart';
 import 'package:unistream/providers/favorites_provider.dart';
 import 'package:unistream/services/epg_reminder_service.dart';
 import 'package:unistream/repositories/content_repository.dart';
+import 'package:unistream/core/logger.dart';
 import 'package:unistream/utils/routes.dart';
 import 'package:unistream/widgets/skeleton_list.dart';
 import 'player/player_screen.dart';
@@ -63,7 +64,8 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
       }
       parsed.sort((a, b) => a.start.compareTo(b.start));
       if (mounted) setState(() { _programs = parsed; _loading = false; });
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.warning('epg', 'Failed to load EPG for channel', error: e, stackTrace: st);
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }

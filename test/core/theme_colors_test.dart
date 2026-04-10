@@ -12,8 +12,8 @@ void main() {
     });
 
     test('light variant has dark text colors', () {
-      expect(AppThemeColors.light.textPrimary.value, isNot(Colors.white.value));
-      expect(AppThemeColors.light.textPrimary.alpha, 255); // fully opaque
+      expect(AppThemeColors.light.textPrimary.toARGB32(), isNot(Colors.white.toARGB32()));
+      expect((AppThemeColors.light.textPrimary.a * 255.0).round(), 255); // fully opaque
     });
 
     test('dark and light surface colors differ', () {

@@ -38,7 +38,7 @@ class FakeContentRepository extends ContentRepository {
 /// StateNotifier directly and implementing ParentalNotifier's interface.
 class FakeParentalNotifier extends StateNotifier<ParentalState>
     implements ParentalNotifier {
-  FakeParentalNotifier(ParentalState initial) : super(initial);
+  FakeParentalNotifier(super.initial);
 
   @override
   Future<void> setPin(String pin) async {

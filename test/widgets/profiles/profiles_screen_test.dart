@@ -9,7 +9,7 @@ import 'package:unistream/screens/profiles/profiles_screen.dart';
 /// A fake ConfigNotifier that exposes controlled state.
 class FakeConfigNotifier extends StateNotifier<ConfigState>
     implements ConfigNotifier {
-  FakeConfigNotifier(ConfigState state) : super(state);
+  FakeConfigNotifier(super.state);
 
   @override
   void refresh() {}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/logger.dart';
 import '../../core/theme_colors.dart';
 import '../../models/category.dart' as cat;
 import '../../providers/parental_provider.dart';
@@ -73,7 +74,8 @@ class _ParentalSettingsScreenState
           _loadingCategories = false;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning('parental', 'Failed to load categories', error: e, stackTrace: st);
       if (mounted) setState(() => _loadingCategories = false);
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache_config.dart';
+import '../../../core/logger.dart';
 import '../../../core/theme_colors.dart';
 import '../../../models/app_config.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -29,7 +30,9 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
       final prefs = ref.read(preferencesRepositoryProvider);
       final count = await prefs.countPersistedEpgEntries(AppConfig.activeProfileId);
       if (mounted) setState(() => _persistedEpgEntries = count);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('settings', 'Failed to count persisted EPG entries', error: e, stackTrace: st);
+    }
   }
 
   @override
@@ -99,7 +102,7 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
               if (confirmed != true) return;
               await ref.read(contentRepositoryProvider).clearAllEpgCache();
               setState(() => _persistedEpgEntries = 0);
-              if (!mounted) return;
+              if (!context.mounted) return;
               showAppSnackBar(context, l10n.cacheEpgVide);
             },
             icon: const Icon(Icons.delete_sweep_outlined, size: 18),
@@ -117,7 +120,7 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
               child: OutlinedButton.icon(
             onPressed: () async {
               await AppCacheManager.instance.emptyCache();
-              if (mounted) {
+              if (context.mounted) {
                 showAppSnackBar(context, l10n.cacheImagesVide);
               }
             },

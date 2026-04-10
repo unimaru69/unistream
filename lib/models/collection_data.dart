@@ -16,7 +16,7 @@ abstract class CollectionData with _$CollectionData {
   factory CollectionData.fromJson(Map<String, dynamic> json) =>
       _$CollectionDataFromJson(json);
 
-  /// Convert legacy Map<String, dynamic> to CollectionData.
+  /// Convert legacy `Map<String, dynamic>` to [CollectionData].
   factory CollectionData.fromLegacy(Map<String, dynamic> map) {
     final rawItems = (map['items'] as List?) ?? [];
     final items = rawItems.map((e) {

@@ -21,7 +21,7 @@ abstract class FavoriteItem with _$FavoriteItem {
   factory FavoriteItem.fromJson(Map<String, dynamic> json) =>
       _$FavoriteItemFromJson(json);
 
-  /// Convert legacy Map<String, dynamic> (from old storage) to FavoriteItem.
+  /// Convert legacy `Map<String, dynamic>` (from old storage) to [FavoriteItem].
   factory FavoriteItem.fromLegacy(String key, Map<String, dynamic> map) {
     return FavoriteItem(
       key: key,

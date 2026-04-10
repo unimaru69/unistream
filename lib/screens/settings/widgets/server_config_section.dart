@@ -138,7 +138,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
                   style: const TextStyle(fontSize: 16)),
         ),
         const SizedBox(height: 24),
-        if (ref.watch(configProvider).profiles.length > 0)
+        if (ref.watch(configProvider).profiles.isNotEmpty)
           OutlinedButton.icon(
             onPressed: () async {
               final reload = await Navigator.push<bool>(

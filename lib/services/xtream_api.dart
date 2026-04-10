@@ -154,7 +154,9 @@ class XtreamApi {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(StorageKeys.epgCache(AppConfig.activeProfileId));
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.debug(LogModule.epg, 'EPG cache clear from disk failed: $e');
+    }
   }
 
   static Timer? _epgSaveTimer;
@@ -462,7 +464,7 @@ class XtreamApi {
             final totalMin = _serverUtcOffset.inMinutes;
             final rounded = (totalMin / 30).round() * 30;
             _serverUtcOffset = Duration(minutes: rounded);
-            debugPrint('[Catch-up] Server time_now=$timeNowStr, epoch=$serverTs, offset=${_serverUtcOffset.inMinutes}min');
+            AppLogger.debug(LogModule.api, 'Catch-up: Server time_now=$timeNowStr, epoch=$serverTs, offset=${_serverUtcOffset.inMinutes}min');
           }
         }
       }
@@ -483,7 +485,7 @@ class XtreamApi {
     final s = _toServerLocal(startUtc);
     final startFmt = '${s.year}-${s.month.toString().padLeft(2,'0')}-${s.day.toString().padLeft(2,'0')}:${s.hour.toString().padLeft(2,'0')}-${s.minute.toString().padLeft(2,'0')}';
     final url = '${AppConfig.serverUrl}/timeshift/${AppConfig.username}/${AppConfig.password}/$durationMin/$startFmt/$streamId.ts';
-    debugPrint('[Catch-up] URL (from UTC): $url');
+    AppLogger.debug(LogModule.api, 'Catch-up URL (from UTC): $url');
     return url;
   }
 
@@ -493,7 +495,7 @@ class XtreamApi {
     if (dt == null) return getTimeshiftUrl(streamId, DateTime.now().toUtc(), durationMin);
     final startFmt = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}:${dt.hour.toString().padLeft(2,'0')}-${dt.minute.toString().padLeft(2,'0')}';
     final url = '${AppConfig.serverUrl}/timeshift/${AppConfig.username}/${AppConfig.password}/$durationMin/$startFmt/$streamId.ts';
-    debugPrint('[Catch-up] URL (from server-local): $url');
+    AppLogger.debug(LogModule.api, 'Catch-up URL (from server-local): $url');
     return url;
   }
 

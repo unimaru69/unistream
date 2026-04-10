@@ -213,7 +213,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
             hasCatchup: ch.hasCatchup,
           ));
         }
-      } catch (_) {}
+      } catch (e) {
+        AppLogger.debug('search', 'EPG search skipped for channel: $e');
+      }
     });
     await Future.wait(futures);
 

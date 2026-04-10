@@ -44,7 +44,7 @@ class EpgDayNavigator extends StatelessWidget {
         const Spacer(),
         Semantics(
           button: true,
-          label: "${l10n.guideTV}: ${formatDay(dayStart)}",
+          label: '${l10n.guideTV}: ${formatDay(dayStart)}',
           child: GestureDetector(
             onTap: onTapDate,
             child: Text(
