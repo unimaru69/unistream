@@ -294,6 +294,11 @@ void main() {
     });
 
     testWidgets('renders category sidebar after loading', (tester) async {
+      // Use wide surface so the sidebar is visible (breakpoint >= 900)
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       final fakeRepo = FakeContentRepository(
         categories: [
           cat.Category(categoryId: '1', categoryName: 'Sports'),

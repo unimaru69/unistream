@@ -523,7 +523,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final isWide = screenWidth >= 700;
+    final isWide = screenWidth >= 900;
     final channelColWidth = isWide ? _channelColWidth : 120.0;
 
     return Scaffold(
