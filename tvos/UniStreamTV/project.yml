@@ -50,6 +50,19 @@ targets:
       - package: Kingfisher
       - package: VLCKitSPM
         product: VLCKitSPM
+  UniStreamTVTests:
+    type: bundle.unit-test
+    platform: tvOS
+    sources:
+      - UniStreamTVTests
+    dependencies:
+      - target: UniStreamTV
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        DEVELOPMENT_TEAM: VS8P2MA59S
+        GENERATE_INFOPLIST_FILE: YES
+
 # NOTE: TopShelfExtension target temporarily removed. The extension binary
 # crashed on tvOS 26.4 (launchd exit 768) before any Swift code ran, with no
 # crash report generated. Source files are retained under TopShelfExtension/
