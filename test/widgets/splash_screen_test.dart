@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/models/app_config.dart';
 import 'package:unistream/screens/splash_screen.dart';
 
 import '../helpers/test_wrapper.dart';
@@ -19,6 +21,8 @@ Widget _splashApp() {
 
 void main() {
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    AppConfig.currentUserId = null;
     // Inject a mock HTTP client that always succeeds instantly
     splashHttpClient = http_testing.MockClient((_) async => http.Response('', 200));
   });

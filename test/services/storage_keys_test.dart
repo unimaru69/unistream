@@ -23,9 +23,14 @@ void main() {
       expect(StorageKeys.prefSubLang, 'pref_sub_lang');
     });
 
-    test('profile keys', () {
-      expect(StorageKeys.profilesList, 'profiles_list');
-      expect(StorageKeys.activeProfile, 'active_profile');
+    test('profile keys without userId', () {
+      expect(StorageKeys.profilesList(), 'profiles_list');
+      expect(StorageKeys.activeProfile(), 'active_profile');
+    });
+
+    test('profile keys with userId', () {
+      expect(StorageKeys.profilesList('abc-123'), 'u_abc-123_profiles_list');
+      expect(StorageKeys.activeProfile('abc-123'), 'u_abc-123_active_profile');
     });
 
     test('legacy config keys', () {

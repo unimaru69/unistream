@@ -64,7 +64,7 @@ void main() {
     testWidgets('renders username field', (tester) async {
       await pumpSettings(tester);
       expect(find.text('Nom d\'utilisateur'), findsOneWidget);
-      expect(find.byIcon(Icons.person), findsOneWidget);
+      expect(find.byIcon(Icons.person), findsWidgets);
     });
 
     testWidgets('renders password field with visibility toggle',

@@ -29,6 +29,7 @@ void _resetAppConfig() {
   AppConfig.password = '';
   AppConfig.activeProfileId = '';
   AppConfig.profiles = [];
+  AppConfig.currentUserId = null;
 }
 
 void main() {
@@ -242,7 +243,7 @@ void main() {
       await notifier.save('http://s.com', 'u', 'p');
 
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(StorageKeys.profilesList);
+      final raw = prefs.getString(StorageKeys.profilesList());
       expect(raw, isNotNull);
 
       final list = jsonDecode(raw!) as List;
@@ -256,7 +257,7 @@ void main() {
       await notifier.addProfile(_profile(id: 'persist'));
 
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(StorageKeys.profilesList);
+      final raw = prefs.getString(StorageKeys.profilesList());
       expect(raw, isNotNull);
 
       final list = jsonDecode(raw!) as List;
@@ -285,8 +286,8 @@ void main() {
         _profile(id: 'loaded', name: 'Loaded').toJson(),
       ];
       SharedPreferences.setMockInitialValues({
-        StorageKeys.profilesList: jsonEncode(profilesJson),
-        StorageKeys.activeProfile: 'loaded',
+        StorageKeys.profilesList(): jsonEncode(profilesJson),
+        StorageKeys.activeProfile(): 'loaded',
       });
       FlutterSecureStorage.setMockInitialValues({
         'pwd_loaded': 'secret',
@@ -314,8 +315,8 @@ void main() {
         _profile(id: 'second', name: 'Second', username: 'u2').toJson(),
       ];
       SharedPreferences.setMockInitialValues({
-        StorageKeys.profilesList: jsonEncode(profilesJson),
-        StorageKeys.activeProfile: 'missing',
+        StorageKeys.profilesList(): jsonEncode(profilesJson),
+        StorageKeys.activeProfile(): 'missing',
       });
       FlutterSecureStorage.setMockInitialValues({
         'pwd_first': 'p1',
