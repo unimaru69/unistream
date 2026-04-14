@@ -1807,6 +1807,414 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Une seule qualité disponible pour ce flux.'**
   String get qualiteUniqueDisponible;
+
+  /// No description provided for @authBienvenue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bienvenue sur UniStream'**
+  String get authBienvenue;
+
+  /// No description provided for @authSousTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connectez-vous ou créez un compte pour commencer'**
+  String get authSousTitre;
+
+  /// No description provided for @authSeConnecter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se connecter'**
+  String get authSeConnecter;
+
+  /// No description provided for @authCreerCompte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer un compte'**
+  String get authCreerCompte;
+
+  /// No description provided for @authEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail'**
+  String get authEmail;
+
+  /// No description provided for @authMotDePasse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe'**
+  String get authMotDePasse;
+
+  /// No description provided for @authConfirmerMotDePasse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer le mot de passe'**
+  String get authConfirmerMotDePasse;
+
+  /// No description provided for @authMotDePasseOublie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe oublié ?'**
+  String get authMotDePasseOublie;
+
+  /// No description provided for @authConnexionApple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec Apple'**
+  String get authConnexionApple;
+
+  /// No description provided for @authPasDeCompte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas encore de compte ?'**
+  String get authPasDeCompte;
+
+  /// No description provided for @authDejaUnCompte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déjà un compte ?'**
+  String get authDejaUnCompte;
+
+  /// No description provided for @authEmailInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail invalide'**
+  String get authEmailInvalide;
+
+  /// No description provided for @authMotDePasseCourt.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le mot de passe doit contenir au moins 6 caractères'**
+  String get authMotDePasseCourt;
+
+  /// No description provided for @authMotDePassesDifferents.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les mots de passe ne correspondent pas'**
+  String get authMotDePassesDifferents;
+
+  /// No description provided for @authErreurConnexion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Identifiants incorrects'**
+  String get authErreurConnexion;
+
+  /// No description provided for @authErreurInscription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de la création du compte'**
+  String get authErreurInscription;
+
+  /// No description provided for @authErreurGenerale.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une erreur est survenue. Veuillez réessayer.'**
+  String get authErreurGenerale;
+
+  /// No description provided for @authCompteExistant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Un compte avec cet e-mail existe déjà'**
+  String get authCompteExistant;
+
+  /// No description provided for @authEmailNonConfirme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veuillez confirmer votre e-mail avant de vous connecter'**
+  String get authEmailNonConfirme;
+
+  /// No description provided for @authReinitialisationEnvoyee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Un lien de réinitialisation a été envoyé à {email}'**
+  String authReinitialisationEnvoyee(String email);
+
+  /// No description provided for @authReinitialiserMotDePasse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réinitialiser le mot de passe'**
+  String get authReinitialiserMotDePasse;
+
+  /// No description provided for @authEnvoyerLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer le lien'**
+  String get authEnvoyerLien;
+
+  /// No description provided for @compteMonCompte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon compte'**
+  String get compteMonCompte;
+
+  /// No description provided for @compteTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compte'**
+  String get compteTitre;
+
+  /// No description provided for @compteEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'E-mail'**
+  String get compteEmail;
+
+  /// No description provided for @compteCreeLe.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créé le {date}'**
+  String compteCreeLe(String date);
+
+  /// No description provided for @compteEssaiGratuit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Essai gratuit'**
+  String get compteEssaiGratuit;
+
+  /// No description provided for @compteEssaiJoursRestants.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, =0{Essai expiré} =1{1 jour restant} other{{count} jours restants}}'**
+  String compteEssaiJoursRestants(int count);
+
+  /// No description provided for @compteEssaiExpire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre essai gratuit a expiré'**
+  String get compteEssaiExpire;
+
+  /// No description provided for @compteAbonnementBasic.
+  ///
+  /// In fr, this message translates to:
+  /// **'Abonnement Basic'**
+  String get compteAbonnementBasic;
+
+  /// No description provided for @compteAbonnementPremium.
+  ///
+  /// In fr, this message translates to:
+  /// **'Abonnement Premium'**
+  String get compteAbonnementPremium;
+
+  /// No description provided for @compteLicenceCrossplateforme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Licence cross-plateforme'**
+  String get compteLicenceCrossplateforme;
+
+  /// No description provided for @compteDeconnexion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se déconnecter'**
+  String get compteDeconnexion;
+
+  /// No description provided for @compteSupprimerCompte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer mon compte'**
+  String get compteSupprimerCompte;
+
+  /// No description provided for @compteSupprimerConfirmation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Êtes-vous sûr ? Cette action est irréversible. Toutes vos données seront définitivement supprimées.'**
+  String get compteSupprimerConfirmation;
+
+  /// No description provided for @compteSupprimerBouton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer définitivement'**
+  String get compteSupprimerBouton;
+
+  /// No description provided for @paywallTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Passez à Premium'**
+  String get paywallTitre;
+
+  /// No description provided for @paywallDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Débloquez toutes les fonctionnalités'**
+  String get paywallDescription;
+
+  /// No description provided for @paywallRestaurer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Restaurer les achats'**
+  String get paywallRestaurer;
+
+  /// No description provided for @paywallMensuel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mensuel'**
+  String get paywallMensuel;
+
+  /// No description provided for @paywallAnnuel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Annuel'**
+  String get paywallAnnuel;
+
+  /// No description provided for @paywallSAbonner.
+  ///
+  /// In fr, this message translates to:
+  /// **'S\'abonner'**
+  String get paywallSAbonner;
+
+  /// No description provided for @paywallEconomie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Économisez {percent}%'**
+  String paywallEconomie(int percent);
+
+  /// No description provided for @paywallParMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'{price}/mois'**
+  String paywallParMois(String price);
+
+  /// No description provided for @paywallParAn.
+  ///
+  /// In fr, this message translates to:
+  /// **'{price}/an'**
+  String paywallParAn(String price);
+
+  /// No description provided for @paywallAchatReussi.
+  ///
+  /// In fr, this message translates to:
+  /// **'Achat effectué avec succès !'**
+  String get paywallAchatReussi;
+
+  /// No description provided for @paywallAchatErreur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'achat. Veuillez réessayer.'**
+  String get paywallAchatErreur;
+
+  /// No description provided for @paywallNonDisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les achats in-app ne sont pas disponibles sur cette plateforme.'**
+  String get paywallNonDisponible;
+
+  /// No description provided for @fonctionnaliteRequiertPremium.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette fonctionnalité nécessite un abonnement Premium.'**
+  String get fonctionnaliteRequiertPremium;
+
+  /// No description provided for @fonctionnaliteCollections.
+  ///
+  /// In fr, this message translates to:
+  /// **'Collections personnalisées'**
+  String get fonctionnaliteCollections;
+
+  /// No description provided for @fonctionnaliteMultiProfils.
+  ///
+  /// In fr, this message translates to:
+  /// **'Multi-profils'**
+  String get fonctionnaliteMultiProfils;
+
+  /// No description provided for @fonctionnaliteParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Contrôle parental'**
+  String get fonctionnaliteParental;
+
+  /// No description provided for @fonctionnaliteCatchup.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catch-up / Replay'**
+  String get fonctionnaliteCatchup;
+
+  /// No description provided for @fonctionnaliteMiniPlayer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mini-player (PiP)'**
+  String get fonctionnaliteMiniPlayer;
+
+  /// No description provided for @fonctionnaliteCloudSync.
+  ///
+  /// In fr, this message translates to:
+  /// **'Synchronisation cloud'**
+  String get fonctionnaliteCloudSync;
+
+  /// No description provided for @fonctionnaliteSousTitresAvances.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sous-titres avancés'**
+  String get fonctionnaliteSousTitresAvances;
+
+  /// No description provided for @fonctionnaliteLiveVodSeries.
+  ///
+  /// In fr, this message translates to:
+  /// **'Live TV, VOD, Séries'**
+  String get fonctionnaliteLiveVodSeries;
+
+  /// No description provided for @fonctionnaliteEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Guide TV (EPG)'**
+  String get fonctionnaliteEpg;
+
+  /// No description provided for @fonctionnaliteRecherche.
+  ///
+  /// In fr, this message translates to:
+  /// **'Recherche'**
+  String get fonctionnaliteRecherche;
+
+  /// No description provided for @fonctionnaliteFavoris.
+  ///
+  /// In fr, this message translates to:
+  /// **'Favoris & Historique'**
+  String get fonctionnaliteFavoris;
+
+  /// No description provided for @fonctionnaliteThemes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Thèmes clair / sombre'**
+  String get fonctionnaliteThemes;
+
+  /// No description provided for @abonnementGerer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gérer l\'abonnement'**
+  String get abonnementGerer;
+
+  /// No description provided for @abonnementUpgrade.
+  ///
+  /// In fr, this message translates to:
+  /// **'Passer à Premium'**
+  String get abonnementUpgrade;
+
+  /// No description provided for @abonnementSAbonner.
+  ///
+  /// In fr, this message translates to:
+  /// **'S\'abonner'**
+  String get abonnementSAbonner;
+
+  /// No description provided for @abonnementBasic.
+  ///
+  /// In fr, this message translates to:
+  /// **'Basic'**
+  String get abonnementBasic;
+
+  /// No description provided for @abonnementPremium.
+  ///
+  /// In fr, this message translates to:
+  /// **'Premium'**
+  String get abonnementPremium;
+
+  /// No description provided for @abonnementLicenceCross.
+  ///
+  /// In fr, this message translates to:
+  /// **'Licence cross-plateforme'**
+  String get abonnementLicenceCross;
+
+  /// No description provided for @abonnementLicenceCrossDesc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisez votre abonnement Premium sur toutes les plateformes'**
+  String get abonnementLicenceCrossDesc;
 }
 
 class _AppLocalizationsDelegate

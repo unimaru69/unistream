@@ -4,6 +4,8 @@ import '../../../core/colors.dart';
 import '../../../core/theme_colors.dart';
 import '../../../providers/config_provider.dart';
 import '../../../providers/parental_provider.dart';
+import '../../../utils/feature_access.dart';
+import '../../../widgets/premium_gate.dart';
 import '../../profiles/profiles_screen.dart';
 import '../parental_settings_screen.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -177,6 +179,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
           final parental = ref.watch(parentalProvider);
           return OutlinedButton.icon(
             onPressed: () {
+              if (!checkPremiumAccess(context, ref, Feature.parentalControls)) return;
               Navigator.push(
                   context,
                   MaterialPageRoute(

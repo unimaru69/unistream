@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/logger.dart';
+import '../utils/feature_access.dart';
+import 'auth_service.dart';
 import 'supabase_config.dart';
 
 /// Fire-and-forget Supabase sync engine.
@@ -25,7 +27,19 @@ class SyncService {
 
   SupabaseClient? get _client => SupabaseConfig.client;
 
-  bool get _ready => _client != null && profileHash.isNotEmpty;
+  bool get _ready {
+    if (_client == null || profileHash.isEmpty || _client!.auth.currentSession == null) {
+      return false;
+    }
+    // Cloud sync is Premium only. If account info is loaded and user is not Premium, block sync.
+    final account = AuthService.instance.cachedAccountInfo;
+    if (account != null && !FeatureAccess.canUse(Feature.cloudSync, account)) {
+      return false;
+    }
+    return true;
+  }
+
+  String? get _userId => SupabaseConfig.currentUserId;
 
   /// Schedule an operation with debounce batching (500 ms).
   void _enqueue(Future<void> Function() op) {
@@ -57,6 +71,7 @@ class SyncService {
     if (!_ready) return;
     _enqueue(() async {
       final rows = items.entries.map((e) => {
+            'user_id': _userId,
             'profile_hash': profileHash,
             'item_key': e.key,
             'item_json': jsonEncode(e.value),
@@ -66,7 +81,7 @@ class SyncService {
           }).toList();
       await _client!
           .from('user_favorites')
-          .upsert(rows, onConflict: 'profile_hash,item_key,list_type');
+          .upsert(rows, onConflict: 'user_id,profile_hash,item_key,list_type');
       AppLogger.debug(LogModule.sync, 'Pushed ${rows.length} favorites ($listType)');
     });
   }
@@ -103,6 +118,7 @@ class SyncService {
     if (!_ready) return;
     _enqueue(() async {
       final rows = collections.map((c) => {
+            'user_id': _userId,
             'profile_hash': profileHash,
             'collection_id': c['id'] ?? c['collection_id'],
             'name': c['name'] ?? '',
@@ -113,7 +129,7 @@ class SyncService {
           }).toList();
       await _client!
           .from('user_collections')
-          .upsert(rows, onConflict: 'profile_hash,collection_id');
+          .upsert(rows, onConflict: 'user_id,profile_hash,collection_id');
       AppLogger.debug(LogModule.sync, 'Pushed ${rows.length} collections');
     });
   }
@@ -149,13 +165,14 @@ class SyncService {
     if (!_ready) return;
     _enqueue(() async {
       await _client!.from('user_watch_progress').upsert({
+        'user_id': _userId,
         'profile_hash': profileHash,
         'content_key': key,
         'position_ms': posMs,
         'duration_ms': durMs,
         'meta_json': jsonEncode(meta),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'profile_hash,content_key');
+      }, onConflict: 'user_id,profile_hash,content_key');
       AppLogger.debug(LogModule.sync, 'Pushed watch progress for $key');
     });
   }
@@ -192,11 +209,12 @@ class SyncService {
     if (!_ready) return;
     _enqueue(() async {
       await _client!.from('user_settings').upsert({
+        'user_id': _userId,
         'profile_hash': profileHash,
         'setting_key': key,
         'value_json': jsonEncode(value),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'profile_hash,setting_key');
+      }, onConflict: 'user_id,profile_hash,setting_key');
       AppLogger.debug(LogModule.sync, 'Pushed setting $key');
     });
   }
@@ -315,6 +333,25 @@ class SyncService {
       }
     }
     _channels.clear();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Data Migration
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Claim orphaned rows (pre-auth data with user_id IS NULL) for the given
+  /// profile hash by setting user_id to the current authenticated user.
+  Future<void> claimOrphanedData(String hash) async {
+    if (_client == null || _client!.auth.currentSession == null) return;
+    try {
+      await _client!.rpc('claim_profile_data', params: {
+        'p_profile_hash': hash,
+      });
+      AppLogger.info(LogModule.sync, 'Claimed orphaned data for hash: ${hash.substring(0, 8)}…');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.sync, 'claimOrphanedData failed (non-critical)',
+          error: e, stackTrace: st);
+    }
   }
 
   /// Cancel pending operations and stop realtime.

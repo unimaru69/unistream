@@ -972,4 +972,237 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get qualiteUniqueDisponible =>
       'Une seule qualité disponible pour ce flux.';
+
+  @override
+  String get authBienvenue => 'Bienvenue sur UniStream';
+
+  @override
+  String get authSousTitre =>
+      'Connectez-vous ou créez un compte pour commencer';
+
+  @override
+  String get authSeConnecter => 'Se connecter';
+
+  @override
+  String get authCreerCompte => 'Créer un compte';
+
+  @override
+  String get authEmail => 'Adresse e-mail';
+
+  @override
+  String get authMotDePasse => 'Mot de passe';
+
+  @override
+  String get authConfirmerMotDePasse => 'Confirmer le mot de passe';
+
+  @override
+  String get authMotDePasseOublie => 'Mot de passe oublié ?';
+
+  @override
+  String get authConnexionApple => 'Continuer avec Apple';
+
+  @override
+  String get authPasDeCompte => 'Pas encore de compte ?';
+
+  @override
+  String get authDejaUnCompte => 'Déjà un compte ?';
+
+  @override
+  String get authEmailInvalide => 'Adresse e-mail invalide';
+
+  @override
+  String get authMotDePasseCourt =>
+      'Le mot de passe doit contenir au moins 6 caractères';
+
+  @override
+  String get authMotDePassesDifferents =>
+      'Les mots de passe ne correspondent pas';
+
+  @override
+  String get authErreurConnexion => 'Identifiants incorrects';
+
+  @override
+  String get authErreurInscription => 'Erreur lors de la création du compte';
+
+  @override
+  String get authErreurGenerale =>
+      'Une erreur est survenue. Veuillez réessayer.';
+
+  @override
+  String get authCompteExistant => 'Un compte avec cet e-mail existe déjà';
+
+  @override
+  String get authEmailNonConfirme =>
+      'Veuillez confirmer votre e-mail avant de vous connecter';
+
+  @override
+  String authReinitialisationEnvoyee(String email) {
+    return 'Un lien de réinitialisation a été envoyé à $email';
+  }
+
+  @override
+  String get authReinitialiserMotDePasse => 'Réinitialiser le mot de passe';
+
+  @override
+  String get authEnvoyerLien => 'Envoyer le lien';
+
+  @override
+  String get compteMonCompte => 'Mon compte';
+
+  @override
+  String get compteTitre => 'Compte';
+
+  @override
+  String get compteEmail => 'E-mail';
+
+  @override
+  String compteCreeLe(String date) {
+    return 'Créé le $date';
+  }
+
+  @override
+  String get compteEssaiGratuit => 'Essai gratuit';
+
+  @override
+  String compteEssaiJoursRestants(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count jours restants',
+      one: '1 jour restant',
+      zero: 'Essai expiré',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get compteEssaiExpire => 'Votre essai gratuit a expiré';
+
+  @override
+  String get compteAbonnementBasic => 'Abonnement Basic';
+
+  @override
+  String get compteAbonnementPremium => 'Abonnement Premium';
+
+  @override
+  String get compteLicenceCrossplateforme => 'Licence cross-plateforme';
+
+  @override
+  String get compteDeconnexion => 'Se déconnecter';
+
+  @override
+  String get compteSupprimerCompte => 'Supprimer mon compte';
+
+  @override
+  String get compteSupprimerConfirmation =>
+      'Êtes-vous sûr ? Cette action est irréversible. Toutes vos données seront définitivement supprimées.';
+
+  @override
+  String get compteSupprimerBouton => 'Supprimer définitivement';
+
+  @override
+  String get paywallTitre => 'Passez à Premium';
+
+  @override
+  String get paywallDescription => 'Débloquez toutes les fonctionnalités';
+
+  @override
+  String get paywallRestaurer => 'Restaurer les achats';
+
+  @override
+  String get paywallMensuel => 'Mensuel';
+
+  @override
+  String get paywallAnnuel => 'Annuel';
+
+  @override
+  String get paywallSAbonner => 'S\'abonner';
+
+  @override
+  String paywallEconomie(int percent) {
+    return 'Économisez $percent%';
+  }
+
+  @override
+  String paywallParMois(String price) {
+    return '$price/mois';
+  }
+
+  @override
+  String paywallParAn(String price) {
+    return '$price/an';
+  }
+
+  @override
+  String get paywallAchatReussi => 'Achat effectué avec succès !';
+
+  @override
+  String get paywallAchatErreur =>
+      'Erreur lors de l\'achat. Veuillez réessayer.';
+
+  @override
+  String get paywallNonDisponible =>
+      'Les achats in-app ne sont pas disponibles sur cette plateforme.';
+
+  @override
+  String get fonctionnaliteRequiertPremium =>
+      'Cette fonctionnalité nécessite un abonnement Premium.';
+
+  @override
+  String get fonctionnaliteCollections => 'Collections personnalisées';
+
+  @override
+  String get fonctionnaliteMultiProfils => 'Multi-profils';
+
+  @override
+  String get fonctionnaliteParental => 'Contrôle parental';
+
+  @override
+  String get fonctionnaliteCatchup => 'Catch-up / Replay';
+
+  @override
+  String get fonctionnaliteMiniPlayer => 'Mini-player (PiP)';
+
+  @override
+  String get fonctionnaliteCloudSync => 'Synchronisation cloud';
+
+  @override
+  String get fonctionnaliteSousTitresAvances => 'Sous-titres avancés';
+
+  @override
+  String get fonctionnaliteLiveVodSeries => 'Live TV, VOD, Séries';
+
+  @override
+  String get fonctionnaliteEpg => 'Guide TV (EPG)';
+
+  @override
+  String get fonctionnaliteRecherche => 'Recherche';
+
+  @override
+  String get fonctionnaliteFavoris => 'Favoris & Historique';
+
+  @override
+  String get fonctionnaliteThemes => 'Thèmes clair / sombre';
+
+  @override
+  String get abonnementGerer => 'Gérer l\'abonnement';
+
+  @override
+  String get abonnementUpgrade => 'Passer à Premium';
+
+  @override
+  String get abonnementSAbonner => 'S\'abonner';
+
+  @override
+  String get abonnementBasic => 'Basic';
+
+  @override
+  String get abonnementPremium => 'Premium';
+
+  @override
+  String get abonnementLicenceCross => 'Licence cross-plateforme';
+
+  @override
+  String get abonnementLicenceCrossDesc =>
+      'Utilisez votre abonnement Premium sur toutes les plateformes';
 }

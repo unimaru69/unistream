@@ -88,11 +88,11 @@ class ImportExport {
       AppConfig.profiles = (data['profiles'] as List)
           .map((e) => Profile.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      await p.setString(StorageKeys.profilesList, jsonEncode(AppConfig.profiles.map((e) => e.toJson()).toList()));
+      await p.setString(StorageKeys.profilesList(AppConfig.currentUserId), jsonEncode(AppConfig.profiles.map((e) => e.toJson()).toList()));
     }
     // Restore active profile
     if (data['activeProfile'] != null) {
-      await p.setString(StorageKeys.activeProfile, data['activeProfile'] as String);
+      await p.setString(StorageKeys.activeProfile(AppConfig.currentUserId), data['activeProfile'] as String);
     }
     // Restore favorites
     for (final pr in AppConfig.profiles) {

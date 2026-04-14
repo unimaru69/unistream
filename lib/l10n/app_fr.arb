@@ -535,5 +535,108 @@
       "quality": {"type": "String"}
     }
   },
-  "qualiteUniqueDisponible": "Une seule qualité disponible pour ce flux."
+  "qualiteUniqueDisponible": "Une seule qualité disponible pour ce flux.",
+
+  "authBienvenue": "Bienvenue sur UniStream",
+  "authSousTitre": "Connectez-vous ou créez un compte pour commencer",
+  "authSeConnecter": "Se connecter",
+  "authCreerCompte": "Créer un compte",
+  "authEmail": "Adresse e-mail",
+  "authMotDePasse": "Mot de passe",
+  "authConfirmerMotDePasse": "Confirmer le mot de passe",
+  "authMotDePasseOublie": "Mot de passe oublié ?",
+  "authConnexionApple": "Continuer avec Apple",
+  "authPasDeCompte": "Pas encore de compte ?",
+  "authDejaUnCompte": "Déjà un compte ?",
+  "authEmailInvalide": "Adresse e-mail invalide",
+  "authMotDePasseCourt": "Le mot de passe doit contenir au moins 6 caractères",
+  "authMotDePassesDifferents": "Les mots de passe ne correspondent pas",
+  "authErreurConnexion": "Identifiants incorrects",
+  "authErreurInscription": "Erreur lors de la création du compte",
+  "authErreurGenerale": "Une erreur est survenue. Veuillez réessayer.",
+  "authCompteExistant": "Un compte avec cet e-mail existe déjà",
+  "authEmailNonConfirme": "Veuillez confirmer votre e-mail avant de vous connecter",
+  "authReinitialisationEnvoyee": "Un lien de réinitialisation a été envoyé à {email}",
+  "@authReinitialisationEnvoyee": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "authReinitialiserMotDePasse": "Réinitialiser le mot de passe",
+  "authEnvoyerLien": "Envoyer le lien",
+
+  "compteMonCompte": "Mon compte",
+  "compteTitre": "Compte",
+  "compteEmail": "E-mail",
+  "compteCreeLe": "Créé le {date}",
+  "@compteCreeLe": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "compteEssaiGratuit": "Essai gratuit",
+  "compteEssaiJoursRestants": "{count, plural, =0{Essai expiré} =1{1 jour restant} other{{count} jours restants}}",
+  "@compteEssaiJoursRestants": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "compteEssaiExpire": "Votre essai gratuit a expiré",
+  "compteAbonnementBasic": "Abonnement Basic",
+  "compteAbonnementPremium": "Abonnement Premium",
+  "compteLicenceCrossplateforme": "Licence cross-plateforme",
+  "compteDeconnexion": "Se déconnecter",
+  "compteSupprimerCompte": "Supprimer mon compte",
+  "compteSupprimerConfirmation": "Êtes-vous sûr ? Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
+  "compteSupprimerBouton": "Supprimer définitivement",
+
+  "paywallTitre": "Passez à Premium",
+  "paywallDescription": "Débloquez toutes les fonctionnalités",
+  "paywallRestaurer": "Restaurer les achats",
+  "paywallMensuel": "Mensuel",
+  "paywallAnnuel": "Annuel",
+  "paywallSAbonner": "S'abonner",
+  "paywallEconomie": "Économisez {percent}%",
+  "@paywallEconomie": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "paywallParMois": "{price}/mois",
+  "@paywallParMois": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "paywallParAn": "{price}/an",
+  "@paywallParAn": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "paywallAchatReussi": "Achat effectué avec succès !",
+  "paywallAchatErreur": "Erreur lors de l'achat. Veuillez réessayer.",
+  "paywallNonDisponible": "Les achats in-app ne sont pas disponibles sur cette plateforme.",
+
+  "fonctionnaliteRequiertPremium": "Cette fonctionnalité nécessite un abonnement Premium.",
+  "fonctionnaliteCollections": "Collections personnalisées",
+  "fonctionnaliteMultiProfils": "Multi-profils",
+  "fonctionnaliteParental": "Contrôle parental",
+  "fonctionnaliteCatchup": "Catch-up / Replay",
+  "fonctionnaliteMiniPlayer": "Mini-player (PiP)",
+  "fonctionnaliteCloudSync": "Synchronisation cloud",
+  "fonctionnaliteSousTitresAvances": "Sous-titres avancés",
+  "fonctionnaliteLiveVodSeries": "Live TV, VOD, Séries",
+  "fonctionnaliteEpg": "Guide TV (EPG)",
+  "fonctionnaliteRecherche": "Recherche",
+  "fonctionnaliteFavoris": "Favoris & Historique",
+  "fonctionnaliteThemes": "Thèmes clair / sombre",
+
+  "abonnementGerer": "Gérer l'abonnement",
+  "abonnementUpgrade": "Passer à Premium",
+  "abonnementSAbonner": "S'abonner",
+  "abonnementBasic": "Basic",
+  "abonnementPremium": "Premium",
+  "abonnementLicenceCross": "Licence cross-plateforme",
+  "abonnementLicenceCrossDesc": "Utilisez votre abonnement Premium sur toutes les plateformes"
 }

@@ -64,8 +64,10 @@ dependencies:
   sentry_flutter: ^8.12.0
   connectivity_plus: ^6.1.0
   supabase_flutter: ^2.12.2
+  sign_in_with_apple: ^6.1.0
   crypto: ^3.0.7
   flutter_local_notifications: ^21.0.0
+  purchases_flutter: ^9.16.1
 
 dev_dependencies:
   integration_test:

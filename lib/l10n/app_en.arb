@@ -368,5 +368,108 @@
       "quality": {"type": "String"}
     }
   },
-  "qualiteUniqueDisponible": "Only one quality available for this stream."
+  "qualiteUniqueDisponible": "Only one quality available for this stream.",
+
+  "authBienvenue": "Welcome to UniStream",
+  "authSousTitre": "Sign in or create an account to get started",
+  "authSeConnecter": "Sign In",
+  "authCreerCompte": "Create Account",
+  "authEmail": "Email address",
+  "authMotDePasse": "Password",
+  "authConfirmerMotDePasse": "Confirm password",
+  "authMotDePasseOublie": "Forgot password?",
+  "authConnexionApple": "Continue with Apple",
+  "authPasDeCompte": "Don't have an account?",
+  "authDejaUnCompte": "Already have an account?",
+  "authEmailInvalide": "Invalid email address",
+  "authMotDePasseCourt": "Password must be at least 6 characters",
+  "authMotDePassesDifferents": "Passwords do not match",
+  "authErreurConnexion": "Invalid credentials",
+  "authErreurInscription": "Error creating account",
+  "authErreurGenerale": "An error occurred. Please try again.",
+  "authCompteExistant": "An account with this email already exists",
+  "authEmailNonConfirme": "Please confirm your email before signing in",
+  "authReinitialisationEnvoyee": "A reset link has been sent to {email}",
+  "@authReinitialisationEnvoyee": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "authReinitialiserMotDePasse": "Reset Password",
+  "authEnvoyerLien": "Send Reset Link",
+
+  "compteMonCompte": "My Account",
+  "compteTitre": "Account",
+  "compteEmail": "Email",
+  "compteCreeLe": "Created on {date}",
+  "@compteCreeLe": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "compteEssaiGratuit": "Free Trial",
+  "compteEssaiJoursRestants": "{count, plural, =0{Trial expired} =1{1 day remaining} other{{count} days remaining}}",
+  "@compteEssaiJoursRestants": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "compteEssaiExpire": "Your free trial has expired",
+  "compteAbonnementBasic": "Basic Subscription",
+  "compteAbonnementPremium": "Premium Subscription",
+  "compteLicenceCrossplateforme": "Cross-platform license",
+  "compteDeconnexion": "Sign Out",
+  "compteSupprimerCompte": "Delete My Account",
+  "compteSupprimerConfirmation": "Are you sure? This action is irreversible. All your data will be permanently deleted.",
+  "compteSupprimerBouton": "Delete Permanently",
+
+  "paywallTitre": "Upgrade to Premium",
+  "paywallDescription": "Unlock all features",
+  "paywallRestaurer": "Restore purchases",
+  "paywallMensuel": "Monthly",
+  "paywallAnnuel": "Annual",
+  "paywallSAbonner": "Subscribe",
+  "paywallEconomie": "Save {percent}%",
+  "@paywallEconomie": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "paywallParMois": "{price}/month",
+  "@paywallParMois": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "paywallParAn": "{price}/year",
+  "@paywallParAn": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "paywallAchatReussi": "Purchase completed successfully!",
+  "paywallAchatErreur": "Purchase failed. Please try again.",
+  "paywallNonDisponible": "In-app purchases are not available on this platform.",
+
+  "fonctionnaliteRequiertPremium": "This feature requires a Premium subscription.",
+  "fonctionnaliteCollections": "Custom collections",
+  "fonctionnaliteMultiProfils": "Multiple profiles",
+  "fonctionnaliteParental": "Parental controls",
+  "fonctionnaliteCatchup": "Catch-up / Replay",
+  "fonctionnaliteMiniPlayer": "Mini-player (PiP)",
+  "fonctionnaliteCloudSync": "Cloud sync",
+  "fonctionnaliteSousTitresAvances": "Advanced subtitles",
+  "fonctionnaliteLiveVodSeries": "Live TV, VOD, Series",
+  "fonctionnaliteEpg": "TV Guide (EPG)",
+  "fonctionnaliteRecherche": "Search",
+  "fonctionnaliteFavoris": "Favorites & History",
+  "fonctionnaliteThemes": "Light / Dark themes",
+
+  "abonnementGerer": "Manage subscription",
+  "abonnementUpgrade": "Upgrade to Premium",
+  "abonnementSAbonner": "Subscribe",
+  "abonnementBasic": "Basic",
+  "abonnementPremium": "Premium",
+  "abonnementLicenceCross": "Cross-platform license",
+  "abonnementLicenceCrossDesc": "Use your Premium subscription on all platforms"
 }

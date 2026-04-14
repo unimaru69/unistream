@@ -25,9 +25,11 @@ class StorageKeys {
   static const prefAudioLang = 'pref_audio_lang';
   static const prefSubLang = 'pref_sub_lang';
 
-  // ── Profiles ──
-  static const profilesList = 'profiles_list';
-  static const activeProfile = 'active_profile';
+  // ── Profiles (scoped by userId when authenticated) ──
+  static String profilesList([String? userId]) =>
+      userId != null ? 'u_${userId}_profiles_list' : 'profiles_list';
+  static String activeProfile([String? userId]) =>
+      userId != null ? 'u_${userId}_active_profile' : 'active_profile';
 
   // ── Legacy config keys (migration only) ──
   static const cfgServer = 'cfg_server';

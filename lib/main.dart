@@ -26,8 +26,11 @@ import 'services/sync_service.dart';
 import 'services/watch_progress.dart';
 import 'utils/routes.dart';
 import 'utils/theme.dart';
-import 'screens/splash_screen.dart';
+import 'screens/auth/auth_gate.dart';
 import 'screens/player/player_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+import 'services/auth_service.dart';
+import 'providers/purchase_provider.dart';
 
 // Re-export theme utilities for screens that need them
 export 'utils/theme.dart' show themeNotifier, saveThemeMode;
@@ -187,6 +190,7 @@ class UniStreamApp extends ConsumerStatefulWidget {
 class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener, WidgetsBindingObserver {
   Timer? _windowSaveTimer;
   bool _syncPaused = false;
+  StreamSubscription? _authSub;
 
   @override
   void initState() {
@@ -197,8 +201,30 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     }
     // Init EPG reminder service
     EpgReminderService.instance.init(onAlert: _onEpgReminderAlert);
-    // Pull remote data and start realtime after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initSync());
+    // Pull remote data, start realtime, and init RevenueCat after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSync();
+      final userId = AuthService.instance.userId;
+      if (userId != null) {
+        ref.read(purchaseProvider.notifier).initialize(userId);
+      }
+    });
+    // Listen for auth state changes (stop sync on sign-out)
+    _authSub = AuthService.instance.onAuthStateChange?.listen((authState) {
+      if (authState.event == AuthChangeEvent.signedOut) {
+        SyncService.instance.stopRealtime();
+        ref.read(purchaseProvider.notifier).logOut();
+        AppConfig.currentUserId = null;
+        AppLogger.info(LogModule.sync, 'Auth signed out — realtime stopped');
+      } else if (authState.event == AuthChangeEvent.signedIn) {
+        _initSync();
+        // Initialize RevenueCat with the authenticated user ID
+        final userId = AuthService.instance.userId;
+        if (userId != null) {
+          ref.read(purchaseProvider.notifier).initialize(userId);
+        }
+      }
+    });
   }
 
   @override
@@ -226,7 +252,22 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   /// Pull remote data from Supabase and merge into local providers,
   /// then start realtime subscriptions for live cross-device sync.
   Future<void> _initSync() async {
+    // Skip sync if not authenticated
+    if (!AuthService.instance.isAuthenticated) return;
+
     try {
+      // One-time migration: claim orphaned data from pre-auth era
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool('auth_migrated') ?? false)) {
+        for (final profile in AppConfig.profiles) {
+          final hash = SupabaseConfig.computeProfileHash(
+            profile.serverUrl, profile.username);
+          await SyncService.instance.claimOrphanedData(hash);
+        }
+        await prefs.setBool('auth_migrated', true);
+        AppLogger.info(LogModule.sync, 'Auth migration: claimed orphaned data');
+      }
+
       final sync = SyncService.instance;
       final remote = await sync.pullAll();
 
@@ -284,6 +325,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
 
   @override
   void dispose() {
+    _authSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _windowSaveTimer?.cancel();
     EpgReminderService.instance.dispose();
@@ -327,7 +369,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: const SplashScreen(),
+        home: const AuthGate(),
       ),
     );
   }

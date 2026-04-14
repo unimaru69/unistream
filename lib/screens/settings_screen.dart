@@ -16,6 +16,7 @@ import 'settings/widgets/appearance_section.dart';
 import 'settings/widgets/language_prefs_section.dart';
 import 'settings/widgets/cache_section.dart';
 import 'settings/widgets/advanced_section.dart';
+import 'settings/widgets/account_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -174,6 +175,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const CacheSection(),
                 const SizedBox(height: 16),
                 const AdvancedSection(),
+                const SizedBox(height: 16),
+                const AccountSection(),
               ],
             ),
           ),
