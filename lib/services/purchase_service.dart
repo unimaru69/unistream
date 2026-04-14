@@ -3,11 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../core/logger.dart';
 
-/// RevenueCat API key for Apple platforms.
-///
-/// This is the **public** API key — safe to embed in the client.
-/// Replace with your actual key from the RevenueCat dashboard.
+/// RevenueCat **public** API keys — safe to embed in the client.
+/// Replace with your actual keys from the RevenueCat dashboard.
 const _revenueCatAppleApiKey = 'appl_hCGnNALIWCBnGEVfAGBDCmodKTR';
+const _revenueCatGoogleApiKey = 'goog_TODO_REPLACE_WITH_GOOGLE_PLAY_KEY';
 
 /// Singleton service wrapping the RevenueCat SDK.
 ///
@@ -19,7 +18,8 @@ class PurchaseService {
   bool _initialized = false;
 
   /// Whether the current platform supports in-app purchases.
-  bool get isPlatformSupported => Platform.isIOS || Platform.isMacOS;
+  bool get isPlatformSupported =>
+      Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
 
   /// Whether the SDK has been initialized.
   bool get isInitialized => _initialized;
@@ -40,7 +40,8 @@ class PurchaseService {
     }
 
     try {
-      final config = PurchasesConfiguration(_revenueCatAppleApiKey)
+      final apiKey = Platform.isAndroid ? _revenueCatGoogleApiKey : _revenueCatAppleApiKey;
+      final config = PurchasesConfiguration(apiKey)
         ..appUserID = appUserId;
       await Purchases.configure(config);
       _initialized = true;
