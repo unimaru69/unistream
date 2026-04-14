@@ -1,0 +1,117 @@
+import Foundation
+import os
+
+/// Central observable state coordinating auth, profiles, and API access.
+@MainActor @Observable
+final class AppState {
+    private let logger = Logger(subsystem: "fr.unimaru.unistream.tv", category: "App")
+
+    // Services
+    let authService = AuthService()
+    let profileManager = ProfileManager()
+    let api = XtreamAPIService()
+    let syncService = SyncService()
+    let purchaseService = PurchaseService()
+    let parentalService = ParentalService()
+    let collectionsService = CollectionsService()
+
+    // Navigation state
+    var isAuthenticated = false
+    var hasActiveProfile = false
+    var isCheckingSession = true
+
+    // ViewModels — owned by AppState to survive view re-renders
+    var liveVM: LiveViewModel?
+    var vodVM: VODViewModel?
+    var seriesVM: SeriesViewModel?
+    var playerVM: PlayerViewModel?
+
+    // MARK: - Initialization
+
+    /// Check for existing Supabase session on app launch.
+    func checkExistingSession() async {
+        defer { isCheckingSession = false }
+
+        if authService.isAuthenticated {
+            isAuthenticated = true
+            logger.info("Existing session found")
+
+            // Configure RevenueCat + fetch account info
+            purchaseService.configure(appUserId: authService.userId)
+            Task { _ = await authService.fetchAccountInfo() }
+
+            // Check if we have a saved profile
+            if profileManager.activeProfile != nil {
+                hasActiveProfile = true
+                await setupAndConnect()
+            }
+        }
+    }
+
+    // MARK: - Auth Flow
+
+    /// Called after successful sign-in.
+    func onSignIn() async {
+        isAuthenticated = true
+        // Configure RevenueCat + fetch account info
+        purchaseService.configure(appUserId: authService.userId)
+        Task { _ = await authService.fetchAccountInfo() }
+
+        if profileManager.activeProfile != nil {
+            hasActiveProfile = true
+            await setupAndConnect()
+        }
+    }
+
+    /// Called after server setup succeeds (already authenticated).
+    func onServerConfigured() {
+        hasActiveProfile = true
+        setupVMs()
+    }
+
+    // MARK: - Private
+
+    private func setupVMs() {
+        guard liveVM == nil else { return }
+        liveVM = LiveViewModel(api: api)
+        vodVM = VODViewModel(api: api)
+        seriesVM = SeriesViewModel(api: api)
+        let pvm = PlayerViewModel(api: api)
+        pvm.syncService = syncService
+        playerVM = pvm
+        logger.info("ViewModels created")
+    }
+
+    private func setupAndConnect() async {
+        guard let profile = profileManager.activeProfile else { return }
+
+        api.configure(
+            serverUrl: profile.serverUrl,
+            username: profile.username,
+            password: profile.password
+        )
+
+        if !api.isAuthenticated {
+            do {
+                _ = try await api.authenticate()
+            } catch {
+                logger.error("Auto-connect failed: \(error.localizedDescription)")
+            }
+        }
+
+        // Configure sync
+        if let uid = authService.userId {
+            let hash = SupabaseConfig.profileHash(serverUrl: profile.serverUrl, username: profile.username)
+            syncService.configure(profileHash: hash, userId: uid)
+            PlayerPresenter.syncService = syncService
+            Task { await syncService.pullAll() }
+        }
+
+        // Configure parental controls + collections for this profile
+        let profilePrefix = "\(profile.serverUrl)_\(profile.username)"
+        parentalService.configure(profilePrefix: profilePrefix)
+        collectionsService.configure(profilePrefix: profilePrefix)
+
+        setupVMs()
+    }
+}
