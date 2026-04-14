@@ -47,3 +47,16 @@ app.*.map.json
 # Windows test logs
 tools/logs/*
 !tools/logs/.gitkeep
+
+# Xcode user data & build artifacts
+**/xcuserdata/
+**/project.xcworkspace/
+
+# tvOS build artifacts
+tvos/**/build/
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Claude Code local settings
+.claude/settings.local.json
