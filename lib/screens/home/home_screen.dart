@@ -692,7 +692,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         showGrid: showGrid,
         sortMode: _sortMode,
         selectedCategory: _selectedCategory,
-        leadingMenuButton: MediaQuery.of(context).size.width < 600
+        leadingMenuButton: MediaQuery.of(context).size.width < 900
             ? IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
