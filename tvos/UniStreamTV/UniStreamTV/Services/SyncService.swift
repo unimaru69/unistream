@@ -59,30 +59,62 @@ final class SyncService {
     /// App Group id — must match the one declared in both entitlements files and
     /// in TopShelfContentProvider.swift.
     private static let topShelfAppGroup = "group.fr.unimaru.unistream.tv"
-    private static let topShelfKey = "topshelf.favorites.v1"
+    private static let topShelfFavoritesKey = "topshelf.favorites.v2"
+    private static let topShelfContinueKey = "topshelf.continue.v1"
 
-    /// Snapshot of favorites used by the TV Top Shelf extension. Lightweight mirror
-    /// of `FavoriteItem` — only the fields the extension needs.
-    private struct TopShelfSnapshot: Codable {
+    /// Lightweight mirror of `FavoriteItem` — only the fields the extension needs.
+    private struct TopShelfFavorite: Codable {
         let key: String
         let name: String
         let imageUrl: String?
+        let mode: String  // "live", "movie", "series"
     }
 
-    /// Writes the current live favorites to the shared App Group so the Top Shelf
-    /// extension can display them without hitting Supabase or Xtream.
+    /// Lightweight mirror of in-progress items for the Top Shelf "Continue Watching" row.
+    private struct TopShelfContinueItem: Codable {
+        let key: String
+        let name: String
+        let imageUrl: String?
+        let progress: Double  // 0.0–1.0
+        let updatedAt: TimeInterval  // Date().timeIntervalSince1970
+    }
+
+    /// Writes favorites and continue-watching to the shared App Group so the
+    /// Top Shelf extension can display them without hitting Supabase or Xtream.
     func writeTopShelfSnapshot() {
         guard let defaults = UserDefaults(suiteName: Self.topShelfAppGroup) else { return }
+        let encoder = JSONEncoder()
 
-        // Only live channels for now; sorted alphabetically; cap at 12.
-        let snapshots: [TopShelfSnapshot] = favorites.values
-            .filter { $0.mode == "live" }
+        // Favorites: all modes, sorted alphabetically, cap at 20.
+        let favSnapshots: [TopShelfFavorite] = favorites.values
             .sorted { $0.name < $1.name }
-            .prefix(12)
-            .map { TopShelfSnapshot(key: $0.key, name: $0.name, imageUrl: $0.displayIcon.isEmpty ? nil : $0.displayIcon) }
+            .prefix(20)
+            .map { TopShelfFavorite(key: $0.key, name: $0.name, imageUrl: $0.displayIcon.isEmpty ? nil : $0.displayIcon, mode: $0.mode) }
 
-        if let data = try? JSONEncoder().encode(snapshots) {
-            defaults.set(data, forKey: Self.topShelfKey)
+        if let data = try? encoder.encode(favSnapshots) {
+            defaults.set(data, forKey: Self.topShelfFavoritesKey)
+        }
+
+        // Continue Watching: in-progress items (5–95%), sorted by most recent, cap at 10.
+        let continueSnapshots: [TopShelfContinueItem] = watchProgress
+            .filter { $0.value.progress > 0.05 && $0.value.progress < 0.95 }
+            .sorted { $0.value.updatedAt > $1.value.updatedAt }
+            .prefix(10)
+            .map { (key, entry) in
+                let fav = favorites[key]
+                let title = entry.title ?? fav?.name ?? key
+                let image = fav?.displayIcon
+                return TopShelfContinueItem(
+                    key: key,
+                    name: title,
+                    imageUrl: (image?.isEmpty ?? true) ? nil : image,
+                    progress: entry.progress,
+                    updatedAt: entry.updatedAt.timeIntervalSince1970
+                )
+            }
+
+        if let data = try? encoder.encode(continueSnapshots) {
+            defaults.set(data, forKey: Self.topShelfContinueKey)
         }
     }
 
@@ -187,6 +219,7 @@ final class SyncService {
         }
 
         debouncePushProgress(contentKey: contentKey)
+        writeTopShelfSnapshot()
     }
 
     func getProgress(contentKey: String) -> WatchEntry? {
