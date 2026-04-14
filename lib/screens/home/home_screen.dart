@@ -692,6 +692,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         showGrid: showGrid,
         sortMode: _sortMode,
         selectedCategory: _selectedCategory,
+        isCompact: MediaQuery.of(context).size.width < 900,
         leadingMenuButton: MediaQuery.of(context).size.width < 900
             ? IconButton(
                 icon: const Icon(Icons.menu),

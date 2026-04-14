@@ -23,6 +23,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onProfileChanged,
     required this.selectedCategory,
     this.leadingMenuButton,
+    this.isCompact = false,
   });
 
   final ContentMode mode;
@@ -38,6 +39,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final ValueChanged<String> onProfileChanged;
   final String? selectedCategory;
   final Widget? leadingMenuButton;
+  final bool isCompact;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -48,14 +50,14 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     final tc = AppThemeColors.of(context);
 
     return AppBar(
-      title: const Text('UniStream',
+      title: isCompact ? null : const Text('UniStream',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
       backgroundColor: Colors.transparent,
       elevation: 0,
       leading: leadingMenuButton,
       automaticallyImplyLeading: false,
       actions: [
-        if (AppConfig.profiles.length > 1)
+        if (!isCompact && AppConfig.profiles.length > 1)
           PopupMenuButton<String>(
             icon: Text(
               AppConfig.profiles
@@ -96,55 +98,113 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
           fillColor: AppColors.primaryBlue,
           children: [
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
                 child: Text(l10n.live)),
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
                 child: Text(l10n.vod)),
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
                 child: Text(l10n.series)),
           ],
         ),
         const SizedBox(width: 4),
-        if (mode != ContentMode.live)
+        if (!isCompact && mode != ContentMode.live)
           IconButton(
             icon: Icon(showGrid ? Icons.view_list : Icons.grid_view),
             tooltip:
                 showGrid ? l10n.vueListe : l10n.vueGrille,
             onPressed: onGridToggle,
           ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.sort),
-          tooltip: l10n.trier,
-          onSelected: onSortChanged,
-          itemBuilder: (_) => [
-            _sortItem('default', l10n.ordreParDefaut),
-            _sortItem('alpha', l10n.alphabetique),
-            _sortItem('number', l10n.parNumero),
-            _sortItem('favFirst', l10n.favorisPremier),
-          ],
-        ),
-        IconButton(
-          icon: const Icon(Icons.live_tv),
-          tooltip: l10n.guideTV,
-          onPressed: onEpgPressed,
-        ),
+        if (!isCompact)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: l10n.trier,
+            onSelected: onSortChanged,
+            itemBuilder: (_) => [
+              _sortItem('default', l10n.ordreParDefaut),
+              _sortItem('alpha', l10n.alphabetique),
+              _sortItem('number', l10n.parNumero),
+              _sortItem('favFirst', l10n.favorisPremier),
+            ],
+          ),
         IconButton(
           icon: const Icon(Icons.search),
           tooltip: l10n.rechercheGlobale,
           onPressed: onSearchPressed,
         ),
-        IconButton(
-          icon: const Icon(Icons.settings_outlined),
-          onPressed: onSettingsPressed,
-          tooltip: l10n.parametres,
-        ),
-        IconButton(
-          icon: const Icon(Icons.help_outline, size: 20),
-          onPressed: onShortcutsPressed,
-          tooltip: '${l10n.raccourcisClavier} (Cmd+?)',
-        ),
+        if (!isCompact) ...[
+          IconButton(
+            icon: const Icon(Icons.live_tv),
+            tooltip: l10n.guideTV,
+            onPressed: onEpgPressed,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: onSettingsPressed,
+            tooltip: l10n.parametres,
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline, size: 20),
+            onPressed: onShortcutsPressed,
+            tooltip: '${l10n.raccourcisClavier} (Cmd+?)',
+          ),
+        ],
+        if (isCompact)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'grid': onGridToggle();
+                case 'epg': onEpgPressed();
+                case 'settings': onSettingsPressed();
+                case 'sort_default': onSortChanged('default');
+                case 'sort_alpha': onSortChanged('alpha');
+                case 'sort_number': onSortChanged('number');
+                case 'sort_favFirst': onSortChanged('favFirst');
+              }
+            },
+            itemBuilder: (_) => [
+              if (mode != ContentMode.live)
+                PopupMenuItem(value: 'grid', child: Row(children: [
+                  Icon(showGrid ? Icons.view_list : Icons.grid_view, size: 18),
+                  const SizedBox(width: 8),
+                  Text(showGrid ? l10n.vueListe : l10n.vueGrille),
+                ])),
+              PopupMenuItem(value: 'epg', child: Row(children: [
+                const Icon(Icons.live_tv, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.guideTV),
+              ])),
+              const PopupMenuDivider(),
+              PopupMenuItem(value: 'sort_default', child: Row(children: [
+                Icon(sortMode == 'default' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
+                const SizedBox(width: 8),
+                Text(l10n.ordreParDefaut),
+              ])),
+              PopupMenuItem(value: 'sort_alpha', child: Row(children: [
+                Icon(sortMode == 'alpha' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
+                const SizedBox(width: 8),
+                Text(l10n.alphabetique),
+              ])),
+              PopupMenuItem(value: 'sort_number', child: Row(children: [
+                Icon(sortMode == 'number' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
+                const SizedBox(width: 8),
+                Text(l10n.parNumero),
+              ])),
+              PopupMenuItem(value: 'sort_favFirst', child: Row(children: [
+                Icon(sortMode == 'favFirst' ? Icons.radio_button_checked : Icons.radio_button_off, size: 16, color: AppColors.primaryBlue),
+                const SizedBox(width: 8),
+                Text(l10n.favorisPremier),
+              ])),
+              const PopupMenuDivider(),
+              PopupMenuItem(value: 'settings', child: Row(children: [
+                const Icon(Icons.settings_outlined, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.parametres),
+              ])),
+            ],
+          ),
         const SizedBox(width: 4),
       ],
     );
