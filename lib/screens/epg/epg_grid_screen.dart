@@ -54,6 +54,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
   static const double _catSidebarMin = 120;
   static const double _catSidebarMax = 400;
 
+  // Scaffold key for drawer on narrow screens
+  final _epgScaffoldKey = GlobalKey<ScaffoldState>();
+
   // Timeline
   late DateTime _dayStart;
   final double _hourWidth = 300;
@@ -375,14 +378,167 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     );
   }
 
+  Widget _buildCategorySidebar(AppThemeColors tc, {bool inDrawer = false}) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: _categories.length + 1,
+      itemBuilder: (_, i) {
+        if (i == 0) {
+          final sel = _selectedCatId == '__favorites__';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: ListTile(
+              dense: true,
+              leading: Icon(Icons.star, size: 14,
+                  color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
+              title: Text(AppLocalizations.of(context)!.favoris, style: TextStyle(fontSize: 12,
+                  color: sel ? tc.textPrimary : tc.textSecondary,
+                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+              selected: sel,
+              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              onTap: () { _selectFavorites(); if (inDrawer) Navigator.pop(context); },
+            ),
+          );
+        }
+        final category = _categories[i - 1];
+        final id  = category.categoryId;
+        final sel = _selectedCatId == id;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: ListTile(
+            dense: true,
+            title: Text(category.categoryName,
+                style: TextStyle(fontSize: 12,
+                    color: sel ? tc.textPrimary : tc.textSecondary,
+                    fontWeight: sel ? FontWeight.bold : FontWeight.normal),
+                overflow: TextOverflow.ellipsis),
+            selected: sel,
+            selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            onTap: () { _selectCategory(id); if (inDrawer) Navigator.pop(context); },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridZone(AppThemeColors tc, double channelColWidth) {
+    return _loadingChannels
+        ? const Center(child: CircularProgressIndicator())
+        : _channels.isEmpty
+        ? Center(child: Text(AppLocalizations.of(context)!.selectionneCategorie,
+            style: TextStyle(color: tc.textDisabled)))
+        : Column(children: [
+            // Day navigation bar
+            EpgDayNavigator(
+              dayStart: _dayStart,
+              canGoPrev: _canGoPrev,
+              canGoNext: _canGoNext,
+              onPrev: () => _changeDay(-1),
+              onNext: () => _changeDay(1),
+              formatDay: _fmtDayFr,
+              onTapDate: () {
+                final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+                if (_dayStart != today) {
+                  setState(() => _dayStart = today);
+                  _changeDay(0);
+                }
+              },
+            ),
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!.filtrerChaines,
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
+                      : null,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none),
+                  filled: true,
+                  fillColor: tc.inputFill,
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+              ),
+            ),
+            // Timeline header
+            Row(children: [
+              Container(
+                width: channelColWidth,
+                height: 30,
+                alignment: Alignment.center,
+                color: AppColors.darkText,
+                child: Text(AppLocalizations.of(context)!.nombreChaines(_filteredChannels.length),
+                    style: TextStyle(fontSize: 10, color: tc.textTertiary)),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _headerHScroll,
+                  scrollDirection: Axis.horizontal,
+                  child: _buildTimelineHeader(),
+                ),
+              ),
+            ]),
+            // Main grid
+            Expanded(
+              child: Row(children: [
+                // Channel names column
+                SizedBox(
+                  width: channelColWidth,
+                  child: ListView.builder(
+                    controller: _channelVScroll,
+                    itemCount: _filteredChannels.length,
+                    itemBuilder: (_, i) => _buildChannelRow(i, _filteredChannels),
+                  ),
+                ),
+                // Programs grid
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _gridHScroll,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: _hourWidth * 24,
+                      child: ListView.builder(
+                        controller: _gridVScroll,
+                        itemCount: _filteredChannels.length,
+                        itemBuilder: (_, i) => _buildProgramRow(i, _filteredChannels),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 700;
+    final channelColWidth = isWide ? _channelColWidth : 120.0;
+
     return Scaffold(
+      key: _epgScaffoldKey,
       backgroundColor: tc.surfaceAlt,
+      drawer: isWide ? null : Drawer(
+        child: SafeArea(child: _buildCategorySidebar(tc, inDrawer: true)),
+      ),
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.guideTV, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
+        leading: isWide ? null : IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => _epgScaffoldKey.currentState?.openDrawer(),
+        ),
         actions: [
           if (_loadingEpg)
             Padding(
@@ -410,52 +566,12 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               ElevatedButton(onPressed: () { setState(() { _error = null; _loadingCats = true; }); _loadCategories(); },
                   child: Text(AppLocalizations.of(context)!.reessayer)),
             ]))
-          : Row(children: [
+          : isWide
+          ? Row(children: [
               // Sidebar catégories (resizable)
               SizedBox(
                 width: _catSidebarWidth,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: _categories.length + 1,
-                  itemBuilder: (_, i) {
-                    if (i == 0) {
-                      final sel = _selectedCatId == '__favorites__';
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: ListTile(
-                          dense: true,
-                          leading: Icon(Icons.star, size: 14,
-                              color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-                          title: Text(AppLocalizations.of(context)!.favoris, style: TextStyle(fontSize: 12,
-                              color: sel ? tc.textPrimary : tc.textSecondary,
-                              fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-                          selected: sel,
-                          selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          onTap: () => _selectFavorites(),
-                        ),
-                      );
-                    }
-                    final category = _categories[i - 1];
-                    final id  = category.categoryId;
-                    final sel = _selectedCatId == id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: ListTile(
-                        dense: true,
-                        title: Text(category.categoryName,
-                            style: TextStyle(fontSize: 12,
-                                color: sel ? tc.textPrimary : tc.textSecondary,
-                                fontWeight: sel ? FontWeight.bold : FontWeight.normal),
-                            overflow: TextOverflow.ellipsis),
-                        selected: sel,
-                        selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        onTap: () => _selectCategory(id),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildCategorySidebar(tc),
               ),
               // Resize handle
               MouseRegion(
@@ -467,102 +583,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
                 ),
               ),
               // Grid zone
-              Expanded(
-                child: _loadingChannels
-                    ? const Center(child: CircularProgressIndicator())
-                    : _channels.isEmpty
-                    ? Center(child: Text(AppLocalizations.of(context)!.selectionneCategorie,
-                        style: TextStyle(color: tc.textDisabled)))
-                    : Column(children: [
-                        // Day navigation bar
-                        EpgDayNavigator(
-                          dayStart: _dayStart,
-                          canGoPrev: _canGoPrev,
-                          canGoNext: _canGoNext,
-                          onPrev: () => _changeDay(-1),
-                          onNext: () => _changeDay(1),
-                          formatDay: _fmtDayFr,
-                          onTapDate: () {
-                            final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-                            if (_dayStart != today) {
-                              setState(() => _dayStart = today);
-                              _changeDay(0);
-                            }
-                          },
-                        ),
-                        // Search bar
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                          child: TextField(
-                            controller: _searchCtrl,
-                            style: const TextStyle(fontSize: 13),
-                            decoration: InputDecoration(
-                              hintText: AppLocalizations.of(context)!.filtrerChaines,
-                              prefixIcon: const Icon(Icons.search, size: 18),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                  ? IconButton(icon: const Icon(Icons.clear, size: 16),
-                                      onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
-                                  : null,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none),
-                              filled: true,
-                              fillColor: tc.inputFill,
-                            ),
-                            onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-                          ),
-                        ),
-                        // Timeline header
-                        Row(children: [
-                          Container(
-                            width: _channelColWidth,
-                            height: 30,
-                            alignment: Alignment.center,
-                            color: AppColors.darkText,
-                            child: Text(AppLocalizations.of(context)!.nombreChaines(_filteredChannels.length),
-                                style: TextStyle(fontSize: 10, color: tc.textTertiary)),
-                          ),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              controller: _headerHScroll,
-                              scrollDirection: Axis.horizontal,
-                              child: _buildTimelineHeader(),
-                            ),
-                          ),
-                        ]),
-                        // Main grid
-                        Expanded(
-                          child: Row(children: [
-                            // Channel names column
-                            SizedBox(
-                              width: _channelColWidth,
-                              child: ListView.builder(
-                                controller: _channelVScroll,
-                                itemCount: _filteredChannels.length,
-                                itemBuilder: (_, i) => _buildChannelRow(i, _filteredChannels),
-                              ),
-                            ),
-                            // Programs grid
-                            Expanded(
-                              child: SingleChildScrollView(
-                                controller: _gridHScroll,
-                                scrollDirection: Axis.horizontal,
-                                child: SizedBox(
-                                  width: _hourWidth * 24,
-                                  child: ListView.builder(
-                                    controller: _gridVScroll,
-                                    itemCount: _filteredChannels.length,
-                                    itemBuilder: (_, i) => _buildProgramRow(i, _filteredChannels),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      ]),
-              ),
-            ]),
+              Expanded(child: _buildGridZone(tc, channelColWidth)),
+            ])
+          : _buildGridZone(tc, channelColWidth),
     );
   }
 }
