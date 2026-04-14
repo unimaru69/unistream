@@ -289,6 +289,25 @@ struct ChannelDetailView: View {
                     }
 
                     Spacer()
+
+                    // Reminder toggle
+                    if program.start != nil {
+                        Button {
+                            appState.reminderService.toggle(
+                                streamId: channel.streamId,
+                                channelName: channel.name,
+                                program: program
+                            )
+                        } label: {
+                            let hasReminder = appState.reminderService.hasReminder(
+                                streamId: channel.streamId,
+                                startUtc: program.start!
+                            )
+                            Image(systemName: hasReminder ? "bell.fill" : "bell")
+                                .font(.title3)
+                                .foregroundColor(hasReminder ? .yellow : .gray)
+                        }
+                    }
                 }
                 .padding(.vertical, 6)
                 .padding(.horizontal, 16)

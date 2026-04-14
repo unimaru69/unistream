@@ -65,6 +65,55 @@ struct HomeTabView: View {
             hasLoadedLive = true
             await appState.liveVM?.loadCategories()
         }
+        .overlay(alignment: .top) {
+            if let alert = appState.reminderService.pendingAlert {
+                EPGReminderToast(reminder: alert) {
+                    appState.reminderService.dismissAlert()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.easeInOut, value: appState.reminderService.pendingAlert?.id)
+                .padding(.top, 40)
+            }
+        }
+    }
+}
+
+// MARK: - EPG Reminder Toast
+
+private struct EPGReminderToast: View {
+    let reminder: EPGReminder
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "bell.fill")
+                .font(.title3)
+                .foregroundColor(.yellow)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Rappel EPG")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white.opacity(0.7))
+                Text("\(reminder.programTitle)")
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text("\(reminder.channelName) — dans 5 min")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+
+            Spacer()
+
+            Button("OK", action: onDismiss)
+                .font(.caption)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 80)
     }
 }
 

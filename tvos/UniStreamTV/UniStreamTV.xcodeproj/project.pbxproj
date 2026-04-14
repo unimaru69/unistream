@@ -42,6 +42,7 @@
 		799D21D487E08E7A0B663747 /* VLCPlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */; };
 		7DA736955A27E82D9DC6C9C8 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D517AEE9BA76841A8A5F88 /* AuthService.swift */; };
 		7F5C004035BD07FD07120542 /* FocusableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128BA5E87066CEE16997BC1C /* FocusableCard.swift */; };
+		7F72E6424C41D1A9956BD2C6 /* EPGReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */; };
 		805114601A8B3CCFDE4ED762 /* CatchUpRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EAE9833DA4851D7E831842E /* CatchUpRow.swift */; };
 		8094FA14E4430AEDB7CFBA0C /* LiveCategoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64346A4025C492F01DFC1416 /* LiveCategoryListView.swift */; };
 		809507D6D064C6065729FBD9 /* ProfileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C8CAE2E189E434C0DA3EB6 /* ProfileManager.swift */; };
@@ -125,6 +126,7 @@
 		917CA542B893D20299F88ECF /* AsyncPosterImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncPosterImage.swift; sourceTree = "<group>"; };
 		A04CB8C04ED1E64A112120B8 /* Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Profile.swift; sourceTree = "<group>"; };
 		A0F780A721C2BE021051A5F3 /* FavoriteItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteItem.swift; sourceTree = "<group>"; };
+		A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGReminderService.swift; sourceTree = "<group>"; };
 		A5712621A2D936C3A2D53353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A5E315AF490837A1C541826E /* URLSession+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Retry.swift"; sourceTree = "<group>"; };
 		B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtreamAPIService.swift; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 			children = (
 				42D517AEE9BA76841A8A5F88 /* AuthService.swift */,
 				39D57B2FBA0F19FC72B159E4 /* CollectionsService.swift */,
+				A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */,
 				0E707B4DAC31BC40B877C8DD /* ParentalService.swift */,
 				26C8CAE2E189E434C0DA3EB6 /* ProfileManager.swift */,
 				72F38FD656B29860B601206D /* PurchaseService.swift */,
@@ -529,6 +532,7 @@
 				AF753A6FB728027D39899B7D /* Constants.swift in Sources */,
 				977BDF7263CA342DE059F776 /* ContentMode.swift in Sources */,
 				498620BBA9E626DCA6DDF8C2 /* ContinueWatchingRow.swift in Sources */,
+				7F72E6424C41D1A9956BD2C6 /* EPGReminderService.swift in Sources */,
 				C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */,
 				7258D547473FF8BE255E5094 /* EPGViewModel.swift in Sources */,
 				12B2122A46AC67B80069DE0B /* EpgProgram.swift in Sources */,

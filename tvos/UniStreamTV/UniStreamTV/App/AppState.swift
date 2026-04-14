@@ -14,6 +14,7 @@ final class AppState {
     let purchaseService = PurchaseService()
     let parentalService = ParentalService()
     let collectionsService = CollectionsService()
+    let reminderService = EPGReminderService()
 
     // Navigation state
     var isAuthenticated = false
@@ -31,6 +32,9 @@ final class AppState {
     /// Check for existing Supabase session on app launch.
     func checkExistingSession() async {
         defer { isCheckingSession = false }
+
+        // Initialize reminders (independent of auth)
+        reminderService.initialize()
 
         if authService.isAuthenticated {
             isAuthenticated = true
