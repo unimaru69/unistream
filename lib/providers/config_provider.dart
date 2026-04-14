@@ -47,26 +47,31 @@ class ConfigNotifier extends StateNotifier<ConfigState> {
 
   Future<void> switchProfile(String profileId) async {
     await AppConfig.switchProfile(profileId);
+    if (!mounted) return;
     refresh();
   }
 
   Future<void> addProfile(Profile profile) async {
     await AppConfig.addProfile(profile);
+    if (!mounted) return;
     refresh();
   }
 
   Future<void> updateProfile(Profile profile) async {
     await AppConfig.updateProfile(profile);
+    if (!mounted) return;
     refresh();
   }
 
   Future<void> deleteProfile(String id) async {
     await AppConfig.deleteProfile(id);
+    if (!mounted) return;
     refresh();
   }
 
   Future<void> save(String server, String user, String pass) async {
     await AppConfig.save(server, user, pass);
+    if (!mounted) return;
     refresh();
   }
 }

@@ -1,10 +1,17 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
 import '../../core/theme_colors.dart';
 import '../../models/profile.dart';
+import '../../models/app_config.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/config_provider.dart';
+import '../../utils/feature_access.dart';
+import '../../widgets/pin_dialog.dart';
+import '../../widgets/premium_gate.dart';
 import 'profile_dialog.dart';
 
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -27,6 +34,11 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   bool _changed = false;
 
   Future<void> _addProfile() async {
+    final account = ref.read(authProvider).accountInfo;
+    final maxAllowed = FeatureAccess.maxProfiles(account);
+    if (AppConfig.profiles.length >= maxAllowed) {
+      if (!checkPremiumAccess(context, ref, Feature.multipleProfiles)) return;
+    }
     final result = await showDialog<Profile>(
       context: context,
       builder: (ctx) => const ProfileDialog(),
@@ -37,7 +49,33 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     }
   }
 
+  /// Verify profile PIN before a sensitive action. Returns true if no PIN
+  /// is set or if the user enters it correctly.
+  Future<bool> _checkPin(Profile pr) async {
+    if (!pr.hasPin) return true;
+    final l10n = AppLocalizations.of(context)!;
+    bool verified = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PinDialog(
+        title: l10n.entrerPinProfil,
+        onPinEntered: (pin) {
+          final hash = sha256.convert(utf8.encode(pin)).toString();
+          if (hash == pr.pinHash) {
+            verified = true;
+            Navigator.pop(ctx);
+          }
+          // Wrong PIN — dialog stays open for retry
+        },
+        onCancel: () => Navigator.pop(ctx),
+      ),
+    );
+    return verified;
+  }
+
   Future<void> _editProfile(Profile pr) async {
+    if (!await _checkPin(pr)) return;
     final result = await showDialog<Profile>(
       context: context,
       builder: (ctx) => ProfileDialog(profile: pr),
@@ -49,6 +87,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   }
 
   Future<void> _deleteProfile(Profile pr) async {
+    if (!await _checkPin(pr)) return;
     final config = ref.read(configProvider);
     if (config.profiles.length <= 1) return;
     final tc = AppThemeColors.of(context);

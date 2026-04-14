@@ -20,13 +20,18 @@ class SupabaseConfig {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
       );
       _initialized = true;
-      AppLogger.info(LogModule.sync, 'Supabase initialized');
+      final session = Supabase.instance.client.auth.currentSession;
+      AppLogger.info(LogModule.sync,
+          'Supabase initialized — session=${session != null ? "exists (${session.user.email})" : "null"}');
     } catch (e, st) {
-      AppLogger.warning(
+      AppLogger.error(
         LogModule.sync,
-        'Supabase initialization failed (sync disabled)',
+        'Supabase initialization FAILED (sync disabled)',
         error: e,
         stackTrace: st,
       );
@@ -52,4 +57,7 @@ class SupabaseConfig {
     final input = '$serverUrl:$username';
     return sha256.convert(utf8.encode(input)).toString();
   }
+
+  /// Returns the current authenticated user's ID, or null.
+  static String? get currentUserId => client?.auth.currentUser?.id;
 }

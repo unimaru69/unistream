@@ -14,11 +14,14 @@ class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
   }
 
   Future<void> load() async {
-    state = await CollectionsService.loadCollections();
+    final data = await CollectionsService.loadCollections();
+    if (!mounted) return;
+    state = data;
   }
 
   Future<CollectionData> create(String name, {String? mode}) async {
     final col = await CollectionsService.saveCollection(name, mode: mode);
+    if (!mounted) return col;
     await load();
     _pushSync();
     return col;
@@ -26,18 +29,21 @@ class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
 
   Future<void> delete(String id) async {
     await CollectionsService.deleteCollection(id);
+    if (!mounted) return;
     await load();
     _pushSync();
   }
 
   Future<void> addItem(String collectionId, FavoriteItem item) async {
     await CollectionsService.addToCollection(collectionId, item);
+    if (!mounted) return;
     await load();
     _pushSync();
   }
 
   Future<void> removeItem(String collectionId, String itemKey) async {
     await CollectionsService.removeFromCollection(collectionId, itemKey);
+    if (!mounted) return;
     await load();
     _pushSync();
   }
@@ -46,6 +52,7 @@ class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
   Future<void> mergeFromRemote(List<Map<String, dynamic>> remote) async {
     if (remote.isEmpty) return;
     final local = await CollectionsService.loadCollections();
+    if (!mounted) return;
     bool changed = false;
 
     for (final rc in remote) {
@@ -83,6 +90,7 @@ class CollectionsNotifier extends StateNotifier<List<CollectionData>> {
         StorageKeys.collections(AppConfig.activeProfileId),
         jsonEncode(local.map((c) => c.toJson()).toList()),
       );
+      if (!mounted) return;
       state = local;
     }
   }

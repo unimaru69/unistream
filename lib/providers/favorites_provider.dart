@@ -20,8 +20,10 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final raw = p.getString(StorageKeys.favorites(AppConfig.activeProfileId));
     if (raw == null) {
+      if (!mounted) return;
       state = const FavoritesState();
       return;
     }
@@ -31,11 +33,13 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       return FavoriteItem.fromLegacy(key, map);
     }).toList();
     final keys = list.map((e) => e.key).toSet();
+    if (!mounted) return;
     state = FavoritesState(keys: keys, items: list);
   }
 
   Future<void> toggle(String key, FavoriteItem item) async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
 
@@ -49,6 +53,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
 
     await p.setString(StorageKeys.favorites(AppConfig.activeProfileId),
         jsonEncode(items.map((e) => e.toJson()).toList()));
+    if (!mounted) return;
     state = FavoritesState(keys: keys, items: items);
     _pushSync();
   }
@@ -57,6 +62,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
   Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
     if (remote.isEmpty) return;
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
     bool changed = false;
@@ -73,6 +79,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
     if (changed) {
       await p.setString(StorageKeys.favorites(AppConfig.activeProfileId),
           jsonEncode(items.map((e) => e.toJson()).toList()));
+      if (!mounted) return;
       state = FavoritesState(keys: keys, items: items);
     }
   }
@@ -107,8 +114,10 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final raw = p.getString(StorageKeys.watchlist(AppConfig.activeProfileId));
     if (raw == null) {
+      if (!mounted) return;
       state = const WatchlistState();
       return;
     }
@@ -118,11 +127,13 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
       return FavoriteItem.fromLegacy(key, map);
     }).toList();
     final keys = list.map((e) => e.key).toSet();
+    if (!mounted) return;
     state = WatchlistState(keys: keys, items: list);
   }
 
   Future<void> toggle(String key, FavoriteItem item) async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
 
@@ -136,6 +147,7 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
 
     await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId),
         jsonEncode(items.map((e) => e.toJson()).toList()));
+    if (!mounted) return;
     state = WatchlistState(keys: keys, items: items);
     _pushSync();
   }
@@ -144,6 +156,7 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
   Future<void> mergeFromRemote(Map<String, dynamic> remote) async {
     if (remote.isEmpty) return;
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final items = List<FavoriteItem>.from(state.items);
     final keys = Set<String>.from(state.keys);
     bool changed = false;
@@ -160,6 +173,7 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
     if (changed) {
       await p.setString(StorageKeys.watchlist(AppConfig.activeProfileId),
           jsonEncode(items.map((e) => e.toJson()).toList()));
+      if (!mounted) return;
       state = WatchlistState(keys: keys, items: items);
     }
   }

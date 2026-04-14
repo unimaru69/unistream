@@ -11,13 +11,16 @@ class LocaleNotifier extends StateNotifier<Locale> {
 
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final code = p.getString(StorageKeys.locale) ?? 'fr';
     state = Locale(code);
   }
 
   Future<void> setLocale(Locale locale) async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     await p.setString(StorageKeys.locale, locale.languageCode);
+    if (!mounted) return;
     state = locale;
     SyncService.instance.pushSetting('locale', locale.languageCode);
   }

@@ -69,22 +69,28 @@ class HistoryNotifier extends StateNotifier<AsyncValue<List<HistoryEntry>>> {
   }
 
   Future<void> load() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
-    state = AsyncValue.data(await WatchProgress.loadHistory());
+    final history = await WatchProgress.loadHistory();
+    if (!mounted) return;
+    state = AsyncValue.data(history);
   }
 
   Future<void> deleteEntry(String key) async {
     await WatchProgress.deleteHistoryEntry(key);
+    if (!mounted) return;
     await load();
   }
 
   Future<void> reInsertEntry(HistoryEntry entry) async {
     await WatchProgress.reInsertHistoryEntry(entry);
+    if (!mounted) return;
     await load();
   }
 
   Future<void> clearAll() async {
     await WatchProgress.clearHistory();
+    if (!mounted) return;
     state = const AsyncValue.data([]);
   }
 }

@@ -11,6 +11,7 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final v = p.getString(StorageKeys.themeMode) ?? 'dark';
     switch (v) {
       case 'light':
@@ -24,8 +25,10 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> setTheme(ThemeMode mode) async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final v = mode == ThemeMode.dark ? 'dark' : mode == ThemeMode.light ? 'light' : 'system';
     await p.setString(StorageKeys.themeMode, v);
+    if (!mounted) return;
     state = mode;
     SyncService.instance.pushSetting('themeMode', v);
   }

@@ -38,8 +38,10 @@ class ParentalNotifier extends StateNotifier<ParentalState> {
 
   Future<void> _load() async {
     final hasPin = await ParentalService.hasPin();
+    if (!mounted) return;
     final blocked = await ParentalService.getBlockedCategories(
         AppConfig.activeProfileId);
+    if (!mounted) return;
     state = ParentalState(
       isEnabled: hasPin,
       isUnlocked: false,
@@ -50,12 +52,14 @@ class ParentalNotifier extends StateNotifier<ParentalState> {
   /// Set a new PIN (enables parental controls).
   Future<void> setPin(String pin) async {
     await ParentalService.setPin(pin);
+    if (!mounted) return;
     state = state.copyWith(isEnabled: true);
   }
 
   /// Verify PIN and unlock the session if correct. Returns true on success.
   Future<bool> verifyAndUnlock(String pin) async {
     final ok = await ParentalService.verifyPin(pin);
+    if (!mounted) return false;
     if (ok) {
       state = state.copyWith(isUnlocked: true);
     }
@@ -77,14 +81,17 @@ class ParentalNotifier extends StateNotifier<ParentalState> {
     }
     await ParentalService.setBlockedCategories(
         AppConfig.activeProfileId, current);
+    if (!mounted) return;
     state = state.copyWith(blockedCategoryIds: current);
   }
 
   /// Remove the PIN entirely (disables parental controls).
   Future<void> clearPin() async {
     await ParentalService.clearPin();
+    if (!mounted) return;
     await ParentalService.setBlockedCategories(
         AppConfig.activeProfileId, {});
+    if (!mounted) return;
     state = const ParentalState(
       isEnabled: false,
       isUnlocked: false,

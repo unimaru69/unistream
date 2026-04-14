@@ -14,6 +14,9 @@ class AppConfig {
 
   static List<Profile> profiles = [];
 
+  /// Current authenticated user ID (set after auth, before load).
+  static String? currentUserId;
+
   static const _secureStorage = FlutterSecureStorage();
 
   static bool get isConfigured =>
@@ -34,7 +37,7 @@ class AppConfig {
     }
 
     // Fallback: read from profiles_list JSON in SharedPreferences
-    final raw = p.getString(StorageKeys.profilesList);
+    final raw = p.getString(StorageKeys.profilesList(currentUserId));
     if (raw != null) {
       final list = jsonDecode(raw) as List;
       for (final e in list) {
@@ -61,13 +64,35 @@ class AppConfig {
 
   static Future<void> load() async {
     final p = await SharedPreferences.getInstance();
-    final raw = p.getString(StorageKeys.profilesList);
+
+    // One-time migration: copy global profiles to the FIRST authenticated user only.
+    // The 'profiles_global_claimed' flag ensures this runs exactly once.
+    if (currentUserId != null && !(p.getBool('profiles_global_claimed') ?? false)) {
+      final globalRaw = p.getString(StorageKeys.profilesList());
+      if (globalRaw != null) {
+        final userKey = StorageKeys.profilesList(currentUserId);
+        if (p.getString(userKey) == null) {
+          await p.setString(userKey, globalRaw);
+          final globalActive = p.getString(StorageKeys.activeProfile());
+          if (globalActive != null) {
+            await p.setString(StorageKeys.activeProfile(currentUserId), globalActive);
+          }
+        }
+        await p.remove(StorageKeys.profilesList());
+        await p.remove(StorageKeys.activeProfile());
+      }
+      await p.setBool('profiles_global_claimed', true);
+    }
+
+    final raw = p.getString(StorageKeys.profilesList(currentUserId));
     if (raw != null) {
       profiles = (jsonDecode(raw) as List)
           .map((e) => Profile.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+    } else {
+      profiles = [];
     }
-    activeProfileId = p.getString(StorageKeys.activeProfile) ?? '';
+    activeProfileId = p.getString(StorageKeys.activeProfile(currentUserId)) ?? '';
 
     // Load passwords from secure storage for all profiles
     for (final pr in profiles) {
@@ -81,9 +106,9 @@ class AppConfig {
       password  = active.password;
     } else if (profiles.isNotEmpty) {
       _activate(profiles.first);
-      await p.setString(StorageKeys.activeProfile, activeProfileId);
+      await p.setString(StorageKeys.activeProfile(currentUserId), activeProfileId);
     } else {
-      // Legacy migration: check old keys
+      // Legacy migration: check old keys (only for unauthenticated/first-time)
       final oldServer = p.getString(StorageKeys.cfgServer) ?? '';
       final oldUser   = p.getString(StorageKeys.cfgUser)   ?? '';
       final oldPass   = p.getString(StorageKeys.cfgPass)   ?? '';
@@ -94,9 +119,15 @@ class AppConfig {
         _activate(pr);
         await _writePassword(pr.id, oldPass);
         await _saveProfiles();
-        await p.setString(StorageKeys.activeProfile, pr.id);
+        await p.setString(StorageKeys.activeProfile(currentUserId), pr.id);
         // Remove old plaintext password
         await p.remove(StorageKeys.cfgPass);
+      } else {
+        // Reset state for clean account
+        serverUrl = '';
+        username = '';
+        password = '';
+        activeProfileId = '';
       }
     }
   }
@@ -115,7 +146,7 @@ class AppConfig {
     XtreamApi.clearEpgCache();
     XtreamApi.clearStreamCache();
     final p = await SharedPreferences.getInstance();
-    await p.setString(StorageKeys.activeProfile, profileId);
+    await p.setString(StorageKeys.activeProfile(currentUserId), profileId);
   }
 
   static Future<void> addProfile(Profile pr) async {
@@ -135,6 +166,22 @@ class AppConfig {
   static Future<void> deleteProfile(String id) async {
     profiles.removeWhere((p) => p.id == id);
     await _deletePassword(id);
+
+    // If we deleted the active profile, switch to another or clear state
+    if (id == activeProfileId) {
+      final p = await SharedPreferences.getInstance();
+      if (profiles.isNotEmpty) {
+        _activate(profiles.first);
+        await p.setString(StorageKeys.activeProfile(currentUserId), profiles.first.id);
+      } else {
+        activeProfileId = '';
+        serverUrl = '';
+        username = '';
+        password = '';
+        await p.remove(StorageKeys.activeProfile(currentUserId));
+      }
+    }
+
     await _saveProfiles();
   }
 
@@ -153,7 +200,7 @@ class AppConfig {
       if (secureAvailable) j['password'] = ''; // passwords safe in Keychain
       return j;
     }).toList();
-    await p.setString(StorageKeys.profilesList, jsonEncode(serialized));
+    await p.setString(StorageKeys.profilesList(currentUserId), jsonEncode(serialized));
   }
 
   // Legacy compat — used by SettingsScreen
@@ -165,7 +212,7 @@ class AppConfig {
       _activate(pr);
       await _writePassword(pr.id, pass.trim());
       final p = await SharedPreferences.getInstance();
-      await p.setString(StorageKeys.activeProfile, pr.id);
+      await p.setString(StorageKeys.activeProfile(currentUserId), pr.id);
     } else {
       final pr = profiles.firstWhere((p) => p.id == activeProfileId);
       pr.serverUrl = server.trim();

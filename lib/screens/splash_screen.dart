@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../core/colors.dart';
@@ -7,6 +9,8 @@ import '../l10n/app_localizations.dart';
 import '../models/app_config.dart';
 import '../models/profile.dart';
 import '../repositories/content_repository.dart';
+import '../services/supabase_config.dart';
+import '../widgets/pin_dialog.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
 import 'profiles/profile_selector_screen.dart';
@@ -56,10 +60,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     setState(() => _showLoading = true);
 
-    // Step 1: Check configuration
+    // Step 1: Load config scoped to authenticated user
     final l10n = AppLocalizations.of(context);
     setState(() => _statusMessage = l10n?.splashLoadingConfig ?? 'Loading configuration...');
     AppLogger.breadcrumb('splash', 'Loading configuration');
+
+    AppConfig.currentUserId = SupabaseConfig.currentUserId;
+    await AppConfig.load();
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -90,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // Step 3: Profile selection (if multiple profiles)
+    // Step 3: Profile selection (if multiple profiles) or PIN check (single profile)
     if (AppConfig.profiles.length > 1) {
       setState(() => _statusMessage = l10n?.splashReady ?? 'Ready!');
       await Future.delayed(const Duration(milliseconds: 200));
@@ -107,6 +114,11 @@ class _SplashScreenState extends State<SplashScreen>
       if (selected != null && selected.id != AppConfig.activeProfileId) {
         await AppConfig.switchProfile(selected.id);
       }
+    } else if (AppConfig.profiles.length == 1 && AppConfig.profiles.first.hasPin) {
+      // Single profile with PIN — verify before granting access
+      final profile = AppConfig.profiles.first;
+      final ok = await _verifyPin(profile);
+      if (!ok || !mounted) return;
     }
 
     // Step 4: Load EPG cache from disk + retry config
@@ -122,6 +134,28 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     _navigateTo(const HomeScreen());
+  }
+
+  Future<bool> _verifyPin(Profile profile) async {
+    final l10n = AppLocalizations.of(context);
+    bool verified = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PinDialog(
+        title: l10n?.entrerPinProfil ?? 'Enter PIN',
+        onPinEntered: (pin) {
+          final hash = sha256.convert(utf8.encode(pin)).toString();
+          if (hash == profile.pinHash) {
+            verified = true;
+            Navigator.pop(ctx);
+          }
+          // Wrong PIN — dialog stays open for retry
+        },
+        onCancel: () => Navigator.pop(ctx),
+      ),
+    );
+    return verified;
   }
 
   void _navigateTo(Widget destination) {
