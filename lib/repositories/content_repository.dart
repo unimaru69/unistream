@@ -16,6 +16,9 @@ const bool kDemoMode = bool.fromEnvironment('DEMO', defaultValue: false);
 /// Activate with --dart-define=SCREEN=vod
 const String kDemoScreen = String.fromEnvironment('SCREEN', defaultValue: 'home');
 
+/// Force landscape orientation in demo mode. Activate with --dart-define=LANDSCAPE=true
+const bool kDemoLandscape = bool.fromEnvironment('LANDSCAPE', defaultValue: false);
+
 /// Centralizes all Xtream API data access.
 ///
 /// Screens and providers should go through this repository instead of calling

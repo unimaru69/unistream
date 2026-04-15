@@ -13,6 +13,8 @@ class AppearanceSection extends ConsumerWidget {
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final currentLocale = ref.watch(localeProvider);
+    // On narrow screens, stack the segmented buttons below their labels.
+    final isNarrow = MediaQuery.of(context).size.width < 500;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -33,12 +35,8 @@ class AppearanceSection extends ConsumerWidget {
         const SizedBox(height: 12),
         ValueListenableBuilder<ThemeMode>(
           valueListenable: themeNotifier,
-          builder: (context, mode, _) => Row(children: [
-            ExcludeSemantics(child: Icon(Icons.brightness_6, size: 20, color: tc.textTertiary)),
-            const SizedBox(width: 12),
-            Text(l10n.themeMode, style: const TextStyle(fontSize: 14)),
-            const Spacer(),
-            SegmentedButton<ThemeMode>(
+          builder: (context, mode, _) {
+            final themeButton = SegmentedButton<ThemeMode>(
               segments: [
                 ButtonSegment(
                     value: ThemeMode.system,
@@ -58,17 +56,33 @@ class AppearanceSection extends ConsumerWidget {
               style: const ButtonStyle(
                 visualDensity: VisualDensity.compact,
               ),
-            ),
-          ]),
+            );
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    ExcludeSemantics(child: Icon(Icons.brightness_6, size: 20, color: tc.textTertiary)),
+                    const SizedBox(width: 12),
+                    Text(l10n.themeMode, style: const TextStyle(fontSize: 14)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: themeButton),
+                ],
+              );
+            }
+            return Row(children: [
+              ExcludeSemantics(child: Icon(Icons.brightness_6, size: 20, color: tc.textTertiary)),
+              const SizedBox(width: 12),
+              Text(l10n.themeMode, style: const TextStyle(fontSize: 14)),
+              const Spacer(),
+              themeButton,
+            ]);
+          },
         ),
         const SizedBox(height: 12),
-        Row(children: [
-          ExcludeSemantics(child: Icon(Icons.language, size: 20, color: tc.textTertiary)),
-          const SizedBox(width: 12),
-          Text(l10n.langueInterface,
-              style: const TextStyle(fontSize: 14)),
-          const Spacer(),
-          SegmentedButton<String>(
+        Builder(builder: (context) {
+          final langButton = SegmentedButton<String>(
             segments: const [
               ButtonSegment(
                   value: 'fr',
@@ -84,8 +98,31 @@ class AppearanceSection extends ConsumerWidget {
             style: const ButtonStyle(
               visualDensity: VisualDensity.compact,
             ),
-          ),
-        ]),
+          );
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  ExcludeSemantics(child: Icon(Icons.language, size: 20, color: tc.textTertiary)),
+                  const SizedBox(width: 12),
+                  Text(l10n.langueInterface,
+                      style: const TextStyle(fontSize: 14)),
+                ]),
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerRight, child: langButton),
+              ],
+            );
+          }
+          return Row(children: [
+            ExcludeSemantics(child: Icon(Icons.language, size: 20, color: tc.textTertiary)),
+            const SizedBox(width: 12),
+            Text(l10n.langueInterface,
+                style: const TextStyle(fontSize: 14)),
+            const Spacer(),
+            langButton,
+          ]);
+        }),
       ],
     );
   }

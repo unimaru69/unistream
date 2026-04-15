@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../models/category.dart' as cat;
 import '../models/channel.dart';
 import '../models/episode.dart';
@@ -35,7 +36,10 @@ class DemoData {
   ];
 
   static String _colorFor(String label) {
-    // FNV-1a hash — gives better distribution than multiplicative hash.
+    // If the key is purely numeric (an item id), use it as direct index for
+    // deterministic diversity. Otherwise FNV-1a hash.
+    final asInt = int.tryParse(label);
+    if (asInt != null) return _palette[asInt % _palette.length];
     var hash = 0x811C9DC5;
     for (final c in label.codeUnits) {
       hash ^= c;
@@ -44,17 +48,16 @@ class DemoData {
     return _palette[hash % _palette.length];
   }
 
-  static String _poster(String label) =>
-      'https://placehold.co/400x600/${_colorFor(label)}/$_fg/png?text=${Uri.encodeComponent(label)}';
+  static String _poster(String label, {String? colorKey}) =>
+      'https://placehold.co/400x600/${_colorFor(colorKey ?? label)}/$_fg/png?text=${Uri.encodeComponent(label)}';
 
-  static String _square(String label) =>
-      'https://placehold.co/300x300/${_colorFor(label)}/$_fg/png?text=${Uri.encodeComponent(label)}';
+  static String _square(String label, {String? colorKey}) =>
+      'https://placehold.co/300x300/${_colorFor(colorKey ?? label)}/$_fg/png?text=${Uri.encodeComponent(label)}';
 
-  /// Square with a 1-letter label, but color hashed from the full channel name
-  /// so different channels with the same initial get different colors.
-  static String _squareFor(String channelName) {
+  /// Square with a 1-letter label, color hashed from a stable key.
+  static String _squareFor(String channelName, String id) {
     final letter = channelName.substring(0, 1).toUpperCase();
-    return 'https://placehold.co/300x300/${_colorFor(channelName)}/$_fg/png?text=${Uri.encodeComponent(letter)}';
+    return 'https://placehold.co/300x300/${_colorFor(id)}/$_fg/png?text=${Uri.encodeComponent(letter)}';
   }
 
   // ── Live Categories ──
@@ -99,7 +102,7 @@ class DemoData {
   static Channel _chan(String id, String name, String catId, int num) => Channel(
         streamId: id,
         name: name,
-        streamIcon: _squareFor(name),
+        streamIcon: _squareFor(name, id),
         categoryId: catId,
         num: num,
         tvArchive: '1',
@@ -143,7 +146,7 @@ class DemoData {
   static VodItem _vod(String id, String name, String catId, String rating) => VodItem(
         streamId: id,
         name: name,
-        cover: _poster(name),
+        cover: _poster(name, colorKey: id),
         containerExtension: 'mp4',
         categoryId: catId,
         rating: rating,
@@ -180,7 +183,7 @@ class DemoData {
       SeriesItem(
         seriesId: id,
         name: name,
-        cover: _poster(name),
+        cover: _poster(name, colorKey: id),
         categoryId: catId,
         rating: rating,
         numSeasons: seasons,
@@ -248,20 +251,5 @@ class DemoData {
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:00';
 
-  static String _base64(String s) {
-    final bytes = s.codeUnits;
-    const chars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    final buf = StringBuffer();
-    for (var i = 0; i < bytes.length; i += 3) {
-      final b1 = bytes[i];
-      final b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-      final b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-      buf.write(chars[b1 >> 2]);
-      buf.write(chars[((b1 & 3) << 4) | (b2 >> 4)]);
-      buf.write(i + 1 < bytes.length ? chars[((b2 & 15) << 2) | (b3 >> 6)] : '=');
-      buf.write(i + 2 < bytes.length ? chars[b3 & 63] : '=');
-    }
-    return buf.toString();
-  }
+  static String _base64(String s) => base64.encode(utf8.encode(s));
 }
