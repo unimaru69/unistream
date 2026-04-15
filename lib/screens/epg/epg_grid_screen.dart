@@ -204,12 +204,19 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
     }).toList();
   }
 
-  // ── French date formatting ──
+  // ── Localized date formatting ──
   static const _frDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
   static const _frMonths = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
     'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  static const _enDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  static const _enMonths = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
 
-  String _fmtDayFr(DateTime d) {
+  String _fmtDay(DateTime d) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    if (isEn) {
+      return '${_enDays[d.weekday - 1]}, ${_enMonths[d.month - 1]} ${d.day}, ${d.year}';
+    }
     return '${_frDays[d.weekday - 1]} ${d.day} ${_frMonths[d.month - 1]} ${d.year}';
   }
 
@@ -437,7 +444,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
               canGoNext: _canGoNext,
               onPrev: () => _changeDay(-1),
               onNext: () => _changeDay(1),
-              formatDay: _fmtDayFr,
+              formatDay: _fmtDay,
               onTapDate: () {
                 final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
                 if (_dayStart != today) {

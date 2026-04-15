@@ -137,6 +137,10 @@ void main() async {
       DeviceOrientation.landscapeRight,
     ]);
   }
+  if (kDemoMode && kDemoLocale.isNotEmpty) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(StorageKeys.locale, kDemoLocale);
+  }
   if (!kDemoMode) {
     await SupabaseConfig.initialize();
   }

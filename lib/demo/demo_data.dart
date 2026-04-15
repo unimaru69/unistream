@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../models/category.dart' as cat;
+import '../repositories/content_repository.dart' show kDemoLocale;
 import '../models/channel.dart';
 import '../models/episode.dart';
 import '../models/series_item.dart';
@@ -60,13 +61,15 @@ class DemoData {
     return 'https://placehold.co/300x300/${_colorFor(id)}/$_fg/png?text=${Uri.encodeComponent(letter)}';
   }
 
+  static bool get _isEn => kDemoLocale == 'en';
+
   // ── Live Categories ──
   static final liveCategories = <cat.Category>[
-    cat.Category(categoryId: 'l1', categoryName: 'Actualités'),
-    cat.Category(categoryId: 'l2', categoryName: 'Sport'),
-    cat.Category(categoryId: 'l3', categoryName: 'Documentaire'),
-    cat.Category(categoryId: 'l4', categoryName: 'Jeunesse'),
-    cat.Category(categoryId: 'l5', categoryName: 'Musique'),
+    cat.Category(categoryId: 'l1', categoryName: _isEn ? 'News' : 'Actualités'),
+    cat.Category(categoryId: 'l2', categoryName: _isEn ? 'Sports' : 'Sport'),
+    cat.Category(categoryId: 'l3', categoryName: _isEn ? 'Documentary' : 'Documentaire'),
+    cat.Category(categoryId: 'l4', categoryName: _isEn ? 'Kids' : 'Jeunesse'),
+    cat.Category(categoryId: 'l5', categoryName: _isEn ? 'Music' : 'Musique'),
     cat.Category(categoryId: 'l6', categoryName: 'Culture'),
     cat.Category(categoryId: 'l7', categoryName: 'Lifestyle'),
   ];
@@ -112,10 +115,10 @@ class DemoData {
   // ── VOD Categories ──
   static final vodCategories = <cat.Category>[
     cat.Category(categoryId: 'v1', categoryName: 'Action'),
-    cat.Category(categoryId: 'v2', categoryName: 'Drame'),
-    cat.Category(categoryId: 'v3', categoryName: 'Comédie'),
-    cat.Category(categoryId: 'v4', categoryName: 'Aventure'),
-    cat.Category(categoryId: 'v5', categoryName: 'Documentaire'),
+    cat.Category(categoryId: 'v2', categoryName: _isEn ? 'Drama' : 'Drame'),
+    cat.Category(categoryId: 'v3', categoryName: _isEn ? 'Comedy' : 'Comédie'),
+    cat.Category(categoryId: 'v4', categoryName: _isEn ? 'Adventure' : 'Aventure'),
+    cat.Category(categoryId: 'v5', categoryName: _isEn ? 'Documentary' : 'Documentaire'),
   ];
 
   // ── VOD (Movies) ──
@@ -157,9 +160,9 @@ class DemoData {
   // ── Series Categories ──
   static final seriesCategories = <cat.Category>[
     cat.Category(categoryId: 's1', categoryName: 'Thriller'),
-    cat.Category(categoryId: 's2', categoryName: 'Drame'),
-    cat.Category(categoryId: 's3', categoryName: 'Science-fiction'),
-    cat.Category(categoryId: 's4', categoryName: 'Comédie'),
+    cat.Category(categoryId: 's2', categoryName: _isEn ? 'Drama' : 'Drame'),
+    cat.Category(categoryId: 's3', categoryName: _isEn ? 'Sci-Fi' : 'Science-fiction'),
+    cat.Category(categoryId: 's4', categoryName: _isEn ? 'Comedy' : 'Comédie'),
   ];
 
   // ── Series ──
@@ -213,7 +216,7 @@ class DemoData {
   static Map<String, dynamic> shortEpgFor(String streamId, {int limit = 8}) {
     final now = DateTime.now();
     final programs = <Map<String, dynamic>>[];
-    final titles = [
+    const titlesFr = [
       'Journal du matin',
       'Grand reportage',
       'Le débat',
@@ -225,6 +228,19 @@ class DemoData {
       'Analyse éco',
       'Rendez-vous culture',
     ];
+    const titlesEn = [
+      'Morning News',
+      'Breaking Report',
+      'Live Debate',
+      'World Today',
+      'Sports Magazine',
+      'Special Feature',
+      'Headlines',
+      'Evening News',
+      'Business Analysis',
+      'Culture Hour',
+    ];
+    final titles = kDemoLocale == 'en' ? titlesEn : titlesFr;
     for (var i = 0; i < limit; i++) {
       final start = now.add(Duration(minutes: 30 * (i - 1)));
       final end = start.add(const Duration(minutes: 30));

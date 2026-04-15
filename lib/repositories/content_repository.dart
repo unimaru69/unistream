@@ -19,6 +19,9 @@ const String kDemoScreen = String.fromEnvironment('SCREEN', defaultValue: 'home'
 /// Force landscape orientation in demo mode. Activate with --dart-define=LANDSCAPE=true
 const bool kDemoLandscape = bool.fromEnvironment('LANDSCAPE', defaultValue: false);
 
+/// Force UI locale in demo mode. Activate with --dart-define=LOCALE=en
+const String kDemoLocale = String.fromEnvironment('LOCALE', defaultValue: '');
+
 /// Centralizes all Xtream API data access.
 ///
 /// Screens and providers should go through this repository instead of calling
