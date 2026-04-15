@@ -21,6 +21,7 @@ import 'providers/collections_provider.dart';
 import 'providers/watch_progress_provider.dart';
 import 'services/supabase_config.dart';
 import 'services/epg_reminder_service.dart';
+import 'repositories/content_repository.dart';
 import 'services/notification_service.dart';
 import 'services/sync_service.dart';
 import 'services/watch_progress.dart';
@@ -128,7 +129,9 @@ void showMiniOverlay(MiniPlayerState state) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  await SupabaseConfig.initialize();
+  if (!kDemoMode) {
+    await SupabaseConfig.initialize();
+  }
   await AppConfig.load();
 
   // Window size/position persistence (macOS/Windows/Linux)
@@ -153,7 +156,9 @@ void main() async {
     });
   }
 
-  await NotificationService.instance.init();
+  if (!kDemoMode) {
+    await NotificationService.instance.init();
+  }
   await loadThemeMode();
 
   // Global async error handler (catches errors outside of Flutter framework)

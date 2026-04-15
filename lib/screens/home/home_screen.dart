@@ -61,7 +61,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loading        = true;
   bool _loadingStreams  = false;
   String? _error;
-  ContentMode _mode = ContentMode.live;
+  ContentMode _mode = kDemoMode && kDemoScreen == 'vod'
+      ? ContentMode.vod
+      : (kDemoMode && kDemoScreen == 'series' ? ContentMode.series : ContentMode.live);
 
   // Connectivity: track previous status for offline->online transitions
   ConnectivityStatus? _prevConnectivity;
@@ -77,7 +79,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _searchQuery = '';
 
   // Grid view (VOD + Series only)
-  bool _gridView = false;
+  bool _gridView = kDemoMode && (kDemoScreen == 'vod' || kDemoScreen == 'series');
 
   // Sort mode
   String _sortMode = 'default';
@@ -322,6 +324,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       setState(() => _loading = false);
       _loadRecentlyAdded();
       _loadCatchupPrograms();
+      // Demo mode: auto-select the first category so the screen is populated.
+      if (kDemoMode && _selectedCategory == null && _categories.isNotEmpty) {
+        _loadStreams(_categories.first.categoryId);
+      }
     } catch (e) {
       setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
     }

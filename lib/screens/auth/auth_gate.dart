@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../core/logger.dart';
 import '../../providers/auth_provider.dart';
+import '../../repositories/content_repository.dart';
 import '../splash_screen.dart';
 import 'auth_screen.dart';
 
@@ -16,6 +17,11 @@ class AuthGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Demo mode: skip auth and go straight to splash which will auto-configure.
+    if (kDemoMode) {
+      return const SplashScreen();
+    }
+
     final auth = ref.watch(authProvider);
 
     AppLogger.info(LogModule.ui,

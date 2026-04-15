@@ -11,9 +11,11 @@ import '../models/profile.dart';
 import '../repositories/content_repository.dart';
 import '../services/supabase_config.dart';
 import '../widgets/pin_dialog.dart';
+import 'epg/epg_grid_screen.dart';
 import 'home/home_screen.dart';
 import 'onboarding_screen.dart';
 import 'profiles/profile_selector_screen.dart';
+import 'settings_screen.dart';
 
 /// Allows injecting a custom HTTP client for testing.
 @visibleForTesting
@@ -59,6 +61,34 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     setState(() => _showLoading = true);
+
+    // Demo mode: configure a fake profile and go straight to home.
+    if (kDemoMode) {
+      AppConfig.currentUserId = 'demo-user';
+      AppConfig.activeProfileId = 'demo';
+      AppConfig.profiles = [
+        Profile(
+          id: 'demo',
+          name: 'Demo',
+          avatar: '🎬',
+          serverUrl: 'https://demo.unimaru.fr',
+          username: 'demo',
+          password: 'demo',
+        ),
+      ];
+      AppConfig.serverUrl = 'https://demo.unimaru.fr';
+      AppConfig.username = 'demo';
+      AppConfig.password = 'demo';
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      final target = switch (kDemoScreen) {
+        'epg' => const EpgGridScreen(),
+        'settings' => const SettingsScreen(),
+        _ => const HomeScreen(),
+      };
+      _navigateTo(target);
+      return;
+    }
 
     // Step 1: Load config scoped to authenticated user
     final l10n = AppLocalizations.of(context);

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../demo/demo_content_repository.dart';
 import '../models/category.dart' as cat;
 import '../models/channel.dart';
 import '../models/episode.dart';
@@ -6,6 +7,14 @@ import '../models/server_info.dart';
 import '../models/series_item.dart';
 import '../models/vod_item.dart';
 import '../services/xtream_api.dart';
+
+/// Global flag: when true the app uses [DemoContentRepository] with fake data
+/// for screenshots and App Store review. Activate with --dart-define=DEMO=true
+const bool kDemoMode = bool.fromEnvironment('DEMO', defaultValue: false);
+
+/// When in demo mode, which screen to land on. Values: home, vod, series, epg, settings, player.
+/// Activate with --dart-define=SCREEN=vod
+const String kDemoScreen = String.fromEnvironment('SCREEN', defaultValue: 'home');
 
 /// Centralizes all Xtream API data access.
 ///
@@ -100,5 +109,5 @@ class ContentRepository {
 
 /// Riverpod provider for [ContentRepository].
 final contentRepositoryProvider = Provider<ContentRepository>((ref) {
-  return ContentRepository();
+  return kDemoMode ? DemoContentRepository() : ContentRepository();
 });
