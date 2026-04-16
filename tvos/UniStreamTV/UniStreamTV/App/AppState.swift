@@ -36,6 +36,15 @@ final class AppState {
         // Initialize reminders (independent of auth)
         reminderService.initialize()
 
+        // Demo mode: skip auth and server setup entirely.
+        if DemoMode.isActive {
+            logger.info("Demo mode — skipping auth")
+            isAuthenticated = true
+            hasActiveProfile = true
+            setupVMs()
+            return
+        }
+
         if authService.isAuthenticated {
             isAuthenticated = true
             logger.info("Existing session found")

@@ -131,6 +131,7 @@ final class XtreamAPIService {
     // MARK: - Live TV
 
     func getLiveCategories() async throws -> [Category] {
+        if DemoMode.isActive { return DemoData.liveCategories }
         guard let url = URL(string: "\(baseUrl)&action=get_live_categories") else {
             throw XtreamError.invalidUrl
         }
@@ -144,6 +145,10 @@ final class XtreamAPIService {
     }
 
     func getLiveStreams(categoryId: String? = nil) async throws -> [Channel] {
+        if DemoMode.isActive {
+            guard let catId = categoryId else { return DemoData.liveChannels }
+            return DemoData.liveChannels.filter { $0.categoryId == catId }
+        }
         let cacheKey = "get_live_streams:\(categoryId ?? "all")"
 
         // Check cache
@@ -203,6 +208,7 @@ final class XtreamAPIService {
     // MARK: - VOD
 
     func getVodCategories() async throws -> [Category] {
+        if DemoMode.isActive { return DemoData.vodCategories }
         guard let url = URL(string: "\(baseUrl)&action=get_vod_categories") else {
             throw XtreamError.invalidUrl
         }
@@ -214,6 +220,10 @@ final class XtreamAPIService {
     }
 
     func getVodStreams(categoryId: String? = nil) async throws -> [VodItem] {
+        if DemoMode.isActive {
+            guard let catId = categoryId else { return DemoData.vodItems }
+            return DemoData.vodItems.filter { $0.categoryId == catId }
+        }
         let cacheKey = "get_vod_streams:\(categoryId ?? "all")"
         if let cached = streamCache[cacheKey],
            Date().timeIntervalSince(cached.timestamp) < Constants.streamCacheTTL,
@@ -237,6 +247,7 @@ final class XtreamAPIService {
     // MARK: - Series
 
     func getSeriesCategories() async throws -> [Category] {
+        if DemoMode.isActive { return DemoData.seriesCategories }
         guard let url = URL(string: "\(baseUrl)&action=get_series_categories") else {
             throw XtreamError.invalidUrl
         }
@@ -248,6 +259,10 @@ final class XtreamAPIService {
     }
 
     func getSeries(categoryId: String? = nil) async throws -> [SeriesItem] {
+        if DemoMode.isActive {
+            guard let catId = categoryId else { return DemoData.seriesList }
+            return DemoData.seriesList.filter { $0.categoryId == catId }
+        }
         let cacheKey = "get_series:\(categoryId ?? "all")"
         if let cached = streamCache[cacheKey],
            Date().timeIntervalSince(cached.timestamp) < Constants.streamCacheTTL,
@@ -269,6 +284,7 @@ final class XtreamAPIService {
     }
 
     func getSeriesEpisodes(seriesId: String) async throws -> [String: [Episode]] {
+        if DemoMode.isActive { return DemoData.episodes(forSeriesId: seriesId) }
         guard let url = URL(string: "\(baseUrl)&action=get_series_info&series_id=\(seriesId)") else {
             throw XtreamError.invalidUrl
         }
@@ -290,6 +306,7 @@ final class XtreamAPIService {
     // MARK: - EPG
 
     func getShortEpg(streamId: String, limit: Int = 8) async throws -> [EpgProgram] {
+        if DemoMode.isActive { return DemoData.shortEpg(streamId: streamId, limit: limit) }
         guard let url = URL(string: "\(baseUrl)&action=get_short_epg&stream_id=\(streamId)&limit=\(limit)") else {
             throw XtreamError.invalidUrl
         }
@@ -303,6 +320,7 @@ final class XtreamAPIService {
 
     /// Full-day EPG for a single channel (used for catch-up program list).
     func getFullDayEpg(streamId: String) async throws -> [EpgProgram] {
+        if DemoMode.isActive { return DemoData.shortEpg(streamId: streamId, limit: 24) }
         guard let url = URL(string: "\(baseUrl)&action=get_simple_data_table&stream_id=\(streamId)") else {
             throw XtreamError.invalidUrl
         }
