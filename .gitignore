@@ -54,6 +54,7 @@ tools/logs/*
 
 # tvOS build artifacts
 tvos/**/build/
+tvos/**/simbuild/
 
 # Supabase CLI temp files
 supabase/.temp/
