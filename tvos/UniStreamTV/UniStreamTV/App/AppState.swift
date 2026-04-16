@@ -45,6 +45,17 @@ final class AppState {
             return
         }
 
+        // Fresh install detection: on tvOS, the Keychain (where Supabase stores
+        // the session) SURVIVES app uninstallation, but UserDefaults doesn't.
+        // If our sentinel flag is absent, this is a fresh install — force sign-out
+        // to avoid landing on a half-connected state (auth OK but no IPTV profile).
+        let installFlag = "app.installed.v1"
+        if !UserDefaults.standard.bool(forKey: installFlag) {
+            logger.info("Fresh install detected — clearing any stale session")
+            try? await authService.signOut()
+            UserDefaults.standard.set(true, forKey: installFlag)
+        }
+
         if authService.isAuthenticated {
             isAuthenticated = true
             logger.info("Existing session found")
