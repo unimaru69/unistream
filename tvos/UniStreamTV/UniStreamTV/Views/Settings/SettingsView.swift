@@ -9,7 +9,11 @@ struct SettingsView: View {
     @State private var isDeleting = false
     @State private var imageCacheSize: String = "…"
     @State private var showCachePurged = false
-    @State private var debugPlanMode: String = DebugPlanOverride.current ?? "auto"
+    // Use @AppStorage so SwiftUI re-renders the List when the override changes.
+    @AppStorage("debug.plan.override") private var debugPlanRaw: String = ""
+    private var debugPlanMode: String {
+        get { debugPlanRaw.isEmpty ? "auto" : debugPlanRaw }
+    }
 
     var body: some View {
         List {
@@ -154,19 +158,19 @@ struct SettingsView: View {
             // Debug — visible uniquement en Debug build
             #if DEBUG
             Section("Debug") {
-                Picker(selection: $debugPlanMode) {
+                Picker(selection: Binding(
+                    get: { debugPlanMode },
+                    set: { debugPlanRaw = $0 == "auto" ? "" : $0 }
+                )) {
                     Text("Auto (plan réel)").tag("auto")
                     Text("Forcer Basic").tag("basic")
                     Text("Forcer Premium").tag("premium")
                 } label: {
                     Label("Plan override", systemImage: "hammer")
                 }
-                .onChange(of: debugPlanMode) { _, newValue in
-                    DebugPlanOverride.current = newValue == "auto" ? nil : newValue
-                }
 
-                if DebugPlanOverride.isActive {
-                    Text("Override actif — relancez la vue (retour + rentrer) pour voir l'effet sur le gating.")
+                if !debugPlanRaw.isEmpty {
+                    Text("Override actif : \(debugPlanRaw). Les fonctionnalités sont débloquées immédiatement.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

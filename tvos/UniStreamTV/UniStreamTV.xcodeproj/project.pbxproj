@@ -65,6 +65,7 @@
 		9A1C87AE9B0350501CCA24A3 /* VODViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 245C67A06283083BFC7A96EE /* VODViewModel.swift */; };
 		A28876D3617EC849EDF82AD1 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC93FA043E16C7D3D41353A2 /* HistoryView.swift */; };
 		A569B005A477E360F8335C5E /* FavoriteItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A72883A64F190F787A8978B /* FavoriteItemTests.swift */; };
+		A67CA8400DC8B966A343B8E1 /* TopShelfContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */; };
 		A7E78AF8173566AD9A7697E0 /* PlayerPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8264B86EFECAACF504505140 /* PlayerPresenter.swift */; };
 		AF753A6FB728027D39899B7D /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83A3CE8441AC647CBB36955 /* Constants.swift */; };
 		B3EDB73821767045CEC564CC /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 566F9A1DCF37AA901E7809F0 /* SearchView.swift */; };
@@ -86,9 +87,17 @@
 		F2E8B4980B4137D48FDA266B /* HomeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89CFF589A164C8FEC186A7E9 /* HomeTabView.swift */; };
 		F6D94D56132741F8798787B9 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = FA47CB26747C88B146A85278 /* VLCKitSPM */; };
 		F85AB092BE1E42A5CB45E472 /* SeriesDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55096A5D6EE9B3F8E34B424F /* SeriesDetailView.swift */; };
+		F8850338159913B921ADC6F6 /* TopShelfExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2AA0D4B85A071A775E9D8279 /* TopShelfExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		29D52E66EBBDAE200889175D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DA392818A2F4DB6DCF26073 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D317DF5CE58912D2801F99FE;
+			remoteInfo = TopShelfExtension;
+		};
 		E5AABC3755D27EF8A1E2B7E0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3DA392818A2F4DB6DCF26073 /* Project object */;
@@ -97,6 +106,20 @@
 			remoteInfo = UniStreamTV;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		815029C933A495C4CE1482F1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F8850338159913B921ADC6F6 /* TopShelfExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		02EA354BA1B30584C66F654E /* VodItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VodItem.swift; sourceTree = "<group>"; };
@@ -112,6 +135,8 @@
 		20D396CE8FF4090C7142CE2E /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		245C67A06283083BFC7A96EE /* VODViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODViewModel.swift; sourceTree = "<group>"; };
 		26C8CAE2E189E434C0DA3EB6 /* ProfileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManager.swift; sourceTree = "<group>"; };
+		2AA0D4B85A071A775E9D8279 /* TopShelfExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TopShelfExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		2CB47454BBBDB6029F2D76B1 /* TopShelfExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TopShelfExtension.entitlements; sourceTree = "<group>"; };
 		2EE699D79F6A265ABEAC2771 /* UniStreamTV.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = UniStreamTV.entitlements; sourceTree = "<group>"; };
 		30EF8476CB018EE8AC5952FE /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		39D57B2FBA0F19FC72B159E4 /* CollectionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsService.swift; sourceTree = "<group>"; };
@@ -157,6 +182,7 @@
 		AE0B109201D90541B8CC2A4C /* DemoMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMode.swift; sourceTree = "<group>"; };
 		B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtreamAPIService.swift; sourceTree = "<group>"; };
 		B5E479CBF422C20F822038C2 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopShelfContentProvider.swift; sourceTree = "<group>"; };
 		BC93FA043E16C7D3D41353A2 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		BDEFAE9916DE082857E081C9 /* EpgProgramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpgProgramTests.swift; sourceTree = "<group>"; };
 		BF3AD30AC55A9E5F26290EF4 /* RecentlyAddedRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyAddedRow.swift; sourceTree = "<group>"; };
@@ -177,6 +203,7 @@
 		EF69BBFA0D440F5DA021DEAB /* UniStreamTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = UniStreamTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCPlayerViewController.swift; sourceTree = "<group>"; };
 		EFC0F536AD1A1A5A39FD4857 /* VODDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODDetailView.swift; sourceTree = "<group>"; };
+		F79248D886BCAA3CAB4BD358 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FF82E67EE5912F0E7C7D21E1 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -312,6 +339,7 @@
 		7678A8DDCD3E5A9F43C2A248 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				2AA0D4B85A071A775E9D8279 /* TopShelfExtension.appex */,
 				EF69BBFA0D440F5DA021DEAB /* UniStreamTV.app */,
 				92F415EDCD815CB11DFB7CDB /* UniStreamTVTests.xctest */,
 			);
@@ -343,6 +371,16 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		876D300678BF92853C85E8FA /* TopShelfExtension */ = {
+			isa = PBXGroup;
+			children = (
+				F79248D886BCAA3CAB4BD358 /* Info.plist */,
+				B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */,
+				2CB47454BBBDB6029F2D76B1 /* TopShelfExtension.entitlements */,
+			);
+			path = TopShelfExtension;
+			sourceTree = "<group>";
+		};
 		8EBC3765383EE2D739F43E8E /* Collections */ = {
 			isa = PBXGroup;
 			children = (
@@ -354,6 +392,7 @@
 		92A477BA3BBA7470468D2DDB = {
 			isa = PBXGroup;
 			children = (
+				876D300678BF92853C85E8FA /* TopShelfExtension */,
 				08D2147206B020E913E2394E /* UniStreamTV */,
 				7EC46F1E73657B6B2CA79B30 /* UniStreamTVTests */,
 				7678A8DDCD3E5A9F43C2A248 /* Products */,
@@ -490,10 +529,12 @@
 				FCBECE7A54270BA476611E3B /* Sources */,
 				3C5BFC84DAAD84E287D19A18 /* Resources */,
 				7B49D812D4C8D1F8C2C0C81E /* Frameworks */,
+				815029C933A495C4CE1482F1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0109C7B7E6A8F2039DD7C380 /* PBXTargetDependency */,
 			);
 			name = UniStreamTV;
 			packageProductDependencies = (
@@ -524,6 +565,23 @@
 			productReference = 92F415EDCD815CB11DFB7CDB /* UniStreamTVTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D317DF5CE58912D2801F99FE /* TopShelfExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3AAA2D0E42177684F5F3E19F /* Build configuration list for PBXNativeTarget "TopShelfExtension" */;
+			buildPhases = (
+				51850BA4E9B9442E59A955AD /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TopShelfExtension;
+			packageProductDependencies = (
+			);
+			productName = TopShelfExtension;
+			productReference = 2AA0D4B85A071A775E9D8279 /* TopShelfExtension.appex */;
+			productType = "com.apple.product-type.tv-app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -539,6 +597,10 @@
 					};
 					AADFB38E93B7CF84EDBAD3FB = {
 						DevelopmentTeam = VS8P2MA59S;
+					};
+					D317DF5CE58912D2801F99FE = {
+						DevelopmentTeam = VS8P2MA59S;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -562,6 +624,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				D317DF5CE58912D2801F99FE /* TopShelfExtension */,
 				3E425907C6C700AADBBDDB58 /* UniStreamTV */,
 				AADFB38E93B7CF84EDBAD3FB /* UniStreamTVTests */,
 			);
@@ -591,6 +654,14 @@
 				A569B005A477E360F8335C5E /* FavoriteItemTests.swift in Sources */,
 				5A5A2DED8CB17BA518C20EFF /* FeatureAccessTests.swift in Sources */,
 				5B3538EF2558F70A83AF2DDE /* ParentalServiceTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51850BA4E9B9442E59A955AD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A67CA8400DC8B966A343B8E1 /* TopShelfContentProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -671,6 +742,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0109C7B7E6A8F2039DD7C380 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D317DF5CE58912D2801F99FE /* TopShelfExtension */;
+			targetProxy = 29D52E66EBBDAE200889175D /* PBXContainerItemProxy */;
+		};
 		DF7C4CADB5059A124E98EBD8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3E425907C6C700AADBBDDB58 /* UniStreamTV */;
@@ -757,6 +833,28 @@
 			};
 			name = Debug;
 		};
+		52B79DCDD2EADE0EB67F2EBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VS8P2MA59S;
+				INFOPLIST_FILE = TopShelfExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv.TopShelfExtension;
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
 		818CE10B4AADF8CD52DCE97E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -778,6 +876,28 @@
 				TARGETED_DEVICE_FAMILY = 3;
 			};
 			name = Release;
+		};
+		95B7A52F7677ED7DEA7C29E4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VS8P2MA59S;
+				INFOPLIST_FILE = TopShelfExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv.TopShelfExtension;
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
 		};
 		C174A82A7684C83CFFADCE75 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -888,6 +1008,15 @@
 			buildConfigurations = (
 				CFB829CC68CE106BD63EC00E /* Debug */,
 				F93029512D54AF14DB43841D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3AAA2D0E42177684F5F3E19F /* Build configuration list for PBXNativeTarget "TopShelfExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				95B7A52F7677ED7DEA7C29E4 /* Debug */,
+				52B79DCDD2EADE0EB67F2EBE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

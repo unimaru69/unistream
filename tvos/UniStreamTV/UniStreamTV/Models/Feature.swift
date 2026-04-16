@@ -26,7 +26,10 @@ enum DebugPlanOverride {
         }
     }
 
-    static var isActive: Bool { current != nil }
+    static var isActive: Bool {
+        guard let c = current, !c.isEmpty else { return false }
+        return true
+    }
 
     /// Forces premium features off (simulates a Basic account).
     static var forcesBasic: Bool { current == "basic" }

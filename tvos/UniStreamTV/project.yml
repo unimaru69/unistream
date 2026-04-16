@@ -31,6 +31,8 @@ targets:
       properties:
         com.apple.developer.applesignin:
           - Default
+        com.apple.security.application-groups:
+          - group.fr.unimaru.unistream.tv
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.tv
@@ -50,6 +52,9 @@ targets:
       - package: Kingfisher
       - package: VLCKitSPM
         product: VLCKitSPM
+      - target: TopShelfExtension
+        embed: true
+        codeSign: true
   UniStreamTVTests:
     type: bundle.unit-test
     platform: tvOS
@@ -63,7 +68,24 @@ targets:
         DEVELOPMENT_TEAM: VS8P2MA59S
         GENERATE_INFOPLIST_FILE: YES
 
-# NOTE: TopShelfExtension target temporarily removed. The extension binary
-# crashed on tvOS 26.4 (launchd exit 768) before any Swift code ran, with no
-# crash report generated. Source files are retained under TopShelfExtension/
-# and can be re-added once Apple fixes the SDK issue or we find the root cause.
+  TopShelfExtension:
+    type: tv-app-extension
+    platform: tvOS
+    sources:
+      - TopShelfExtension
+    entitlements:
+      path: TopShelfExtension/TopShelfExtension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.fr.unimaru.unistream.tv
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.tv.TopShelfExtension
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        INFOPLIST_FILE: TopShelfExtension/Info.plist
+        DEVELOPMENT_TEAM: VS8P2MA59S
+        CODE_SIGN_STYLE: Automatic
+
+# Ensure the extension is embedded in the main app bundle.
