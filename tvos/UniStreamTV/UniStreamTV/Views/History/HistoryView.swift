@@ -3,6 +3,7 @@ import SwiftUI
 /// Watch history screen — shows recently watched items with resume & delete.
 struct HistoryView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
     @State private var showClearConfirm = false
 
     private var entries: [(key: String, value: WatchEntry)] {
@@ -62,7 +63,7 @@ struct HistoryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 60))
                 .foregroundColor(.gray.opacity(0.3))
@@ -71,6 +72,16 @@ struct HistoryView: View {
                 .fontWeight(.bold)
             Text("Vos lectures récentes apparaîtront ici")
                 .foregroundColor(.secondary)
+            // Focusable button so the Menu button on the remote pops this view
+            // instead of exiting the app.
+            Button {
+                dismiss()
+            } label: {
+                Label("Retour", systemImage: "chevron.left")
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 10)
+            }
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -91,6 +91,25 @@ final class AppState {
     func onServerConfigured() {
         hasActiveProfile = true
         setupVMs()
+        // Configure sync with the freshly created profile and pull remote data
+        // (favorites, watch progress, collections) so the user finds them on
+        // this device too.
+        if let profile = profileManager.activeProfile,
+           let uid = authService.userId {
+            let hash = SupabaseConfig.profileHash(
+                serverUrl: profile.serverUrl,
+                username: profile.username
+            )
+            syncService.configure(profileHash: hash, userId: uid)
+            PlayerPresenter.syncService = syncService
+            collectionsService.configure(
+                profilePrefix: "\(profile.serverUrl)_\(profile.username)"
+            )
+            parentalService.configure(
+                profilePrefix: "\(profile.serverUrl)_\(profile.username)"
+            )
+            Task { await syncService.pullAll() }
+        }
     }
 
     // MARK: - Private
