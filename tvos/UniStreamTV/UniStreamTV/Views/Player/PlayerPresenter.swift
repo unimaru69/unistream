@@ -145,6 +145,16 @@ enum PlayerPresenter {
     /// Tries .ts → .m3u8 via AVPlayer, then falls back to VLC (which handles MPEG-TS
     /// that AVPlayer refuses, e.g. MPEG-1 audio, DVB teletext tracks, etc.).
     static func playCatchUp(url: URL, title: String) {
+        // Same codec characteristics as live streams — use VLC directly when the
+        // user preference is enabled (default) to avoid the "audio without video"
+        // symptom on HEVC/H.265 broadcasts.
+        if useVlcForLive {
+            let vlc = VLCPlayerViewController(url: url, title: title, resumeFromMs: nil, contentKey: nil)
+            guard let rootVC = rootViewController else { return }
+            rootVC.present(vlc, animated: true)
+            return
+        }
+
         let player = AVPlayer(url: url)
 
         let playerVC = EnhancedPlayerViewController()
