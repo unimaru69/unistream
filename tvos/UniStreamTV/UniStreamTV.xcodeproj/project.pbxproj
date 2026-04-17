@@ -72,6 +72,7 @@
 		B3EDB73821767045CEC564CC /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 566F9A1DCF37AA901E7809F0 /* SearchView.swift */; };
 		B5E1B83DDCC3F9649EAA996C /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2077BDA4546954E744A4079 /* SubscriptionView.swift */; };
 		B813633B801EECBDB69924A5 /* VODDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFC0F536AD1A1A5A39FD4857 /* VODDetailView.swift */; };
+		BB19028D23263D4F974F7365 /* LiveSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C8A7C4167CC8454E6FA4BC /* LiveSplitView.swift */; };
 		BF42FE71DEA8202F818441A4 /* CollectionsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C775B1B4C494C9799EC3BEF /* CollectionsServiceTests.swift */; };
 		C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5385194B16C126435316CB1E /* EPGView.swift */; };
 		C86F1ACFC2F6D05CD5C56012 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EF8476CB018EE8AC5952FE /* AppState.swift */; };
@@ -198,6 +199,7 @@
 		D5DDA0498EA1249640855584 /* ContentMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentMode.swift; sourceTree = "<group>"; };
 		D83A3CE8441AC647CBB36955 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DBD9217BA080D88D6A2C082F /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
+		E6C8A7C4167CC8454E6FA4BC /* LiveSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSplitView.swift; sourceTree = "<group>"; };
 		E70B86BC91ADD0508B379456 /* SeriesItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesItem.swift; sourceTree = "<group>"; };
 		E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCLivePlayerViewController.swift; sourceTree = "<group>"; };
 		EAAA6CE8FC407045CB4314CC /* SeriesCategoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesCategoryListView.swift; sourceTree = "<group>"; };
@@ -451,6 +453,7 @@
 			children = (
 				1CA9107E16E147F4BCF7E578 /* ChannelGridView.swift */,
 				64346A4025C492F01DFC1416 /* LiveCategoryListView.swift */,
+				E6C8A7C4167CC8454E6FA4BC /* LiveSplitView.swift */,
 			);
 			path = Live;
 			sourceTree = "<group>";
@@ -700,6 +703,7 @@
 				A28876D3617EC849EDF82AD1 /* HistoryView.swift in Sources */,
 				F2E8B4980B4137D48FDA266B /* HomeTabView.swift in Sources */,
 				8094FA14E4430AEDB7CFBA0C /* LiveCategoryListView.swift in Sources */,
+				BB19028D23263D4F974F7365 /* LiveSplitView.swift in Sources */,
 				96657B3CFC4A4AB040C51C06 /* LiveViewModel.swift in Sources */,
 				27470FAD91871586A5AAB276 /* LoginView.swift in Sources */,
 				01C209C0F57146C60D378C85 /* ParentalService.swift in Sources */,

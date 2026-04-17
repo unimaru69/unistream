@@ -13,9 +13,9 @@ struct HomeTabView: View {
                 .tabItem { Label("Accueil", systemImage: "house") }
                 .tag(0)
 
-            // Live TV
+            // Live TV (sidebar + grid split view)
             if let liveVM = appState.liveVM {
-                LiveCategoryListView(viewModel: liveVM)
+                LiveSplitView(viewModel: liveVM)
                     .tabItem { Label("Live", systemImage: "tv") }
                     .tag(1)
             }
