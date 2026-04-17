@@ -3,7 +3,7 @@ enum ContentMode {
 
   String get label => switch (this) {
     ContentMode.live => 'Live',
-    ContentMode.vod => 'VOD',
+    ContentMode.vod => 'Films',
     ContentMode.series => 'Séries',
   };
 

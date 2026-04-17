@@ -119,7 +119,7 @@
   "erreur": "Erreur",
   "tout": "Tout",
   "live": "Live",
-  "vod": "VOD",
+  "vod": "Films",
   "series": "Séries",
   "serie": "Série",
 
@@ -422,7 +422,7 @@
   "categoriesBloquees": "CATÉGORIES BLOQUÉES",
   "categoriesMasquees": "Les catégories cochées seront masquées tant que le contrôle parental est verrouillé.",
   "tvEnDirect": "TV en direct",
-  "filmsVod": "Films (VOD)",
+  "filmsVod": "Films",
 
   "catchupNonDisponible": "Catch-up non disponible pour ce programme.\nLe serveur ne supporte peut-être pas le timeshift.",
   "impossibleLireFlux": "Impossible de lire ce flux.\nVérifiez votre connexion ou réessayez.",
@@ -626,7 +626,7 @@
   "fonctionnaliteMiniPlayer": "Mini-player (PiP)",
   "fonctionnaliteCloudSync": "Synchronisation cloud",
   "fonctionnaliteSousTitresAvances": "Sous-titres avancés",
-  "fonctionnaliteLiveVodSeries": "Live TV, VOD, Séries",
+  "fonctionnaliteLiveVodSeries": "Live TV, Films, Séries",
   "fonctionnaliteEpg": "Guide TV (EPG)",
   "fonctionnaliteRecherche": "Recherche",
   "fonctionnaliteFavoris": "Favoris & Historique",

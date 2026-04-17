@@ -73,7 +73,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Test Movie'), findsOneWidget);
-      expect(find.text('VOD'), findsOneWidget);
+      expect(find.text('Films'), findsOneWidget);
     });
 
     testWidgets('renders mode badge with correct label', (tester) async {

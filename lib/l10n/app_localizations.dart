@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @vod.
   ///
   /// In fr, this message translates to:
-  /// **'VOD'**
+  /// **'Films'**
   String get vod;
 
   /// No description provided for @series.

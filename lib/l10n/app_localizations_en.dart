@@ -313,7 +313,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get live => 'Live';
 
   @override
-  String get vod => 'VOD';
+  String get vod => 'Movies';
 
   @override
   String get series => 'Series';

@@ -316,7 +316,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get live => 'Live';
 
   @override
-  String get vod => 'VOD';
+  String get vod => 'Films';
 
   @override
   String get series => 'Séries';
