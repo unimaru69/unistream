@@ -67,6 +67,7 @@
 		A569B005A477E360F8335C5E /* FavoriteItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A72883A64F190F787A8978B /* FavoriteItemTests.swift */; };
 		A67CA8400DC8B966A343B8E1 /* TopShelfContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */; };
 		A7E78AF8173566AD9A7697E0 /* PlayerPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8264B86EFECAACF504505140 /* PlayerPresenter.swift */; };
+		A8224D1D857EA6D962988122 /* VLCLivePlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */; };
 		AF753A6FB728027D39899B7D /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83A3CE8441AC647CBB36955 /* Constants.swift */; };
 		B3EDB73821767045CEC564CC /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 566F9A1DCF37AA901E7809F0 /* SearchView.swift */; };
 		B5E1B83DDCC3F9649EAA996C /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2077BDA4546954E744A4079 /* SubscriptionView.swift */; };
@@ -198,6 +199,7 @@
 		D83A3CE8441AC647CBB36955 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DBD9217BA080D88D6A2C082F /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
 		E70B86BC91ADD0508B379456 /* SeriesItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesItem.swift; sourceTree = "<group>"; };
+		E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCLivePlayerViewController.swift; sourceTree = "<group>"; };
 		EAAA6CE8FC407045CB4314CC /* SeriesCategoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesCategoryListView.swift; sourceTree = "<group>"; };
 		EE254BB2D2EFC59D3A2DC32A /* ErrorRetryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRetryView.swift; sourceTree = "<group>"; };
 		EF69BBFA0D440F5DA021DEAB /* UniStreamTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = UniStreamTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -331,6 +333,7 @@
 			children = (
 				8264B86EFECAACF504505140 /* PlayerPresenter.swift */,
 				D1F8C32DD3D1D784098988B7 /* PlayerView.swift */,
+				E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */,
 				EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */,
 			);
 			path = Player;
@@ -729,6 +732,7 @@
 				17F480142B20CB11F47244DA /* TVButtonStyle.swift in Sources */,
 				8BF843686CDE1A063FCDD98D /* URLSession+Retry.swift in Sources */,
 				1B224F4FD9FB7D03D2E64D1F /* UniStreamTVApp.swift in Sources */,
+				A8224D1D857EA6D962988122 /* VLCLivePlayerViewController.swift in Sources */,
 				799D21D487E08E7A0B663747 /* VLCPlayerViewController.swift in Sources */,
 				DE1FE5D8717EC75912CA6E05 /* VODCategoryListView.swift in Sources */,
 				B813633B801EECBDB69924A5 /* VODDetailView.swift in Sources */,

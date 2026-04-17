@@ -1,7 +1,6 @@
 import TVServices
 import Foundation
 
-@objc(TopShelfContentProvider)
 final class TopShelfContentProvider: TVTopShelfContentProvider {
 
     private static let appGroupId = "group.fr.unimaru.unistream.tv"
@@ -9,6 +8,17 @@ final class TopShelfContentProvider: TVTopShelfContentProvider {
     private static let continueKey = "topshelf.continue.v1"
 
     override func loadTopShelfContent(completionHandler: @escaping (TVTopShelfContent?) -> Void) {
+        NSLog("[TopShelf] loadTopShelfContent invoked")
+
+        let defaults = UserDefaults(suiteName: Self.appGroupId)
+        let hasGroup = defaults != nil
+        let favRaw = defaults?.data(forKey: Self.favoritesKey)
+        let contRaw = defaults?.data(forKey: Self.continueKey)
+        NSLog("[TopShelf] group=%@ favBytes=%d contBytes=%d",
+              hasGroup ? "ok" : "nil",
+              favRaw?.count ?? -1,
+              contRaw?.count ?? -1)
+
         let continueItems = loadContinueWatchingItems()
         let favoriteItems = loadFavoriteItems()
 
@@ -27,10 +37,17 @@ final class TopShelfContentProvider: TVTopShelfContentProvider {
             sections.append(section)
         }
 
-        guard !sections.isEmpty else {
-            completionHandler(nil)
-            return
+        // Diagnostic: always show at least one probe tile so we can tell the
+        // extension is running. Can be removed once Top Shelf is confirmed working.
+        let probe = TVTopShelfSectionedItem(identifier: "__probe__")
+        probe.title = "Extension OK (g=\(hasGroup ? "y" : "n"), f=\(favoriteItems.count), c=\(continueItems.count))"
+        probe.imageShape = .square
+        if let url = URL(string: "unistream://play?key=__probe__") {
+            probe.displayAction = TVTopShelfAction(url: url)
         }
+        let diagSection = TVTopShelfItemCollection(items: [probe])
+        diagSection.title = "Diagnostic"
+        sections.insert(diagSection, at: 0)
 
         let content = TVTopShelfSectionedContent(sections: sections)
         completionHandler(content)

@@ -10,8 +10,25 @@ enum PlayerPresenter {
     /// Shared sync service reference — set once from AppState at startup.
     static weak var syncService: SyncService?
 
+    /// Whether to use VLC (true) or AVPlayer (false) for live streams.
+    /// VLC supports HEVC in MPEG-TS, MPEG-1 audio, and many broadcast-style
+    /// streams that AVPlayer refuses (audio-only / black screen).
+    /// Toggle via Settings.
+    static var useVlcForLive: Bool {
+        get { UserDefaults.standard.object(forKey: "player.live.vlc") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "player.live.vlc") }
+    }
+
     /// Present a live channel stream.
     static func playLive(url: URL, title: String? = nil, contentKey: String? = nil) {
+        if useVlcForLive {
+            let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: nil, contentKey: contentKey)
+            if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title) }
+            guard let rootVC = rootViewController else { return }
+            rootVC.present(vlc, animated: true)
+            return
+        }
+
         let player = AVPlayer(url: url)
         let playerVC = EnhancedPlayerViewController()
         playerVC.player = player
@@ -45,6 +62,15 @@ enum PlayerPresenter {
         api: XtreamAPIService
     ) {
         guard startIndex >= 0, startIndex < channels.count else { return }
+
+        // VLC path — higher compatibility with HD/FHD HEVC streams.
+        if useVlcForLive {
+            let vlc = VLCLivePlayerViewController(channels: channels, startIndex: startIndex, api: api)
+            guard let rootVC = rootViewController else { return }
+            rootVC.present(vlc, animated: true)
+            return
+        }
+
         let channel = channels[startIndex]
         guard let url = api.liveStreamUrl(streamId: channel.streamId) else { return }
 

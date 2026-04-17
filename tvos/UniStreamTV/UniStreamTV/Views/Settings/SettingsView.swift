@@ -113,6 +113,27 @@ struct SettingsView: View {
                 }
             }
 
+            // Playback
+            Section {
+                Toggle(isOn: Binding(
+                    get: { PlayerPresenter.useVlcForLive },
+                    set: { PlayerPresenter.useVlcForLive = $0 }
+                )) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lecteur VLC pour les directs")
+                            Text("Recommandé pour HD/FHD. Désactivez pour utiliser le lecteur Apple natif.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "play.tv")
+                    }
+                }
+            } header: {
+                Text("Lecture")
+            }
+
             // Cache management
             Section("Cache") {
                 HStack {
