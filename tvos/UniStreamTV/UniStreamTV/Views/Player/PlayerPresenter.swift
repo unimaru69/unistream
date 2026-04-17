@@ -19,6 +19,16 @@ enum PlayerPresenter {
         set { UserDefaults.standard.set(newValue, forKey: "player.live.vlc") }
     }
 
+    /// Whether to use VLC (true) or AVPlayer (false) for VOD and series.
+    /// Default is AVPlayer: it has better trick-play (precise seek, skip ±10s),
+    /// native transport bar, and handles H.264/H.265 MP4 well. Enable VLC as a
+    /// fallback if you encounter a rare VOD that plays audio without video
+    /// (e.g. 4K HEVC in MKV with unusual codec parameters).
+    static var useVlcForVod: Bool {
+        get { UserDefaults.standard.bool(forKey: "player.vod.vlc") }
+        set { UserDefaults.standard.set(newValue, forKey: "player.vod.vlc") }
+    }
+
     /// Present a live channel stream.
     static func playLive(url: URL, title: String? = nil, contentKey: String? = nil) {
         if useVlcForLive {
@@ -96,6 +106,15 @@ enum PlayerPresenter {
     /// Present a VOD stream, optionally resuming from a position.
     /// Tries the given URL first. If playback fails, retries with alternate extensions.
     static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil) {
+        // VLC path for unusual codecs (4K HEVC MKV, etc.) — opt-in via Settings.
+        if useVlcForVod {
+            let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: resumeFromMs, contentKey: contentKey)
+            if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title) }
+            guard let rootVC = rootViewController else { return }
+            rootVC.present(vlc, animated: true)
+            return
+        }
+
         let player = AVPlayer(url: url)
         if let ms = resumeFromMs, ms > 0 {
             let time = CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600)

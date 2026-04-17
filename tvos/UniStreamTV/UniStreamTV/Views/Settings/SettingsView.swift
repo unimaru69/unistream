@@ -130,6 +130,22 @@ struct SettingsView: View {
                         Image(systemName: "play.tv")
                     }
                 }
+
+                Toggle(isOn: Binding(
+                    get: { PlayerPresenter.useVlcForVod },
+                    set: { PlayerPresenter.useVlcForVod = $0 }
+                )) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lecteur VLC pour VOD & séries")
+                            Text("Activez uniquement si un film 4K ou une série ne joue que le son.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "film.stack")
+                    }
+                }
             } header: {
                 Text("Lecture")
             }
