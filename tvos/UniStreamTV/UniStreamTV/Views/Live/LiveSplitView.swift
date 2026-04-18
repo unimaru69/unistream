@@ -1,15 +1,16 @@
 import SwiftUI
 import Kingfisher
 
-/// Split-view layout for Live TV: sidebar of categories on the left, grid of
-/// channels on the right. Aligns with the Flutter UX.
+/// Split-view layout for Live TV: fixed-width sidebar of categories on the
+/// left, channel grid on the right. Replaces NavigationSplitView which
+/// doesn't behave correctly on tvOS (takes full width, hides detail).
 struct LiveSplitView: View {
     @Bindable var viewModel: LiveViewModel
     @Environment(AppState.self) private var appState
 
-    @State private var selection: CategoryEntry = .favorites
+    @State private var selection: CategoryEntry = .all
+    @FocusState private var focusedEntry: CategoryEntry?
 
-    /// Sidebar entries — special entries + real categories.
     enum CategoryEntry: Hashable {
         case favorites
         case all
@@ -57,73 +58,89 @@ struct LiveSplitView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            sidebar
-        } detail: {
-            detail
-        }
-        .navigationSplitViewStyle(.balanced)
-        .task {
-            await viewModel.loadCategories()
-            await viewModel.loadAllChannels()
-            // Auto-pick first useful entry
-            if favoriteCount > 0 {
-                selection = .favorites
-            } else if let first = filteredCategories.first {
-                selection = .category(first)
-            } else {
-                selection = .all
+        NavigationStack {
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 520)
+                    .focusSection()
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 1)
+
+                detail
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .focusSection()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .task {
+                await viewModel.loadCategories()
+                await viewModel.loadAllChannels()
+                // Pick a sensible initial selection
+                if favoriteCount > 0 {
+                    selection = .favorites
+                } else if !filteredCategories.isEmpty {
+                    selection = .category(filteredCategories.first!)
+                } else {
+                    selection = .all
+                }
             }
         }
     }
 
     // MARK: - Sidebar
 
-    @ViewBuilder
     private var sidebar: some View {
-        List {
-            Section {
-                if favoriteCount > 0 {
-                    sidebarRow(entry: .favorites, count: favoriteCount)
-                }
-                sidebarRow(entry: .all, count: viewModel.allChannels.isEmpty ? nil : viewModel.allChannels.count)
-                if canUseEPG {
-                    sidebarRow(entry: .epg, count: nil)
-                }
-            }
-
-            Section("Catégories") {
-                ForEach(filteredCategories, id: \.id) { cat in
-                    sidebarRow(
-                        entry: .category(cat),
-                        count: viewModel.channelCounts[cat.categoryId]
+        VStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    // Special entries
+                    if favoriteCount > 0 {
+                        sidebarButton(entry: .favorites, count: favoriteCount)
+                    }
+                    sidebarButton(
+                        entry: .all,
+                        count: viewModel.allChannels.isEmpty ? nil : viewModel.allChannels.count
                     )
+                    if canUseEPG {
+                        sidebarButton(entry: .epg, count: nil)
+                    }
+
+                    // Section header
+                    Text("Catégories")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
+
+                    // Real categories
+                    ForEach(filteredCategories, id: \.id) { cat in
+                        sidebarButton(
+                            entry: .category(cat),
+                            count: viewModel.channelCounts[cat.categoryId]
+                        )
+                    }
                 }
+                .padding(.vertical, 20)
             }
         }
-        .navigationTitle("Live")
     }
 
     @ViewBuilder
-    private func sidebarRow(entry: CategoryEntry, count: Int?) -> some View {
+    private func sidebarButton(entry: CategoryEntry, count: Int?) -> some View {
         Button {
             selection = entry
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: entry.icon)
-                    .foregroundColor(selection == entry ? Color(hex: 0x1B6B8A) : .secondary)
-                    .frame(width: 28)
-                Text(entry.title)
-                    .fontWeight(selection == entry ? .semibold : .regular)
-                Spacer()
-                if let count {
-                    Text("\(count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
+            SidebarRowLabel(
+                entry: entry,
+                count: count,
+                isSelected: selection == entry
+            )
         }
+        .buttonStyle(.plain)
+        .focused($focusedEntry, equals: entry)
     }
 
     // MARK: - Detail
@@ -150,6 +167,69 @@ struct LiveSplitView: View {
             EPGView(channels: viewModel.allChannels, categoryNames: catNames)
         case .category(let cat):
             ChannelGridView(category: cat, viewModel: viewModel)
+        }
+    }
+}
+
+// MARK: - Sidebar Row (focus-aware)
+
+private struct SidebarRowLabel: View {
+    let entry: LiveSplitView.CategoryEntry
+    let count: Int?
+    let isSelected: Bool
+
+    @Environment(\.isFocused) private var isFocused
+
+    private var accent: Color { Color(hex: 0x1B6B8A) }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: entry.icon)
+                .font(.body)
+                .foregroundColor(iconColor)
+                .frame(width: 26)
+
+            Text(entry.title)
+                .font(.body)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .foregroundColor(textColor)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            if let count {
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundColor(textColor.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(rowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 12)
+        .scaleEffect(isFocused ? 1.04 : 1.0)
+        .animation(.easeOut(duration: 0.15), value: isFocused)
+    }
+
+    private var iconColor: Color {
+        if isFocused { return .black }
+        return isSelected ? accent : .secondary
+    }
+
+    private var textColor: Color {
+        if isFocused { return .black }
+        return isSelected ? .white : .white.opacity(0.75)
+    }
+
+    @ViewBuilder
+    private var rowBackground: some View {
+        if isFocused {
+            Color.white
+        } else if isSelected {
+            accent.opacity(0.25)
+        } else {
+            Color.clear
         }
     }
 }
