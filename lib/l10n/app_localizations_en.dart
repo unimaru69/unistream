@@ -777,7 +777,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tvEnDirect => 'Live TV';
 
   @override
-  String get filmsVod => 'Movies (VOD)';
+  String get filmsVod => 'Movies';
 
   @override
   String get catchupNonDisponible =>
@@ -1161,7 +1161,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fonctionnaliteSousTitresAvances => 'Advanced subtitles';
 
   @override
-  String get fonctionnaliteLiveVodSeries => 'Live TV, VOD, Series';
+  String get fonctionnaliteLiveVodSeries => 'Live TV, Movies, Series';
 
   @override
   String get fonctionnaliteEpg => 'TV Guide (EPG)';

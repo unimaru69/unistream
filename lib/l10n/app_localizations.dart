@@ -1499,7 +1499,7 @@ abstract class AppLocalizations {
   /// No description provided for @filmsVod.
   ///
   /// In fr, this message translates to:
-  /// **'Films (VOD)'**
+  /// **'Films'**
   String get filmsVod;
 
   /// No description provided for @catchupNonDisponible.
@@ -2147,7 +2147,7 @@ abstract class AppLocalizations {
   /// No description provided for @fonctionnaliteLiveVodSeries.
   ///
   /// In fr, this message translates to:
-  /// **'Live TV, VOD, Séries'**
+  /// **'Live TV, Films, Séries'**
   String get fonctionnaliteLiveVodSeries;
 
   /// No description provided for @fonctionnaliteEpg.

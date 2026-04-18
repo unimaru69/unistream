@@ -250,13 +250,13 @@ void main() {
   });
 
   group('ParentalSettingsScreen — authenticated (settings view)', () {
-    testWidgets('shows tab bar with Live / VOD / Séries tabs', (tester) async {
+    testWidgets('shows tab bar with Live / Films / Séries tabs', (tester) async {
       await tester.pumpWidget(_buildAuthenticatedApp());
       await tester.pumpAndSettle();
 
       expect(find.byType(TabBar), findsOneWidget);
       expect(find.text('Chaînes TV'), findsOneWidget);
-      expect(find.text('Films (VOD)'), findsOneWidget);
+      expect(find.text('Films'), findsOneWidget);
       expect(find.text('Séries'), findsOneWidget);
     });
 
