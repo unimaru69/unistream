@@ -41,10 +41,12 @@
 		6141730C612B231677DF1E1C /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 3B768F7AB8F3B884F8DDB8F5 /* RevenueCat */; };
 		628098A1D8479B227CCD4340 /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D21F07D4BC065934406A66 /* SyncService.swift */; };
 		6A1C8A0DE2124CF2B4D75205 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F8C32DD3D1D784098988B7 /* PlayerView.swift */; };
+		6B64AA45CE7FD55F9BDE8F62 /* VODSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF9A66BE8205446C706338D2 /* VODSplitView.swift */; };
 		7258D547473FF8BE255E5094 /* EPGViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148D80D248EDA292FAE9CAE3 /* EPGViewModel.swift */; };
 		75612E02929A2A249A0C1421 /* SeriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C006B441E8DDFCDE018925AE /* SeriesViewModel.swift */; };
 		75E0AFB6F392CB5CD9707557 /* Episode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F96A79587CCA902C7E2147 /* Episode.swift */; };
 		766A8CED8069F344D526E6D6 /* XtreamAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */; };
+		77D6C92E12876746703DEB4D /* CategoryRowLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E2B9F2D9687ED2247138B2 /* CategoryRowLabel.swift */; };
 		799D21D487E08E7A0B663747 /* VLCPlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */; };
 		7DA736955A27E82D9DC6C9C8 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D517AEE9BA76841A8A5F88 /* AuthService.swift */; };
 		7F5C004035BD07FD07120542 /* FocusableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128BA5E87066CEE16997BC1C /* FocusableCard.swift */; };
@@ -76,6 +78,7 @@
 		BF42FE71DEA8202F818441A4 /* CollectionsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C775B1B4C494C9799EC3BEF /* CollectionsServiceTests.swift */; };
 		C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5385194B16C126435316CB1E /* EPGView.swift */; };
 		C86F1ACFC2F6D05CD5C56012 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EF8476CB018EE8AC5952FE /* AppState.swift */; };
+		CE450C4DF421238D5B8C3A41 /* SeriesSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE89FD037084FCFC6C4FF310 /* SeriesSplitView.swift */; };
 		D24499BCFBA05C343DE69339 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8124D84D4CBEE7E9EC6A5B0F /* SupabaseConfig.swift */; };
 		D473B1E8D7390C7E265D5202 /* SeriesItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E70B86BC91ADD0508B379456 /* SeriesItem.swift */; };
 		D9B24653066A35BE08B95037 /* PinEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4585D311780B0E1E1070318F /* PinEntryView.swift */; };
@@ -146,6 +149,7 @@
 		42D517AEE9BA76841A8A5F88 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		43F96A79587CCA902C7E2147 /* Episode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Episode.swift; sourceTree = "<group>"; };
 		4585D311780B0E1E1070318F /* PinEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinEntryView.swift; sourceTree = "<group>"; };
+		48E2B9F2D9687ED2247138B2 /* CategoryRowLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryRowLabel.swift; sourceTree = "<group>"; };
 		4B8355E41F4549D78A46A9F1 /* Channel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Channel.swift; sourceTree = "<group>"; };
 		4D2BAE3875739CF23A3B6029 /* ParentalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentalSettingsView.swift; sourceTree = "<group>"; };
 		517B9C4B9B525DF85EB03F04 /* TVButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVButtonStyle.swift; sourceTree = "<group>"; };
@@ -187,6 +191,7 @@
 		B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopShelfContentProvider.swift; sourceTree = "<group>"; };
 		BC93FA043E16C7D3D41353A2 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		BDEFAE9916DE082857E081C9 /* EpgProgramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpgProgramTests.swift; sourceTree = "<group>"; };
+		BE89FD037084FCFC6C4FF310 /* SeriesSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesSplitView.swift; sourceTree = "<group>"; };
 		BF3AD30AC55A9E5F26290EF4 /* RecentlyAddedRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyAddedRow.swift; sourceTree = "<group>"; };
 		C006B441E8DDFCDE018925AE /* SeriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesViewModel.swift; sourceTree = "<group>"; };
 		C0B558E30E5A11052968616A /* String+Base64.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Base64.swift"; sourceTree = "<group>"; };
@@ -209,6 +214,7 @@
 		EFC0F536AD1A1A5A39FD4857 /* VODDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODDetailView.swift; sourceTree = "<group>"; };
 		F79248D886BCAA3CAB4BD358 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FF82E67EE5912F0E7C7D21E1 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
+		FF9A66BE8205446C706338D2 /* VODSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODSplitView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -295,6 +301,7 @@
 				EAAA6CE8FC407045CB4314CC /* SeriesCategoryListView.swift */,
 				55096A5D6EE9B3F8E34B424F /* SeriesDetailView.swift */,
 				75F7B1C83151B0ADA009CE14 /* SeriesGridView.swift */,
+				BE89FD037084FCFC6C4FF310 /* SeriesSplitView.swift */,
 			);
 			path = Series;
 			sourceTree = "<group>";
@@ -444,6 +451,7 @@
 				51A0B3E88E682FA7B2316BB1 /* VODCategoryListView.swift */,
 				EFC0F536AD1A1A5A39FD4857 /* VODDetailView.swift */,
 				C28E382440D792AE090F1428 /* VODGridView.swift */,
+				FF9A66BE8205446C706338D2 /* VODSplitView.swift */,
 			);
 			path = VOD;
 			sourceTree = "<group>";
@@ -493,6 +501,7 @@
 			isa = PBXGroup;
 			children = (
 				917CA542B893D20299F88ECF /* AsyncPosterImage.swift */,
+				48E2B9F2D9687ED2247138B2 /* CategoryRowLabel.swift */,
 				EE254BB2D2EFC59D3A2DC32A /* ErrorRetryView.swift */,
 				128BA5E87066CEE16997BC1C /* FocusableCard.swift */,
 				4585D311780B0E1E1070318F /* PinEntryView.swift */,
@@ -681,6 +690,7 @@
 				7DA736955A27E82D9DC6C9C8 /* AuthService.swift in Sources */,
 				805114601A8B3CCFDE4ED762 /* CatchUpRow.swift in Sources */,
 				1F294089B6206E5B22425241 /* Category.swift in Sources */,
+				77D6C92E12876746703DEB4D /* CategoryRowLabel.swift in Sources */,
 				52ACF0F6D91AA7EDB33CE11F /* Channel.swift in Sources */,
 				4DD371BAB445B1BEBC9C0C38 /* ChannelDetailView.swift in Sources */,
 				186C179E7AE6FA1708BC2CF2 /* ChannelGridView.swift in Sources */,
@@ -725,6 +735,7 @@
 				F85AB092BE1E42A5CB45E472 /* SeriesDetailView.swift in Sources */,
 				494F3BA1FC2441C0F19AABBD /* SeriesGridView.swift in Sources */,
 				D473B1E8D7390C7E265D5202 /* SeriesItem.swift in Sources */,
+				CE450C4DF421238D5B8C3A41 /* SeriesSplitView.swift in Sources */,
 				75612E02929A2A249A0C1421 /* SeriesViewModel.swift in Sources */,
 				0D8B1883A60FDA24BB0B5AA2 /* ServerSetupView.swift in Sources */,
 				07601BF835CD06ACA8C2E3F7 /* SettingsView.swift in Sources */,
@@ -741,6 +752,7 @@
 				DE1FE5D8717EC75912CA6E05 /* VODCategoryListView.swift in Sources */,
 				B813633B801EECBDB69924A5 /* VODDetailView.swift in Sources */,
 				3993DFE1A0A3019075FDD450 /* VODGridView.swift in Sources */,
+				6B64AA45CE7FD55F9BDE8F62 /* VODSplitView.swift in Sources */,
 				9A1C87AE9B0350501CCA24A3 /* VODViewModel.swift in Sources */,
 				484358916F62833200E09457 /* VodItem.swift in Sources */,
 				766A8CED8069F344D526E6D6 /* XtreamAPIService.swift in Sources */,

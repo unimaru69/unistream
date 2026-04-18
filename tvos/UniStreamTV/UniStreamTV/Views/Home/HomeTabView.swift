@@ -20,16 +20,16 @@ struct HomeTabView: View {
                     .tag(1)
             }
 
-            // VOD
+            // Films (sidebar + grid split view)
             if let vodVM = appState.vodVM {
-                VODCategoryListView(viewModel: vodVM, api: appState.api)
+                VODSplitView(viewModel: vodVM, api: appState.api)
                     .tabItem { Label("Films", systemImage: "film") }
                     .tag(2)
             }
 
-            // Series
+            // Séries (sidebar + grid split view)
             if let seriesVM = appState.seriesVM {
-                SeriesCategoryListView(viewModel: seriesVM, api: appState.api)
+                SeriesSplitView(viewModel: seriesVM, api: appState.api)
                     .tabItem { Label("Séries", systemImage: "tv.inset.filled") }
                     .tag(3)
             }
