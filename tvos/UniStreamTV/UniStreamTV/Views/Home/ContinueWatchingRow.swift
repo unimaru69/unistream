@@ -1,14 +1,35 @@
 import SwiftUI
 import Kingfisher
 
-/// Horizontal row of items the user was watching — shown at the top of Home.
+/// Which kinds of entries to include in a ContinueWatchingRow.
+enum ContinueWatchingFilter {
+    /// VOD (films) + episodes (séries) — default for Home tab.
+    case vodAndEpisodes
+    /// VOD only — for the Films tab.
+    case vodOnly
+    /// Episodes only — for the Séries tab.
+    case episodesOnly
+
+    fileprivate func matches(_ key: String) -> Bool {
+        switch self {
+        case .vodAndEpisodes: return key.hasPrefix("vod_") || key.hasPrefix("ep_")
+        case .vodOnly: return key.hasPrefix("vod_")
+        case .episodesOnly: return key.hasPrefix("ep_")
+        }
+    }
+}
+
+/// Horizontal row of items the user was watching — shown at the top of Home,
+/// Films and Séries tabs (with an appropriate filter).
 struct ContinueWatchingRow: View {
     @Environment(AppState.self) private var appState
 
+    var filter: ContinueWatchingFilter = .vodAndEpisodes
+    var horizontalPadding: CGFloat = 50
+
     private var entries: [(key: String, entry: WatchEntry)] {
         appState.syncService.watchProgress
-            // Only show VOD/episode entries (lives have no finite duration).
-            .filter { $0.key.hasPrefix("vod_") || $0.key.hasPrefix("ep_") }
+            .filter { filter.matches($0.key) }
             .filter { $0.value.progress > 0.005 && $0.value.progress < 0.95 }
             .sorted { $0.value.updatedAt > $1.value.updatedAt }
             .prefix(10)
@@ -22,7 +43,7 @@ struct ContinueWatchingRow: View {
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
-                    .padding(.horizontal, 50)
+                    .padding(.horizontal, horizontalPadding)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 24) {
@@ -30,7 +51,7 @@ struct ContinueWatchingRow: View {
                             ContinueWatchingCard(contentKey: item.key, entry: item.entry)
                         }
                     }
-                    .padding(.horizontal, 50)
+                    .padding(.horizontal, horizontalPadding)
                 }
             }
         }

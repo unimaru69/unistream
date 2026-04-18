@@ -24,20 +24,26 @@ struct VODSplitView: View {
                         Task { await viewModel.loadCategories() }
                     }
                 } else {
-                    HStack(spacing: 0) {
-                        sidebar
-                            .frame(width: 520)
+                    VStack(spacing: 0) {
+                        // Continue watching row (films in progress) — hidden if empty
+                        ContinueWatchingRow(filter: .vodOnly, horizontalPadding: 40)
                             .focusSection()
 
-                        Rectangle()
-                            .fill(Color.white.opacity(0.08))
-                            .frame(width: 1)
+                        HStack(spacing: 0) {
+                            sidebar
+                                .frame(width: 520)
+                                .focusSection()
 
-                        detail
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .focusSection()
+                            Rectangle()
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 1)
+
+                            detail
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .focusSection()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .task {
