@@ -65,6 +65,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-builds
+          retention-days: 7
+          compression-level: 9
           path: |
             build/UniStream-x86_64.AppImage
             unistream-linux-x86_64.tar.gz
@@ -114,9 +116,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-builds
-          path: |
-            build/windows/x64/runner/Release/
-            build/windows/x64/runner/Release/*.msix
+          retention-days: 7
+          compression-level: 9
+          # Only the MSIX — the full Release/ folder weighs ~200 MB in
+          # DLLs + Sentry symbols that never ship to end users.
+          path: build/windows/x64/runner/Release/*.msix
 
   build-macos:
     runs-on: macos-latest
@@ -130,11 +134,20 @@ jobs:
       - name: Build macOS release
         run: flutter build macos --release
 
+      - name: Zip .app bundle
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -qr "$GITHUB_WORKSPACE/unistream-macos.zip" unistream.app
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-builds
-          path: build/macos/Build/Products/Release/
+          retention-days: 7
+          compression-level: 9
+          # Zipped .app only (~40 MB) rather than the full Release/ folder
+          # (~120 MB with dSYMs and frameworks).
+          path: unistream-macos.zip
 
   create-release:
     needs: [build-macos, build-linux, build-windows]
@@ -159,6 +172,18 @@ jobs:
             artifacts/linux-builds/UniStream-x86_64.AppImage
             artifacts/linux-builds/unistream-linux-x86_64.tar.gz
             artifacts/windows-builds/*.msix
+            artifacts/macos-builds/unistream-macos.zip
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
+
+      # Free up Actions storage immediately after the release is published.
+      # The release files themselves live in the Releases API, not in Actions.
+      - name: Delete workflow artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            linux-builds
+            windows-builds
+            macos-builds
+          failOnError: false
