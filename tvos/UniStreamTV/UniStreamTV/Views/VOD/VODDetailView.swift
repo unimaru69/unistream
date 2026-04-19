@@ -123,17 +123,24 @@ struct VODDetailView: View {
                         Button {
                             appState.syncService.toggleFavorite(.from(vod: item))
                         } label: {
-                            Label(isFav ? "Retirer" : "Favori", systemImage: isFav ? "heart.fill" : "heart")
+                            Label {
+                                Text(isFav ? "Retirer" : "Favori")
+                            } icon: {
+                                Image(systemName: isFav ? "heart.fill" : "heart")
+                                    .symbolEffect(.bounce, value: isFav)
+                            }
                         }
                         .tint(isFav ? .red : .gray)
 
                         Button {
                             appState.syncService.toggleWatchlist(.from(vod: item))
                         } label: {
-                            Label(
-                                isInWatchlist ? "Retirer de la liste" : "À regarder",
-                                systemImage: isInWatchlist ? "bookmark.fill" : "bookmark"
-                            )
+                            Label {
+                                Text(isInWatchlist ? "Retirer de la liste" : "À regarder")
+                            } icon: {
+                                Image(systemName: isInWatchlist ? "bookmark.fill" : "bookmark")
+                                    .symbolEffect(.bounce, value: isInWatchlist)
+                            }
                         }
                         .tint(isInWatchlist ? Color(hex: 0x1B6B8A) : .gray)
                     }

@@ -110,16 +110,24 @@ struct SeriesDetailView: View {
                     Button {
                         appState.syncService.toggleFavorite(.from(series: series))
                     } label: {
-                        Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
-                              systemImage: isFav ? "heart.fill" : "heart")
+                        Label {
+                            Text(isFav ? "Retirer des favoris" : "Ajouter aux favoris")
+                        } icon: {
+                            Image(systemName: isFav ? "heart.fill" : "heart")
+                                .symbolEffect(.bounce, value: isFav)
+                        }
                     }
                     .tint(isFav ? .red : .gray)
 
                     Button {
                         appState.syncService.toggleWatchlist(.from(series: series))
                     } label: {
-                        Label(isInWatchlist ? "Retirer de la liste" : "À regarder",
-                              systemImage: isInWatchlist ? "bookmark.fill" : "bookmark")
+                        Label {
+                            Text(isInWatchlist ? "Retirer de la liste" : "À regarder")
+                        } icon: {
+                            Image(systemName: isInWatchlist ? "bookmark.fill" : "bookmark")
+                                .symbolEffect(.bounce, value: isInWatchlist)
+                        }
                     }
                     .tint(isInWatchlist ? Color(hex: 0x1B6B8A) : .gray)
                 }
