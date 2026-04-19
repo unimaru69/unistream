@@ -204,22 +204,48 @@ final class SyncService {
     func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil) {
         guard durationMs > 10000 else { return }  // Ignore < 10s
 
-        // Auto-clear if > 95% watched
-        if positionMs > Int(Double(durationMs) * 0.95) {
-            watchProgress.removeValue(forKey: contentKey)
-        } else {
-            // Preserve existing title if new one is nil
-            let existingTitle = watchProgress[contentKey]?.title
-            watchProgress[contentKey] = WatchEntry(
-                positionMs: positionMs,
-                durationMs: durationMs,
-                updatedAt: Date(),
-                title: title ?? existingTitle
-            )
-        }
+        // Keep the entry even when > 95% watched — that flag tells us the
+        // item is "watched" (see WatchEntry.isWatched). The Reprendre row
+        // and Top Shelf filter those out on their side.
+        let existingTitle = watchProgress[contentKey]?.title
+        watchProgress[contentKey] = WatchEntry(
+            positionMs: positionMs,
+            durationMs: durationMs,
+            updatedAt: Date(),
+            title: title ?? existingTitle
+        )
 
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
+    }
+
+    /// Mark a content item as fully watched (progress ≈ 99%).
+    /// Used for "Marquer vu" and auto-mark-previous-episodes on play.
+    func markAsWatched(contentKey: String, title: String? = nil) {
+        let existingTitle = watchProgress[contentKey]?.title
+        // Synthetic 1h duration — real duration will overwrite on first real play.
+        let durationMs = watchProgress[contentKey]?.durationMs ?? 3_600_000
+        let positionMs = Int(Double(durationMs) * 0.99)
+        watchProgress[contentKey] = WatchEntry(
+            positionMs: positionMs,
+            durationMs: durationMs,
+            updatedAt: Date(),
+            title: title ?? existingTitle
+        )
+        debouncePushProgress(contentKey: contentKey)
+        writeTopShelfSnapshot()
+    }
+
+    /// Clear any watched / in-progress state for the content item.
+    func markAsUnwatched(contentKey: String) {
+        removeProgress(contentKey: contentKey)
+        debouncePushProgress(contentKey: contentKey)
+        writeTopShelfSnapshot()
+    }
+
+    /// Whether the item has been fully watched (≥ 95%).
+    func isWatched(contentKey: String) -> Bool {
+        watchProgress[contentKey]?.isWatched ?? false
     }
 
     func getProgress(contentKey: String) -> WatchEntry? {
@@ -369,6 +395,9 @@ struct WatchEntry {
         guard durationMs > 0 else { return 0 }
         return min(Double(positionMs) / Double(durationMs), 1.0)
     }
+
+    /// An item is considered watched once it has crossed the 95% threshold.
+    var isWatched: Bool { progress > 0.95 }
 
     /// Formatted elapsed time string (e.g. "1h 23min" or "45 min").
     var elapsedFormatted: String {
