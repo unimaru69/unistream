@@ -76,6 +76,9 @@ jobs:
     needs: analyze-and-test
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
     runs-on: ubuntu-latest
+    # Required to publish the rolling pre-release below.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -124,3 +127,26 @@ jobs:
           name: UniStream-Linux-AppImage
           path: build/UniStream-x86_64.AppImage
           retention-days: 30
+        # Artifacts occasionally hit the storage quota; never fail the whole
+        # build because of it — the rolling pre-release below is the reliable
+        # download channel for Fedora testing.
+        continue-on-error: true
+
+      # Publish the AppImage as a rolling pre-release so it's always reachable
+      # without hitting the Actions artifacts quota. Tag is overwritten every
+      # successful run.
+      - name: Publish rolling pre-release (AppImage)
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: linux-latest
+          name: "Linux AppImage — latest build"
+          body: |
+            Rolling build of the Linux AppImage (overwritten on every
+            successful `main` build). Built from commit ${{ github.sha }}.
+          files: build/UniStream-x86_64.AppImage
+          draft: false
+          prerelease: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
