@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Displays user's favorites and "À regarder" watchlist — playable.
+/// Displays user's favorites and "À regarder" watchlist as poster-card grids.
 struct FavoritesView: View {
     @Environment(AppState.self) private var appState
 
@@ -27,10 +27,16 @@ struct FavoritesView: View {
     private var movieItems: [FavoriteItem] { items.filter { $0.mode == "movie" } }
     private var seriesItems: [FavoriteItem] { items.filter { $0.mode == "series" } }
 
+    private let posterColumns = [
+        GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 32),
+    ]
+    private let wideColumns = [
+        GridItem(.adaptive(minimum: 240, maximum: 280), spacing: 28),
+    ]
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Segmented toggle
                 Picker("Type", selection: $selectedList) {
                     Label("Favoris", systemImage: "heart.fill").tag(ListKind.favorites)
                     Label("À regarder", systemImage: "bookmark.fill").tag(ListKind.watchlist)
@@ -59,115 +65,130 @@ struct FavoritesView: View {
         if items.isEmpty {
             emptyState
         } else {
-            List {
-                if !liveItems.isEmpty {
-                    Section("Live (\(liveItems.count))") {
-                        ForEach(liveItems) { item in
-                            FavoriteRow(item: item, listKind: selectedList)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 40) {
+                    if !liveItems.isEmpty {
+                        section(title: "Live", count: liveItems.count) {
+                            LazyVGrid(columns: wideColumns, spacing: 32) {
+                                ForEach(liveItems) { item in
+                                    FavoriteCard(item: item, listKind: selectedList)
+                                }
+                            }
+                        }
+                    }
+                    if !movieItems.isEmpty {
+                        section(title: "Films", count: movieItems.count) {
+                            LazyVGrid(columns: posterColumns, spacing: 32) {
+                                ForEach(movieItems) { item in
+                                    FavoriteCard(item: item, listKind: selectedList)
+                                }
+                            }
+                        }
+                    }
+                    if !seriesItems.isEmpty {
+                        section(title: "Séries", count: seriesItems.count) {
+                            LazyVGrid(columns: posterColumns, spacing: 32) {
+                                ForEach(seriesItems) { item in
+                                    FavoriteCard(item: item, listKind: selectedList)
+                                }
+                            }
                         }
                     }
                 }
-
-                if !movieItems.isEmpty {
-                    Section("Films (\(movieItems.count))") {
-                        ForEach(movieItems) { item in
-                            FavoriteRow(item: item, listKind: selectedList)
-                        }
-                    }
-                }
-
-                if !seriesItems.isEmpty {
-                    Section("Séries (\(seriesItems.count))") {
-                        ForEach(seriesItems) { item in
-                            FavoriteRow(item: item, listKind: selectedList)
-                        }
-                    }
-                }
+                .padding(.horizontal, 60)
+                .padding(.vertical, 20)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(title: String, count: Int, @ViewBuilder body: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(title)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            body()
         }
     }
 
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: selectedList == .favorites ? "heart" : "bookmark")
-                .font(.system(size: 50))
-                .foregroundColor(.secondary)
+                .font(.system(size: 60))
+                .foregroundColor(.secondary.opacity(0.5))
             Text(selectedList == .favorites ? "Aucun favori" : "Aucun élément dans « À regarder »")
                 .font(.title3)
-                .foregroundColor(.secondary)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
             Text(selectedList == .favorites
                  ? "Maintenez une chaîne pour l'ajouter, ou utilisez le bouton ♥ sur les films et séries."
                  : "Utilisez le bouton Signet sur un film ou une série pour le garder de côté.")
                 .font(.body)
-                .foregroundColor(.secondary.opacity(0.7))
+                .foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 120)
         }
-        .padding(60)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-struct FavoriteRow: View {
+// MARK: - Favorite Card (poster / wide tile)
+
+private struct FavoriteCard: View {
     let item: FavoriteItem
     let listKind: FavoritesView.ListKind
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        rowContent
-            .contextMenu {
-                switch listKind {
-                case .favorites:
-                    Button(role: .destructive) {
-                        appState.syncService.toggleFavorite(item)
-                    } label: {
-                        Label("Retirer des favoris", systemImage: "heart.slash")
-                    }
-                case .watchlist:
-                    Button(role: .destructive) {
-                        appState.syncService.toggleWatchlist(item)
-                    } label: {
-                        Label("Retirer de « À regarder »", systemImage: "bookmark.slash")
-                    }
+        Group {
+            switch item.mode {
+            case "series":
+                NavigationLink(value: seriesItem) { cardLabel }
+                    .buttonStyle(.tvCard)
+            case "movie":
+                NavigationLink(value: vodItem) { cardLabel }
+                    .buttonStyle(.tvCard)
+            case "live":
+                Button { playLive() } label: { cardLabel }
+                    .buttonStyle(.tvCard)
+            default:
+                cardLabel
+            }
+        }
+        .contextMenu {
+            switch listKind {
+            case .favorites:
+                Button(role: .destructive) {
+                    appState.syncService.toggleFavorite(item)
+                } label: {
+                    Label("Retirer des favoris", systemImage: "heart.slash")
+                }
+            case .watchlist:
+                Button(role: .destructive) {
+                    appState.syncService.toggleWatchlist(item)
+                } label: {
+                    Label("Retirer de « À regarder »", systemImage: "bookmark.slash")
                 }
             }
-    }
-
-    @ViewBuilder
-    private var rowContent: some View {
-        switch item.mode {
-        case "series":
-            // Push SeriesDetailView via the enclosing NavigationStack
-            NavigationLink(value: seriesItem) { label }
-        case "movie":
-            NavigationLink(value: vodItem) { label }
-        case "live":
-            Button { playLive() } label: { label }
-        default:
-            label
         }
     }
 
-    private var label: some View {
-        HStack {
-            Image(systemName: iconName)
-                .foregroundColor(Color(hex: 0x1B6B8A))
-                .frame(width: 30)
-            Text(item.name)
-            Spacer()
-        }
+    private var cardLabel: some View {
+        FocusableCardLabel(
+            title: item.name,
+            imageUrl: item.displayIcon,
+            aspectRatio: item.mode == "live" ? 16/9 : 2/3,
+            isLive: item.mode == "live"
+        )
+        .frame(width: item.mode == "live" ? 260 : 200)
     }
 
-    private var iconName: String {
-        switch item.mode {
-        case "live": "tv"
-        case "movie": "film"
-        case "series": "tv.inset.filled"
-        default: "star"
-        }
-    }
-
-    /// Reconstruct a SeriesItem from a FavoriteItem — enough fields for the
-    /// detail view to load the episodes from the API.
     private var seriesItem: SeriesItem {
         SeriesItem(json: [
             "series_id": item.seriesId ?? item.key,
@@ -179,7 +200,6 @@ struct FavoriteRow: View {
         ])
     }
 
-    /// Reconstruct a VodItem from a FavoriteItem.
     private var vodItem: VodItem {
         VodItem(json: [
             "stream_id": item.streamId ?? item.key,
