@@ -34,11 +34,11 @@ struct CategoryRowLabel: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(rowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 12)
-        .scaleEffect(isFocused ? 1.04 : 1.0)
+        .scaleEffect(isFocused ? 1.06 : 1.0)
         .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 

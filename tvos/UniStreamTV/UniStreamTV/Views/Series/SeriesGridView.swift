@@ -17,8 +17,11 @@ struct SeriesGridView: View {
             if viewModel.isLoadingItems && viewModel.items.isEmpty {
                 ProgressView("Chargement…")
             } else if viewModel.items.isEmpty {
-                Text("Aucune série")
-                    .foregroundColor(.secondary)
+                EmptyStateView(
+                    icon: "tv.inset.filled",
+                    title: "Aucune série",
+                    description: "Cette catégorie ne contient aucune série pour le moment."
+                )
             } else {
                 ScrollView {
                     HStack {
@@ -31,14 +34,11 @@ struct SeriesGridView: View {
                     LazyVGrid(columns: columns, spacing: 30) {
                         ForEach(viewModel.items) { item in
                             NavigationLink(value: item) {
-                                VStack(spacing: 8) {
-                                    AsyncPosterImage(url: item.displayIcon)
-                                    Text(item.name)
-                                        .font(.caption)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.center)
-                                        .foregroundColor(.white)
-                                }
+                                FocusableCardLabel(
+                                    title: item.name,
+                                    imageUrl: item.displayIcon,
+                                    aspectRatio: 2/3
+                                )
                             }
                             .buttonStyle(.tvCard)
                             .contextMenu {

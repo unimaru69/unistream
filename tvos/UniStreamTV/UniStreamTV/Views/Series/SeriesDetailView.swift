@@ -45,6 +45,18 @@ struct SeriesDetailView: View {
             }
             .padding(.vertical, 40)
         }
+        .background(
+            RadialGradient(
+                colors: [
+                    Color(hex: 0x1B6B8A).opacity(0.22),
+                    Color(hex: 0x0E0B1E)
+                ],
+                center: .topLeading,
+                startRadius: 100,
+                endRadius: 1400
+            )
+            .ignoresSafeArea()
+        )
         .task {
             await viewModel.loadEpisodes(for: series)
             selectedSeason = sortedSeasons.first
@@ -294,7 +306,7 @@ struct SeriesDetailView: View {
     }
 }
 
-// MARK: - Season chip (focus-aware)
+// MARK: - Season chip
 
 private struct SeasonChip: View {
     let season: String
@@ -303,41 +315,57 @@ private struct SeasonChip: View {
     let isSelected: Bool
     let action: () -> Void
 
-    @Environment(\.isFocused) private var isFocused
-
-    private var accent: Color { Color(hex: 0x1B6B8A) }
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text("Saison \(season)")
-                    .foregroundColor(textColor)
                     .fontWeight(isSelected ? .semibold : .regular)
-
                 if total > 0 && watched == total {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(isFocused ? .black : .green)
                 } else if watched > 0 {
                     Text("\(watched)/\(total)")
                         .font(.caption)
-                        .foregroundColor(textColor.opacity(0.7))
+                        .opacity(0.85)
                 }
             }
+        }
+        .buttonStyle(SeasonChipButtonStyle(
+            isSelected: isSelected,
+            isComplete: total > 0 && watched == total
+        ))
+    }
+}
+
+/// ButtonStyle has genuine access to focus via @Environment inside makeBody
+/// (unlike a View nested as the Button's label).
+private struct SeasonChipButtonStyle: ButtonStyle {
+    let isSelected: Bool
+    let isComplete: Bool
+
+    @Environment(\.isFocused) private var isFocused
+
+    private let accent = Color(hex: 0x1B6B8A)
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(textColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(rowBackground)
+            .background(background)
             .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
+            .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? 1.04 : 1.0))
+            .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 
     private var textColor: Color {
+        // Focus wins over everything — black text on a white pill.
         if isFocused { return .black }
-        return isSelected ? .white : .white.opacity(0.8)
+        if isComplete { return .green }
+        return isSelected ? .white : .white.opacity(0.85)
     }
 
     @ViewBuilder
-    private var rowBackground: some View {
+    private var background: some View {
         if isFocused {
             Color.white
         } else if isSelected {

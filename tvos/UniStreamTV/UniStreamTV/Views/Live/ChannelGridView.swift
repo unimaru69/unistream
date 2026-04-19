@@ -37,13 +37,13 @@ struct ChannelGridView: View {
                     }
                 }
             } else if displayedChannels.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: showFavoritesOnly ? "heart.slash" : "tv.slash")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    Text(showFavoritesOnly ? "Aucun favori" : "Aucune chaîne")
-                        .foregroundColor(.secondary)
-                }
+                EmptyStateView(
+                    icon: showFavoritesOnly ? "heart.slash" : "tv.slash",
+                    title: showFavoritesOnly ? "Aucun favori" : "Aucune chaîne",
+                    description: showFavoritesOnly
+                        ? "Ajoute des chaînes aux favoris pour les retrouver ici."
+                        : "Cette catégorie ne contient aucune chaîne pour le moment."
+                )
             } else {
                 ScrollView {
                     // Titre inline qui défile avec le contenu (évite la surimpression

@@ -1,10 +1,15 @@
 import SwiftUI
+import Kingfisher
 
-/// Watch history screen — shows recently watched items with resume & delete.
+/// Watch history screen — poster grid with resume / delete actions.
 struct HistoryView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var showClearConfirm = false
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 280, maximum: 320), spacing: 32),
+    ]
 
     private var entries: [(key: String, value: WatchEntry)] {
         appState.syncService.watchProgress
@@ -15,38 +20,39 @@ struct HistoryView: View {
     var body: some View {
         Group {
             if entries.isEmpty {
-                emptyState
+                EmptyStateView(
+                    icon: "clock.arrow.circlepath",
+                    title: "Aucun historique",
+                    description: "Les films, séries et chaînes que tu regardes apparaîtront ici.",
+                    actionLabel: "Retour",
+                    action: { dismiss() }
+                )
             } else {
-                List {
-                    ForEach(entries, id: \.key) { item in
-                        Button {
-                            resumePlayback(contentKey: item.key, entry: item.value)
-                        } label: {
-                            HistoryRowView(
-                                key: item.key,
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 32) {
+                        ForEach(entries, id: \.key) { item in
+                            HistoryCard(
+                                contentKey: item.key,
                                 entry: item.value,
-                                displayName: displayName(for: item.key, entry: item.value)
+                                displayName: displayName(for: item.key, entry: item.value),
+                                onTap: { resumePlayback(contentKey: item.key, entry: item.value) }
                             )
                         }
                     }
-                    .onDelete { indexSet in
-                        for i in indexSet {
-                            appState.syncService.removeProgress(contentKey: entries[i].key)
-                        }
-                    }
+                    .padding(.horizontal, 60)
+                    .padding(.top, 20)
 
-                    Section {
-                        Button(role: .destructive) {
-                            showClearConfirm = true
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Label("Effacer tout l'historique", systemImage: "trash")
-                                    .font(.subheadline)
-                                Spacer()
-                            }
-                        }
+                    Button(role: .destructive) {
+                        showClearConfirm = true
+                    } label: {
+                        Label("Effacer tout l'historique", systemImage: "trash")
+                            .font(.subheadline)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 6)
                     }
+                    .buttonStyle(.bordered)
+                    .padding(.top, 40)
+                    .padding(.bottom, 40)
                 }
             }
         }
@@ -62,41 +68,14 @@ struct HistoryView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.3))
-            Text("Aucun historique")
-                .font(.title3)
-                .fontWeight(.bold)
-            Text("Vos lectures récentes apparaîtront ici")
-                .foregroundColor(.secondary)
-            // Focusable button so the Menu button on the remote pops this view
-            // instead of exiting the app.
-            Button {
-                dismiss()
-            } label: {
-                Label("Retour", systemImage: "chevron.left")
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 10)
-            }
-            .padding(.top, 8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
     // MARK: - Title Resolution
 
-    /// Resolves missing titles by fetching VOD/series/channel lists from the API.
     private func resolveTitles() async {
         let sync = appState.syncService
-        // Check if any entries need title resolution
         let needsResolution = sync.watchProgress.values.contains { $0.title == nil || $0.title?.isEmpty == true }
         guard needsResolution else { return }
 
         let api = appState.api
-        // Determine which types of data we need
         let keys = Set(sync.watchProgress.keys)
         let needVod = keys.contains { $0.hasPrefix("vod_") }
         let needEp = keys.contains { $0.hasPrefix("ep_") }
@@ -106,13 +85,10 @@ struct HistoryView: View {
         var vodItems: [VodItem] = []
         var episodes: [(id: String, title: String)] = []
 
-        // Fetch only what's needed
         if needLive { channels = (try? await api.getLiveStreams()) ?? [] }
         if needVod { vodItems = (try? await api.getVodStreams()) ?? [] }
         if needEp {
-            // Collect episode IDs we need
             let epIds = keys.filter { $0.hasPrefix("ep_") }.map { String($0.dropFirst(3)) }
-            // Try to find episodes from series already loaded
             if let seriesVM = appState.seriesVM {
                 for (_, eps) in seriesVM.episodes {
                     for ep in eps where epIds.contains(ep.episodeId) {
@@ -144,13 +120,11 @@ struct HistoryView: View {
         let title = displayName(for: contentKey, entry: entry)
         let resume = entry.positionMs > 0 ? entry.positionMs : nil
 
-        // Build URL from contentKey prefix
         var url: URL?
         var isLive = false
 
         if contentKey.hasPrefix("vod_") {
             let sid = String(contentKey.dropFirst(4))
-            // Check favorites for container extension
             let ext = appState.syncService.favorites[contentKey]?.containerExtension ?? "mp4"
             url = api.vodStreamUrl(streamId: sid, extension: ext)
         } else if contentKey.hasPrefix("ep_") {
@@ -164,7 +138,6 @@ struct HistoryView: View {
 
         guard let url else { return }
 
-        // Small delay to let tvOS focus system settle before presenting modal
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             if isLive {
                 PlayerPresenter.playLive(url: url, title: title, contentKey: contentKey)
@@ -175,137 +148,160 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - History Row (focus-aware)
+// MARK: - History Card
 
-/// Separate struct so we can use @Environment(\.isFocused) for tvOS focus adaptation.
-private struct HistoryRowView: View {
-    let key: String
+private struct HistoryCard: View {
+    let contentKey: String
     let entry: WatchEntry
     let displayName: String
+    let onTap: () -> Void
 
-    @Environment(\.isFocused) private var isFocused
+    @Environment(AppState.self) private var appState
 
-    private var primaryColor: Color { isFocused ? .black : .white }
-    private var secondaryColor: Color { isFocused ? .black.opacity(0.6) : .gray }
-    private var accentColor: Color { isFocused ? .black.opacity(0.8) : Color(hex: 0x1B6B8A) }
-
-    var body: some View {
-        HStack(spacing: 20) {
-            // Mode icon
-            modeBadge
-
-            VStack(alignment: .leading, spacing: 6) {
-                // Title
-                Text(displayName)
-                    .font(.body)
-                    .fontWeight(.semibold)
-                    .foregroundColor(primaryColor)
-                    .lineLimit(1)
-
-                // Info line
-                HStack(spacing: 8) {
-                    if entry.progress > 0.01 {
-                        Text("\(Int(entry.progress * 100))%")
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundColor(progressColor)
-
-                        Text("—")
-                            .foregroundColor(secondaryColor.opacity(0.5))
-                    }
-
-                    if entry.positionMs > 0 {
-                        Text("\(entry.elapsedFormatted) sur \(entry.durationFormatted)")
-                            .font(.caption)
-                            .foregroundColor(secondaryColor)
-                    } else {
-                        Text(entry.durationFormatted)
-                            .font(.caption)
-                            .foregroundColor(secondaryColor)
-                    }
-                }
-
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(isFocused ? Color.black.opacity(0.15) : Color.white.opacity(0.15))
-                            .frame(height: 4)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(progressColor)
-                            .frame(width: max(geo.size.width * entry.progress, 0), height: 4)
-                    }
-                }
-                .frame(height: 4)
-                .frame(maxWidth: 300)
-            }
-
-            Spacer()
-
-            // Date + play icon
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(relativeDate(entry.updatedAt))
-                    .font(.caption2)
-                    .foregroundColor(secondaryColor.opacity(0.7))
-
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundColor(accentColor)
-            }
-        }
-        .padding(.vertical, 4)
+    private var favoriteInfo: FavoriteItem? {
+        appState.syncService.favorites[contentKey]
     }
 
-    private var progressColor: Color {
-        if isFocused {
-            return entry.progress > 0.8 ? .green.opacity(0.8) : .black.opacity(0.7)
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack(alignment: .topTrailing) {
+                    // Poster / thumbnail
+                    Group {
+                        if let cover = favoriteInfo?.displayIcon,
+                           let url = URL(string: cover), !cover.isEmpty {
+                            KFImage(url)
+                                .resizable()
+                                .aspectRatio(16/9, contentMode: .fill)
+                        } else {
+                            Color(hex: 0x161230)
+                                .overlay {
+                                    Image(systemName: modeIcon)
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.white.opacity(0.25))
+                                }
+                        }
+                    }
+                    .frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    // Mode badge top-right
+                    Text(modeLabel)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(modeColor.opacity(0.9), in: Capsule())
+                        .padding(10)
+
+                    // Progress overlay at bottom
+                    VStack {
+                        Spacer()
+                        progressBar
+                    }
+                    .padding(10)
+                }
+                .frame(height: 160)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(relativeDate(entry.updatedAt))
+                        if entry.progress > 0.005 && !entry.isWatched {
+                            Text("•")
+                            Text("\(Int(entry.progress * 100))%")
+                                .foregroundColor(Color(hex: 0x1B6B8A))
+                                .fontWeight(.semibold)
+                        } else if entry.isWatched {
+                            Text("•")
+                            Text("Vu")
+                                .foregroundColor(.green)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                }
+            }
         }
-        return entry.progress > 0.8 ? .green : Color(hex: 0x1B6B8A)
+        .buttonStyle(.tvCard)
+        .contextMenu {
+            Button(role: .destructive) {
+                appState.syncService.removeProgress(contentKey: contentKey)
+            } label: {
+                Label("Supprimer de l'historique", systemImage: "trash")
+            }
+        }
     }
 
     @ViewBuilder
-    private var modeBadge: some View {
-        let mode = detectMode(key)
-        let (icon, color): (String, Color) = switch mode {
-        case "live": ("antenna.radiowaves.left.and.right", .red)
-        case "vod": ("film.fill", .purple)
-        case "series": ("tv.inset.filled", .teal)
-        default: ("play.fill", .gray)
+    private var progressBar: some View {
+        if entry.progress > 0.005 {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.25))
+                    Capsule()
+                        .fill(entry.isWatched ? Color.green : Color(hex: 0x1B6B8A))
+                        .frame(width: geo.size.width * entry.progress)
+                }
+            }
+            .frame(height: 4)
         }
-
-        Image(systemName: icon)
-            .font(.title3)
-            .foregroundColor(isFocused ? color : color)
-            .frame(width: 44, height: 44)
-            .background(color.opacity(isFocused ? 0.2 : 0.15), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private func detectMode(_ key: String) -> String {
-        if key.hasPrefix("live_") { return "live" }
-        if key.hasPrefix("vod_") { return "vod" }
-        if key.hasPrefix("series_") || key.hasPrefix("ep_") { return "series" }
-        return "unknown"
+    // MARK: - Mode metadata
+
+    private var modeKey: String {
+        if contentKey.hasPrefix("live_") { return "live" }
+        if contentKey.hasPrefix("vod_") { return "vod" }
+        if contentKey.hasPrefix("ep_") || contentKey.hasPrefix("series_") { return "series" }
+        return "other"
+    }
+
+    private var modeLabel: String {
+        switch modeKey {
+        case "live": "DIRECT"
+        case "vod": "FILM"
+        case "series": "SÉRIE"
+        default: "—"
+        }
+    }
+
+    private var modeColor: Color {
+        switch modeKey {
+        case "live": .red
+        case "vod": .purple
+        case "series": .teal
+        default: .gray
+        }
+    }
+
+    private var modeIcon: String {
+        switch modeKey {
+        case "live": "antenna.radiowaves.left.and.right"
+        case "vod": "film.fill"
+        case "series": "tv.inset.filled"
+        default: "play.fill"
+        }
     }
 
     private func relativeDate(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
-        guard interval > 0 else { return "à l'instant" }
         if interval < 60 { return "à l'instant" }
-        if interval < 3600 {
-            let min = Int(interval / 60)
-            return "il y a \(min) min"
-        }
-        if interval < 86400 {
-            let h = Int(interval / 3600)
-            return "il y a \(h)h"
-        }
+        if interval < 3600 { return "il y a \(Int(interval / 60)) min" }
+        if interval < 86400 { return "il y a \(Int(interval / 3600))h" }
         if interval < 604800 {
             let d = Int(interval / 86400)
             return d == 1 ? "hier" : "il y a \(d) j"
         }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.locale = Locale(identifier: "fr_FR")
-        return formatter.string(from: date)
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.locale = Locale(identifier: "fr_FR")
+        return f.string(from: date)
     }
 }

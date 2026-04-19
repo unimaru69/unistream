@@ -21,8 +21,11 @@ struct VODGridView: View {
                     Task { await viewModel.loadItems(for: category) }
                 }
             } else if viewModel.items.isEmpty {
-                Text("Aucun film")
-                    .foregroundColor(.secondary)
+                EmptyStateView(
+                    icon: "film.stack",
+                    title: "Aucun film",
+                    description: "Cette catégorie ne contient aucun film pour le moment."
+                )
             } else {
                 ScrollView {
                     HStack {

@@ -47,6 +47,8 @@ struct FavoritesView: View {
                 .padding(.bottom, 12)
 
                 content
+                    .animation(.easeInOut(duration: 0.25), value: selectedList)
+                    .animation(.easeInOut(duration: 0.25), value: items.count)
             }
             .navigationTitle(selectedList == .favorites ? "Favoris" : "À regarder")
             .navigationDestination(for: SeriesItem.self) { series in
@@ -118,23 +120,13 @@ struct FavoritesView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: selectedList == .favorites ? "heart" : "bookmark")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary.opacity(0.5))
-            Text(selectedList == .favorites ? "Aucun favori" : "Aucun élément dans « À regarder »")
-                .font(.title3)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-            Text(selectedList == .favorites
-                 ? "Maintenez une chaîne pour l'ajouter, ou utilisez le bouton ♥ sur les films et séries."
-                 : "Utilisez le bouton Signet sur un film ou une série pour le garder de côté.")
-                .font(.body)
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 120)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        EmptyStateView(
+            icon: selectedList == .favorites ? "heart" : "bookmark",
+            title: selectedList == .favorites ? "Aucun favori" : "Aucun élément dans « À regarder »",
+            description: selectedList == .favorites
+                ? "Maintenez une chaîne pour l'ajouter, ou utilisez le bouton ♥ sur les films et séries."
+                : "Utilisez le bouton Signet sur un film ou une série pour le garder de côté."
+        )
     }
 }
 
