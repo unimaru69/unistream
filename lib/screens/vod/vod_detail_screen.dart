@@ -11,6 +11,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
 import '../../repositories/content_repository.dart';
 import '../../utils/routes.dart';
+import '../../widgets/plex_backdrop.dart';
 import '../player/player_screen.dart';
 
 /// Full-page detail screen for a VOD item.
@@ -30,6 +31,28 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
 
   Duration? _savedPosition;
   Duration? _savedDuration;
+
+  /// A film is considered watched once it's past the 95% mark.
+  bool get _isWatched {
+    final pos = _savedPosition, dur = _savedDuration;
+    if (pos == null || dur == null || dur.inSeconds <= 0) return false;
+    return pos.inSeconds / dur.inSeconds > 0.95;
+  }
+
+  /// Mark the current film as watched (fake a near-end progress) or clear it.
+  Future<void> _toggleWatched() async {
+    if (_isWatched) {
+      await _wp.clear(vod.id);
+    } else {
+      // Use a 1-hour duration as a reasonable default when we have no real
+      // duration yet — mirrors the pattern used for series episodes.
+      const dur = Duration(hours: 1);
+      const pos = Duration(minutes: 57);
+      await _wp.save(vod.id, pos, dur);
+      await _wp.saveMeta(vod.id, vod.name, vod.displayIcon, '', 'vod');
+    }
+    await _loadProgress();
+  }
 
   @override
   void initState() {
@@ -83,14 +106,21 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     final synopsis = vod.plot ?? vod.description ?? '';
 
     return Scaffold(
-      backgroundColor: tc.surface,
-      body: CustomScrollView(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Plex-style blurred backdrop of the poster.
+          PlexBackdrop(imageUrl: vod.displayIcon),
+          CustomScrollView(
         slivers: [
-          // Poster as SliverAppBar
+          // Poster as SliverAppBar — sits on top of the backdrop so the user
+          // still sees the sharp cover at the top of the scroll.
           SliverAppBar(
             expandedHeight: 360,
             pinned: true,
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               background: vod.displayIcon.isNotEmpty
                   ? Stack(children: [
@@ -99,14 +129,14 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                           cacheManager: AppCacheManager.instance,
                           imageUrl: vod.displayIcon,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: tc.surfaceAlt),
+                          placeholder: (_, __) => const SizedBox.shrink(),
                           errorWidget: (_, __, ___) => Container(
-                            color: tc.surfaceAlt,
+                            color: Colors.transparent,
                             child: Icon(Icons.movie, size: 64, color: tc.borderColor),
                           ),
                         ),
                       ),
-                      // Gradient scrim at bottom
+                      // Soft fade into the backdrop at the bottom of the hero.
                       Positioned(
                         bottom: 0, left: 0, right: 0,
                         child: Container(
@@ -115,14 +145,17 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, tc.surface],
+                              colors: [
+                                Colors.transparent,
+                                AppColors.darkBackground.withValues(alpha: 0.9),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ])
                   : Container(
-                      color: tc.surfaceAlt,
+                      color: Colors.transparent,
                       child: Icon(Icons.movie, size: 64, color: tc.borderColor),
                     ),
             ),
@@ -215,7 +248,38 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                         ));
                       },
                     ),
+                    // Mark as watched / unwatched — parity with Series detail.
+                    IconButton(
+                      icon: Icon(
+                        _isWatched ? Icons.visibility_off : Icons.check_circle_outline,
+                        color: _isWatched ? Colors.green : tc.textSecondary,
+                      ),
+                      tooltip: _isWatched ? l10n.marquerNonVu : l10n.marquerVu,
+                      onPressed: _toggleWatched,
+                    ),
                   ]),
+
+                  // "Déjà vu" badge when the film has been watched.
+                  if (_isWatched) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.marquerVu.startsWith('Marquer')
+                              ? 'Déjà vu'
+                              : l10n.marquerVu,
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
 
                   // Progress bar
                   if (progressRatio != null) ...[
@@ -251,6 +315,8 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
               ),
             ),
           ),
+        ],
+      ),
         ],
       ),
     );

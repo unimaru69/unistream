@@ -14,6 +14,7 @@ import '../repositories/content_repository.dart';
 import '../models/next_episode_info.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
+import '../widgets/plex_backdrop.dart';
 import 'player/player_screen.dart';
 
 class SeriesDetailScreen extends ConsumerStatefulWidget {
@@ -195,8 +196,13 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final synopsis = widget.plot ?? '';
 
     return Scaffold(
-      backgroundColor: tc.surface,
-      body: Row(children: [
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Plex-style blurred backdrop behind everything.
+          PlexBackdrop(imageUrl: widget.cover),
+          Row(children: [
         // Left panel: poster + metadata + seasons
         SizedBox(
           width: 260,
@@ -419,6 +425,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 ),
         ),
       ]),
+        ],
+      ),
     );
   }
 }

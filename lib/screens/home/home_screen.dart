@@ -43,6 +43,7 @@ import 'widgets/collection_dialogs.dart';
 import 'widgets/shortcuts_dialog.dart';
 import 'widgets/offline_content.dart';
 import '../vod/vod_detail_screen.dart';
+import '../../widgets/home_hero_banner.dart';
 import 'widgets/home_app_bar.dart';
 import 'widgets/home_keyboard_handler.dart';
 
@@ -745,6 +746,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           : isOffline
           ? OfflineContent(onRetryConnection: _retryConnection)
           : Column(children: [
+              // Rotating "À la une" banner — shown on Films/Séries modes only,
+              // hidden in Live since there's no meaningful hero for channels.
+              if (_mode != ContentMode.live && _recentlyAdded.isNotEmpty)
+                HomeHeroBanner(
+                  items: parentalActive
+                      ? _recentlyAdded
+                          .where((item) => !blockedIds.contains(getStreamCategoryId(item)))
+                          .toList()
+                      : _recentlyAdded,
+                  mode: _mode,
+                  onTap: _playStream,
+                ),
               ContinueWatchingRow(
                 items: continueItems,
                 onTap: (item) => Navigator.push(context, slideRoute(

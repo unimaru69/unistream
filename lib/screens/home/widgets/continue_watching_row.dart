@@ -13,10 +13,16 @@ class ContinueWatchingRow extends StatelessWidget {
   final List<ContinueWatchingItem> items;
   final void Function(ContinueWatchingItem item) onTap;
 
+  /// When true and [items] is empty, show a friendly placeholder instead of
+  /// hiding the whole section. Mirrors the tvOS UX. Default: true (Home);
+  /// pass false inside tight layouts (split views) where clutter matters.
+  final bool showsPlaceholder;
+
   const ContinueWatchingRow({
     super.key,
     required this.items,
     required this.onTap,
+    this.showsPlaceholder = true,
   });
 
   static const _modeBadges = {
@@ -25,10 +31,28 @@ class ContinueWatchingRow extends StatelessWidget {
     'series': (label: 'SERIE', color: AppColors.accentGreen, icon: Icons.tv),
   };
 
+  /// Filter rule matching the tvOS behaviour:
+  /// - films (`vod`): keep 0.5% < ratio < 95% — a finished film isn't "in progress"
+  /// - episodes (`series`): keep any ratio > 0.5% — a series with watched
+  ///   episodes stays visible so you can jump back in
+  /// - live: always keep
+  List<ContinueWatchingItem> get _filtered {
+    return items.where((i) {
+      if (i.mode == 'vod') return i.ratio > 0.005 && i.ratio < 0.95;
+      return i.ratio > 0.005;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    final filtered = _filtered;
     final tc = AppThemeColors.of(context);
+
+    if (filtered.isEmpty) {
+      if (!showsPlaceholder) return const SizedBox.shrink();
+      return _EmptyContinuePlaceholder();
+    }
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
@@ -41,10 +65,11 @@ class ContinueWatchingRow extends StatelessWidget {
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: items.length,
+          itemCount: filtered.length,
           itemBuilder: (_, i) {
-            final item  = items[i];
+            final item  = filtered[i];
             final badge = _modeBadges[item.mode];
+            final isWatched = item.ratio > 0.95;
             return Semantics(
               label: '${item.name.isNotEmpty ? item.name : 'Contenu'}, ${(item.ratio * 100).round()}% regard\u00e9${badge != null ? ', ${badge.label}' : ''}',
               button: true,
@@ -78,6 +103,22 @@ class ContinueWatchingRow extends StatelessWidget {
                                 style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
                           )),
                         ),
+                      // "Vu" badge for watched episodes kept in the row.
+                      if (isWatched)
+                        Positioned(top: 4, right: 4,
+                          child: ExcludeSemantics(child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                              Icon(Icons.check, size: 9, color: Colors.white),
+                              SizedBox(width: 2),
+                              Text('Vu', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ]),
+                          )),
+                        ),
                       // Play overlay
                       ExcludeSemantics(child: Center(
                         child: Container(
@@ -89,12 +130,12 @@ class ContinueWatchingRow extends StatelessWidget {
                           child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
                         ),
                       )),
-                      // Progress bar
+                      // Progress bar — green when watched, accent otherwise.
                       Positioned(bottom: 0, left: 0, right: 0,
                         child: ExcludeSemantics(child: LinearProgressIndicator(
                           value: item.ratio,
                           backgroundColor: tc.divider,
-                          color: Colors.amber,
+                          color: isWatched ? Colors.green : AppColors.primaryBlue,
                           minHeight: 3,
                         )),
                       ),
@@ -108,6 +149,52 @@ class ContinueWatchingRow extends StatelessWidget {
             ),
             );
           },
+        ),
+      ),
+      Divider(color: tc.divider, height: 1),
+    ]);
+  }
+}
+
+/// Placeholder shown in place of the Continue Watching row when there's
+/// nothing in progress. Keeps the user aware the feature exists.
+class _EmptyContinuePlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final tc = AppThemeColors.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+        child: Text(l10n.continuerRegarder,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                color: tc.textTertiary, letterSpacing: 0.8)),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: tc.textPrimary.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            Icon(Icons.play_circle_outline, color: tc.textSecondary.withValues(alpha: 0.6)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Rien en cours pour le moment',
+                      style: TextStyle(fontSize: 13, color: tc.textSecondary, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  Text('Les films et épisodes que vous regardez apparaîtront ici.',
+                      style: TextStyle(fontSize: 11, color: tc.textTertiary)),
+                ],
+              ),
+            ),
+          ]),
         ),
       ),
       Divider(color: tc.divider, height: 1),
