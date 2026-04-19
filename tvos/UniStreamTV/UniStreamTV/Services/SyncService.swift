@@ -11,10 +11,12 @@ final class SyncService {
 
     // Local state
     private(set) var favorites: [String: FavoriteItem] = [:]  // key → item
+    private(set) var watchlist: [String: FavoriteItem] = [:]  // key → item ("À regarder")
     private(set) var watchProgress: [String: WatchEntry] = [:]  // contentKey → entry
 
     // Debounce
     private var pushFavoritesTask: Task<Void, Never>?
+    private var pushWatchlistTask: Task<Void, Never>?
     private var pushProgressTask: Task<Void, Never>?
 
     private var profileHash: String = ""
@@ -37,20 +39,25 @@ final class SyncService {
         logger.info("Pulling sync data…")
 
         async let favs = pullFavorites()
+        async let wlist = pullWatchlist()
         async let progress = pullWatchProgress()
 
         let remoteFavs = await favs
+        let remoteWatchlist = await wlist
         let remoteProgress = await progress
 
         // Merge: local wins, remote fills gaps
         for (key, item) in remoteFavs where favorites[key] == nil {
             favorites[key] = item
         }
+        for (key, item) in remoteWatchlist where watchlist[key] == nil {
+            watchlist[key] = item
+        }
         for (key, entry) in remoteProgress where watchProgress[key] == nil {
             watchProgress[key] = entry
         }
 
-        logger.info("Sync pulled: \(remoteFavs.count) favs, \(remoteProgress.count) progress")
+        logger.info("Sync pulled: \(remoteFavs.count) favs, \(remoteWatchlist.count) watchlist, \(remoteProgress.count) progress")
         writeTopShelfSnapshot()
     }
 
@@ -195,6 +202,86 @@ final class SyncService {
                     .execute()
             } catch {
                 logger.warning("pushFavorite failed for \(key): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - Watchlist ("À regarder")
+
+    func toggleWatchlist(_ item: FavoriteItem) {
+        if watchlist[item.key] != nil {
+            watchlist.removeValue(forKey: item.key)
+        } else {
+            watchlist[item.key] = item
+        }
+        debouncePushWatchlist()
+    }
+
+    func isInWatchlist(_ key: String) -> Bool {
+        watchlist[key] != nil
+    }
+
+    private func pullWatchlist() async -> [String: FavoriteItem] {
+        do {
+            let rows: [[String: String]] = try await client
+                .from("user_favorites")
+                .select("item_key, item_json")
+                .eq("profile_hash", value: profileHash)
+                .eq("list_type", value: "watchlist")
+                .eq("deleted", value: false)
+                .execute()
+                .value
+
+            var result: [String: FavoriteItem] = [:]
+            let decoder = JSONDecoder()
+            for row in rows {
+                guard let key = row["item_key"],
+                      let jsonStr = row["item_json"],
+                      let data = jsonStr.data(using: .utf8),
+                      let item = try? decoder.decode(FavoriteItem.self, from: data)
+                else { continue }
+                result[key] = item
+            }
+            return result
+        } catch {
+            logger.warning("pullWatchlist failed: \(error.localizedDescription)")
+            return [:]
+        }
+    }
+
+    private func debouncePushWatchlist() {
+        pushWatchlistTask?.cancel()
+        pushWatchlistTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await pushWatchlist()
+        }
+    }
+
+    private func pushWatchlist() async {
+        guard isReady else { return }
+        let encoder = JSONEncoder()
+
+        for (key, item) in watchlist {
+            guard let jsonData = try? encoder.encode(item),
+                  let jsonStr = String(data: jsonData, encoding: .utf8)
+            else { continue }
+
+            do {
+                try await client
+                    .from("user_favorites")
+                    .upsert([
+                        "user_id": userId,
+                        "profile_hash": profileHash,
+                        "item_key": key,
+                        "list_type": "watchlist",
+                        "item_json": jsonStr,
+                        "updated_at": ISO8601DateFormatter().string(from: Date()),
+                        "deleted": "false",
+                    ])
+                    .execute()
+            } catch {
+                logger.warning("pushWatchlist failed for \(key): \(error.localizedDescription)")
             }
         }
     }

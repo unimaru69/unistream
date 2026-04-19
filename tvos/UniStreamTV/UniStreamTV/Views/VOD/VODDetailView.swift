@@ -10,12 +10,22 @@ struct VODDetailView: View {
 
     @Environment(AppState.self) private var appState
 
+    private var contentKey: String { "vod_\(item.streamId)" }
+
     private var isFav: Bool {
         appState.syncService.isFavorite(item.streamId)
     }
 
+    private var isInWatchlist: Bool {
+        appState.syncService.isInWatchlist(item.streamId)
+    }
+
+    private var isWatched: Bool {
+        appState.syncService.isWatched(contentKey: contentKey)
+    }
+
     private var savedProgress: WatchEntry? {
-        appState.syncService.getProgress(contentKey: item.streamId)
+        appState.syncService.getProgress(contentKey: contentKey)
     }
 
     var body: some View {
@@ -62,8 +72,20 @@ struct VODDetailView: View {
                             .lineLimit(8)
                     }
 
-                    // Progress bar if resume available
-                    if let progress = savedProgress {
+                    // Watched badge
+                    if isWatched {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Déjà vu")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
+                        }
+                    }
+
+                    // Progress bar if resume available (and not marked watched)
+                    if let progress = savedProgress, !isWatched {
                         VStack(alignment: .leading, spacing: 4) {
                             ProgressView(value: progress.progress)
                                 .tint(Color(hex: 0x1B6B8A))
@@ -76,12 +98,16 @@ struct VODDetailView: View {
 
                     Spacer()
 
+                    // Primary actions
                     HStack(spacing: 20) {
                         Button {
                             play()
                         } label: {
-                            Label(savedProgress != nil ? "Reprendre" : "Regarder", systemImage: "play.fill")
-                                .font(.headline)
+                            Label(
+                                isWatched ? "Revoir" : (savedProgress != nil ? "Reprendre" : "Regarder"),
+                                systemImage: "play.fill"
+                            )
+                            .font(.headline)
                         }
 
                         Button {
@@ -90,6 +116,33 @@ struct VODDetailView: View {
                             Label(isFav ? "Retirer" : "Favori", systemImage: isFav ? "heart.fill" : "heart")
                         }
                         .tint(isFav ? .red : .gray)
+
+                        Button {
+                            appState.syncService.toggleWatchlist(.from(vod: item))
+                        } label: {
+                            Label(
+                                isInWatchlist ? "Retirer de la liste" : "À regarder",
+                                systemImage: isInWatchlist ? "bookmark.fill" : "bookmark"
+                            )
+                        }
+                        .tint(isInWatchlist ? Color(hex: 0x1B6B8A) : .gray)
+                    }
+
+                    // Secondary actions
+                    HStack(spacing: 20) {
+                        Button {
+                            if isWatched {
+                                appState.syncService.markAsUnwatched(contentKey: contentKey)
+                            } else {
+                                appState.syncService.markAsWatched(contentKey: contentKey, title: item.name)
+                            }
+                        } label: {
+                            Label(
+                                isWatched ? "Marquer non vu" : "Marquer vu",
+                                systemImage: isWatched ? "xmark.circle" : "checkmark.circle"
+                            )
+                            .font(.subheadline)
+                        }
 
                         // Add to collection menu (Premium)
                         if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo) {
@@ -106,6 +159,7 @@ struct VODDetailView: View {
                                 }
                             } label: {
                                 Label("Collection", systemImage: "folder.badge.plus")
+                                    .font(.subheadline)
                             }
                             .disabled(appState.collectionsService.collections.isEmpty)
                         }
@@ -123,7 +177,7 @@ struct VODDetailView: View {
             url: url,
             title: item.name,
             resumeFromMs: savedProgress?.positionMs,
-            contentKey: "vod_\(item.streamId)"
+            contentKey: contentKey
         )
     }
 

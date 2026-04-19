@@ -16,6 +16,10 @@ struct SeriesDetailView: View {
         appState.syncService.isFavorite(series.seriesId)
     }
 
+    private var isInWatchlist: Bool {
+        appState.syncService.isInWatchlist(series.seriesId)
+    }
+
     private var sortedSeasons: [String] {
         viewModel.episodes.keys.sorted { (Int($0) ?? 0) < (Int($1) ?? 0) }
     }
@@ -90,13 +94,23 @@ struct SeriesDetailView: View {
                         .lineLimit(5)
                 }
 
-                Button {
-                    appState.syncService.toggleFavorite(.from(series: series))
-                } label: {
-                    Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
-                          systemImage: isFav ? "heart.fill" : "heart")
+                HStack(spacing: 12) {
+                    Button {
+                        appState.syncService.toggleFavorite(.from(series: series))
+                    } label: {
+                        Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
+                              systemImage: isFav ? "heart.fill" : "heart")
+                    }
+                    .tint(isFav ? .red : .gray)
+
+                    Button {
+                        appState.syncService.toggleWatchlist(.from(series: series))
+                    } label: {
+                        Label(isInWatchlist ? "Retirer de la liste" : "À regarder",
+                              systemImage: isInWatchlist ? "bookmark.fill" : "bookmark")
+                    }
+                    .tint(isInWatchlist ? Color(hex: 0x1B6B8A) : .gray)
                 }
-                .tint(isFav ? .red : .gray)
             }
         }
         .padding(.horizontal, 40)
