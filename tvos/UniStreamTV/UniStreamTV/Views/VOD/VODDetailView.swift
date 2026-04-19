@@ -29,19 +29,7 @@ struct VODDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Subtle radial gradient behind the hero for depth.
-            RadialGradient(
-                colors: [
-                    Color(hex: 0x1B6B8A).opacity(0.25),
-                    Color(hex: 0x0E0B1E)
-                ],
-                center: .topLeading,
-                startRadius: 100,
-                endRadius: 1200
-            )
-            .ignoresSafeArea()
-
+        ScrollView {
             HStack(alignment: .top, spacing: 50) {
                 // Poster
                 KFImage(URL(string: item.displayIcon))
@@ -186,6 +174,9 @@ struct VODDetailView: View {
             }
             .padding(80)
         }
+        .background(
+            PlexBackdrop(imageUrl: item.displayIcon)
+        )
     }
 
     private func play() {

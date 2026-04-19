@@ -14,14 +14,13 @@ struct SplashView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Image(systemName: "play.tv.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(.linearGradient(
-                        colors: [Color(hex: 0x1B6B8A), Color(hex: 0x2A8AB0)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+            VStack(spacing: 24) {
+                Image("Logo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 180, height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 32))
+                    .shadow(color: Color(hex: 0x1B6B8A).opacity(0.5), radius: 24, y: 8)
 
                 Text("UniStream")
                     .font(.largeTitle)

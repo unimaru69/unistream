@@ -17,8 +17,9 @@ struct SeriesSplitView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.isLoadingCategories && viewModel.categories.isEmpty {
+                if viewModel.categories.isEmpty && viewModel.error == nil {
                     ProgressView("Chargement…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = viewModel.error, viewModel.categories.isEmpty {
                     ErrorRetryView(error: error) {
                         Task { await viewModel.loadCategories() }
@@ -26,8 +27,12 @@ struct SeriesSplitView: View {
                 } else {
                     VStack(spacing: 0) {
                         // Continue watching row (episodes in progress) — hidden if empty
-                        ContinueWatchingRow(filter: .episodesOnly, horizontalPadding: 40)
-                            .focusSection()
+                        ContinueWatchingRow(
+                            filter: .episodesOnly,
+                            horizontalPadding: 40,
+                            showsPlaceholder: false
+                        )
+                        .focusSection()
 
                         HStack(spacing: 0) {
                             sidebar

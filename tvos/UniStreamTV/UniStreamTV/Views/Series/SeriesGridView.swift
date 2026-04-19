@@ -78,7 +78,8 @@ struct SeriesGridView: View {
         .navigationDestination(for: SeriesItem.self) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)
         }
-        .task {
+        // Keyed on category id — re-fires when the user picks a different category.
+        .task(id: category.categoryId) {
             await viewModel.loadItems(for: category)
         }
     }

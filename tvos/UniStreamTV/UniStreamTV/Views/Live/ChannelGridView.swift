@@ -14,6 +14,14 @@ struct ChannelGridView: View {
         GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 40)
     ]
 
+    /// Unique key that changes when the user picks a different category. Drives
+    /// `.task(id:)` so the channel list re-loads on every switch.
+    private var taskKey: String {
+        if showFavoritesOnly { return "__favorites__" }
+        if isAllChannels { return "__all__" }
+        return category.categoryId
+    }
+
     private var displayedChannels: [Channel] {
         if showFavoritesOnly {
             return viewModel.channels.filter { appState.syncService.isFavorite($0.streamId) }
@@ -110,7 +118,9 @@ struct ChannelGridView: View {
         }
         // Pas de .navigationTitle ici — on utilise un titre inline dans le ScrollView
         // pour éviter le grand titre tvOS qui reste en surimpression lors du scroll.
-        .task {
+        // Keyed on the category id so switching between two categories re-triggers
+        // the load (otherwise SwiftUI reuses the view and .task never re-fires).
+        .task(id: taskKey) {
             await reload()
         }
     }

@@ -27,17 +27,34 @@ struct ContinueWatchingRow: View {
     var filter: ContinueWatchingFilter = .vodAndEpisodes
     var horizontalPadding: CGFloat = 50
 
+    /// Show a placeholder panel when there's nothing in progress (instead of
+    /// hiding the whole section). Default: true — caller can opt out.
+    var showsPlaceholder: Bool = true
+
     private var entries: [(key: String, entry: WatchEntry)] {
         appState.syncService.watchProgress
             .filter { filter.matches($0.key) }
-            .filter { $0.value.progress > 0.005 && $0.value.progress < 0.95 }
+            .filter { pair in
+                let p = pair.value.progress
+                // Films: a finished film isn't "in progress" — cap at 95%.
+                // Episodes: keep them in the row even when finished so a series
+                // with at least one watched episode stays visible. The card
+                // shows a "Vu" badge and, if we know the next episode, the
+                // button resumes the next one.
+                if pair.key.hasPrefix("ep_") {
+                    return p > 0.005
+                }
+                return p > 0.005 && p < 0.95
+            }
             .sorted { $0.value.updatedAt > $1.value.updatedAt }
             .prefix(10)
             .map { (key: $0.key, entry: $0.value) }
     }
 
     var body: some View {
-        if !entries.isEmpty {
+        if entries.isEmpty && !showsPlaceholder {
+            EmptyView()
+        } else {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Reprendre")
                     .font(.title3)
@@ -45,16 +62,45 @@ struct ContinueWatchingRow: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, horizontalPadding)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 24) {
-                        ForEach(entries, id: \.key) { item in
-                            ContinueWatchingCard(contentKey: item.key, entry: item.entry)
+                if entries.isEmpty {
+                    emptyPlaceholder
+                        .padding(.horizontal, horizontalPadding)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 24) {
+                            ForEach(entries, id: \.key) { item in
+                                ContinueWatchingCard(contentKey: item.key, entry: item.entry)
+                            }
                         }
+                        .padding(.horizontal, horizontalPadding)
                     }
-                    .padding(.horizontal, horizontalPadding)
                 }
             }
         }
+    }
+
+    private var emptyPlaceholder: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "play.circle")
+                .font(.title2)
+                .foregroundColor(.white.opacity(0.4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Rien en cours pour le moment")
+                    .foregroundColor(.white.opacity(0.75))
+                    .font(.body)
+                Text("Les films et épisodes que tu regardes apparaîtront ici.")
+                    .foregroundColor(.white.opacity(0.5))
+                    .font(.caption)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.04))
+        )
+        .frame(maxWidth: 720, alignment: .leading)
     }
 }
 
@@ -100,12 +146,30 @@ struct ContinueWatchingCard: View {
                                     .fill(Color.white.opacity(0.2))
                                     .frame(height: 4)
                                 Capsule()
-                                    .fill(Color(hex: 0x1B6B8A))
+                                    .fill(entry.isWatched ? Color.green : Color(hex: 0x1B6B8A))
                                     .frame(width: geo.size.width * entry.progress, height: 4)
                             }
                             .padding(.horizontal, 8)
                             .padding(.bottom, 8)
                         }
+                    }
+
+                    // "Vu" badge for watched episodes still kept in the row —
+                    // pinned to the top-right.
+                    if entry.isWatched {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text("Vu")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.green.opacity(0.85), in: Capsule())
+                        .padding(8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     }
                 }
                 .frame(width: 280, height: 160)

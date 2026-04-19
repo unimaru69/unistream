@@ -17,10 +17,13 @@ struct LoginView: View {
 
             VStack(spacing: 40) {
                 // Header
-                VStack(spacing: 12) {
-                    Image(systemName: "play.tv.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(Color(hex: 0x1B6B8A))
+                VStack(spacing: 16) {
+                    Image("Logo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .shadow(color: Color(hex: 0x1B6B8A).opacity(0.4), radius: 16, y: 6)
 
                     Text("UniStream")
                         .font(.title)

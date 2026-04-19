@@ -46,16 +46,7 @@ struct SeriesDetailView: View {
             .padding(.vertical, 40)
         }
         .background(
-            RadialGradient(
-                colors: [
-                    Color(hex: 0x1B6B8A).opacity(0.22),
-                    Color(hex: 0x0E0B1E)
-                ],
-                center: .topLeading,
-                startRadius: 100,
-                endRadius: 1400
-            )
-            .ignoresSafeArea()
+            PlexBackdrop(imageUrl: series.displayIcon)
         )
         .task {
             await viewModel.loadEpisodes(for: series)

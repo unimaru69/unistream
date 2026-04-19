@@ -125,8 +125,12 @@ struct HomeContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 40) {
+                    // Cinematic hero at the top.
+                    HomeHeroBanner()
+
                     // Continue Watching
                     ContinueWatchingRow()
+                        .focusSection()
 
                     // Quick access to favorite channels
                     let liveFavs = appState.syncService.favorites.values
@@ -163,37 +167,22 @@ struct HomeContentView: View {
                                 .padding(.horizontal, 50)
                             }
                         }
+                        .focusSection()
                     }
 
                     // Catch-up replay (Premium only)
                     if FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo) {
                         CatchUpRow()
+                            .focusSection()
                     }
 
                     // Recently Added
                     RecentlyAddedRow()
-
-                    // Empty state if nothing to show
-                    if appState.syncService.watchProgress.isEmpty &&
-                       appState.syncService.favorites.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "sparkles.tv")
-                                .font(.system(size: 60))
-                                .foregroundColor(Color(hex: 0x1B6B8A).opacity(0.5))
-                            Text("Bienvenue sur UniStream")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            Text("Parcourez les onglets Live, Films et Séries pour commencer")
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 100)
-                    }
+                        .focusSection()
                 }
-                .padding(.vertical, 40)
+                .padding(.bottom, 40)
             }
+            .background(DS.Colour.background.ignoresSafeArea())
             .navigationTitle("UniStream")
         }
     }

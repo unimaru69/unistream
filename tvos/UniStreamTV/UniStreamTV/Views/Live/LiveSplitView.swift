@@ -9,6 +9,7 @@ struct LiveSplitView: View {
     @Environment(AppState.self) private var appState
 
     @State private var selection: CategoryEntry = .all
+    @State private var didInitSelection = false
     @FocusState private var focusedEntry: CategoryEntry?
 
     enum CategoryEntry: Hashable {
@@ -76,7 +77,11 @@ struct LiveSplitView: View {
             .task {
                 await viewModel.loadCategories()
                 await viewModel.loadAllChannels()
-                // Pick a sensible initial selection
+                // Pick a sensible initial selection — only the first time, so that
+                // returning to this tab (e.g. after exiting a stream) keeps the
+                // user's current category instead of snapping back to Favoris.
+                guard !didInitSelection else { return }
+                didInitSelection = true
                 if favoriteCount > 0 {
                     selection = .favorites
                 } else if !filteredCategories.isEmpty {

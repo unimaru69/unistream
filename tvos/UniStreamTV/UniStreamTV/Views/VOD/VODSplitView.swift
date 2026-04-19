@@ -17,8 +17,13 @@ struct VODSplitView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.isLoadingCategories && viewModel.categories.isEmpty {
+                // Show a loading indicator whenever the sidebar would be empty —
+                // not just while the view-model's `isLoading` flag is set, because
+                // there's a small window before the task fires where both are false
+                // and the screen looks black.
+                if viewModel.categories.isEmpty && viewModel.error == nil {
                     ProgressView("Chargement…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = viewModel.error, viewModel.categories.isEmpty {
                     ErrorRetryView(error: error) {
                         Task { await viewModel.loadCategories() }
@@ -26,8 +31,12 @@ struct VODSplitView: View {
                 } else {
                     VStack(spacing: 0) {
                         // Continue watching row (films in progress) — hidden if empty
-                        ContinueWatchingRow(filter: .vodOnly, horizontalPadding: 40)
-                            .focusSection()
+                        ContinueWatchingRow(
+                            filter: .vodOnly,
+                            horizontalPadding: 40,
+                            showsPlaceholder: false
+                        )
+                        .focusSection()
 
                         HStack(spacing: 0) {
                             sidebar
