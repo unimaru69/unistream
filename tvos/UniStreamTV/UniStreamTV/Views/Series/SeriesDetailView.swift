@@ -124,25 +124,14 @@ struct SeriesDetailView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 12) {
                     ForEach(sortedSeasons, id: \.self) { season in
-                        let watched = countWatchedEpisodes(in: season)
-                        let total = viewModel.episodes[season]?.count ?? 0
-                        Button {
+                        SeasonChip(
+                            season: season,
+                            watched: countWatchedEpisodes(in: season),
+                            total: viewModel.episodes[season]?.count ?? 0,
+                            isSelected: selectedSeason == season
+                        ) {
                             selectedSeason = season
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text("Saison \(season)")
-                                if total > 0 && watched == total {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                } else if watched > 0 {
-                                    Text("\(watched)/\(total)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
                         }
-                        .buttonStyle(.bordered)
-                        .tint(selectedSeason == season ? Color(hex: 0x1B6B8A) : .gray)
                     }
                 }
                 .padding(.horizontal, 40)
@@ -301,6 +290,60 @@ struct SeriesDetailView: View {
                 contentKey: contentKey(for: e),
                 title: e.displayTitle
             )
+        }
+    }
+}
+
+// MARK: - Season chip (focus-aware)
+
+private struct SeasonChip: View {
+    let season: String
+    let watched: Int
+    let total: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    @Environment(\.isFocused) private var isFocused
+
+    private var accent: Color { Color(hex: 0x1B6B8A) }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("Saison \(season)")
+                    .foregroundColor(textColor)
+                    .fontWeight(isSelected ? .semibold : .regular)
+
+                if total > 0 && watched == total {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(isFocused ? .black : .green)
+                } else if watched > 0 {
+                    Text("\(watched)/\(total)")
+                        .font(.caption)
+                        .foregroundColor(textColor.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(rowBackground)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var textColor: Color {
+        if isFocused { return .black }
+        return isSelected ? .white : .white.opacity(0.8)
+    }
+
+    @ViewBuilder
+    private var rowBackground: some View {
+        if isFocused {
+            Color.white
+        } else if isSelected {
+            accent
+        } else {
+            Color.white.opacity(0.12)
         }
     }
 }

@@ -43,6 +43,14 @@ struct FavoritesView: View {
                 content
             }
             .navigationTitle(selectedList == .favorites ? "Favoris" : "À regarder")
+            .navigationDestination(for: SeriesItem.self) { series in
+                if let seriesVM = appState.seriesVM {
+                    SeriesDetailView(series: series, viewModel: seriesVM, api: appState.api)
+                }
+            }
+            .navigationDestination(for: VodItem.self) { vod in
+                VODDetailView(item: vod, api: appState.api)
+            }
         }
     }
 
@@ -105,32 +113,47 @@ struct FavoriteRow: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        Button {
-            playItem()
-        } label: {
-            HStack {
-                Image(systemName: iconName)
-                    .foregroundColor(Color(hex: 0x1B6B8A))
-                    .frame(width: 30)
-                Text(item.name)
-                Spacer()
+        rowContent
+            .contextMenu {
+                switch listKind {
+                case .favorites:
+                    Button(role: .destructive) {
+                        appState.syncService.toggleFavorite(item)
+                    } label: {
+                        Label("Retirer des favoris", systemImage: "heart.slash")
+                    }
+                case .watchlist:
+                    Button(role: .destructive) {
+                        appState.syncService.toggleWatchlist(item)
+                    } label: {
+                        Label("Retirer de « À regarder »", systemImage: "bookmark.slash")
+                    }
+                }
             }
+    }
+
+    @ViewBuilder
+    private var rowContent: some View {
+        switch item.mode {
+        case "series":
+            // Push SeriesDetailView via the enclosing NavigationStack
+            NavigationLink(value: seriesItem) { label }
+        case "movie":
+            NavigationLink(value: vodItem) { label }
+        case "live":
+            Button { playLive() } label: { label }
+        default:
+            label
         }
-        .contextMenu {
-            switch listKind {
-            case .favorites:
-                Button(role: .destructive) {
-                    appState.syncService.toggleFavorite(item)
-                } label: {
-                    Label("Retirer des favoris", systemImage: "heart.slash")
-                }
-            case .watchlist:
-                Button(role: .destructive) {
-                    appState.syncService.toggleWatchlist(item)
-                } label: {
-                    Label("Retirer de « À regarder »", systemImage: "bookmark.slash")
-                }
-            }
+    }
+
+    private var label: some View {
+        HStack {
+            Image(systemName: iconName)
+                .foregroundColor(Color(hex: 0x1B6B8A))
+                .frame(width: 30)
+            Text(item.name)
+            Spacer()
         }
     }
 
@@ -143,22 +166,35 @@ struct FavoriteRow: View {
         }
     }
 
-    private func playItem() {
-        let api = appState.api
-        switch item.mode {
-        case "live":
-            guard let sid = item.streamId,
-                  let url = api.liveStreamUrl(streamId: sid) else { return }
-            PlayerPresenter.playLive(url: url, title: item.name, contentKey: "live_\(sid)")
-        case "movie":
-            guard let sid = item.streamId,
-                  let url = api.vodStreamUrl(streamId: sid, extension: item.containerExtension ?? "mp4") else { return }
-            PlayerPresenter.playVOD(url: url, title: item.name, contentKey: "vod_\(sid)")
-        case "series":
-            // Series favorites can't be played directly — just show a hint
-            break
-        default:
-            break
-        }
+    /// Reconstruct a SeriesItem from a FavoriteItem — enough fields for the
+    /// detail view to load the episodes from the API.
+    private var seriesItem: SeriesItem {
+        SeriesItem(json: [
+            "series_id": item.seriesId ?? item.key,
+            "name": item.name,
+            "cover": item.cover ?? "",
+            "stream_icon": item.streamIcon ?? "",
+            "category_id": item.categoryId ?? "",
+            "rating": item.rating ?? "",
+        ])
+    }
+
+    /// Reconstruct a VodItem from a FavoriteItem.
+    private var vodItem: VodItem {
+        VodItem(json: [
+            "stream_id": item.streamId ?? item.key,
+            "name": item.name,
+            "cover": item.cover ?? "",
+            "stream_icon": item.streamIcon ?? "",
+            "category_id": item.categoryId ?? "",
+            "container_extension": item.containerExtension ?? "mp4",
+            "rating": item.rating ?? "",
+        ])
+    }
+
+    private func playLive() {
+        guard let sid = item.streamId,
+              let url = appState.api.liveStreamUrl(streamId: sid) else { return }
+        PlayerPresenter.playLive(url: url, title: item.name, contentKey: "live_\(sid)")
     }
 }
