@@ -12,9 +12,14 @@ import '../providers/favorites_provider.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
 import '../models/next_episode_info.dart';
+import '../providers/tmdb_provider.dart';
+import '../services/tmdb_service.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
 import '../widgets/plex_backdrop.dart';
+import '../widgets/tmdb_badge.dart';
+import '../widgets/tmdb_cast_row.dart';
+import '../widgets/tmdb_trailer_button.dart';
 import 'player/player_screen.dart';
 
 class SeriesDetailScreen extends ConsumerStatefulWidget {
@@ -193,15 +198,39 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final wlState = ref.watch(watchlistProvider);
     final isFav = favState.keys.contains(_favKey);
     final isWl = wlState.keys.contains(_favKey);
-    final synopsis = widget.plot ?? '';
+    final sourceSynopsis = widget.plot ?? '';
+    final needsEnrichment = sourceSynopsis.trim().isEmpty;
+    final tmdbCfg = ref.watch(tmdbConfigProvider);
+    final tmdbAsync = tmdbCfg.isActive
+        ? ref.watch(tmdbLookupProvider(TmdbLookup(
+            rawTitle: widget.title,
+            kind: TmdbKind.tv,
+          )))
+        : const AsyncValue<TmdbResult?>.data(null);
+    final tmdb = tmdbAsync.valueOrNull;
+    final synopsis =
+        needsEnrichment ? (tmdb?.overview ?? '') : sourceSynopsis;
+    // Don't flash the source poster while TMDB is still loading — keep the
+    // backdrop empty so PlexBackdrop stays dark, then fade in once data
+    // settles. Falls back to the source only after TMDB confirms a miss.
+    final tmdbBackdrop = TmdbService.image(tmdb?.backdropPath, size: 'original');
+    final String backdropUrl;
+    if (tmdbBackdrop != null) {
+      backdropUrl = tmdbBackdrop;
+    } else if (tmdbAsync.isLoading) {
+      backdropUrl = '';
+    } else {
+      backdropUrl = widget.cover;
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Plex-style blurred backdrop behind everything.
-          PlexBackdrop(imageUrl: widget.cover),
+          // Plex-style blurred backdrop — use TMDB's wide backdrop when
+          // available, fall back to the source poster.
+          PlexBackdrop(imageUrl: backdropUrl),
           Row(children: [
         // Left panel: poster + metadata + seasons
         SizedBox(
@@ -265,17 +294,29 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(widget.title, style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold, color: tc.textPrimary,
+                    // Title — always white because the Plex backdrop is dark.
+                    Text(widget.title, style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
                     )),
                     const SizedBox(height: 8),
                     Wrap(spacing: 10, runSpacing: 4, children: [
                       if (widget.rating != null && widget.rating!.isNotEmpty && widget.rating != '0')
                         _MetaChip(icon: Icons.star, label: widget.rating!, color: Colors.amber),
                       if (widget.categoryName != null && widget.categoryName!.isNotEmpty)
-                        _MetaChip(icon: Icons.category, label: widget.categoryName!, color: tc.textSecondary),
+                        _MetaChip(
+                          icon: Icons.category,
+                          label: widget.categoryName!,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
                       if (_seasons.isNotEmpty)
-                        _MetaChip(icon: Icons.layers, label: '${_seasons.length} ${l10n.saisons.toLowerCase()}', color: tc.textSecondary),
+                        _MetaChip(
+                          icon: Icons.layers,
+                          label: '${_seasons.length} ${l10n.saisons.toLowerCase()}',
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
                     ]),
                     const SizedBox(height: 12),
 
@@ -305,17 +346,60 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       ),
                     ]),
 
-                    // Synopsis
-                    if (synopsis.isNotEmpty) ...[
+                    // Synopsis — white on dark backdrop. Falls back to TMDB
+                    // when the source has none.
+                    if (tmdbAsync.isLoading && sourceSynopsis.isEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(synopsis,
-                          style: TextStyle(fontSize: 13, color: tc.textSecondary, height: 1.4)),
+                      const SizedBox(
+                        height: 14,
+                        width: 14,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      ),
+                    ] else if (synopsis.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(
+                          child: Text(synopsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.80),
+                                height: 1.4,
+                              )),
+                        ),
+                      ]),
+                      if (needsEnrichment) ...[
+                        const SizedBox(height: 6),
+                        const TmdbBadge(),
+                      ],
+                    ],
+
+                    if (tmdb != null && tmdb.videos.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      TmdbTrailerButton(videos: tmdb.videos),
+                    ],
+                    if (tmdb != null && tmdb.cast.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        const Text('Distribution',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            )),
+                        const SizedBox(width: 8),
+                        const TmdbBadge(),
+                      ]),
+                      const SizedBox(height: 6),
+                      TmdbCastRow(cast: tmdb.cast),
                     ],
                     const SizedBox(height: 16),
 
-                    // Seasons header
+                    // Seasons header.
                     Text(l10n.saisons.toUpperCase(), style: TextStyle(
-                        color: tc.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        color: Colors.white.withValues(alpha: 0.60),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1)),
                     const SizedBox(height: 4),
                   ]),
                 ),

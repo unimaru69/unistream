@@ -65,9 +65,18 @@ final class VLCPlayerViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        // Progress has to be saved BEFORE stop() (time becomes 0 once stopped).
+        // We read position here while the player is still decoding, and defer
+        // the actual stop() to viewDidDisappear so it never blocks the main
+        // thread during the dismiss animation.
         saveVLCProgress()
         progressTimer?.invalidate()
         videoWatchdog?.invalidate()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        mediaPlayer.drawable = nil
         mediaPlayer.stop()
     }
 
@@ -166,19 +175,8 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     private func setupGestures() {
-        // Play/Pause — tap on remote
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
-        tap.allowedPressTypes = [NSNumber(value: UIPress.PressType.playPause.rawValue)]
-        view.addGestureRecognizer(tap)
-
-        // Select — click on remote
-        let select = UITapGestureRecognizer(target: self, action: #selector(handleSelect))
-        select.allowedPressTypes = [NSNumber(value: UIPress.PressType.select.rawValue)]
-        view.addGestureRecognizer(select)
-
-        // Menu button is handled via pressesBegan/pressesEnded (more reliable on tvOS)
-
-        // Swipe left/right — seek
+        // Siri Remote touchpad swipes (no effect with Free / Bose remotes,
+        // but kept so Siri Remote users get the same feel as before).
         let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(seekBackward))
         swipeLeft.direction = .left
         view.addGestureRecognizer(swipeLeft)
@@ -187,10 +185,19 @@ final class VLCPlayerViewController: UIViewController {
         swipeRight.direction = .right
         view.addGestureRecognizer(swipeRight)
 
-        // Long press — options
+        // Long press (any button) — options menu. Works on Free / Bose because
+        // their OK/Select button generates a sustained press that trips the
+        // long-press recognizer reliably.
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
         longPress.minimumPressDuration = 1.0
         view.addGestureRecognizer(longPress)
+
+        // NOTE: Play/Pause, Select, Menu and D-pad arrows are all handled
+        // directly in pressesBegan below. UITapGestureRecognizer with
+        // allowedPressTypes proved unreliable with third-party remotes (IR
+        // Free / Bose): their Select press is sustained long enough that the
+        // long-press recognizer cancels the tap. Likewise UIKeyCommand only
+        // fires for external keyboards, never for IR remotes' D-pad.
     }
 
     private func setupPlayer() {
@@ -279,14 +286,50 @@ final class VLCPlayerViewController: UIViewController {
         }
     }
 
-    // MARK: - Menu Button (override presses for reliable tvOS handling)
+    // MARK: - Button handling (UIPress — works for Siri Remote AND Free / Bose)
+    //
+    // tvOS routes physical remote button presses here as UIPress events with
+    // their press.type set to one of the UIPress.PressType cases:
+    //   .select / .menu / .playPause / .upArrow / .downArrow / .leftArrow /
+    //   .rightArrow / .pageUp / .pageDown
+    //
+    // The Siri Remote generates the same events for clicks on the touchpad's
+    // center / top / bottom / left / right zones, so a single pressesBegan
+    // implementation covers both input types. External keyboards fall into the
+    // `press.key` branch at the end.
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-        // Intercept Menu — don't call super so the system won't exit to home screen
+        var handled = false
         for press in presses {
-            if press.type == .menu { return }
+            switch press.type {
+            case .menu:
+                // Swallow on Began; the actual dismiss happens on Ended (HIG).
+                return
+            case .select:
+                handleSelect()
+                handled = true
+            case .leftArrow:
+                seekBackward()
+                handled = true
+            case .rightArrow:
+                seekForward()
+                handled = true
+            case .playPause:
+                handleTap()
+                handled = true
+            default:
+                // External keyboard fallback (USB / Bluetooth keyboards).
+                if let key = press.key {
+                    switch key.keyCode {
+                    case .keyboardLeftArrow: seekBackward(); handled = true
+                    case .keyboardRightArrow: seekForward(); handled = true
+                    case .keyboardReturnOrEnter, .keyboardSpacebar: handleSelect(); handled = true
+                    default: break
+                    }
+                }
+            }
         }
-        super.pressesBegan(presses, with: event)
+        if !handled { super.pressesBegan(presses, with: event) }
     }
 
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -322,7 +365,8 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     @objc private func handleMenu() {
-        mediaPlayer.stop()
+        // Stop is deferred to viewDidDisappear so it never blocks main thread
+        // during the dismiss animation (see viewWillDisappear for details).
         dismiss(animated: true)
     }
 
@@ -344,7 +388,11 @@ final class VLCPlayerViewController: UIViewController {
     // MARK: - Options
 
     private func showOptionsMenu() {
-        let alert = UIAlertController(title: "Options", message: "Lecture VLC", preferredStyle: .actionSheet)
+        let alert = UIAlertController(
+            title: "Options",
+            message: "← → Reculer / Avancer · Play/Pause · Menu Retour",
+            preferredStyle: .actionSheet
+        )
 
         // Audio tracks
         let audioTracks = mediaPlayer.audioTrackNames as? [String] ?? []

@@ -91,7 +91,15 @@ class CategorySidebar extends StatelessWidget {
         c.mode == null || c.mode == mode.key).toList();
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      // Top padding reserves room for the translucent app bar above (the
+      // Scaffold now has extendBodyBehindAppBar: true), so sidebar items
+      // don't appear under the "UniStream" title.
+      padding: EdgeInsets.fromLTRB(
+        8,
+        kToolbarHeight + MediaQuery.paddingOf(context).top + 8,
+        8,
+        8,
+      ),
       itemCount: () {
         return categories.length + 3 + modeCollections.length + (modeCollections.isNotEmpty ? 1 : 0);
       }(),

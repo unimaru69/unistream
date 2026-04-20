@@ -113,6 +113,10 @@ class StreamGridTile extends StatelessWidget {
   final VoidCallback? onRemoveFromCollection;
   final void Function(TapUpDetails) onSecondaryTap;
 
+  /// Optional subtitle shown under the name — used for Live channels to
+  /// display the currently airing program.
+  final String? subtitle;
+
   const StreamGridTile({
     super.key,
     required this.stream,
@@ -128,6 +132,7 @@ class StreamGridTile extends StatelessWidget {
     required this.onToggleWatchlist,
     this.onRemoveFromCollection,
     required this.onSecondaryTap,
+    this.subtitle,
   });
 
   @override
@@ -271,6 +276,18 @@ class StreamGridTile extends StatelessWidget {
           const SizedBox(height: 5),
           ExcludeSemantics(child: Text(name, style: TextStyle(fontSize: 11, color: tc.textSecondary),
               maxLines: 2, overflow: TextOverflow.ellipsis)),
+          if (subtitle != null && subtitle!.isNotEmpty)
+            ExcludeSemantics(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  subtitle!,
+                  style: const TextStyle(fontSize: 10, color: Colors.tealAccent),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
         ]),
       ),
     );

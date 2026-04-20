@@ -21,6 +21,16 @@ class StorageKeys {
   // ── Theme ──
   static const themeMode = 'theme_mode';
 
+  // ── TMDB enrichment ──
+  /// User-provided key that overrides the `--dart-define=TMDB_KEY=...` bake-in.
+  static const tmdbUserKey = 'tmdb_user_key';
+  /// Master on/off switch. Default: true when a key is available.
+  static const tmdbEnabled = 'tmdb_enabled';
+  /// Cached result for a given normalized title+year+kind. Prefix; suffix is
+  /// `{kind}:{title}:{year}`. Stored with a timestamp for TTL enforcement.
+  static String tmdbCache(String kind, String title, String? year) =>
+      'tmdb_cache_${kind}_${title}_${year ?? 'na'}';
+
   // ── Language preferences ──
   static const prefAudioLang = 'pref_audio_lang';
   static const prefSubLang = 'pref_sub_lang';

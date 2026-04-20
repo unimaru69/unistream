@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/cache_config.dart';
 import '../core/colors.dart';
@@ -10,6 +11,8 @@ import '../core/design_tokens.dart';
 import '../models/content_mode.dart';
 import '../models/series_item.dart';
 import '../models/vod_item.dart';
+import '../providers/tmdb_provider.dart';
+import '../services/tmdb_service.dart';
 import '../utils/stream_helpers.dart';
 
 /// Rotating "À la une" banner for the Home screen.
@@ -23,12 +26,19 @@ class HomeHeroBanner extends StatefulWidget {
   final void Function(dynamic item) onTap;
   final Duration rotationInterval;
 
+  /// Extra padding baked INSIDE the hero's top so the content clears the
+  /// translucent app bar (`extendBodyBehindAppBar = true`). The blurred
+  /// backdrop paints beneath the full height so it runs edge-to-edge under
+  /// the app bar — no grey band.
+  final double topInset;
+
   const HomeHeroBanner({
     super.key,
     required this.items,
     required this.mode,
     required this.onTap,
     this.rotationInterval = const Duration(seconds: 8),
+    this.topInset = 0,
   });
 
   @override
@@ -36,9 +46,9 @@ class HomeHeroBanner extends StatefulWidget {
 }
 
 class _HomeHeroBannerState extends State<HomeHeroBanner> {
-  // Kept compact so the main grid breathes. If you want more cinematic feel
-  // bump this to ~240 — but make sure the grid still shows >= 2 full rows.
-  static const double _bannerHeight = 190;
+  // Content area (poster + text) — not counting the top inset reserved for
+  // the translucent app bar. Total banner height = _bannerHeight + topInset.
+  static const double _bannerHeight = 320;
 
   Timer? _timer;
   int _index = 0;
@@ -132,8 +142,10 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
     final rating = _ratingOf(item);
     final label = _labelOf(item);
 
-    return SizedBox(
-      height: _bannerHeight,
+    // ClipRect so the blurred backdrop (Transform.scale 1.2) can't bleed
+    // into the rows below (Continue Watching, Recently Added).
+    return ClipRect(child: SizedBox(
+      height: _bannerHeight + widget.topInset,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 600),
         switchInCurve: Curves.easeInOut,
@@ -148,14 +160,16 @@ class _HomeHeroBannerState extends State<HomeHeroBanner> {
           label: label,
           pageCount: _featured.length,
           currentPage: _index,
+          topInset: widget.topInset,
           onTap: () => widget.onTap(item),
+          kind: item is VodItem ? TmdbKind.movie : TmdbKind.tv,
         ),
       ),
-    );
+    ));
   }
 }
 
-class _HeroSlide extends StatelessWidget {
+class _HeroSlide extends ConsumerWidget {
   final String cover;
   final String title;
   final String plot;
@@ -163,7 +177,9 @@ class _HeroSlide extends StatelessWidget {
   final String label;
   final int pageCount;
   final int currentPage;
+  final double topInset;
   final VoidCallback onTap;
+  final TmdbKind kind;
 
   const _HeroSlide({
     super.key,
@@ -174,88 +190,123 @@ class _HeroSlide extends StatelessWidget {
     required this.label,
     required this.pageCount,
     required this.currentPage,
+    required this.topInset,
     required this.onTap,
+    required this.kind,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Prefer the TMDB wide backdrop when available — it's designed for this
+    // layout (vs the source poster which is 2:3 and looks squashed).
+    final cfg = ref.watch(tmdbConfigProvider);
+    final tmdb = cfg.isActive
+        ? ref
+            .watch(tmdbLookupProvider(
+                TmdbLookup(rawTitle: title, kind: kind)))
+            .valueOrNull
+        : null;
+    // Use the original-resolution backdrop for the hero because it covers
+    // the full window width on desktops and we scale it ×1.2 on top of that
+    // (blur). w1280 looked pixelated on >1500px windows.
+    final backdropUrl =
+        TmdbService.image(tmdb?.backdropPath, size: 'original') ?? cover;
+    return _buildSlide(context, backdropUrl, tmdb?.overview ?? plot);
+  }
+
+  Widget _buildSlide(BuildContext context, String backdropUrl, String effectivePlot) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Blurred backdrop.
+        // Dark base so the hero never shows white while loading.
         ColoredBox(color: AppColors.darkBackground),
-        if (cover.isNotEmpty)
+        // Blurred backdrop of the poster — softer blur + fuller opacity so
+        // the image actually shows through (previously invisible at sigma 22).
+        if (backdropUrl.isNotEmpty)
           ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
             child: Transform.scale(
-              scale: 1.1,
-              child: Opacity(
-                opacity: 0.9,
-                child: CachedNetworkImage(
-                  cacheManager: AppCacheManager.instance,
-                  imageUrl: cover,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                ),
+              scale: 1.2,
+              child: CachedNetworkImage(
+                cacheManager: AppCacheManager.instance,
+                imageUrl: backdropUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => const SizedBox.shrink(),
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
           ),
-        // Leading darken gradient.
+        // Left→right darken — keep the left (text) legible but let the right
+        // side breathe so the image is visibly present.
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                AppColors.darkBackground.withValues(alpha: 0.88),
-                AppColors.darkBackground.withValues(alpha: 0.55),
-                AppColors.darkBackground.withValues(alpha: 0.15),
+                AppColors.darkBackground.withValues(alpha: 0.78),
+                AppColors.darkBackground.withValues(alpha: 0.40),
+                Colors.transparent,
+              ],
+              stops: const [0.0, 0.55, 1.0],
+            ),
+          ),
+        ),
+        // Brand accent wash from the top-left.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(-0.9, -0.9),
+              radius: 1.0,
+              colors: [
+                AppColors.primaryBlue.withValues(alpha: 0.25),
                 Colors.transparent,
               ],
             ),
           ),
         ),
-        // Bottom fade.
+        // Bottom vignette so the hero fades into the next section.
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.center,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, AppColors.darkBackground],
+              colors: [Colors.transparent, AppColors.darkBackground.withValues(alpha: 0.75)],
             ),
           ),
         ),
-        // Foreground content.
+        // Foreground content — pushed down by the app-bar height so it
+        // clears the translucent bar above. The backdrop itself fills all
+        // the way to the top of the window.
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          padding: EdgeInsets.fromLTRB(28, topInset + 16, 28, 24),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Sharp poster on the left — sized for the compact banner.
+              // Sharp poster on the left — tall, cinematic.
               if (cover.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(DS.radius.hero),
                   child: CachedNetworkImage(
                     cacheManager: AppCacheManager.instance,
                     imageUrl: cover,
-                    width: 105,
-                    height: 158,
+                    width: 170,
+                    height: 255,
                     fit: BoxFit.cover,
                     placeholder: (_, __) => Container(
-                      width: 105,
-                      height: 158,
+                      width: 170,
+                      height: 255,
                       color: AppColors.darkSurface,
                     ),
                     errorWidget: (_, __, ___) => Container(
-                      width: 105,
-                      height: 158,
+                      width: 170,
+                      height: 255,
                       color: AppColors.darkSurface,
                       child: const Icon(Icons.movie, color: Colors.white30),
                     ),
                   ),
                 ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 28),
               // Text + CTA.
               Expanded(
                 child: Column(
@@ -299,9 +350,10 @@ class _HeroSlide extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        shadows: [Shadow(color: Colors.black87, blurRadius: 6)],
+                        height: 1.15,
+                        shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
                       ),
                     ),
                     if (rating != null && rating!.isNotEmpty && rating != '0') ...[
@@ -313,20 +365,23 @@ class _HeroSlide extends StatelessWidget {
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
                       ]),
                     ],
-                    if (plot.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                    if (effectivePlot.isNotEmpty) ...[
+                      const SizedBox(height: 10),
                       Text(
-                        plot,
-                        maxLines: 2,
+                        effectivePlot,
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          fontSize: 12,
-                          height: 1.35,
+                          color: Colors.white.withValues(alpha: 0.82),
+                          fontSize: 14,
+                          height: 1.4,
+                          shadows: const [
+                            Shadow(color: Colors.black87, blurRadius: 6),
+                          ],
                         ),
                       ),
                     ],
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
                     // Compact CTA pill.
                     FilledButton.icon(
                       onPressed: onTap,

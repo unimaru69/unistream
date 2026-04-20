@@ -91,6 +91,14 @@ struct HomeHeroBanner: View {
 
     @ViewBuilder
     private func backdrop(for item: RecentlyAddedItem) -> some View {
+        // Use a per-slide TMDB lookup so each featured item picks up its own
+        // wide backdrop. Falls back to the source poster while loading or on
+        // a miss — matches Flutter's home-hero behaviour.
+        HeroSlideBackdrop(item: item)
+    }
+
+    @ViewBuilder
+    private func legacyBackdrop(for item: RecentlyAddedItem) -> some View {
         ZStack {
             DS.Colour.background
 
@@ -331,5 +339,74 @@ struct HomeHeroBanner: View {
         // Start at a random index so successive launches don't always begin with
         // the same item.
         currentIndex = items.isEmpty ? 0 : Int.random(in: 0..<items.count)
+    }
+}
+
+/// Per-slide backdrop that fetches its TMDB result lazily. We keep the
+/// Kingfisher image + gradients identical to the legacy backdrop, we just
+/// swap the URL once TMDB settles.
+private struct HeroSlideBackdrop: View {
+    let item: RecentlyAddedItem
+    @State private var tmdbVM = TMDBViewModel()
+
+    private var imageURL: URL? {
+        if let b = tmdbVM.result?.backdropURL(size: "original") { return b }
+        if tmdbVM.isLoading || !tmdbVM.hasFetched { return nil }
+        return URL(string: item.displayIcon)
+    }
+
+    private var kind: TMDBKind {
+        // RecentlyAddedItem doesn't expose its kind — inspect by hostname of
+        // the id since vod and series use the same prefix scheme.
+        return item.id.hasPrefix("vod_") ? .movie : .tv
+    }
+
+    var body: some View {
+        ZStack {
+            DS.Colour.background
+
+            if let url = imageURL {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .blur(radius: 18, opaque: true)
+                    .scaleEffect(1.15)
+                    .opacity(0.9)
+                    .transition(.opacity)
+            }
+
+            // Left darken — keeps title area readable.
+            LinearGradient(
+                colors: [
+                    DS.Colour.background.opacity(0.85),
+                    DS.Colour.background.opacity(0.50),
+                    DS.Colour.background.opacity(0.15),
+                    .clear,
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+
+            // Bottom fade into the next row.
+            LinearGradient(
+                colors: [.clear, DS.Colour.background],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            // Brand accent wash.
+            RadialGradient(
+                colors: [DS.Colour.accent.opacity(0.22), .clear],
+                center: .topLeading,
+                startRadius: 80,
+                endRadius: 900
+            )
+        }
+        .clipped()
+        .animation(.easeInOut(duration: 0.4), value: tmdbVM.result?.id)
+        .task {
+            await tmdbVM.load(rawTitle: item.name, kind: kind)
+        }
     }
 }

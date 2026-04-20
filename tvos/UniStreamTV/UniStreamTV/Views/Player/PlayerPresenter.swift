@@ -66,16 +66,25 @@ enum PlayerPresenter {
     }
 
     /// Present a live channel with zapping support (swipe left/right to change channel).
+    /// - timeshiftAllowed: caller-side gate. Pass `FeatureAccess.canUse(.catchupReplay, ...)`
+    ///   so the player only enables D-pad ← → rewind for subscribed users; channels that
+    ///   don't advertise `tv_archive` are still filtered inside the player itself.
     static func playLiveWithZapping(
         channels: [Channel],
         startIndex: Int,
-        api: XtreamAPIService
+        api: XtreamAPIService,
+        timeshiftAllowed: Bool = false
     ) {
         guard startIndex >= 0, startIndex < channels.count else { return }
 
         // VLC path — higher compatibility with HD/FHD HEVC streams.
         if useVlcForLive {
-            let vlc = VLCLivePlayerViewController(channels: channels, startIndex: startIndex, api: api)
+            let vlc = VLCLivePlayerViewController(
+                channels: channels,
+                startIndex: startIndex,
+                api: api,
+                timeshiftAllowed: timeshiftAllowed
+            )
             guard let rootVC = rootViewController else { return }
             rootVC.present(vlc, animated: true)
             return
@@ -228,6 +237,50 @@ enum PlayerPresenter {
 /// Handles automatic format fallback for VOD streams.
 ///
 /// Xtream API servers serve video at: /movie/user/pass/id.{ext}
+/// Cross-fades from a currently-presented AVPlayer-based view controller to
+/// a VLC player without revealing the screen underneath (movie detail page,
+/// grid, etc.) during the transition.
+///
+/// The naive `dismiss → completion → present` sequence shows the presenting
+/// view for a few frames between the two animations — visible as a flash of
+/// the previous screen. We sidestep that by layering an opaque black cover
+/// onto the presenting view controller before dismissing, forcing the dismiss
+/// animation to uncover black instead of the real UI underneath. Once the
+/// VLC player is fully presented on top, the cover is removed — invisible
+/// since VLC now covers the screen.
+@MainActor
+fileprivate func seamlessPlayerHandoff(from vc: UIViewController, to replacement: UIViewController) {
+    guard let presenting = vc.presentingViewController else {
+        // No presenting VC available — fall back to the naive path.
+        vc.dismiss(animated: true) {
+            guard let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene }).first,
+                  let root = scene.windows.first?.rootViewController else { return }
+            var top = root
+            while let p = top.presentedViewController { top = p }
+            top.present(replacement, animated: true)
+        }
+        return
+    }
+
+    let blackout = UIView(frame: presenting.view.bounds)
+    blackout.backgroundColor = .black
+    blackout.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    presenting.view.addSubview(blackout)
+
+    // Cross-fade feels more appropriate than the default slide when swapping
+    // one full-screen player for another.
+    vc.modalTransitionStyle = .crossDissolve
+    replacement.modalTransitionStyle = .crossDissolve
+    replacement.modalPresentationStyle = .fullScreen
+
+    vc.dismiss(animated: true) {
+        presenting.present(replacement, animated: true) {
+            blackout.removeFromSuperview()
+        }
+    }
+}
+
 /// AVPlayer supports: mp4, m4v, mov, ts, m3u8 (HLS).
 /// AVPlayer does NOT support: mkv, avi, wmv, flv.
 ///
@@ -334,11 +387,7 @@ final class VODFallbackHandler: NSObject {
             contentKey: contentKey
         )
 
-        // Dismiss AVPlayerViewController, then present VLC player
-        vc.dismiss(animated: true) {
-            guard let rootVC = Self.topViewController else { return }
-            rootVC.present(vlcPlayer, animated: true)
-        }
+        seamlessPlayerHandoff(from: vc, to: vlcPlayer)
     }
 
     private static var topViewController: UIViewController? {
@@ -466,10 +515,7 @@ final class CatchUpFallbackHandler: NSObject {
         )
 
         guard let vc = playerVC ?? Self.topViewController else { return }
-        vc.dismiss(animated: true) {
-            guard let rootVC = Self.topViewController else { return }
-            rootVC.present(vlcPlayer, animated: true)
-        }
+        seamlessPlayerHandoff(from: vc, to: vlcPlayer)
     }
 
     private func cleanup() {
@@ -744,7 +790,7 @@ final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecogn
 
         let alert = UIAlertController(
             title: "Options de lecture",
-            message: "↑↓ ou ← → Changer de chaîne",
+            message: "↑ ↓ Changer de chaîne · Menu Retour",
             preferredStyle: .actionSheet
         )
 
@@ -819,48 +865,62 @@ final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecogn
         zapChannel(delta: -1)
     }
 
-    // MARK: - Key-press zapping (for non-Siri remotes like Free TV remote)
+    // MARK: - Button handling (Siri Remote + Free / Bose / universal IR remotes)
     //
-    // Siri Remote sends swipes → handled by UISwipeGestureRecognizer above.
-    // Third-party remotes (Free, Bbox, etc.) send directional arrow HID keyboard
-    // events. On tvOS the focus engine consumes up/down arrows before they reach
-    // pressesBegan (to move focus onto the transport bar's audio/subtitle buttons).
-    // UIKeyCommand is dispatched earlier in the responder chain and bypasses the
-    // focus engine, so we use it to intercept arrow keys reliably.
-    override var keyCommands: [UIKeyCommand]? {
-        let up = UIKeyCommand(input: UIKeyCommand.inputUpArrow, modifierFlags: [], action: #selector(keyZapUp))
-        let down = UIKeyCommand(input: UIKeyCommand.inputDownArrow, modifierFlags: [], action: #selector(keyZapDown))
-        let pageUp = UIKeyCommand(input: UIKeyCommand.inputPageUp, modifierFlags: [], action: #selector(keyZapUp))
-        let pageDown = UIKeyCommand(input: UIKeyCommand.inputPageDown, modifierFlags: [], action: #selector(keyZapDown))
-        for cmd in [up, down, pageUp, pageDown] {
-            cmd.wantsPriorityOverSystemBehavior = true
-        }
-        return [up, down, pageUp, pageDown]
-    }
-
-    @objc private func keyZapUp() { zapChannel(delta: 1) }
-    @objc private func keyZapDown() { zapChannel(delta: -1) }
-
-    // Fallback: some remotes / firmwares route directional presses as UIPress
-    // rather than keyboard events; keep pressesBegan as a safety net.
+    // Siri Remote touchpad swipes → UISwipeGestureRecognizer (zap).
+    // All physical button presses (D-pad clicks, Select, Menu) arrive as
+    // UIPress events with press.type set to the relevant UIPress.PressType
+    // case. External keyboard arrows are caught through press.key as a
+    // fallback.
+    //
+    // We intentionally do NOT register UIKeyCommand: it only fires for
+    // external keyboards, never for IR remotes' D-pad.
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         var handled = false
         for press in presses {
-            guard let key = press.key else { continue }
-            switch key.keyCode {
-            case .keyboardUpArrow, .keyboardPageUp:
+            switch press.type {
+            case .menu:
+                // Swallow on Began; dismiss on Ended (HIG).
+                return
+            case .upArrow, .pageUp:
                 zapChannel(delta: 1)
                 handled = true
-            case .keyboardDownArrow, .keyboardPageDown:
+            case .downArrow, .pageDown:
                 zapChannel(delta: -1)
                 handled = true
             default:
-                break
+                if let key = press.key {
+                    switch key.keyCode {
+                    case .keyboardUpArrow, .keyboardPageUp:
+                        zapChannel(delta: 1); handled = true
+                    case .keyboardDownArrow, .keyboardPageDown:
+                        zapChannel(delta: -1); handled = true
+                    default: break
+                    }
+                }
             }
         }
         if !handled {
             super.pressesBegan(presses, with: event)
         }
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        for press in presses {
+            if press.type == .menu {
+                player?.pause()
+                dismiss(animated: true)
+                return
+            }
+        }
+        super.pressesEnded(presses, with: event)
+    }
+
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        for press in presses {
+            if press.type == .menu { return }
+        }
+        super.pressesCancelled(presses, with: event)
     }
 
     @MainActor

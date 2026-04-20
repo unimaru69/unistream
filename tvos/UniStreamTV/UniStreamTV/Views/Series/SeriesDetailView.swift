@@ -11,6 +11,22 @@ struct SeriesDetailView: View {
 
     @Environment(AppState.self) private var appState
     @State private var selectedSeason: String?
+    @State private var tmdbVM = TMDBViewModel()
+
+    private var sourceSynopsis: String {
+        series.plot ?? series.description ?? ""
+    }
+    private var effectiveSynopsis: String {
+        if !sourceSynopsis.isEmpty { return sourceSynopsis }
+        return tmdbVM.result?.overview ?? ""
+    }
+    private var backdropURL: String {
+        if let b = tmdbVM.result?.backdropURL(size: "original") {
+            return b.absoluteString
+        }
+        if tmdbVM.isLoading || !tmdbVM.hasFetched { return "" }
+        return series.displayIcon
+    }
 
     private var isFav: Bool {
         appState.syncService.isFavorite(series.seriesId)
@@ -42,15 +58,30 @@ struct SeriesDetailView: View {
                 header
                 seasonPicker
                 episodesList
+                // TMDB cast row (below the episodes list).
+                if let tmdb = tmdbVM.result, !tmdb.cast.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 10) {
+                            Text("Distribution")
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(.white)
+                            TMDBBadge()
+                        }
+                        .padding(.horizontal, 40)
+                        TMDBCastRow(cast: tmdb.cast)
+                    }
+                    .padding(.bottom, 40)
+                }
             }
             .padding(.vertical, 40)
         }
-        .background(
-            PlexBackdrop(imageUrl: series.displayIcon)
-        )
+        .background(PlexBackdrop(imageUrl: backdropURL))
         .task {
             await viewModel.loadEpisodes(for: series)
             selectedSeason = sortedSeasons.first
+        }
+        .task {
+            await tmdbVM.load(rawTitle: series.name, kind: .tv)
         }
         .overlay {
             if viewModel.isLoadingEpisodes {
@@ -90,11 +121,19 @@ struct SeriesDetailView: View {
                     }
                 }
 
-                if let plot = series.plot ?? series.description, !plot.isEmpty {
-                    Text(plot)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .lineLimit(5)
+                // Synopsis — fall back to TMDB when the source has none.
+                if !effectiveSynopsis.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(effectiveSynopsis)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .lineLimit(5)
+                        if sourceSynopsis.isEmpty {
+                            TMDBBadge()
+                        }
+                    }
+                } else if tmdbVM.isLoading {
+                    ProgressView().tint(.white.opacity(0.6))
                 }
 
                 HStack(spacing: 12) {

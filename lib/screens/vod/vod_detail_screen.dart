@@ -9,9 +9,14 @@ import '../../models/favorite_item.dart';
 import '../../models/vod_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
+import '../../providers/tmdb_provider.dart';
 import '../../repositories/content_repository.dart';
+import '../../services/tmdb_service.dart';
 import '../../utils/routes.dart';
 import '../../widgets/plex_backdrop.dart';
+import '../../widgets/tmdb_cast_row.dart';
+import '../../widgets/tmdb_badge.dart';
+import '../../widgets/tmdb_trailer_button.dart';
 import '../player/player_screen.dart';
 
 /// Full-page detail screen for a VOD item.
@@ -103,7 +108,33 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
       progressRatio = (_savedPosition!.inSeconds / _savedDuration!.inSeconds).clamp(0.0, 1.0);
     }
 
-    final synopsis = vod.plot ?? vod.description ?? '';
+    final sourceSynopsis = vod.plot ?? vod.description ?? '';
+    final needsEnrichment = sourceSynopsis.trim().isEmpty;
+    final tmdbCfg = ref.watch(tmdbConfigProvider);
+    final tmdbAsync = (tmdbCfg.isActive)
+        ? ref.watch(tmdbLookupProvider(TmdbLookup(
+            rawTitle: vod.name,
+            kind: TmdbKind.movie,
+          )))
+        : const AsyncValue<TmdbResult?>.data(null);
+    final tmdb = tmdbAsync.valueOrNull;
+    final effectiveSynopsis =
+        needsEnrichment ? (tmdb?.overview ?? '') : sourceSynopsis;
+    // "original" keeps the image sharp on wide desktop windows (the hero /
+    // backdrop scales ×1.2 internally so we want the highest-res source).
+    // While TMDB is still loading we DON'T fall back to the low-res IPTV
+    // poster — the split-second swap from a blurry poster to a sharp
+    // cinematic backdrop is jarring. Show a plain dark background instead
+    // and let the real image fade in once TMDB settles.
+    final tmdbBackdrop = TmdbService.image(tmdb?.backdropPath, size: 'original');
+    final String backdropUrl;
+    if (tmdbBackdrop != null) {
+      backdropUrl = tmdbBackdrop;
+    } else if (tmdbAsync.isLoading) {
+      backdropUrl = ''; // neutral dark fill, no flash
+    } else {
+      backdropUrl = vod.displayIcon;
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -111,8 +142,9 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Plex-style blurred backdrop of the poster.
-          PlexBackdrop(imageUrl: vod.displayIcon),
+          // Plex-style blurred backdrop — prefer the wide TMDB backdrop when
+          // available (cinematic 16:9), fall back to the source poster.
+          PlexBackdrop(imageUrl: backdropUrl),
           CustomScrollView(
         slivers: [
           // Poster as SliverAppBar — sits on top of the backdrop so the user
@@ -122,12 +154,15 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
             pinned: true,
             backgroundColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
-              background: vod.displayIcon.isNotEmpty
+              background: backdropUrl.isNotEmpty
                   ? Stack(children: [
                       Positioned.fill(
+                        // Prefer the TMDB wide backdrop (up to 1920×1080) over
+                        // the low-res IPTV poster that got pixelated when
+                        // stretched across the hero.
                         child: CachedNetworkImage(
                           cacheManager: AppCacheManager.instance,
-                          imageUrl: vod.displayIcon,
+                          imageUrl: backdropUrl,
                           fit: BoxFit.cover,
                           placeholder: (_, __) => const SizedBox.shrink(),
                           errorWidget: (_, __, ___) => Container(
@@ -168,15 +203,18 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
-                  Text(title, style: TextStyle(
+                  // Title — always white because the Plex backdrop behind is
+                  // always dark (regardless of light/dark theme).
+                  Text(title, style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: tc.textPrimary,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
                   )),
                   const SizedBox(height: 8),
 
-                  // Metadata row: rating, category, extension
+                  // Metadata row: rating, category, extension — white-ish
+                  // against the dark plex backdrop.
                   Wrap(
                     spacing: 12,
                     runSpacing: 4,
@@ -184,11 +222,15 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                       if (vod.rating != null && vod.rating!.isNotEmpty && vod.rating != '0')
                         _MetadataChip(icon: Icons.star, label: vod.rating!, color: Colors.amber),
                       if (vod.categoryName != null && vod.categoryName!.isNotEmpty)
-                        _MetadataChip(icon: Icons.category, label: vod.categoryName!, color: tc.textSecondary),
+                        _MetadataChip(
+                          icon: Icons.category,
+                          label: vod.categoryName!,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
                       _MetadataChip(
                         icon: Icons.high_quality,
                         label: vod.containerExtension.toUpperCase(),
-                        color: tc.textSecondary,
+                        color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ],
                   ),
@@ -297,18 +339,64 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Synopsis
-                  Text(l10n.detailVod,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: tc.textPrimary)),
+                  // Synopsis — white on dark backdrop. Falls back to TMDB
+                  // when the source has none.
+                  Row(children: [
+                    Text(l10n.detailVod,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        )),
+                    if (needsEnrichment && effectiveSynopsis.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      const TmdbBadge(),
+                    ],
+                  ]),
                   const SizedBox(height: 8),
-                  Text(
-                    synopsis.isNotEmpty ? synopsis : l10n.pasDeSynopsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: synopsis.isNotEmpty ? tc.textSecondary : tc.textDisabled,
-                      height: 1.5,
+                  if (tmdbAsync.isLoading && sourceSynopsis.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        height: 14,
+                        width: 14,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      ),
+                    )
+                  else
+                    Text(
+                      effectiveSynopsis.isNotEmpty
+                          ? effectiveSynopsis
+                          : l10n.pasDeSynopsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: effectiveSynopsis.isNotEmpty
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : Colors.white.withValues(alpha: 0.45),
+                        height: 1.5,
+                      ),
                     ),
-                  ),
+
+                  // Trailer + cast — only when TMDB delivered results.
+                  if (tmdb != null && tmdb.videos.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    TmdbTrailerButton(videos: tmdb.videos),
+                  ],
+                  if (tmdb != null && tmdb.cast.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      const Text('Distribution',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          )),
+                      const SizedBox(width: 8),
+                      const TmdbBadge(),
+                    ]),
+                    const SizedBox(height: 8),
+                    TmdbCastRow(cast: tmdb.cast),
+                  ],
 
                   const SizedBox(height: 40),
                 ],

@@ -8,6 +8,19 @@ final class VLCLivePlayerViewController: UIViewController {
     private var channels: [Channel]
     private var currentIndex: Int
     private let api: XtreamAPIService
+    private let timeshiftAllowed: Bool
+
+    // Live timeshift state.
+    // offset == 0 : live HLS. offset > 0 : Xtream timeshift TS URL, `offset`
+    // seconds behind the real-time edge of the stream.
+    private var timeshiftOffsetSec: Int = 0
+    // Start time (wall clock) of each arrow press — used to decide between a
+    // short (10 s) and long (60 s) seek when the button is released.
+    private var pressStart: [UIPress.PressType: TimeInterval] = [:]
+    // Short / long press boundary (seconds).
+    private let longPressThreshold: TimeInterval = 0.6
+    private let shortSeekStep: Int = 10
+    private let longSeekStep: Int = 60
 
     // Views
     private let videoView = UIView()
@@ -26,10 +39,11 @@ final class VLCLivePlayerViewController: UIViewController {
     private var clockTimer: Timer?
     private var zapHideTimer: Timer?
 
-    init(channels: [Channel], startIndex: Int, api: XtreamAPIService) {
+    init(channels: [Channel], startIndex: Int, api: XtreamAPIService, timeshiftAllowed: Bool = false) {
         self.channels = channels
         self.currentIndex = max(0, min(startIndex, channels.count - 1))
         self.api = api
+        self.timeshiftAllowed = timeshiftAllowed
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
     }
@@ -59,6 +73,16 @@ final class VLCLivePlayerViewController: UIViewController {
         hideOverlayTimer?.invalidate()
         zapHideTimer?.invalidate()
         clockTimer?.invalidate()
+        // NOTE: VLC teardown moved to viewDidDisappear. `mediaPlayer.stop()`
+        // synchronously flushes the decoder queue and can briefly block the
+        // main thread; running it during the dismiss animation leaves tvOS
+        // with an orphaned responder chain → focus engine dies, Menu button
+        // inert, the app appears frozen.
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        mediaPlayer.drawable = nil
         mediaPlayer.stop()
     }
 
@@ -179,7 +203,8 @@ final class VLCLivePlayerViewController: UIViewController {
     // MARK: - Gestures
 
     private func setupGestures() {
-        // Swipe left/right — zap channel
+        // Siri Remote touchpad swipes (zap). No effect on Free / Bose — button
+        // handling below covers them.
         let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(zapNext))
         swipeLeft.direction = .left
         view.addGestureRecognizer(swipeLeft)
@@ -188,43 +213,98 @@ final class VLCLivePlayerViewController: UIViewController {
         swipeRight.direction = .right
         view.addGestureRecognizer(swipeRight)
 
-        // Play/Pause — Siri Remote play/pause button
-        let playPauseTap = UITapGestureRecognizer(target: self, action: #selector(togglePlayPause))
-        playPauseTap.allowedPressTypes = [NSNumber(value: UIPress.PressType.playPause.rawValue)]
-        view.addGestureRecognizer(playPauseTap)
-
-        // Select (click center of touchpad) — toggle overlay
-        let selectTap = UITapGestureRecognizer(target: self, action: #selector(toggleOverlay))
-        selectTap.allowedPressTypes = [NSNumber(value: UIPress.PressType.select.rawValue)]
-        view.addGestureRecognizer(selectTap)
-
-        // Long press — options
+        // Long press (any button) — options menu.
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
         longPress.minimumPressDuration = 1.0
         view.addGestureRecognizer(longPress)
-    }
 
-    // Arrow keys (third-party remotes) — up/down zap, left/right already via swipes.
-    override var keyCommands: [UIKeyCommand]? {
-        let up = UIKeyCommand(input: UIKeyCommand.inputUpArrow, modifierFlags: [], action: #selector(zapNext))
-        let down = UIKeyCommand(input: UIKeyCommand.inputDownArrow, modifierFlags: [], action: #selector(zapPrev))
-        let pageUp = UIKeyCommand(input: UIKeyCommand.inputPageUp, modifierFlags: [], action: #selector(zapNext))
-        let pageDown = UIKeyCommand(input: UIKeyCommand.inputPageDown, modifierFlags: [], action: #selector(zapPrev))
-        for c in [up, down, pageUp, pageDown] { c.wantsPriorityOverSystemBehavior = true }
-        return [up, down, pageUp, pageDown]
+        // Play/Pause, Select, Menu and D-pad arrows → pressesBegan below.
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         var handled = false
+        let now = Date().timeIntervalSince1970
         for press in presses {
-            guard let key = press.key else { continue }
-            switch key.keyCode {
-            case .keyboardUpArrow, .keyboardPageUp: zapNext(); handled = true
-            case .keyboardDownArrow, .keyboardPageDown: zapPrev(); handled = true
-            default: break
+            switch press.type {
+            case .menu:
+                // Swallow on Began; dismiss on Ended (HIG).
+                return
+            case .select:
+                toggleOverlay()
+                handled = true
+            case .upArrow, .pageUp:
+                zapNext()
+                handled = true
+            case .downArrow, .pageDown:
+                zapPrev()
+                handled = true
+            case .leftArrow, .rightArrow:
+                // Record press start; actual seek fires on pressesEnded so we
+                // can measure short (10 s) vs long (60 s) press duration.
+                pressStart[press.type] = now
+                handled = true
+            case .playPause:
+                togglePlayPause()
+                handled = true
+            default:
+                // External keyboard fallback.
+                if let key = press.key {
+                    switch key.keyCode {
+                    case .keyboardUpArrow, .keyboardPageUp: zapNext(); handled = true
+                    case .keyboardDownArrow, .keyboardPageDown: zapPrev(); handled = true
+                    case .keyboardLeftArrow:
+                        pressStart[.leftArrow] = now; handled = true
+                    case .keyboardRightArrow:
+                        pressStart[.rightArrow] = now; handled = true
+                    case .keyboardReturnOrEnter, .keyboardSpacebar: toggleOverlay(); handled = true
+                    default: break
+                    }
+                }
             }
         }
         if !handled { super.pressesBegan(presses, with: event) }
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        var handled = false
+        let now = Date().timeIntervalSince1970
+        for press in presses {
+            if press.type == .menu {
+                // Dismiss only — VLC teardown happens in viewDidDisappear so
+                // stop() never blocks main thread during the transition.
+                dismiss(animated: true)
+                return
+            }
+            // Map keyboard arrows to their corresponding remote press type so
+            // both external keyboards and IR remotes share the same timing key.
+            let mapped: UIPress.PressType? = {
+                switch press.type {
+                case .leftArrow, .rightArrow: return press.type
+                default:
+                    if let kc = press.key?.keyCode {
+                        if kc == .keyboardLeftArrow { return .leftArrow }
+                        if kc == .keyboardRightArrow { return .rightArrow }
+                    }
+                    return nil
+                }
+            }()
+            if let t = mapped, let start = pressStart.removeValue(forKey: t) {
+                let duration = now - start
+                let step = duration >= longPressThreshold ? longSeekStep : shortSeekStep
+                // ← = go back in time (offset +), → = go forward (offset -).
+                timeshiftSeek(delta: t == .leftArrow ? +step : -step)
+                handled = true
+            }
+        }
+        if !handled { super.pressesEnded(presses, with: event) }
+    }
+
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        for press in presses {
+            if press.type == .menu { return }
+            pressStart.removeValue(forKey: press.type)
+        }
+        super.pressesCancelled(presses, with: event)
     }
 
     // MARK: - Actions
@@ -254,7 +334,11 @@ final class VLCLivePlayerViewController: UIViewController {
     }
 
     private func showPlaybackOptions() {
-        let alert = UIAlertController(title: "Options", message: nil, preferredStyle: .actionSheet)
+        let alert = UIAlertController(
+            title: "Options",
+            message: "↑ ↓ Chaîne suivante/précédente · Menu Retour",
+            preferredStyle: .actionSheet
+        )
 
         // Audio tracks
         let audioCount = Int(mediaPlayer.numberOfAudioTracks)
@@ -338,6 +422,8 @@ final class VLCLivePlayerViewController: UIViewController {
     private func zap(delta: Int) {
         guard !channels.isEmpty else { return }
         currentIndex = (currentIndex + delta + channels.count) % channels.count
+        // Zapping always jumps back to live on the new channel.
+        timeshiftOffsetSec = 0
         loadCurrentChannel()
         showZapOverlay()
         updateOverlayForCurrentChannel()
@@ -345,6 +431,15 @@ final class VLCLivePlayerViewController: UIViewController {
     }
 
     private func loadCurrentChannel() {
+        if timeshiftOffsetSec > 0 {
+            loadTimeshiftStream()
+        } else {
+            loadLiveStream()
+        }
+        updateOverlayForCurrentChannel()
+    }
+
+    private func loadLiveStream() {
         let channel = channels[currentIndex]
         guard let url = api.liveStreamUrl(streamId: channel.streamId) else { return }
         let media = VLCMedia(url: url)
@@ -354,13 +449,111 @@ final class VLCLivePlayerViewController: UIViewController {
         ])
         mediaPlayer.media = media
         mediaPlayer.play()
+    }
+
+    private func loadTimeshiftStream() {
+        let channel = channels[currentIndex]
+        let startUtc = Date().addingTimeInterval(-Double(timeshiftOffsetSec))
+        // Cover enough forward window so the stream keeps playing toward live
+        // without us having to chain reloads. Cap at archive length.
+        let bufferMinutes = max(30, (timeshiftOffsetSec / 60) + 30)
+        let cappedMinutes = min(bufferMinutes, max(60, channel.archiveDays * 24 * 60))
+        guard let url = api.timeshiftUrl(
+            streamId: channel.streamId,
+            startUtc: startUtc,
+            durationMinutes: cappedMinutes
+        ) else { return }
+        let media = VLCMedia(url: url)
+        media.addOptions([
+            "network-caching": 3000,
+            "file-caching": 3000,
+        ])
+        mediaPlayer.media = media
+        mediaPlayer.play()
+    }
+
+    // MARK: - Timeshift
+
+    /// Positive delta goes **backward** in time (further from live).
+    /// Negative delta goes **forward** (closer to live). When offset reaches 0
+    /// we reload the live HLS URL.
+    private func timeshiftSeek(delta: Int) {
+        let channel = channels[currentIndex]
+
+        guard timeshiftAllowed else {
+            flashCenterMessage("Replay réservé à l'abonnement Premium")
+            return
+        }
+        guard channel.hasCatchup, channel.archiveDays > 0 else {
+            flashCenterMessage("Replay indisponible sur cette chaîne")
+            return
+        }
+
+        let maxOffsetSec = channel.archiveDays * 24 * 60 * 60
+        let newOffset = max(0, min(maxOffsetSec, timeshiftOffsetSec + delta))
+        guard newOffset != timeshiftOffsetSec else {
+            // Already at the edge (live or max archive).
+            flashCenterMessage(newOffset == 0 ? "Vous êtes en direct" : "Limite du replay atteinte")
+            return
+        }
+
+        timeshiftOffsetSec = newOffset
+        if newOffset == 0 {
+            loadLiveStream()
+            flashCenterMessage("● En direct")
+        } else {
+            loadTimeshiftStream()
+            flashCenterMessage("↩ \(formatOffset(newOffset))")
+        }
         updateOverlayForCurrentChannel()
+    }
+
+    private func formatOffset(_ sec: Int) -> String {
+        if sec < 60 { return "-\(sec) s" }
+        let m = sec / 60, s = sec % 60
+        let h = m / 60, mm = m % 60
+        if h > 0 { return "-\(h) h \(mm) min" }
+        if s == 0 { return "-\(m) min" }
+        return "-\(m) min \(s) s"
     }
 
     private func updateOverlayForCurrentChannel() {
         let channel = channels[currentIndex]
         channelNameLabel.text = channel.name
         channelNumberLabel.text = "Chaîne \(currentIndex + 1) / \(channels.count)"
+        updateLiveBadge()
+    }
+
+    /// Swap the top-left badge between "EN DIRECT" (red) and "REPLAY" (orange)
+    /// depending on whether the user is currently timeshifting.
+    private func updateLiveBadge() {
+        if timeshiftOffsetSec == 0 {
+            liveBadge.text = "  EN DIRECT  "
+            liveBadge.backgroundColor = UIColor(red: 0.85, green: 0.15, blue: 0.15, alpha: 1)
+        } else {
+            liveBadge.text = "  ↩ REPLAY \(formatOffset(timeshiftOffsetSec))  "
+            liveBadge.backgroundColor = UIColor(red: 0.95, green: 0.55, blue: 0.10, alpha: 1)
+        }
+    }
+
+    /// Briefly show a large centered message (uses the zap overlay labels).
+    /// Overrides any in-flight zap overlay — acceptable because seek and zap are
+    /// mutually exclusive user gestures.
+    private func flashCenterMessage(_ message: String) {
+        zapChannelLabel.text = message
+        zapChannelNumber.text = ""
+        UIView.animate(withDuration: 0.15) {
+            self.zapChannelLabel.alpha = 1
+            self.zapChannelNumber.alpha = 0
+        }
+        zapHideTimer?.invalidate()
+        zapHideTimer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                UIView.animate(withDuration: 0.4) {
+                    self?.zapChannelLabel.alpha = 0
+                }
+            }
+        }
     }
 
     // MARK: - Overlays

@@ -150,6 +150,9 @@ struct SettingsView: View {
                 Text("Lecture")
             }
 
+            // TMDB metadata enrichment
+            TMDBSettingsSection()
+
             // Cache management
             Section("Cache") {
                 HStack {

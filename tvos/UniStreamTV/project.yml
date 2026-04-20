@@ -44,6 +44,9 @@ targets:
         DEVELOPMENT_TEAM: VS8P2MA59S
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        # Default empty TMDB key — override at build time via
+        # `xcodebuild TMDB_API_KEY=xxxxx …` or an .xcconfig file.
+        TMDB_API_KEY: ""
     dependencies:
       - package: Supabase
         product: Supabase

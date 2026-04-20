@@ -54,6 +54,12 @@ class StreamListView extends StatefulWidget {
   final bool isLoadingMore;
   final VoidCallback? onLoadMore;
 
+  /// Optional widget inserted at the very top of the scroll view — scrolls away
+  /// with the content, so the grid / list gradually fills the whole viewport.
+  /// Used by home_screen to show the hero banner + continue watching + recently
+  /// added rows without eating fixed vertical space.
+  final Widget? headerChild;
+
   const StreamListView({
     super.key,
     required this.mode,
@@ -89,6 +95,7 @@ class StreamListView extends StatefulWidget {
     this.totalCount = 0,
     this.isLoadingMore = false,
     this.onLoadMore,
+    this.headerChild,
   });
 
   @override
@@ -150,29 +157,53 @@ class _StreamListViewState extends State<StreamListView> {
     }
 
     return Column(children: [
-      // Selection bar or search bar
-      if (widget.selectionMode)
-        _buildSelectionBar(l10n)
-      else
-        _buildSearchBar(l10n),
-      // Item count indicator
-      if (widget.totalCount > 0 && widget.sortedStreams.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '${widget.sortedStreams.length} / ${_formatNumber(widget.totalCount)}',
-              style: TextStyle(fontSize: 11, color: tc.textDisabled),
-            ),
-          ),
-        ),
+      // Selection bar stays above the scroll view — it's modal UI.
+      if (widget.selectionMode) _buildSelectionBar(l10n),
       Expanded(child: Builder(builder: (ctx) {
         final filtered = widget.searchQuery.isEmpty
             ? widget.sortedStreams
             : widget.sortedStreams.where((s) => StreamListView.getName(s)
                 .toLowerCase().contains(widget.searchQuery)).toList();
-        final child = widget.showGrid ? _buildGrid(filtered) : _buildList(filtered, l10n);
+        // Single CustomScrollView so the optional [headerChild] scrolls away
+        // along with the list/grid (vs being fixed above and squashing it).
+        // The search bar + count indicator are now INSIDE the scroll view,
+        // right after the hero, so they slide away with the rest of the
+        // header instead of sitting fixed below the app bar.
+        final searchBarChild = widget.selectionMode
+            ? null
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: _buildSearchBar(l10n),
+              );
+        final countIndicator = (widget.totalCount > 0 &&
+                widget.sortedStreams.isNotEmpty)
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${widget.sortedStreams.length} / ${_formatNumber(widget.totalCount)}',
+                    style: TextStyle(fontSize: 11, color: tc.textDisabled),
+                  ),
+                ),
+              )
+            : null;
+        final slivers = <Widget>[
+          if (widget.headerChild != null)
+            SliverToBoxAdapter(child: widget.headerChild!),
+          if (searchBarChild != null)
+            SliverToBoxAdapter(child: searchBarChild),
+          if (countIndicator != null)
+            SliverToBoxAdapter(child: countIndicator),
+          if (widget.showGrid)
+            _buildGridSliver(filtered)
+          else
+            _buildListSliver(filtered, l10n),
+        ];
+        final child = CustomScrollView(
+          controller: _scrollController,
+          slivers: slivers,
+        );
         if (widget.onRefresh != null) {
           return RefreshIndicator(onRefresh: widget.onRefresh!, child: child);
         }
@@ -260,15 +291,14 @@ class _StreamListViewState extends State<StreamListView> {
     );
   }
 
-  Widget _buildList(List<dynamic> items, AppLocalizations l10n) {
+  Widget _buildListSliver(List<dynamic> items, AppLocalizations l10n) {
     final tc = AppThemeColors.of(context);
-    // Add +1 for the loading indicator when there are more items
     final itemCount = widget.hasMore ? items.length + 1 : items.length;
-    return ListView.builder(
-      controller: _scrollController,
+    return SliverPadding(
       padding: const EdgeInsets.all(16),
-      itemCount: itemCount,
-      itemBuilder: (_, i) {
+      sliver: SliverList.builder(
+        itemCount: itemCount,
+        itemBuilder: (_, i) {
         // Loading indicator at the bottom
         if (i >= items.length) {
           return const Padding(
@@ -377,25 +407,35 @@ class _StreamListViewState extends State<StreamListView> {
           ),
         );
       },
+      ),
     );
   }
 
-  Widget _buildGrid(List<dynamic> items) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final int crossAxisCount = (constraints.maxWidth / 200).floor().clamp(2, 6);
-      // Add +1 row for loading indicator
+  Widget _buildGridSliver(List<dynamic> items) {
+    // We need a LayoutBuilder-equivalent inside a sliver — use
+    // SliverLayoutBuilder so the responsive crossAxisCount still works.
+    return SliverLayoutBuilder(builder: (context, constraints) {
+      // Live channel logos look best in short, dense tiles (logo + name +
+      // current program). Posters for films/series stay tall (2:3 ratio).
+      final isLive = widget.mode == ContentMode.live;
+      final int targetTileWidth = isLive ? 140 : 200;
+      // Live tiles almost square so logos aren't lost in a tall column.
+      final double aspect = isLive ? 1.0 : 0.58;
+      final int maxColumns = isLive ? 12 : 6;
+      final int crossAxisCount =
+          (constraints.crossAxisExtent / targetTileWidth).floor().clamp(2, maxColumns);
       final itemCount = widget.hasMore ? items.length + 1 : items.length;
-      return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.58,
-      ),
-      itemCount: itemCount,
-      itemBuilder: (_, i) {
+      return SliverPadding(
+        padding: const EdgeInsets.all(12),
+        sliver: SliverGrid.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: aspect,
+          ),
+          itemCount: itemCount,
+          itemBuilder: (_, i) {
         if (i >= items.length) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
@@ -406,6 +446,14 @@ class _StreamListViewState extends State<StreamListView> {
         final isWl = widget.wlKeys.contains(widget.favKeyBuilder(widget.mode.key, s));
         final selKey = widget.itemSelectionKeyBuilder(s);
         final isSelected = widget.selectionMode && widget.selectedItems.contains(selKey);
+
+        // Live tiles: surface the cached "now playing" program underneath
+        // the channel name so the grid carries as much info as tvOS cards.
+        String? liveNow;
+        if (widget.mode == ContentMode.live) {
+          final sid = StreamListView.getStreamId(s);
+          if (sid.isNotEmpty) liveNow = XtreamApi.getCachedEpgNow(sid);
+        }
 
         return StreamGridTile(
           key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
@@ -424,9 +472,11 @@ class _StreamListViewState extends State<StreamListView> {
           onToggleWatchlist: () => widget.onToggleWatchlist(s),
           onRemoveFromCollection: () => widget.onRemoveFromCollection(s),
           onSecondaryTap: (_) => widget.onShowStreamInfo(s),
+          subtitle: liveNow,
         );
       },
-    );
+        ),
+      );
     });
   }
 }

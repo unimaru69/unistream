@@ -43,6 +43,8 @@ import 'widgets/collection_dialogs.dart';
 import 'widgets/shortcuts_dialog.dart';
 import 'widgets/offline_content.dart';
 import '../vod/vod_detail_screen.dart';
+import '../../providers/tmdb_provider.dart';
+import '../../services/tmdb_service.dart';
 import '../../widgets/home_hero_banner.dart';
 import 'widgets/home_app_bar.dart';
 import 'widgets/home_keyboard_handler.dart';
@@ -80,7 +82,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _searchQuery = '';
 
   // Grid view (VOD + Series only)
-  bool _gridView = kDemoMode && (kDemoScreen == 'vod' || kDemoScreen == 'series');
+  // Default to grid view (tiles) for every mode including Live. Users can
+  // toggle back to list via the AppBar icon and the preference is persisted.
+  bool _gridView = true;
 
   // Sort mode
   String _sortMode = 'default';
@@ -97,6 +101,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Scaffold key for drawer on narrow screens
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  /// Scroll offset of the main grid/list — drives the app-bar backdrop fade
+  /// so it becomes opaque as soon as tiles start scrolling behind it.
+  final ValueNotifier<double> _mainScrollOffset = ValueNotifier(0);
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +112,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _loadSidebarWidth();
     _loadGridView();
     _loadSortMode();
+  }
+
+  @override
+  void dispose() {
+    _mainScrollOffset.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   // ── Grid view preference per mode ──
@@ -462,10 +477,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ── Navigation ──
+  /// Fires the TMDB lookup in the background so the cache is warm when the
+  /// detail screen mounts. Silently no-ops on Live streams and when TMDB is
+  /// disabled.
+  void _prefetchTmdb(dynamic stream) {
+    final cfg = ref.read(tmdbConfigProvider);
+    if (!cfg.isActive) return;
+    final name = getStreamName(stream);
+    if (name.isEmpty) return;
+    TmdbKind? kind;
+    if (stream is VodItem || _mode == ContentMode.vod) kind = TmdbKind.movie;
+    if (stream is SeriesItem || _mode == ContentMode.series) kind = TmdbKind.tv;
+    if (kind == null) return;
+    // ref.read on a FutureProvider kicks off the fetch and writes to cache.
+    ref.read(tmdbLookupProvider(TmdbLookup(rawTitle: name, kind: kind)));
+  }
+
   void _playStream(dynamic stream) {
     final name = getStreamName(stream);
     final displayName = name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name;
     AppLogger.breadcrumb('player', 'Stream play requested', data: {'title': displayName, 'mode': _mode.key});
+
+    // Warm the TMDB cache the moment the user taps a tile. By the time the
+    // slideRoute animation finishes (~300 ms) the synopsis + backdrop are
+    // usually already resolved, so the detail screen renders with the final
+    // content instead of flashing the old / empty state for a second.
+    _prefetchTmdb(stream);
 
     if (_mode == ContentMode.series) {
       final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
@@ -639,7 +676,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Build ──
   @override
   Widget build(BuildContext context) {
-    final showGrid = _gridView && _mode != ContentMode.live;
+    // Grid is now allowed for Live too so channels show up as tiles (logos +
+    // optional "now playing" subtitle) instead of an austere list.
+    final showGrid = _gridView;
 
     // Watch connectivity — default to online so the app always attempts connection.
     // On Linux, connectivity_plus may report 'none' if NetworkManager is absent.
@@ -693,6 +732,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       isLiveMode: _mode == ContentMode.live,
       child: Scaffold(
       key: _scaffoldKey,
+      // Let the hero banner's blurred backdrop extend all the way to the top
+      // of the window (under the transparent app bar) for a Plex-like feel.
+      extendBodyBehindAppBar: true,
       drawer: _buildSidebarDrawer(collections, filteredCategories),
       appBar: HomeAppBar(
         mode: _mode,
@@ -700,6 +742,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         sortMode: _sortMode,
         selectedCategory: _selectedCategory,
         isCompact: MediaQuery.of(context).size.width < 900,
+        // Drives the app-bar opacity fade-in as the user scrolls.
+        scrollOffset: _mainScrollOffset,
         leadingMenuButton: MediaQuery.of(context).size.width < 900
             ? IconButton(
                 icon: const Icon(Icons.menu),
@@ -733,7 +777,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _init();
         },
       ),
-      body: _loading
+      body: NotificationListener<ScrollUpdateNotification>(
+        onNotification: (n) {
+          // Only care about the grid/list's scroll view, not horizontal
+          // strips inside the hero/continue/recently rows.
+          if (n.metrics.axis != Axis.vertical) return false;
+          _mainScrollOffset.value = n.metrics.pixels;
+          return false;
+        },
+        child: _loading
           ? const SkeletonList()
           : _error != null
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -745,60 +797,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ]))
           : isOffline
           ? OfflineContent(onRetryConnection: _retryConnection)
-          : Column(children: [
-              // Rotating "À la une" banner — shown on Films/Séries modes only,
-              // hidden in Live (no meaningful hero for channels) and hidden on
-              // short viewports so the main grid has room to breathe.
-              if (_mode != ContentMode.live &&
-                  _recentlyAdded.isNotEmpty &&
-                  MediaQuery.sizeOf(context).height >= 720)
-                HomeHeroBanner(
-                  items: parentalActive
-                      ? _recentlyAdded
-                          .where((item) => !blockedIds.contains(getStreamCategoryId(item)))
-                          .toList()
-                      : _recentlyAdded,
-                  mode: _mode,
-                  onTap: _playStream,
-                ),
-              ContinueWatchingRow(
-                items: continueItems,
-                onTap: (item) => Navigator.push(context, slideRoute(
-                  PlayerScreen(
-                    url: item.url,
-                    title: item.name,
-                    resumeKey: item.id,
+          : Builder(builder: (context) {
+              // Header rows that used to sit above the Row(sidebar + grid)
+              // stack — now moved INTO the grid's scroll view so they collapse
+              // naturally as the user scrolls down. Builds the "Plex-style"
+              // full-bleed feel and gives the grid the vertical room it needs.
+              // The hero itself bakes the app-bar top-padding inside — the
+              // blurred backdrop now goes ALL the way to the top of the
+              // window (extendBodyBehindAppBar = true), no grey band below
+              // the tabs.
+              final double topInset =
+                  kToolbarHeight + MediaQuery.paddingOf(context).top;
+              final headerChild = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_mode != ContentMode.live && _recentlyAdded.isNotEmpty)
+                    HomeHeroBanner(
+                      topInset: topInset,
+                      items: parentalActive
+                          ? _recentlyAdded
+                              .where((item) =>
+                                  !blockedIds.contains(getStreamCategoryId(item)))
+                              .toList()
+                          : _recentlyAdded,
+                      mode: _mode,
+                      onTap: _playStream,
+                    ),
+                  ContinueWatchingRow(
+                    items: continueItems,
+                    onTap: (item) => Navigator.push(
+                      context,
+                      slideRoute(PlayerScreen(
+                        url: item.url,
+                        title: item.name,
+                        resumeKey: item.id,
+                      )),
+                    ).then((_) => _refreshProgress()),
                   ),
-                )).then((_) => _refreshProgress()),
-              ),
-              if (_mode == ContentMode.live)
-                CatchupRow(
-                  programs: _catchupPrograms,
-                  onTap: (prog) {
-                    if (!checkPremiumAccess(context, ref, Feature.catchupReplay)) return;
-                    // Build timeshift URL and launch player in catch-up mode
-                    String url;
-                    if (prog.serverLocalStart.isNotEmpty) {
-                      url = _repo.getTimeshiftUrlFromLocal(prog.streamId, prog.serverLocalStart, prog.durationMin);
-                    } else {
-                      url = _repo.getTimeshiftUrl(prog.streamId, prog.startUtc, prog.durationMin);
-                    }
-                    Navigator.push(context, slideRoute(PlayerScreen(
-                      url: url,
-                      title: '${prog.title} (${AppLocalizations.of(context)!.replay})',
-                      streamId: prog.streamId,
-                      isCatchup: true,
-                    )));
-                  },
-                ),
-              RecentlyAddedRow(
-                items: parentalActive
-                    ? _recentlyAdded.where((item) =>
-                        !blockedIds.contains(getStreamCategoryId(item))).toList()
-                    : _recentlyAdded,
-                mode: _mode,
-                onTap: _playStream,
-              ),
+                  if (_mode == ContentMode.live)
+                    CatchupRow(
+                      programs: _catchupPrograms,
+                      onTap: (prog) {
+                        if (!checkPremiumAccess(context, ref, Feature.catchupReplay)) return;
+                        String url;
+                        if (prog.serverLocalStart.isNotEmpty) {
+                          url = _repo.getTimeshiftUrlFromLocal(
+                              prog.streamId, prog.serverLocalStart, prog.durationMin);
+                        } else {
+                          url = _repo.getTimeshiftUrl(
+                              prog.streamId, prog.startUtc, prog.durationMin);
+                        }
+                        Navigator.push(
+                            context,
+                            slideRoute(PlayerScreen(
+                              url: url,
+                              title:
+                                  '${prog.title} (${AppLocalizations.of(context)!.replay})',
+                              streamId: prog.streamId,
+                              isCatchup: true,
+                            )));
+                      },
+                    ),
+                  RecentlyAddedRow(
+                    items: parentalActive
+                        ? _recentlyAdded
+                            .where((item) =>
+                                !blockedIds.contains(getStreamCategoryId(item)))
+                            .toList()
+                        : _recentlyAdded,
+                    mode: _mode,
+                    onTap: _playStream,
+                  ),
+                ],
+              );
+              return Column(children: [
               Expanded(child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
@@ -925,13 +998,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onLoadMore: usePagination
                         ? () => ref.read(paginatedStreamsProvider.notifier).loadMore()
                         : null,
+                    // Hero + continue watching + recently added are part of
+                    // the grid's scroll view so they collapse away on scroll.
+                    // We always pass the headerChild (even for virtual
+                    // categories like __favorites__) because it also carries
+                    // the app-bar-height spacer required by
+                    // extendBodyBehindAppBar.
+                    headerChild: headerChild,
                   );
                 }),
               ),
             ]);
                 },
               )),
-          ]),
+          ]);
+            }),
+      ),
     ),
     );
   }

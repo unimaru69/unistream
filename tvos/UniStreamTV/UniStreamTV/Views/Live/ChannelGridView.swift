@@ -153,7 +153,8 @@ struct ChannelGridView: View {
         PlayerPresenter.playLiveWithZapping(
             channels: displayedChannels,
             startIndex: index,
-            api: appState.api
+            api: appState.api,
+            timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
         )
     }
 }

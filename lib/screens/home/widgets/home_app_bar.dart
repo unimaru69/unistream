@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../core/colors.dart';
@@ -24,7 +25,14 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.selectedCategory,
     this.leadingMenuButton,
     this.isCompact = false,
+    this.scrollOffset,
   });
+
+  /// Optional scroll offset (of the main content below) used to fade the
+  /// app bar background from transparent (at the top, over the hero) to
+  /// opaque (as soon as tiles start scrolling behind it). `null` keeps the
+  /// classic behaviour (solid background).
+  final ValueListenable<double>? scrollOffset;
 
   final ContentMode mode;
   final bool showGrid;
@@ -49,11 +57,39 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     final l10n = AppLocalizations.of(context)!;
     final tc = AppThemeColors.of(context);
 
+    // Fade from transparent (over the hero) to the theme's surface color as
+    // the main content scrolls — otherwise tile typography bleeds through.
+    if (scrollOffset != null) {
+      return ValueListenableBuilder<double>(
+        valueListenable: scrollOffset!,
+        builder: (context, offset, _) {
+          final t = (offset / 120).clamp(0.0, 1.0);
+          return _buildBar(
+            context,
+            l10n,
+            tc,
+            backgroundColor: tc.surface.withValues(alpha: t),
+            elevation: t > 0.9 ? 1 : 0,
+          );
+        },
+      );
+    }
+    return _buildBar(context, l10n, tc,
+        backgroundColor: Colors.transparent, elevation: 0);
+  }
+
+  Widget _buildBar(
+    BuildContext context,
+    AppLocalizations l10n,
+    AppThemeColors tc, {
+    required Color backgroundColor,
+    required double elevation,
+  }) {
     return AppBar(
       title: isCompact ? null : const Text('UniStream',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
+      backgroundColor: backgroundColor,
+      elevation: elevation,
       leading: leadingMenuButton,
       automaticallyImplyLeading: false,
       actions: [
@@ -109,7 +145,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
         const SizedBox(width: 4),
-        if (!isCompact && mode != ContentMode.live)
+        if (!isCompact)
           IconButton(
             icon: Icon(showGrid ? Icons.view_list : Icons.grid_view),
             tooltip:
@@ -165,12 +201,11 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
               }
             },
             itemBuilder: (_) => [
-              if (mode != ContentMode.live)
-                PopupMenuItem(value: 'grid', child: Row(children: [
-                  Icon(showGrid ? Icons.view_list : Icons.grid_view, size: 18),
-                  const SizedBox(width: 8),
-                  Text(showGrid ? l10n.vueListe : l10n.vueGrille),
-                ])),
+              PopupMenuItem(value: 'grid', child: Row(children: [
+                Icon(showGrid ? Icons.view_list : Icons.grid_view, size: 18),
+                const SizedBox(width: 8),
+                Text(showGrid ? l10n.vueListe : l10n.vueGrille),
+              ])),
               PopupMenuItem(value: 'epg', child: Row(children: [
                 const Icon(Icons.live_tv, size: 18),
                 const SizedBox(width: 8),

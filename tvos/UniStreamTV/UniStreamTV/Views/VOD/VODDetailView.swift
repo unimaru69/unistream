@@ -9,8 +9,28 @@ struct VODDetailView: View {
     let api: XtreamAPIService
 
     @Environment(AppState.self) private var appState
+    @State private var tmdbVM = TMDBViewModel()
 
     private var contentKey: String { "vod_\(item.streamId)" }
+
+    private var sourceSynopsis: String {
+        item.plot ?? item.description ?? ""
+    }
+    private var effectiveSynopsis: String {
+        if !sourceSynopsis.isEmpty { return sourceSynopsis }
+        return tmdbVM.result?.overview ?? ""
+    }
+    private var backdropURL: String {
+        if let b = tmdbVM.result?.backdropURL(size: "original") {
+            return b.absoluteString
+        }
+        // While TMDB is still loading, keep the backdrop empty so PlexBackdrop
+        // stays plain dark — avoids flashing the low-res source poster.
+        if tmdbVM.isLoading || !tmdbVM.hasFetched {
+            return ""
+        }
+        return item.displayIcon
+    }
 
     private var isFav: Bool {
         appState.syncService.isFavorite(item.streamId)
@@ -63,11 +83,20 @@ struct VODDetailView: View {
                         }
                     }
 
-                    if let plot = item.plot ?? item.description, !plot.isEmpty {
-                        Text(plot)
-                            .font(.body)
-                            .foregroundColor(.white.opacity(0.7))
-                            .lineLimit(8)
+                    // Synopsis — fall back to TMDB when the source has none.
+                    if !effectiveSynopsis.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(effectiveSynopsis)
+                                .font(.body)
+                                .foregroundColor(.white.opacity(0.75))
+                                .lineLimit(8)
+                            if sourceSynopsis.isEmpty && !effectiveSynopsis.isEmpty {
+                                TMDBBadge()
+                            }
+                        }
+                    } else if tmdbVM.isLoading {
+                        ProgressView()
+                            .tint(.white.opacity(0.6))
                     }
 
                     // Watched badge
@@ -173,10 +202,27 @@ struct VODDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(80)
+
+            // TMDB cast row (below the hero) — only shown when we have data.
+            if let tmdb = tmdbVM.result, !tmdb.cast.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 10) {
+                        Text("Distribution")
+                            .font(.title3.weight(.bold))
+                            .foregroundColor(.white)
+                        TMDBBadge()
+                    }
+                    .padding(.horizontal, 40)
+
+                    TMDBCastRow(cast: tmdb.cast)
+                }
+                .padding(.bottom, 40)
+            }
         }
-        .background(
-            PlexBackdrop(imageUrl: item.displayIcon)
-        )
+        .background(PlexBackdrop(imageUrl: backdropURL))
+        .task {
+            await tmdbVM.load(rawTitle: item.name, kind: .movie)
+        }
     }
 
     private func play() {

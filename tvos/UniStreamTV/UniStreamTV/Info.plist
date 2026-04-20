@@ -4,6 +4,11 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- TMDB API key — read at runtime by TMDBConfig. Defaults to empty
+	     via the TMDB_API_KEY build setting so the feature stays dormant
+	     until the user provides a key in Settings. -->
+	<key>TMDBAPIKey</key>
+	<string>$(TMDB_API_KEY)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

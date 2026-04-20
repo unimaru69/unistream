@@ -71,7 +71,10 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     iconColor: AppColors.lightIcon,
     shimmerBase: AppColors.lightShimmerBase,
     shimmerHighlight: AppColors.lightShimmerHighlight,
-    logoBg: Color(0xFFE8E8F0),
+    // Channel logos are typically white / transparent. In light theme we
+    // use a medium-dark grey (not near-black) so the tile blends into the
+    // page while logos remain visible.
+    logoBg: Color(0xFF4A4A5A),
   );
 
   /// Convenience accessor.
