@@ -36,7 +36,9 @@ class HomeHeroBanner extends StatefulWidget {
 }
 
 class _HomeHeroBannerState extends State<HomeHeroBanner> {
-  static const double _bannerHeight = 260;
+  // Kept compact so the main grid breathes. If you want more cinematic feel
+  // bump this to ~240 — but make sure the grid still shows >= 2 full rows.
+  static const double _bannerHeight = 190;
 
   Timer? _timer;
   int _index = 0;
@@ -226,34 +228,34 @@ class _HeroSlide extends StatelessWidget {
         ),
         // Foreground content.
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Sharp poster on the left.
+              // Sharp poster on the left — sized for the compact banner.
               if (cover.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(DS.radius.hero),
                   child: CachedNetworkImage(
                     cacheManager: AppCacheManager.instance,
                     imageUrl: cover,
-                    width: 130,
-                    height: 195,
+                    width: 105,
+                    height: 158,
                     fit: BoxFit.cover,
                     placeholder: (_, __) => Container(
-                      width: 130,
-                      height: 195,
+                      width: 105,
+                      height: 158,
                       color: AppColors.darkSurface,
                     ),
                     errorWidget: (_, __, ___) => Container(
-                      width: 130,
-                      height: 195,
+                      width: 105,
+                      height: 158,
                       color: AppColors.darkSurface,
                       child: const Icon(Icons.movie, color: Colors.white30),
                     ),
                   ),
                 ),
-              const SizedBox(width: 24),
+              const SizedBox(width: 20),
               // Text + CTA.
               Expanded(
                 child: Column(
@@ -312,19 +314,19 @@ class _HeroSlide extends StatelessWidget {
                       ]),
                     ],
                     if (plot.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         plot,
-                        maxLines: 3,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.78),
                           fontSize: 12,
-                          height: 1.4,
+                          height: 1.35,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     // Compact CTA pill.
                     FilledButton.icon(
                       onPressed: onTap,

@@ -747,8 +747,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ? OfflineContent(onRetryConnection: _retryConnection)
           : Column(children: [
               // Rotating "À la une" banner — shown on Films/Séries modes only,
-              // hidden in Live since there's no meaningful hero for channels.
-              if (_mode != ContentMode.live && _recentlyAdded.isNotEmpty)
+              // hidden in Live (no meaningful hero for channels) and hidden on
+              // short viewports so the main grid has room to breathe.
+              if (_mode != ContentMode.live &&
+                  _recentlyAdded.isNotEmpty &&
+                  MediaQuery.sizeOf(context).height >= 720)
                 HomeHeroBanner(
                   items: parentalActive
                       ? _recentlyAdded
