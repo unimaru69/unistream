@@ -51,7 +51,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Build Linux release
-        run: flutter build linux --release
+        run: flutter build linux --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       - name: Build AppImage
         run: bash packaging/linux/build-appimage.sh
@@ -107,7 +107,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       - name: Create MSIX
         run: flutter pub run msix:create
@@ -132,7 +132,7 @@ jobs:
 
       - run: flutter pub get
       - name: Build macOS release
-        run: flutter build macos --release
+        run: flutter build macos --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       - name: Zip .app bundle
         run: |

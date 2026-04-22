@@ -33,7 +33,10 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - run: flutter build macos
+      # `--dart-define=TMDB_KEY=...` bakes the TMDB API key into the binary
+      # so end users get metadata enrichment without any setup. Safe to leave
+      # empty on forks that don't set the secret (feature stays dormant).
+      - run: flutter build macos --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
   build-windows:
     needs: analyze-and-test
@@ -70,7 +73,7 @@ jobs:
             build/windows/x64/_deps/sentry-native-src
         timeout-minutes: 10
 
-      - run: flutter build windows
+      - run: flutter build windows --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
   build-linux:
     needs: analyze-and-test
@@ -116,7 +119,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Build Linux release
-        run: flutter build linux --release
+        run: flutter build linux --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       - name: Build AppImage
         run: bash packaging/linux/build-appimage.sh
