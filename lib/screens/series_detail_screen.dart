@@ -237,7 +237,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           // 360 instead of 260 so the synopsis breathes (5-line truncation
           // on 260 px made the text unreadable) and the cast row can show
           // more than two avatars before scroll.
-          width: 360,
+          width: 480,
           child: CustomScrollView(
             slivers: [
               // Poster
@@ -247,11 +247,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                         CachedNetworkImage(
                           imageUrl: widget.cover,
                           cacheManager: AppCacheManager.instance,
-                          width: 360, height: 440, fit: BoxFit.cover,
+                          width: 480, height: 600, fit: BoxFit.cover,
                           fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, __) => SizedBox(height: 440, child: ColoredBox(color: tc.inputFill)),
+                          placeholder: (_, __) => SizedBox(height: 600, child: ColoredBox(color: tc.inputFill)),
                           errorWidget: (_, __, ___) => SizedBox(
-                            height: 440,
+                            height: 600,
                             child: Container(color: tc.inputFill,
                                 child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
                           ),
