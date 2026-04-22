@@ -222,6 +222,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     } else {
       backdropUrl = widget.cover;
     }
+    // High-resolution TMDB poster for the left-panel hero (480×600). Source
+    // IPTV posters are typically w185–w300 and look pixelated at this size.
+    final tmdbPoster = TmdbService.image(tmdb?.posterPath, size: 'w780');
+    final String posterUrl = tmdbPoster ?? widget.cover;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -240,12 +244,13 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           width: 480,
           child: CustomScrollView(
             slivers: [
-              // Poster
+              // Poster — prefer the TMDB w780 image so the hero isn't
+              // pixelated; falls back to the IPTV source when unavailable.
               SliverToBoxAdapter(
-                child: widget.cover.isNotEmpty
+                child: posterUrl.isNotEmpty
                     ? Stack(children: [
                         CachedNetworkImage(
-                          imageUrl: widget.cover,
+                          imageUrl: posterUrl,
                           cacheManager: AppCacheManager.instance,
                           width: 480, height: 600, fit: BoxFit.cover,
                           fadeInDuration: const Duration(milliseconds: 200),
