@@ -9,6 +9,7 @@ import '../../../models/series_item.dart';
 import '../../../services/xtream_api.dart';
 import '../../../widgets/skeleton_list.dart';
 import 'stream_tile.dart';
+import 'tmdb_aware_grid_tile.dart';
 
 /// Main stream content area: search bar, selection bar, list/grid view.
 class StreamListView extends StatefulWidget {
@@ -455,7 +456,9 @@ class _StreamListViewState extends State<StreamListView> {
           if (sid.isNotEmpty) liveNow = XtreamApi.getCachedEpgNow(sid);
         }
 
-        return StreamGridTile(
+        // Wrapped in a TMDB-aware consumer: for films/series, replaces the
+        // low-res IPTV poster with the TMDB w500 poster when available.
+        return TmdbAwareGridTile(
           key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
           stream: s,
           mode: widget.mode,

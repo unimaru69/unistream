@@ -117,6 +117,11 @@ class StreamGridTile extends StatelessWidget {
   /// display the currently airing program.
   final String? subtitle;
 
+  /// When non-null, overrides the source IPTV poster. Used to swap in a
+  /// high-resolution TMDB poster so grid tiles stop pixelating (source
+  /// images are typically w185–w300, while TMDB serves w500+).
+  final String? posterOverride;
+
   const StreamGridTile({
     super.key,
     required this.stream,
@@ -133,12 +138,15 @@ class StreamGridTile extends StatelessWidget {
     this.onRemoveFromCollection,
     required this.onSecondaryTap,
     this.subtitle,
+    this.posterOverride,
   });
 
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
-    final cover = _streamDisplayIcon(stream);
+    final cover = (posterOverride != null && posterOverride!.isNotEmpty)
+        ? posterOverride!
+        : _streamDisplayIcon(stream);
     final name = _streamName(stream);
 
     return Semantics(
