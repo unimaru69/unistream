@@ -29,6 +29,7 @@ import 'widgets/channel_number_osd.dart';
 import 'widgets/player_app_bar.dart';
 import 'widgets/quality_selector.dart';
 import 'channel_zapping_controller.dart';
+import 'ios_player_screen.dart';
 import 'player_keyboard_handler.dart';
 
 // ── Fullscreen back button ──
@@ -43,19 +44,19 @@ class _FullscreenBackButton extends StatelessWidget {
 }
 
 // ── Player Screen ──
-class PlayerScreen extends StatefulWidget {
+/// Public facade — picks the right backend at build time. Call sites pass
+/// the same parameters as before; on iOS / iPadOS we route to AVPlayer via
+/// `IOSPlayerScreen` because media_kit (libmpv) doesn't run there.
+class PlayerScreen extends StatelessWidget {
   final String  url;
   final String  title;
-  final String? streamId;          // live -> EPG
-  final String? resumeKey;         // VOD/episode -> reprise
-  final String? coverUrl;          // cover pour le mini-player
-  final Player? existingPlayer;    // restauration depuis mini-player
-  final VideoController? existingController;
-  // Auto-play next episode
+  final String? streamId;
+  final String? resumeKey;
+  final String? coverUrl;
+  final Player? existingPlayer;        // ignored on iOS
+  final VideoController? existingController; // ignored on iOS
   final NextEpisodeInfo? nextEpisode;
-  // Catch-up / replay mode
   final bool isCatchup;
-  // Quick zapping (live channel +/-)
   final List<Channel>? channelList;
   final int? channelIndex;
 
@@ -73,11 +74,74 @@ class PlayerScreen extends StatefulWidget {
     this.channelList,
     this.channelIndex,
   });
+
   @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
+  Widget build(BuildContext context) {
+    if (Platform.isIOS) {
+      return IOSPlayerScreen(
+        url: url,
+        title: title,
+        streamId: streamId,
+        resumeKey: resumeKey,
+        coverUrl: coverUrl,
+        nextEpisode: nextEpisode,
+        isCatchup: isCatchup,
+        channelList: channelList,
+        channelIndex: channelIndex,
+      );
+    }
+    return _MediaKitPlayerScreen(
+      url: url,
+      title: title,
+      streamId: streamId,
+      resumeKey: resumeKey,
+      coverUrl: coverUrl,
+      existingPlayer: existingPlayer,
+      existingController: existingController,
+      nextEpisode: nextEpisode,
+      isCatchup: isCatchup,
+      channelList: channelList,
+      channelIndex: channelIndex,
+    );
+  }
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
+/// Private media_kit-backed implementation (used on macOS, Linux, Windows,
+/// Android).
+class _MediaKitPlayerScreen extends StatefulWidget {
+  final String  url;
+  final String  title;
+  final String? streamId;          // live -> EPG
+  final String? resumeKey;         // VOD/episode -> reprise
+  final String? coverUrl;          // cover pour le mini-player
+  final Player? existingPlayer;    // restauration depuis mini-player
+  final VideoController? existingController;
+  // Auto-play next episode
+  final NextEpisodeInfo? nextEpisode;
+  // Catch-up / replay mode
+  final bool isCatchup;
+  // Quick zapping (live channel +/-)
+  final List<Channel>? channelList;
+  final int? channelIndex;
+
+  const _MediaKitPlayerScreen({
+    required this.url,
+    required this.title,
+    this.streamId,
+    this.resumeKey,
+    this.coverUrl,
+    this.existingPlayer,
+    this.existingController,
+    this.nextEpisode,
+    this.isCatchup = false,
+    this.channelList,
+    this.channelIndex,
+  });
+  @override
+  State<_MediaKitPlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   final _prefs = PreferencesRepository();
   final _repo = ContentRepository();
   late final Player _player;

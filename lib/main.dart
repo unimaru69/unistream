@@ -129,7 +129,13 @@ void showMiniOverlay(MiniPlayerState state) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
+  // media_kit wraps libmpv, which crashes at init on iOS (EXC_BAD_ACCESS
+  // in the DartWorker thread). Until we wire the iOS player to AVPlayer
+  // via `video_player`, skip the global init so the UI still boots on
+  // iPhone / iPad. Playback will be a no-op on those platforms.
+  if (!Platform.isIOS) {
+    MediaKit.ensureInitialized();
+  }
   if (kDemoMode && kDemoLandscape) {
     // Lock orientation to landscape for screenshot generation.
     await SystemChrome.setPreferredOrientations([
