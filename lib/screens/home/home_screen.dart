@@ -823,7 +823,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           : _recentlyAdded,
                       mode: _mode,
                       onTap: _playStream,
-                    ),
+                    )
+                  else
+                    // Live mode shows no hero, so the first row would slide
+                    // under the transparent app bar (extendBodyBehindAppBar).
+                    // Pad it down by the bar + status-bar height instead.
+                    SizedBox(height: topInset),
                   ContinueWatchingRow(
                     items: continueItems,
                     onTap: (item) => Navigator.push(
