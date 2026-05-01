@@ -40,7 +40,7 @@
     <binary>unistream</binary>
   </provides>
 
-  <content_rating type="oarc-1.1" />
+  <content_rating type="oars-1.1" />
 
   <releases>
     <release version="1.0.0" date="2026-04-06">
@@ -66,10 +66,31 @@
   </keywords>
 
   <screenshots>
-    <!-- TODO: Add screenshots hosted on a public URL -->
-    <!-- <screenshot type="default">
-      <image>https://example.com/screenshots/home.png</image>
-      <caption>Home screen with live TV channels</caption>
-    </screenshot> -->
+    <!--
+      Screenshots are served from raw.githubusercontent.com on the `main`
+      branch. Currently Mac captures, since they show the same Flutter UI
+      that runs on Linux. Replace with Linux captures before the Flathub
+      review goes live (Flathub prefers Linux screenshots).
+    -->
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/unimaru69/unistream/main/screenshots/mac_en/Live.png</image>
+      <caption>Live TV with channel grid and EPG</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/unimaru69/unistream/main/screenshots/mac_en/VOD.png</image>
+      <caption>Video on Demand library</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/unimaru69/unistream/main/screenshots/mac_en/Series.png</image>
+      <caption>TV Series with seasons and episodes</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/unimaru69/unistream/main/screenshots/mac_en/TVguide.png</image>
+      <caption>Interactive EPG grid</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/unimaru69/unistream/main/screenshots/mac_en/Settings.png</image>
+      <caption>Settings — server, profiles, parental controls</caption>
+    </screenshot>
   </screenshots>
 </component>
