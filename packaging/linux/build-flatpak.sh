@@ -10,8 +10,10 @@ set -euo pipefail
 #
 # Prerequisites (Fedora / Linux):
 #   sudo dnf install -y flatpak flatpak-builder
+#   flatpak remote-add --user --if-not-exists flathub \
+#     https://flathub.org/repo/flathub.flatpakrepo
 #   flatpak install -y --user flathub \
-#     org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+#     org.gnome.Platform//47 org.gnome.Sdk//47
 #   flutter build linux --release --dart-define=TMDB_KEY=$TMDB_KEY
 #
 # Usage (from project root):

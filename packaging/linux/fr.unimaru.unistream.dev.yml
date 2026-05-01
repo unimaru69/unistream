@@ -11,9 +11,15 @@
 #   flatpak run fr.unimaru.unistream
 
 app-id: fr.unimaru.unistream
-runtime: org.freedesktop.Platform
-runtime-version: '24.08'
-sdk: org.freedesktop.Sdk
+# GNOME Platform sits on top of org.freedesktop.Platform and adds the
+# GTK3 / GNOME stack we link against, including libsecret-1 which the
+# flutter_secure_storage_linux plugin needs at runtime. The plain
+# freedesktop runtime doesn't ship libsecret, so the binary fails with
+# "libsecret-1.so.0: cannot open shared object file" the moment it tries
+# to read or write a secret.
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
 command: unistream
 
 finish-args:
@@ -33,6 +39,9 @@ finish-args:
   - --talk-name=org.freedesktop.Notifications
   # Window management
   - --talk-name=org.freedesktop.portal.Desktop
+  # libsecret talks to the host's secret-service over D-Bus to store
+  # session tokens / Xtream credentials in the user's keyring.
+  - --talk-name=org.freedesktop.secrets
 
 modules:
   - name: unistream
