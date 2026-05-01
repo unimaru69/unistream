@@ -38,6 +38,74 @@ jobs:
       # empty on forks that don't set the secret (feature stays dormant).
       - run: flutter build macos --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
+  # iOS smoke build — no codesigning, just compiles the app to catch
+  # plugin / pod / Dart regressions before they reach a device. Always
+  # runs on push so a broken iOS build can never sneak into main.
+  build-ios:
+    needs: analyze-and-test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+
+  # tvOS native app — generated via XcodeGen. Builds Debug for the tvOS
+  # simulator with code signing disabled so we don't need a signing
+  # identity in CI. Catches Swift / SwiftUI regressions on the native
+  # codebase the same way build-ios catches Flutter regressions.
+  build-tvos:
+    needs: analyze-and-test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: tvos/UniStreamTV
+        run: xcodegen generate
+      - name: List available tvOS simulators
+        run: xcrun simctl list devices tvOS available
+      - name: Build tvOS (simulator, unsigned)
+        working-directory: tvos/UniStreamTV
+        run: |
+          xcodebuild \
+            -project UniStreamTV.xcodeproj \
+            -scheme UniStreamTV \
+            -configuration Debug \
+            -destination 'generic/platform=tvOS Simulator' \
+            -derivedDataPath build/derived \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            TMDB_API_KEY="${{ secrets.TMDB_KEY }}" \
+            build
+      - name: Run tvOS unit tests
+        working-directory: tvos/UniStreamTV
+        run: |
+          # Pick the first available tvOS simulator runtime. Apple bumps
+          # the bundled tvOS version on macos-latest runners every few
+          # months, so don't hardcode a name.
+          DESTINATION=$(xcrun simctl list devices tvOS available | grep -E '^\s+Apple TV' | head -n 1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          if [ -z "$DESTINATION" ]; then
+            echo "No tvOS simulator available — skipping tests"
+            exit 0
+          fi
+          xcodebuild \
+            -project UniStreamTV.xcodeproj \
+            -scheme UniStreamTV \
+            -configuration Debug \
+            -destination "id=$DESTINATION" \
+            -derivedDataPath build/derived \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            TMDB_API_KEY="${{ secrets.TMDB_KEY }}" \
+            test
+
   build-windows:
     needs: analyze-and-test
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
