@@ -41,7 +41,14 @@ endif()
 # of modifying this function.
 function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_14)
-  target_compile_options(${TARGET} PRIVATE -Wall -Werror)
+  # `flutter_secure_storage_linux` ships a vendored nlohmann/json.hpp that uses
+  # the deprecated `operator"" _json` literal-operator syntax. Newer Clang
+  # (Fedora 43 ships Clang 20+) elevates that to a hard error under -Werror,
+  # which kills `flutter build linux --release` for everyone on a current
+  # toolchain. Demote that single warning to non-fatal so the rest of -Wall
+  # -Werror keeps protecting us. The CI Ubuntu runner ships an older Clang
+  # that doesn't emit the warning at all — no-op there.
+  target_compile_options(${TARGET} PRIVATE -Wall -Werror -Wno-error=deprecated-literal-operator)
   target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-O3>")
   target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
 endfunction()
