@@ -235,7 +235,24 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           // Plex-style blurred backdrop — use TMDB's wide backdrop when
           // available, fall back to the source poster.
           PlexBackdrop(imageUrl: backdropUrl),
-          Row(children: [
+          LayoutBuilder(builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 900;
+            if (!isWide) {
+              return _buildNarrowLayout(
+                tc: tc,
+                l10n: l10n,
+                progress: progress,
+                isFav: isFav,
+                isWl: isWl,
+                synopsis: synopsis,
+                sourceSynopsis: sourceSynopsis,
+                needsEnrichment: needsEnrichment,
+                tmdbAsync: tmdbAsync,
+                tmdb: tmdb,
+                posterUrl: posterUrl,
+              );
+            }
+            return Row(children: [
         // Left panel: poster + metadata + seasons
         SizedBox(
           // 360 instead of 260 so the synopsis breathes (5-line truncation
@@ -516,9 +533,259 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   ),
                 ),
         ),
-      ]),
+      ]);
+          }),
         ],
       ),
+    );
+  }
+
+  Widget _buildNarrowLayout({
+    required AppThemeColors tc,
+    required AppLocalizations l10n,
+    required Map<String, double> progress,
+    required bool isFav,
+    required bool isWl,
+    required String synopsis,
+    required String sourceSynopsis,
+    required bool needsEnrichment,
+    required AsyncValue<TmdbResult?> tmdbAsync,
+    required TmdbResult? tmdb,
+    required String posterUrl,
+  }) {
+    final episodes = _selectedSeason != null
+        ? (_episodes[_selectedSeason!] ?? const <Episode>[])
+        : const <Episode>[];
+
+    return CustomScrollView(
+      slivers: [
+        // Hero poster as a tall pinned-back app bar.
+        SliverAppBar(
+          expandedHeight: 420,
+          pinned: false,
+          backgroundColor: Colors.transparent,
+          leading: BackButton(color: Colors.white),
+          flexibleSpace: FlexibleSpaceBar(
+            background: posterUrl.isNotEmpty
+                ? Stack(fit: StackFit.expand, children: [
+                    CachedNetworkImage(
+                      imageUrl: posterUrl,
+                      cacheManager: AppCacheManager.instance,
+                      fit: BoxFit.cover,
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      placeholder: (_, __) => ColoredBox(color: tc.inputFill),
+                      errorWidget: (_, __, ___) => Container(
+                        color: tc.inputFill,
+                        child: Icon(Icons.tv, size: 48, color: tc.borderColor),
+                      ),
+                    ),
+                    Positioned(bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, tc.surface],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ])
+                : Container(color: tc.inputFill,
+                    child: Icon(Icons.tv, size: 48, color: tc.borderColor)),
+          ),
+        ),
+        // Title + chips + actions + synopsis + cast.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.title, style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
+              )),
+              const SizedBox(height: 8),
+              Wrap(spacing: 10, runSpacing: 4, children: [
+                if (widget.rating != null && widget.rating!.isNotEmpty && widget.rating != '0')
+                  _MetaChip(icon: Icons.star, label: widget.rating!, color: Colors.amber),
+                if (widget.categoryName != null && widget.categoryName!.isNotEmpty)
+                  _MetaChip(
+                    icon: Icons.category,
+                    label: widget.categoryName!,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                if (_seasons.isNotEmpty)
+                  _MetaChip(
+                    icon: Icons.layers,
+                    label: '${_seasons.length} ${l10n.saisons.toLowerCase()}',
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                IconButton(
+                  icon: Icon(isFav ? Icons.favorite : Icons.favorite_border,
+                      color: isFav ? Colors.redAccent : Colors.white70),
+                  tooltip: l10n.favoris,
+                  onPressed: () {
+                    ref.read(favoritesProvider.notifier).toggle(_favKey, FavoriteItem(
+                      key: _favKey, name: widget.title, cover: widget.cover,
+                      mode: 'series', seriesId: widget.seriesId,
+                    ));
+                  },
+                ),
+                IconButton(
+                  icon: Icon(isWl ? Icons.bookmark : Icons.bookmark_border,
+                      color: isWl ? AppColors.primaryBlue : Colors.white70),
+                  tooltip: l10n.aRegarder,
+                  onPressed: () {
+                    ref.read(watchlistProvider.notifier).toggle(_favKey, FavoriteItem(
+                      key: _favKey, name: widget.title, cover: widget.cover,
+                      mode: 'series', seriesId: widget.seriesId,
+                    ));
+                  },
+                ),
+              ]),
+              if (tmdbAsync.isLoading && sourceSynopsis.isEmpty) ...[
+                const SizedBox(height: 12),
+                const SizedBox(height: 14, width: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.5)),
+              ] else if (synopsis.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(synopsis, style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  height: 1.4,
+                )),
+                if (needsEnrichment) ...[
+                  const SizedBox(height: 6),
+                  const TmdbBadge(),
+                ],
+              ],
+              if (tmdb != null && tmdb.videos.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TmdbTrailerButton(videos: tmdb.videos),
+              ],
+              if (tmdb != null && tmdb.cast.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Row(children: [
+                  const Text('Distribution',
+                      style: TextStyle(color: Colors.white, fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  const TmdbBadge(),
+                ]),
+                const SizedBox(height: 6),
+                TmdbCastRow(cast: tmdb.cast),
+              ],
+              const SizedBox(height: 16),
+              if (_seasons.isNotEmpty)
+                SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _seasons.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final s = _seasons[i];
+                      final sel = _selectedSeason == s;
+                      return ChoiceChip(
+                        label: Text(l10n.saison(s),
+                            style: TextStyle(
+                                color: sel ? Colors.white : Colors.white70,
+                                fontSize: 12)),
+                        selected: sel,
+                        backgroundColor: Colors.white12,
+                        selectedColor: AppColors.primaryBlue.withValues(alpha: 0.7),
+                        onSelected: (_) => setState(() => _selectedSeason = s),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 8),
+            ]),
+          ),
+        ),
+        // Episodes list.
+        if (_loading)
+          const SliverToBoxAdapter(
+              child: Padding(padding: EdgeInsets.all(24),
+                  child: SkeletonList(count: 6))),
+        if (!_loading && _error != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('${l10n.erreur}: $_error',
+                  style: const TextStyle(color: Colors.red)),
+            ),
+          ),
+        if (!_loading && _error == null && _selectedSeason == null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(child: Text(l10n.selectionneSaison,
+                  style: TextStyle(color: tc.textDisabled))),
+            ),
+          ),
+        if (!_loading && _error == null && _selectedSeason != null)
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) {
+                final ep = episodes[i];
+                final epNum = ep.number != 0 ? ep.number : i + 1;
+                final title = ep.displayTitle;
+                final prog = progress[ep.idStr];
+                final bool isWatched = prog != null && prog > 0.95;
+                final bool isPartial = prog != null && prog <= 0.95;
+                final bool isNew = prog == null;
+                return GestureDetector(
+                  onSecondaryTapUp: (details) => _showEpisodeContextMenu(ep, details.globalPosition),
+                  onLongPressStart: (details) => _showEpisodeContextMenu(ep, details.globalPosition),
+                  child: ListTile(
+                    leading: Stack(clipBehavior: Clip.none, children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: isWatched
+                            ? Colors.green.withValues(alpha: 0.2)
+                            : AppColors.primaryBlue.withValues(alpha: 0.2),
+                        child: isWatched
+                            ? const Icon(Icons.check, size: 16, color: Colors.green)
+                            : Text('$epNum',
+                                style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      ),
+                      if (isNew)
+                        Positioned(top: -2, right: -2,
+                          child: Container(width: 10, height: 10,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryBlue, shape: BoxShape.circle))),
+                    ]),
+                    title: Text(title, style: TextStyle(fontSize: 14,
+                        color: isWatched ? Colors.white38 : Colors.white)),
+                    subtitle: isPartial
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: LinearProgressIndicator(
+                              value: prog,
+                              backgroundColor: Colors.white12,
+                              color: Colors.amber, minHeight: 3,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          )
+                        : isWatched
+                            ? Text(l10n.vu, style: const TextStyle(fontSize: 11, color: Colors.green))
+                            : null,
+                    onTap: () => _playEpisode(ep),
+                  ),
+                );
+              },
+              childCount: episodes.length,
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
     );
   }
 }
