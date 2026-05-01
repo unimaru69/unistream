@@ -55,6 +55,11 @@ modules:
       # release tarball alongside the Flutter binary.
       - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/fr.unimaru.unistream.desktop      /app/share/applications/fr.unimaru.unistream.desktop
       - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/fr.unimaru.unistream.metainfo.xml /app/share/metainfo/fr.unimaru.unistream.metainfo.xml
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/icon.png /app/share/icons/hicolor/256x256/apps/fr.unimaru.unistream.png
+      # Flathub requires Icon= to match the app-id. The shared
+      # unistream.desktop ships Icon=unistream so the AppImage works
+      # from a non-installed AppDir; rewrite it inside the Flatpak.
+      - sed -i 's/^Icon=.*/Icon=fr.unimaru.unistream/' /app/share/applications/fr.unimaru.unistream.desktop
     sources:
       # The release tarball — produced by `build-appimage.sh` and uploaded
       # to GitHub Releases. For local dev builds, replace this block with:
@@ -73,3 +78,6 @@ modules:
         dest-filename: fr.unimaru.unistream.desktop
       - type: file
         path: fr.unimaru.unistream.metainfo.xml
+      - type: file
+        path: unistream.png
+        dest-filename: icon.png

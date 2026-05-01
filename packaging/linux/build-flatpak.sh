@@ -1,46 +1,46 @@
 #!/bin/bash
 set -euo pipefail
 
-# Build Flatpak for UniStream
-# Prerequisites:
-#   - flatpak-builder installed
-#   - org.freedesktop.Platform//24.08 and Sdk installed
-#   - Flutter build already done: flutter build linux --release
+# Build Flatpak for UniStream — LOCAL DEV BUILD
+#
+# Uses fr.unimaru.unistream.dev.yml which points the source at the local
+# Flutter bundle. The Flathub-facing manifest (fr.unimaru.unistream.yml)
+# fetches a remote tarball instead and is consumed by
+# prepare-flathub-submission.sh once a release is cut.
+#
+# Prerequisites (Fedora / Linux):
+#   sudo dnf install -y flatpak flatpak-builder
+#   flatpak install -y --user flathub \
+#     org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+#   flutter build linux --release --dart-define=TMDB_KEY=$TMDB_KEY
 #
 # Usage (from project root):
 #   bash packaging/linux/build-flatpak.sh
 
 APP_ID="fr.unimaru.unistream"
-MANIFEST="packaging/linux/${APP_ID}.yml"
+MANIFEST="packaging/linux/${APP_ID}.dev.yml"
 BUILD_DIR="build/linux/x64/release/bundle"
+ICON_PATH="packaging/linux/unistream.png"
 
 if [ ! -d "$BUILD_DIR" ]; then
   echo "ERROR: Flutter build not found at $BUILD_DIR"
-  echo "Run 'flutter build linux --release' first."
+  echo "Run 'flutter build linux --release --dart-define=TMDB_KEY=\$TMDB_KEY' first."
   exit 1
 fi
 
-# Generate icon from logo if not exists
-ICON_PATH="packaging/linux/unistream.png"
 if [ ! -f "$ICON_PATH" ]; then
-  echo "==> Generating icon..."
-  if command -v convert &>/dev/null; then
-    convert assets/images/logo.jpg -resize 256x256 "$ICON_PATH"
-  elif command -v magick &>/dev/null; then
-    magick assets/images/logo.jpg -resize 256x256 "$ICON_PATH"
-  else
-    echo "WARNING: ImageMagick not found, using placeholder icon"
-    cp assets/images/logo.jpg "$ICON_PATH" 2>/dev/null || true
-  fi
+  echo "ERROR: Icon missing at $ICON_PATH (should be committed to git)."
+  echo "Regenerate with: sips -s format png -z 256 256 assets/images/logo.jpg --out $ICON_PATH"
+  exit 1
 fi
 
-echo "==> Building Flatpak..."
+echo "==> Building Flatpak from $MANIFEST"
 flatpak-builder --force-clean --user --install \
   build/flatpak "$MANIFEST"
 
-echo ""
-echo "==> Done! Run with:"
+echo
+echo "==> Done. Run with:"
 echo "    flatpak run $APP_ID"
-echo ""
-echo "==> To export a .flatpak bundle:"
+echo
+echo "==> Export a standalone .flatpak bundle:"
 echo "    flatpak build-bundle ~/.local/share/flatpak/repo ${APP_ID}.flatpak $APP_ID"

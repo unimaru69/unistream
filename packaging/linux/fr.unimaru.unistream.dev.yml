@@ -1,0 +1,67 @@
+# Flatpak manifest — LOCAL DEV BUILD ONLY
+#
+# This variant points at the local Flutter bundle (build/linux/x64/release/bundle)
+# instead of the remote GitHub release tarball used by the Flathub-facing
+# fr.unimaru.unistream.yml. Use it to validate the manifest end-to-end on
+# your own machine before submitting an updated PR to Flathub.
+#
+# Workflow:
+#   flutter build linux --release --dart-define=TMDB_KEY=$TMDB_KEY
+#   bash packaging/linux/build-flatpak.sh
+#   flatpak run fr.unimaru.unistream
+
+app-id: fr.unimaru.unistream
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: unistream
+
+finish-args:
+  # Network access (IPTV streaming + Supabase)
+  - --share=network
+  # Display (X11 + Wayland)
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Audio/Video playback
+  - --socket=pulseaudio
+  # GPU acceleration (hardware decoding)
+  - --device=dri
+  # File picker (XDG portals)
+  - --talk-name=org.freedesktop.portal.FileChooser
+  # Notifications (EPG reminders)
+  - --talk-name=org.freedesktop.Notifications
+  # Window management
+  - --talk-name=org.freedesktop.portal.Desktop
+
+modules:
+  - name: unistream
+    buildsystem: simple
+    build-commands:
+      - install -d /app/bin/bundle
+      - cp -r bundle/. /app/bin/bundle/
+      - install -Dm755 bundle/unistream /app/bin/bundle/unistream
+      - ln -sf /app/bin/bundle/unistream /app/bin/unistream
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/fr.unimaru.unistream.desktop      /app/share/applications/fr.unimaru.unistream.desktop
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/fr.unimaru.unistream.metainfo.xml /app/share/metainfo/fr.unimaru.unistream.metainfo.xml
+      - install -Dm644 ${FLATPAK_BUILDER_BUILDDIR}/icon.png /app/share/icons/hicolor/256x256/apps/fr.unimaru.unistream.png
+      # Flathub requires Icon= to match the app-id. The shared
+      # unistream.desktop ships Icon=unistream so the AppImage works
+      # from a non-installed AppDir; rewrite it inside the Flatpak.
+      - sed -i 's/^Icon=.*/Icon=fr.unimaru.unistream/' /app/share/applications/fr.unimaru.unistream.desktop
+    sources:
+      # Flutter bundle produced by `flutter build linux --release`
+      - type: dir
+        path: ../../build/linux/x64/release/bundle
+        dest: bundle
+
+      # Sibling files copied into the build dir; install steps above
+      # pick them up via FLATPAK_BUILDER_BUILDDIR.
+      - type: file
+        path: unistream.desktop
+        dest-filename: fr.unimaru.unistream.desktop
+      - type: file
+        path: fr.unimaru.unistream.metainfo.xml
+      - type: file
+        path: unistream.png
+        dest-filename: icon.png
