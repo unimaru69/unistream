@@ -13,7 +13,7 @@ set -euo pipefail
 #   flatpak remote-add --user --if-not-exists flathub \
 #     https://flathub.org/repo/flathub.flatpakrepo
 #   flatpak install -y --user flathub \
-#     org.gnome.Platform//47 org.gnome.Sdk//47
+#     org.gnome.Platform//49 org.gnome.Sdk//49
 #   flutter build linux --release --dart-define=TMDB_KEY=$TMDB_KEY
 #
 # Usage (from project root):

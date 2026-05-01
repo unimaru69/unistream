@@ -43,8 +43,8 @@ Optional but **strongly recommended** — Flathub bots run the same checks
 and PR validation can take days. To validate locally:
 
 ```bash
-# Install the runtime once (GNOME Platform 47 — needed for libsecret).
-flatpak install -y --user flathub org.gnome.Platform//47 org.gnome.Sdk//47
+# Install the runtime once (GNOME Platform 49 — needed for libsecret).
+flatpak install -y --user flathub org.gnome.Platform//49 org.gnome.Sdk//49
 
 # AppStream metadata (the metainfo XML)
 appstreamcli validate build/flathub/v1.0.0/fr.unimaru.unistream.metainfo.xml

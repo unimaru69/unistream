@@ -18,7 +18,7 @@ app-id: fr.unimaru.unistream
 # "libsecret-1.so.0: cannot open shared object file" the moment it tries
 # to read or write a secret.
 runtime: org.gnome.Platform
-runtime-version: '47'
+runtime-version: '49'
 sdk: org.gnome.Sdk
 command: unistream
 

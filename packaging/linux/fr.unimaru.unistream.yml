@@ -21,7 +21,7 @@ app-id: fr.unimaru.unistream
 # flutter_secure_storage_linux plugin needs at runtime. The plain
 # freedesktop runtime doesn't ship libsecret.
 runtime: org.gnome.Platform
-runtime-version: '47'
+runtime-version: '49'
 sdk: org.gnome.Sdk
 command: unistream
 
