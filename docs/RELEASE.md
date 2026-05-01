@@ -131,6 +131,37 @@ flutter pub run msix:create
 
 Output: `build/windows/x64/runner/Release/unistream.msix`
 
+## CI signing & notarization secrets
+
+The `release.yml` workflow produces a signed + notarized DMG when a
+Developer ID certificate is configured as a GitHub Actions secret.
+Without these secrets the job falls back to an unsigned `.app.zip` so
+forks still build.
+
+Configure these repository secrets to enable the signed pipeline:
+
+| Secret | What it is | Where to find it |
+|---|---|---|
+| `MACOS_CERT_BASE64` | Developer ID Application `.p12` exported from Keychain Access, base64-encoded (`base64 -i cert.p12 \| pbcopy`) | Keychain → export the "Developer ID Application: …" certificate as `.p12` |
+| `MACOS_CERT_PASSWORD` | The password set when exporting the `.p12` | You picked it on export |
+| `MACOS_DEVELOPER_ID` | Full identity string, e.g. `Developer ID Application: UniMaru (VS8P2MA59S)` | `security find-identity -v -p codesigning` |
+| `MACOS_NOTARY_USER` | Apple ID email used on developer.apple.com | Apple ID account |
+| `MACOS_NOTARY_PASSWORD` | App-specific password for `notarytool` (NOT your Apple ID password) | <https://appleid.apple.com> → Sign-In and Security → App-Specific Passwords |
+| `MACOS_NOTARY_TEAM` | 10-character team ID | Apple Developer → Membership |
+| `TMDB_KEY` | TMDB v3 API key | <https://www.themoviedb.org/settings/api> |
+
+When all `MACOS_*` secrets are present, the macOS job:
+1. Imports the `.p12` into a temp keychain
+2. Builds, then codesigns the `.app` with `--options runtime` (hardened runtime) and `Release.entitlements`
+3. Builds a DMG via `create-dmg`
+4. Signs the DMG
+5. Submits it to `notarytool --wait`
+6. Staples the notarization ticket
+7. Uploads `UniStream.dmg` as a release asset
+
+If any secret is missing the job emits the unsigned `unistream-macos.zip`
+as before.
+
 ## Running a Release Build Locally
 
 ```bash
