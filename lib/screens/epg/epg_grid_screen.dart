@@ -542,11 +542,19 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.guideTV, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent, elevation: 0,
-        leading: isWide ? null : IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => _epgScaffoldKey.currentState?.openDrawer(),
-        ),
+        // Force a back button as `leading`. Otherwise the Scaffold's drawer
+        // makes Flutter pick the hamburger as the auto leading and the user
+        // can't exit the screen. The drawer toggle lives in `actions`.
+        leading: Navigator.canPop(context)
+            ? const BackButton()
+            : null,
+        automaticallyImplyLeading: false,
         actions: [
+          if (!isWide)
+            IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => _epgScaffoldKey.currentState?.openDrawer(),
+            ),
           if (_loadingEpg)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
