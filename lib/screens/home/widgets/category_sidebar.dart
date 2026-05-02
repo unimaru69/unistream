@@ -90,17 +90,7 @@ class CategorySidebar extends StatelessWidget {
     final modeCollections = collections.where((c) =>
         c.mode == null || c.mode == mode.key).toList();
 
-    // Without this Listener, every ListTile.onTap below briefly takes
-    // keyboard focus and Flutter draws its dashed focus rectangle on top
-    // of the tile until the route rebuilds, producing a single-frame
-    // flicker on each click. Releasing the primary focus the instant a
-    // pointer goes down kills the flicker without touching keyboard
-    // traversal (Tab still works because that path doesn't go through
-    // the pointer handler).
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-      child: ListView.builder(
+    return ListView.builder(
       // Top padding reserves room for the translucent app bar above (the
       // Scaffold now has extendBodyBehindAppBar: true), so sidebar items
       // don't appear under the "UniStream" title.
@@ -307,7 +297,6 @@ class CategorySidebar extends StatelessWidget {
           ),
         );
       },
-      ),
     );
   }
 }
