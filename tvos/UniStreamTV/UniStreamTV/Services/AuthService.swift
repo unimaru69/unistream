@@ -1,5 +1,13 @@
 import Foundation
-import Supabase
+// @preconcurrency disables Swift 6 strict-concurrency checks on the
+// Supabase types we touch here. The Postgrest response types still
+// aren't fully marked Sendable as of supabase-swift 2.x, so without
+// this the GitHub macos-latest runner (Xcode 26 / Swift 6) refuses
+// to compile `try await client.from(...).execute().value` with
+// "non-sendable result type ... cannot be sent from nonisolated
+// context". Local Xcode used to default-tolerate this, GitHub's no
+// longer does.
+@preconcurrency import Supabase
 import AuthenticationServices
 import os
 

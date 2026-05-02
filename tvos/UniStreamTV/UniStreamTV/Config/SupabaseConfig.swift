@@ -1,6 +1,6 @@
 import Foundation
 import CryptoKit
-import Supabase
+@preconcurrency import Supabase
 
 /// Supabase configuration — mirrors Flutter's `supabase_config.dart`.
 enum SupabaseConfig {

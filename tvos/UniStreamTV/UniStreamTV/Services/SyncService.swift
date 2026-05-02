@@ -1,5 +1,5 @@
 import Foundation
-import Supabase
+@preconcurrency import Supabase
 import os
 
 /// Cloud sync service — mirrors Flutter's `sync_service.dart`.
