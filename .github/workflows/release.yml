@@ -109,8 +109,35 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
+      # msix:create otherwise drops into an interactive prompt asking
+      # for a self-signed cert password (`Prompter.prompt` reads stdin
+      # which is non-tty on the runner) and crashes with "type 'Null'
+      # is not a subtype of type 'FutureOr<String>'". Generate the cert
+      # ourselves so we can pass --certificate-password non-interactively.
+      # The cert subject must match `publisher: CN=UniMaru` in the
+      # msix_config block of pubspec.yaml.
+      - name: Generate self-signed sideload certificate
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=UniMaru" `
+            -KeyAlgorithm RSA -KeyLength 2048 `
+            -CertStoreLocation "Cert:\CurrentUser\My"
+          $pwd = ConvertTo-SecureString -String "ci-sideload" -Force -AsPlainText
+          Export-PfxCertificate `
+            -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+            -FilePath "$env:RUNNER_TEMP\msix-cert.pfx" `
+            -Password $pwd | Out-Null
+          Write-Host "Cert thumbprint: $($cert.Thumbprint)"
+
       - name: Create MSIX
-        run: flutter pub run msix:create
+        run: |
+          flutter pub run msix:create `
+            --certificate-path="$env:RUNNER_TEMP\msix-cert.pfx" `
+            --certificate-password=ci-sideload `
+            --install-certificate=false
+        shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -141,7 +168,17 @@ jobs:
           channel: stable
 
       - run: flutter pub get
-      - name: Build macOS release
+      # The base build runs unsigned. Without this, xcodebuild aborts
+      # with "No profiles for 'fr.unimaru.unistream' were found" because
+      # the GitHub runner has no Apple ID logged in and automatic
+      # provisioning can't reach Apple. Our explicit codesign step
+      # (gated on MACOS_CERT_BASE64) re-signs the .app properly with
+      # the Developer ID cert when secrets are configured.
+      - name: Build macOS release (unsigned base)
+        env:
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGNING_ALLOWED: "NO"
         run: flutter build macos --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       # ------------------------------------------------------------------
@@ -269,7 +306,13 @@ jobs:
 
   create-release:
     needs: [build-macos, build-linux, build-windows]
-    if: always() && needs.build-macos.result == 'success'
+    # Linux is the gating platform because it's what Flathub fetches.
+    # macOS and Windows can fail (e.g. fresh signing-cert rotation,
+    # transient runner issues) without blocking the Linux release.
+    # Each platform's artifacts are added below with
+    # fail_on_unmatched_files: false so a missing one is just absent
+    # from the release rather than a hard failure.
+    if: always() && needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
