@@ -713,7 +713,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
         if (_loading)
           const SliverToBoxAdapter(
               child: Padding(padding: EdgeInsets.all(24),
-                  child: SkeletonList(count: 6))),
+                  child: SkeletonList(count: 6, shrinkWrap: true))),
         if (!_loading && _error != null)
           SliverToBoxAdapter(
             child: Padding(

@@ -149,8 +149,10 @@ void main() {
       ));
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Scroll to the bottom
-      await tester.drag(find.byType(ListView), const Offset(0, -5000));
+      // Scroll to the bottom. The widget moved from ListView to a
+      // CustomScrollView with SliverList inside, so target the
+      // CustomScrollView itself.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -5000));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(loadMoreCount, greaterThan(0));

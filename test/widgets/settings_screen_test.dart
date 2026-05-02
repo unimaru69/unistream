@@ -72,7 +72,12 @@ void main() {
       await pumpSettings(tester);
       expect(find.text('Mot de passe'), findsOneWidget);
       expect(find.byIcon(Icons.lock), findsOneWidget);
-      expect(find.byIcon(Icons.visibility), findsOneWidget);
+      // The TMDB key field also ships a visibility toggle (visible
+      // initially as Icons.visibility), so two of the same icon are
+      // expected on a fresh settings screen — match by key on the
+      // server-password one specifically.
+      expect(find.byKey(const Key('server_password_visibility_toggle')),
+          findsOneWidget);
     });
 
     testWidgets('renders save button', (tester) async {
@@ -118,21 +123,30 @@ void main() {
     testWidgets('password visibility toggle works', (tester) async {
       await pumpSettings(tester);
 
+      final toggle = find.byKey(const Key('server_password_visibility_toggle'));
+
+      // Resolve the IconData inside the toggle so the assertions don't
+      // care about other visibility icons on the page (TMDB key field).
+      IconData iconOf(Finder f) =>
+          (tester.widget<Icon>(find.descendant(of: f, matching: find.byType(Icon))))
+              .icon!;
+
       // Initially obscured
-      expect(find.byIcon(Icons.visibility), findsOneWidget);
-      expect(find.byIcon(Icons.visibility_off), findsNothing);
+      expect(iconOf(toggle), Icons.visibility);
 
       // Tap visibility toggle
-      await tester.tap(find.byIcon(Icons.visibility));
+      await tester.tap(toggle);
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
-      expect(find.byIcon(Icons.visibility), findsNothing);
+      expect(iconOf(toggle), Icons.visibility_off);
     });
 
-    testWidgets('renders three text fields for server config', (tester) async {
+    testWidgets('renders the four server-config + TMDB text fields',
+        (tester) async {
       await pumpSettings(tester);
-      expect(find.byType(TextField), findsNWidgets(3));
+      // 3 server-config fields (URL / username / password) + 1 TMDB API
+      // key field on the same screen.
+      expect(find.byType(TextField), findsNWidgets(4));
     });
   });
 }

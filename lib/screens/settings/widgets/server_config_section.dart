@@ -96,6 +96,10 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
             labelText: l10n.motDePasse,
             prefixIcon: const Icon(Icons.lock, size: 20),
             suffixIcon: IconButton(
+              // Test hook — settings_screen_test taps this directly so the
+              // toggle works even when other obscure-text fields (e.g. the
+              // TMDB key) ship their own visibility button on the same screen.
+              key: const Key('server_password_visibility_toggle'),
               icon: Icon(
                   _obscure ? Icons.visibility : Icons.visibility_off,
                   size: 20),

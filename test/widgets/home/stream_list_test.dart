@@ -169,20 +169,25 @@ void main() {
       expect(tappedStream, isNotNull);
     });
 
-    testWidgets('renders grid view with GridView when showGrid is true',
+    testWidgets('renders grid view with SliverGrid when showGrid is true',
         (tester) async {
       await tester.pumpWidget(buildStreamList(showGrid: true));
       await tester.pumpAndSettle();
 
-      expect(find.byType(GridView), findsOneWidget);
+      // The widget moved from GridView/ListView to a CustomScrollView with
+      // SliverGrid / SliverList children so the optional header (search bar
+      // + actions) can scroll away with the content.
+      expect(find.byType(SliverGrid), findsOneWidget);
+      expect(find.byType(SliverList), findsNothing);
     });
 
-    testWidgets('renders list view with ListView when showGrid is false',
+    testWidgets('renders list view with SliverList when showGrid is false',
         (tester) async {
       await tester.pumpWidget(buildStreamList(showGrid: false));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ListView), findsOneWidget);
+      expect(find.byType(SliverList), findsOneWidget);
+      expect(find.byType(SliverGrid), findsNothing);
     });
 
     testWidgets('wraps in RefreshIndicator when onRefresh is provided',

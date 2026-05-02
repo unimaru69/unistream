@@ -4,7 +4,17 @@ import 'package:unistream/core/theme_colors.dart';
 class SkeletonList extends StatefulWidget {
   final int  count;
   final bool isGrid;
-  const SkeletonList({super.key, this.count = 10, this.isGrid = false});
+  /// When true, the inner ListView/GridView shrink-wraps its children
+  /// instead of trying to fill an unbounded viewport. Required when the
+  /// skeleton is hosted inside a `SliverToBoxAdapter` or any other
+  /// parent that does not bound the cross-axis size.
+  final bool shrinkWrap;
+  const SkeletonList({
+    super.key,
+    this.count = 10,
+    this.isGrid = false,
+    this.shrinkWrap = false,
+  });
   @override
   State<SkeletonList> createState() => _SkeletonListState();
 }
@@ -36,6 +46,8 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
       if (widget.isGrid) {
         return GridView.builder(
           padding: const EdgeInsets.all(12),
+          shrinkWrap: widget.shrinkWrap,
+          physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.58),
           itemCount: widget.count,
@@ -43,6 +55,8 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
         );
       }
       return ListView.builder(
+        shrinkWrap: widget.shrinkWrap,
+        physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
         itemCount: widget.count,
         itemBuilder: (_, __) => _tile(c, height: 36),
       );
