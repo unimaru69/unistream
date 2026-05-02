@@ -32,10 +32,11 @@ git push origin v1.0.0
 bash packaging/linux/prepare-flathub-submission.sh v1.0.0
 ```
 
-This writes three files to `build/flathub/v1.0.0/`:
+This writes four files to `build/flathub/v1.0.0/`:
 - `fr.unimaru.unistream.yml` (manifest with the real sha256)
 - `fr.unimaru.unistream.metainfo.xml`
-- `fr.unimaru.unistream.desktop`
+- `unistream.desktop` (renamed to `fr.unimaru.unistream.desktop` inside the Flatpak via `dest-filename:`)
+- `unistream.png` (256×256 icon)
 
 ### 3. Validate locally before submitting
 
@@ -62,7 +63,7 @@ flatpak run fr.unimaru.unistream
 
 1. In your fork of `flathub/flathub`, create a branch
    `new-pr/fr.unimaru.unistream`.
-2. Add the three files from `build/flathub/v1.0.0/` under a folder
+2. Add the four files from `build/flathub/v1.0.0/` under a folder
    `fr.unimaru.unistream/` at the repo root.
 3. Open a PR against `flathub:new-pr` titled
    `Add fr.unimaru.unistream`.

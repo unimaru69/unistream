@@ -11,10 +11,13 @@
 # Example:
 #   bash packaging/linux/prepare-flathub-submission.sh v1.0.0
 #
-# Output:
+# Output (4 files — the manifest references each by its actual filename
+# next to the .yml, the renames are done by the manifest itself via
+# `dest-filename:`):
 #   build/flathub/<tag>/fr.unimaru.unistream.yml
 #   build/flathub/<tag>/fr.unimaru.unistream.metainfo.xml
-#   build/flathub/<tag>/fr.unimaru.unistream.desktop
+#   build/flathub/<tag>/unistream.desktop
+#   build/flathub/<tag>/unistream.png
 #
 # Then:
 #   1. Fork github.com/flathub/flathub (one-time)
@@ -52,9 +55,12 @@ echo "==> Patching manifest"
 perl -pe "s|TODO_REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE|${SHA256}|g; s|/v[0-9]+\\.[0-9]+\\.[0-9]+/|/${TAG}/|g" \
   "${SRC_DIR}/fr.unimaru.unistream.yml" > "${OUT_DIR}/fr.unimaru.unistream.yml"
 
-# Copy the metainfo + desktop files unchanged.
+# Copy sibling sources verbatim under their original filenames.
+# The manifest references them as `path: <filename>` next to the .yml,
+# and applies any rename via `dest-filename:` at build time.
 cp "${SRC_DIR}/fr.unimaru.unistream.metainfo.xml" "${OUT_DIR}/"
-cp "${SRC_DIR}/unistream.desktop" "${OUT_DIR}/fr.unimaru.unistream.desktop"
+cp "${SRC_DIR}/unistream.desktop"                "${OUT_DIR}/"
+cp "${SRC_DIR}/unistream.png"                    "${OUT_DIR}/"
 
 # Drop the local tarball — Flathub fetches its own copy from the release URL.
 rm "${OUT_DIR}/${TARBALL}"
@@ -67,6 +73,6 @@ echo "Next steps (one-shot per app):"
 echo "  1. Open https://github.com/flathub/flathub#new-app-submissions"
 echo "  2. Fork github.com/flathub/flathub if not done"
 echo "  3. Create branch 'new-pr/fr.unimaru.unistream' in your fork"
-echo "  4. Add the three files from ${OUT_DIR}/ under fr.unimaru.unistream/"
+echo "  4. Add the four files from ${OUT_DIR}/ under fr.unimaru.unistream/"
 echo "  5. Open a PR titled 'Add fr.unimaru.unistream' against flathub:new-pr"
 echo "  6. Wait for the Flatpak External Data Checker bot to validate"
