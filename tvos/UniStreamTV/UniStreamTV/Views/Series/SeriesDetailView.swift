@@ -1,5 +1,5 @@
 import SwiftUI
-import AVKit
+@preconcurrency import AVKit
 import Kingfisher
 
 /// Series detail with season/episode picker.

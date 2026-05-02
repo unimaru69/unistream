@@ -1,5 +1,5 @@
 import SwiftUI
-import AVKit
+@preconcurrency import AVKit
 import Kingfisher
 
 /// VOD movie detail — poster, info, play button.

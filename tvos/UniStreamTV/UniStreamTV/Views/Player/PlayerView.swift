@@ -1,5 +1,5 @@
 import SwiftUI
-import AVKit
+@preconcurrency import AVKit
 
 /// Full-screen AVPlayer with native tvOS transport controls.
 struct PlayerView: View {

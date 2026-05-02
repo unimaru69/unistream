@@ -1,5 +1,5 @@
 import Foundation
-import AVKit
+@preconcurrency import AVKit
 import os
 
 /// Manages AVPlayer playback for live streams and VOD.

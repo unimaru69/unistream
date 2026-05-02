@@ -1,4 +1,4 @@
-import AVKit
+@preconcurrency import AVKit
 import UIKit
 import VLCKitSPM
 
