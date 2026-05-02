@@ -40,6 +40,7 @@ enum PlayerPresenter {
         }
 
         let player = AVPlayer(url: url)
+        player.applyDefaultSubtitleStyle()
         let playerVC = EnhancedPlayerViewController()
         playerVC.player = player
         playerVC.allowsPictureInPicturePlayback = false
@@ -94,6 +95,7 @@ enum PlayerPresenter {
         guard let url = api.liveStreamUrl(streamId: channel.streamId) else { return }
 
         let player = AVPlayer(url: url)
+        player.applyDefaultSubtitleStyle()
         let playerVC = ZappingPlayerViewController()
         playerVC.player = player
         playerVC.channels = channels
@@ -125,6 +127,7 @@ enum PlayerPresenter {
         }
 
         let player = AVPlayer(url: url)
+        player.applyDefaultSubtitleStyle()
         if let ms = resumeFromMs, ms > 0 {
             let time = CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600)
             player.seek(to: time)
@@ -184,6 +187,7 @@ enum PlayerPresenter {
         }
 
         let player = AVPlayer(url: url)
+        player.applyDefaultSubtitleStyle()
 
         let playerVC = EnhancedPlayerViewController()
         playerVC.player = player
@@ -353,6 +357,7 @@ final class VODFallbackHandler: NSObject {
         currentIndex += 1
 
         let newItem = AVPlayerItem(url: nextUrl)
+        newItem.applyDefaultSubtitleStyle()
         if let title {
             let titleMeta = AVMutableMetadataItem()
             titleMeta.identifier = .commonIdentifierTitle
@@ -488,6 +493,7 @@ final class CatchUpFallbackHandler: NSObject {
         currentIndex += 1
 
         let newItem = AVPlayerItem(url: nextUrl)
+        newItem.applyDefaultSubtitleStyle()
         let titleMeta = AVMutableMetadataItem()
         titleMeta.identifier = .commonIdentifierTitle
         titleMeta.value = title as NSString
@@ -935,6 +941,7 @@ final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecogn
 
         currentIndex = newIndex
         let newItem = AVPlayerItem(url: url)
+        newItem.applyDefaultSubtitleStyle()
         player?.replaceCurrentItem(with: newItem)
         updateMetadata(title: channel.name)
         player?.play()
@@ -1049,6 +1056,37 @@ final class SleepTimerManager {
 
         alert.addAction(UIAlertAction(title: "Fermer", style: .cancel))
         viewController.present(alert, animated: true)
+    }
+}
+
+// MARK: - Subtitle Styling
+
+extension AVPlayerItem {
+    /// AVPlayer's default caption style on tvOS comes from the system
+    /// Accessibility preferences (Settings ▸ General ▸ Accessibility ▸
+    /// Subtitles & Captioning), which are calibrated for users with vision
+    /// impairments viewing from across the room — far too large for the
+    /// average user. Override with a relative-50% rule so subtitles look
+    /// proportionate to the video, matching what we render on Linux/macOS
+    /// via libmpv's `sub-font-size`. Users who actually need oversized
+    /// captions still get them through the system preference (it composes
+    /// multiplicatively with our scale), so we don't break Accessibility.
+    func applyDefaultSubtitleStyle() {
+        let attrs: [String: Any] = [
+            kCMTextMarkupAttribute_RelativeFontSize as String: 50.0,
+        ]
+        if let rule = AVTextStyleRule(textMarkupAttributes: attrs) {
+            self.textStyleRules = [rule]
+        }
+    }
+}
+
+extension AVPlayer {
+    /// Convenience: apply the app's default subtitle style to the player's
+    /// current item. Safe to call right after `AVPlayer(url:)`; the implicit
+    /// item is created synchronously.
+    func applyDefaultSubtitleStyle() {
+        currentItem?.applyDefaultSubtitleStyle()
     }
 }
 

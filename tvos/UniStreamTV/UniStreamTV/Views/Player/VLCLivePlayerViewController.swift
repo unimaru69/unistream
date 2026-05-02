@@ -4,7 +4,12 @@ import VLCKitSPM
 /// VLC-based live TV player with channel zapping and transport overlay.
 final class VLCLivePlayerViewController: UIViewController {
 
-    private let mediaPlayer = VLCMediaPlayer()
+    // Subtitle font size — see VLCPlayerViewController for the rationale.
+    // Pass the freetype-rel-fontsize enum at libvlc-instance level via
+    // `VLCMediaPlayer(options:)`; it's silently ignored at media level.
+    private let mediaPlayer = VLCMediaPlayer(options: [
+        "--freetype-rel-fontsize=20",
+    ])
     private var channels: [Channel]
     private var currentIndex: Int
     private let api: XtreamAPIService

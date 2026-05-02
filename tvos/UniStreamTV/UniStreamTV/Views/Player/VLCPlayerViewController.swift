@@ -5,7 +5,21 @@ import VLCKitSPM
 /// Presented as a full-screen UIViewController with basic transport controls.
 final class VLCPlayerViewController: UIViewController {
 
-    private let mediaPlayer = VLCMediaPlayer()
+    // libvlc 3 sizes subtitles via the `freetype-rel-fontsize` enum, where the
+    // value is the *divisor* applied to the video height — so larger numbers
+    // produce smaller text. The enum's accepted values are {6, 12, 16, 18, 20}
+    // mapping to {Largest, Large, Normal, Small, Smallest}; the default of 16
+    // gives ≈67px subtitles on 1080p, which read as oversized on a TV at
+    // normal viewing distance. We pick 20 (Smallest, ≈54px on 1080p,
+    // ≈108px on 4K) so subtitles look proportionate to the video — matching
+    // what libmpv produces on Linux/macOS at the default `sub-font-size: 24`.
+    //
+    // This is a libvlc-instance option, NOT a media option — passing it via
+    // `media.addOption(...)` is silently ignored. We allocate a dedicated
+    // VLCLibrary for this player by going through `VLCMediaPlayer(options:)`.
+    private let mediaPlayer = VLCMediaPlayer(options: [
+        "--freetype-rel-fontsize=20",
+    ])
     private let url: URL
     private let videoTitle: String
     private var resumeFromMs: Int?
