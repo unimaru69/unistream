@@ -168,17 +168,32 @@ jobs:
           channel: stable
 
       - run: flutter pub get
-      # The base build runs unsigned. Without this, xcodebuild aborts
-      # with "No profiles for 'fr.unimaru.unistream' were found" because
-      # the GitHub runner has no Apple ID logged in and automatic
-      # provisioning can't reach Apple. Our explicit codesign step
-      # (gated on MACOS_CERT_BASE64) re-signs the .app properly with
-      # the Developer ID cert when secrets are configured.
+
+      # The base build must run UNSIGNED on the GitHub runner — there's
+      # no Apple ID logged in, so automatic provisioning can't reach
+      # Apple. Setting env vars (CODE_SIGN_IDENTITY="" etc.) on the step
+      # is NOT enough: macos/Runner.xcodeproj/project.pbxproj hardcodes
+      # CODE_SIGN_STYLE = Automatic + DEVELOPMENT_TEAM = VS8P2MA59S +
+      # CODE_SIGN_IDENTITY[sdk=macosx*] = "Apple Development", and those
+      # hardcoded build settings outrank shell env. Patch the pbxproj
+      # in-place so xcodebuild sees Manual / no-team / no-identity.
+      # Our explicit codesign step later in the job (gated on
+      # MACOS_CERT_BASE64) re-signs the .app properly with the
+      # Developer ID cert when secrets are configured.
+      - name: Disable signing in pbxproj for CI build
+        run: |
+          set -euo pipefail
+          PBX=macos/Runner.xcodeproj/project.pbxproj
+          sed -i.bak \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' \
+            -e 's/DEVELOPMENT_TEAM = VS8P2MA59S;/DEVELOPMENT_TEAM = "";/g' \
+            -e 's|"CODE_SIGN_IDENTITY\[sdk=macosx\*\]" = "Apple Development";|"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";|g' \
+            "$PBX"
+          # Sanity-check the patch took.
+          ! grep -q 'CODE_SIGN_STYLE = Automatic' "$PBX"
+          ! grep -q 'DEVELOPMENT_TEAM = VS8P2MA59S' "$PBX"
+
       - name: Build macOS release (unsigned base)
-        env:
-          CODE_SIGN_IDENTITY: ""
-          CODE_SIGNING_REQUIRED: "NO"
-          CODE_SIGNING_ALLOWED: "NO"
         run: flutter build macos --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
       # ------------------------------------------------------------------
