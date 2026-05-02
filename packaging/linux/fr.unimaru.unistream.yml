@@ -167,9 +167,17 @@ modules:
       # The release tarball — produced by `build-appimage.sh` and uploaded
       # to GitHub Releases. prepare-flathub-submission.sh patches the URL
       # and sha256 below for each tag.
+      #
+      # strip-components: 0 is critical. flatpak-builder defaults to 1,
+      # which silently drops every file at the root of the archive — and
+      # our tarball is built with `tar czf … *` so `unistream`, `data/`
+      # and `lib/` ARE at the root. Without this we get
+      # "install: cannot stat 'bundle/unistream'" at build time because
+      # the binary itself was thrown away during extraction.
       - type: archive
         url: https://github.com/unimaru69/unistream/releases/download/v1.0.0/unistream-linux-x86_64.tar.gz
         sha256: "TODO_REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE"
+        strip-components: 0
         dest: bundle
 
       - type: file
