@@ -90,24 +90,15 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
       widget.url,
       hwAcc: HwAcc.full,
       autoPlay: true,
+      // Subtitle sizing (`--freetype-rel-fontsize=20`) lives in our
+      // vendored fork at `packages/flutter_vlc_player/ios/Classes/
+      // VlcViewController.swift` because it's a libvlc-instance option
+      // that has to reach `VLCMediaPlayer(options:)` — the upstream plugin
+      // only forwards options through `media.addOption(...)`, where they
+      // are silently ignored.
       options: VlcPlayerOptions(
         advanced: VlcAdvancedOptions([
           VlcAdvancedOptions.networkCaching(2000),
-          // libvlc 3 sizes subtitles via the `freetype-rel-fontsize` enum
-          // (divisor of video height; 20 = Smallest = ~54 px on 1080p,
-          // default 16 = Normal = ~67 px which reads as oversized on iPhone
-          // / iPad screens). On the tvOS Swift side we pass this through
-          // VLCMediaPlayer(options:) at libvlc-instance level. Here on iOS
-          // we can only set MEDIA-level options because flutter_vlc_player
-          // calls `VLCMediaPlayer()` with no args, then plumbs every option
-          // through `media.addOption(...)`. Most subtitle-rendering options
-          // (--freetype-*, --sub-text-scale) are libvlc-INSTANCE options
-          // that libvlc 3 reads only at libvlc_new(); they're silently
-          // ignored at media level. We pass it anyway in case a future
-          // plugin version honours it, but expect no effect today.
-          // Proper fix: fork flutter_vlc_player to expose instance args,
-          // or migrate to media_kit on iOS.
-          '--freetype-rel-fontsize=20',
         ]),
         http: VlcHttpOptions([
           VlcHttpOptions.httpReconnect(true),

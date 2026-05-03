@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.4+7
+version: 1.0.4+8
 
 environment:
   sdk: ^3.11.4
@@ -46,13 +46,17 @@ dependencies:
   # MKV / AVI / many codecs the IPTV provider hands us — VLC handles
   # everything natively.
   #
-  # Pinned to 7.4.3 because 7.4.4 ships a Swift-rewritten iOS plugin whose
-  # pigeon channel names don't match the Dart side ("dev.flutter.pigeon.
-  # flutter_vlc_player_platform_interface.VlcPlayerApi.create" vs
-  # "dev.flutter.pigeon.VlcPlayerApi.create"), so every call fails with
-  # PlatformException(channel-error). 7.4.3 still uses the original
-  # Obj-C bridge with matching channel names.
-  flutter_vlc_player: 7.4.3
+  # Vendored from upstream 7.4.3 (`packages/flutter_vlc_player/`) with a
+  # one-line iOS patch: `VlcViewController.swift` constructs
+  # `VLCMediaPlayer(options:)` with `--freetype-rel-fontsize=20` so
+  # subtitle sizing actually takes effect — those are libvlc-instance
+  # options, silently ignored when added via the plugin's media-option
+  # path. Upstream 7.4.4 doesn't fix this and additionally breaks the
+  # pigeon channel names ("dev.flutter.pigeon.VlcPlayerApi.create" vs
+  # "dev.flutter.pigeon.flutter_vlc_player_platform_interface.
+  # VlcPlayerApi.create"), so we stay on 7.4.3 as our base.
+  flutter_vlc_player:
+    path: packages/flutter_vlc_player
   shared_preferences: ^2.3.0
   cached_network_image: ^3.4.1
   file_picker: ^8.1.0
