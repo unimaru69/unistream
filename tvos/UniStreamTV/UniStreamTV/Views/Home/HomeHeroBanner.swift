@@ -10,10 +10,11 @@ struct HomeHeroBanner: View {
     @State private var currentIndex: Int = 0
     @State private var hasLoaded = false
 
-    // Hero height — full-bleed cinematic banner. The previous 460pt was
-    // tuned for a layout that included a foreground poster placeholder on
-    // the left; without that poster we can let the backdrop breathe.
-    private let heroHeight: CGFloat = 620
+    // Hero height — Netflix / Apple TV+ style "above the fold" banner.
+    // ~80% of a 1080-line viewport so the hero feels dominant on first
+    // arrival; the rows below sit just at the edge of the screen,
+    // hinting that there's more content to scroll to.
+    private let heroHeight: CGFloat = 880
     // Auto-rotate period.
     private let rotationInterval: TimeInterval = 8
 

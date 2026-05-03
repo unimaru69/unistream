@@ -89,13 +89,14 @@ struct VODGridView: View {
         }
         .background {
             if let item = focusedItem {
-                PlexBackdrop(imageUrl: item.displayIcon)
+                PlexBackdrop(imageUrl: item.displayIcon, ignoresSafeArea: false)
                     .id(item.streamId)
                     .transition(.opacity.animation(.easeInOut(duration: 0.4)))
             } else {
-                DS.Colour.background.ignoresSafeArea()
+                DS.Colour.background
             }
         }
+        .clipped()
         .animation(.easeInOut(duration: 0.4), value: focusedVodId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: VodItem.self) { item in

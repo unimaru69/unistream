@@ -11,12 +11,17 @@ struct PlexBackdrop: View {
     /// 28 keeps the image legible (you can still "see" the poster) while
     /// staying soft enough that the foreground text remains readable.
     var blurRadius: CGFloat = 28
+    /// When true (default), the backdrop fills past safe-area insets —
+    /// suitable for full-screen detail views (SeriesDetailView etc).
+    /// Set to false when the backdrop lives inside a contained pane (a
+    /// split-view's right column) so it doesn't leak across the sidebar.
+    var ignoresSafeArea: Bool = true
 
     var body: some View {
         ZStack {
             // Base dark fill so we never get a light flash while the image loads.
             DS.Colour.background
-                .ignoresSafeArea()
+                .applyingIgnoreSafeArea(ignoresSafeArea)
 
             // Backdrop image — blurred & scaled to kill hard edges.
             KFImage(URL(string: imageUrl))
@@ -26,7 +31,7 @@ struct PlexBackdrop: View {
                 .blur(radius: blurRadius, opaque: true)
                 .scaleEffect(1.15)
                 .opacity(0.85)
-                .ignoresSafeArea()
+                .applyingIgnoreSafeArea(ignoresSafeArea)
 
             // Darkening gradient — deeper on the leading edge where text lives,
             // lighter on the trailing edge so the image is still visible.
@@ -39,7 +44,7 @@ struct PlexBackdrop: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            .ignoresSafeArea()
+            .applyingIgnoreSafeArea(ignoresSafeArea)
 
             // Subtle brand tint washed in from the top-left (keeps Plex feel but stays on-brand).
             RadialGradient(
@@ -48,7 +53,7 @@ struct PlexBackdrop: View {
                 startRadius: 100,
                 endRadius: 1200
             )
-            .ignoresSafeArea()
+            .applyingIgnoreSafeArea(ignoresSafeArea)
 
             // Bottom vignette so the list area fades into darkness.
             LinearGradient(
@@ -56,7 +61,15 @@ struct PlexBackdrop: View {
                 startPoint: .center,
                 endPoint: .bottom
             )
-            .ignoresSafeArea()
+            .applyingIgnoreSafeArea(ignoresSafeArea)
         }
+        .clipped()
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyingIgnoreSafeArea(_ apply: Bool) -> some View {
+        if apply { self.ignoresSafeArea() } else { self }
     }
 }

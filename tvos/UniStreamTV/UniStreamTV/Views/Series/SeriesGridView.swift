@@ -88,13 +88,18 @@ struct SeriesGridView: View {
         // the focused id so a different cover crossfades in.
         .background {
             if let item = focusedItem {
-                PlexBackdrop(imageUrl: item.displayIcon)
+                // `ignoresSafeArea: false` keeps the blurred wallpaper
+                // confined to the grid pane — otherwise it bled into
+                // (and tinted) the categories sidebar of the parent
+                // split view.
+                PlexBackdrop(imageUrl: item.displayIcon, ignoresSafeArea: false)
                     .id(item.seriesId)
                     .transition(.opacity.animation(.easeInOut(duration: 0.4)))
             } else {
-                DS.Colour.background.ignoresSafeArea()
+                DS.Colour.background
             }
         }
+        .clipped()
         .animation(.easeInOut(duration: 0.4), value: focusedSeriesId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: SeriesItem.self) { series in
