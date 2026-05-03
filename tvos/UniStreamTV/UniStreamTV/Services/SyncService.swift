@@ -288,18 +288,19 @@ final class SyncService {
 
     // MARK: - Watch Progress
 
-    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil) {
+    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil, streamUrl: String? = nil) {
         guard durationMs > 10000 else { return }  // Ignore < 10s
 
         // Keep the entry even when > 95% watched — that flag tells us the
         // item is "watched" (see WatchEntry.isWatched). The Reprendre row
         // and Top Shelf filter those out on their side.
-        let existingTitle = watchProgress[contentKey]?.title
+        let existing = watchProgress[contentKey]
         watchProgress[contentKey] = WatchEntry(
             positionMs: positionMs,
             durationMs: durationMs,
             updatedAt: Date(),
-            title: title ?? existingTitle
+            title: title ?? existing?.title,
+            streamUrl: streamUrl ?? existing?.streamUrl
         )
 
         debouncePushProgress(contentKey: contentKey)
@@ -309,15 +310,16 @@ final class SyncService {
     /// Mark a content item as fully watched (progress ≈ 99%).
     /// Used for "Marquer vu" and auto-mark-previous-episodes on play.
     func markAsWatched(contentKey: String, title: String? = nil) {
-        let existingTitle = watchProgress[contentKey]?.title
+        let existing = watchProgress[contentKey]
         // Synthetic 1h duration — real duration will overwrite on first real play.
-        let durationMs = watchProgress[contentKey]?.durationMs ?? 3_600_000
+        let durationMs = existing?.durationMs ?? 3_600_000
         let positionMs = Int(Double(durationMs) * 0.99)
         watchProgress[contentKey] = WatchEntry(
             positionMs: positionMs,
             durationMs: durationMs,
             updatedAt: Date(),
-            title: title ?? existingTitle
+            title: title ?? existing?.title,
+            streamUrl: existing?.streamUrl
         )
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
@@ -341,14 +343,15 @@ final class SyncService {
 
     /// Register a playback session — stores the title immediately so history always has a name.
     /// Called at the start of playback, before any progress is tracked.
-    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0) {
+    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil) {
         let existing = watchProgress[contentKey]
         // Always update the title (even if one exists — caller has the latest)
         watchProgress[contentKey] = WatchEntry(
             positionMs: existing?.positionMs ?? 1,
             durationMs: durationMs > 0 ? durationMs : (existing?.durationMs ?? 0),
             updatedAt: Date(),
-            title: title
+            title: title,
+            streamUrl: streamUrl ?? existing?.streamUrl
         )
         debouncePushProgress(contentKey: contentKey)
     }
@@ -407,12 +410,17 @@ final class SyncService {
                 let durMs = row["duration_ms"]?.intValue ?? 0
                 guard durMs > 10000 else { continue }
 
-                // Extract title from meta_json
+                // Extract title + streamUrl from meta_json. Flutter writes the
+                // canonical Xtream URL under `url`; older tvOS-only entries
+                // wrote `title` only. Read both for compatibility, plus
+                // `name` (Flutter's pre-2026 key) as a final fallback.
                 var title: String?
+                var streamUrl: String?
                 if let metaStr = row["meta_json"]?.stringValue,
                    let metaData = metaStr.data(using: .utf8),
                    let metaDict = try? JSONSerialization.jsonObject(with: metaData) as? [String: Any] {
-                    title = metaDict["title"] as? String
+                    title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
+                    streamUrl = metaDict["url"] as? String
                 }
 
                 // Parse updated_at
@@ -423,7 +431,13 @@ final class SyncService {
                     updatedAt = fmt.date(from: dateStr) ?? Date()
                 }
 
-                result[key] = WatchEntry(positionMs: posMs, durationMs: durMs, updatedAt: updatedAt, title: title)
+                result[key] = WatchEntry(
+                    positionMs: posMs,
+                    durationMs: durMs,
+                    updatedAt: updatedAt,
+                    title: title,
+                    streamUrl: streamUrl
+                )
             }
             return result
         } catch {
@@ -444,12 +458,15 @@ final class SyncService {
     private func pushProgress(contentKey: String) async {
         guard isReady, let entry = watchProgress[contentKey] else { return }
 
-        // Store title in meta_json for cross-device sync
-        var meta = "{}"
-        if let title = entry.title {
-            let escaped = title.replacingOccurrences(of: "\"", with: "\\\"")
-            meta = "{\"title\":\"\(escaped)\"}"
-        }
+        // Store title + URL in meta_json for cross-device sync. Use
+        // JSONSerialization to encode safely (handles quotes / unicode).
+        // `title` matches what tvOS reads back; `url` matches what Flutter
+        // writes/reads — together they keep both apps in sync.
+        var metaDict: [String: Any] = [:]
+        if let title = entry.title { metaDict["title"] = title }
+        if let url = entry.streamUrl { metaDict["url"] = url }
+        let metaData = (try? JSONSerialization.data(withJSONObject: metaDict)) ?? Data("{}".utf8)
+        let meta = String(data: metaData, encoding: .utf8) ?? "{}"
 
         do {
             try await client
@@ -477,6 +494,12 @@ struct WatchEntry {
     var durationMs: Int
     var updatedAt: Date
     var title: String?
+    /// Full Xtream stream URL captured at playback time. Lets us resume
+    /// from the Continue Watching row without re-deriving the URL from a
+    /// content key (impossible without the original `containerExtension`,
+    /// which isn't carried in the key). Synced cross-device via
+    /// `meta_json.url` on `user_watch_progress` — same key Flutter uses.
+    var streamUrl: String?
 
     var progress: Double {
         guard durationMs > 0 else { return 0 }

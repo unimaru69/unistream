@@ -188,24 +188,33 @@ struct ContinueWatchingCard: View {
         let api = appState.api
         let title = entry.title ?? favoriteInfo?.name ?? contentKey
 
-        // Prefer contentKey prefix (vod_, ep_, live_) for reliable routing.
+        // Prefer the URL captured at first playback: it embeds the correct
+        // `containerExtension`, which the contentKey alone doesn't carry.
+        // The MP4 fallback below silently returns 404 on .mkv / .ts streams,
+        // which is what made Continue Watching look like "rien ne se passe"
+        // for episodes saved by older builds (or by other devices).
+        let savedUrl = entry.streamUrl.flatMap { URL(string: $0) }
+
         if contentKey.hasPrefix("vod_") {
             let sid = String(contentKey.dropFirst("vod_".count))
-            if let url = api.vodStreamUrl(streamId: sid, extension: favoriteInfo?.containerExtension ?? "mp4") {
+            let url = savedUrl ?? api.vodStreamUrl(streamId: sid, extension: favoriteInfo?.containerExtension ?? "mp4")
+            if let url {
                 PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: entry.positionMs, contentKey: contentKey)
             }
             return
         }
         if contentKey.hasPrefix("ep_") {
             let eid = String(contentKey.dropFirst("ep_".count))
-            if let url = api.seriesStreamUrl(episodeId: eid, extension: favoriteInfo?.containerExtension ?? "mp4") {
+            let url = savedUrl ?? api.seriesStreamUrl(episodeId: eid, extension: favoriteInfo?.containerExtension ?? "mp4")
+            if let url {
                 PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: entry.positionMs, contentKey: contentKey)
             }
             return
         }
         if contentKey.hasPrefix("live_") {
             let sid = String(contentKey.dropFirst("live_".count))
-            if let url = api.liveStreamUrl(streamId: sid) {
+            let url = savedUrl ?? api.liveStreamUrl(streamId: sid)
+            if let url {
                 PlayerPresenter.playLive(url: url, title: title, contentKey: contentKey)
             }
             return

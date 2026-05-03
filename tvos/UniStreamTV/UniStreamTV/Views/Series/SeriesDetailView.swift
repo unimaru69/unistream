@@ -300,10 +300,18 @@ struct SeriesDetailView: View {
             episodeId: episode.episodeId,
             extension: episode.containerExtension
         ) else { return }
+        let key = contentKey(for: episode)
+        // Resume from last position if any — VODDetailView.play already does
+        // this for movies; episodes deserve the same. Skip the resume hint
+        // when progress is in the first ~10s (treat as "fresh start" to
+        // avoid the awkward "you were 8 seconds in" jump).
+        let saved = appState.syncService.getProgress(contentKey: key)
+        let resumeMs: Int? = (saved?.positionMs ?? 0) > 10_000 ? saved?.positionMs : nil
         PlayerPresenter.playVOD(
             url: url,
             title: episode.displayTitle,
-            contentKey: contentKey(for: episode)
+            resumeFromMs: resumeMs,
+            contentKey: key
         )
     }
 
