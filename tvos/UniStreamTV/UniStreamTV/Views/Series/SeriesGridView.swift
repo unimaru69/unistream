@@ -7,10 +7,18 @@ struct SeriesGridView: View {
     let api: XtreamAPIService
 
     @Environment(AppState.self) private var appState
+    /// Tracks which series card the focus engine is currently on so we
+    /// can render its cover as the backdrop behind the grid (Plex-style).
+    @FocusState private var focusedSeriesId: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
     ]
+
+    private var focusedItem: SeriesItem? {
+        guard let id = focusedSeriesId else { return nil }
+        return viewModel.items.first(where: { $0.seriesId == id })
+    }
 
     var body: some View {
         Group {
@@ -41,6 +49,7 @@ struct SeriesGridView: View {
                                 )
                             }
                             .buttonStyle(.tvCard)
+                            .focused($focusedSeriesId, equals: item.seriesId)
                             .contextMenu {
                                 // Favorite toggle
                                 let isFav = appState.syncService.isFavorite(item.seriesId)
@@ -74,6 +83,19 @@ struct SeriesGridView: View {
                 }
             }
         }
+        // Cinematic backdrop fades in/out as the focus engine moves
+        // across the grid. `animation(_:value:)` ties the opacity to
+        // the focused id so a different cover crossfades in.
+        .background {
+            if let item = focusedItem {
+                PlexBackdrop(imageUrl: item.displayIcon)
+                    .id(item.seriesId)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+            } else {
+                DS.Colour.background.ignoresSafeArea()
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: focusedSeriesId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: SeriesItem.self) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)

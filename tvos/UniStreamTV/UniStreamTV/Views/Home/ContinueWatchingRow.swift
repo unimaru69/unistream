@@ -125,6 +125,16 @@ struct ContinueWatchingCard: View {
         return entry.positionMs > 10_000 && !entry.isWatched
     }
 
+    /// Cover URL preference order: the entry's own meta (works even for
+    /// items the user never favorited — synced from Flutter via
+    /// `meta_json.cover`), then the favorite store's cover. Falls through
+    /// to the placeholder branch when neither is available.
+    private var coverUrl: String? {
+        if let c = entry.coverUrl, !c.isEmpty { return c }
+        if let c = favoriteInfo?.displayIcon, !c.isEmpty { return c }
+        return nil
+    }
+
     var body: some View {
         Button {
             if shouldPromptResume {
@@ -135,7 +145,7 @@ struct ContinueWatchingCard: View {
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 ZStack(alignment: .bottomLeading) {
-                    if let cover = favoriteInfo?.displayIcon, let url = URL(string: cover), !cover.isEmpty {
+                    if let cover = coverUrl, let url = URL(string: cover) {
                         KFImage(url)
                             .resizable()
                             .aspectRatio(16/9, contentMode: .fill)
@@ -216,6 +226,9 @@ struct ContinueWatchingCard: View {
     private func resume(fromMs: Int?) {
         let api = appState.api
         let title = entry.title ?? favoriteInfo?.name ?? contentKey
+        // Cover preference: WatchEntry (most current — even works for
+        // never-favorited items synced from Flutter), then favorite info.
+        let cover = entry.coverUrl ?? favoriteInfo?.displayIcon
 
         // Prefer the URL captured at first playback: it embeds the correct
         // `containerExtension`, which the contentKey alone doesn't carry.
@@ -228,7 +241,7 @@ struct ContinueWatchingCard: View {
             let sid = String(contentKey.dropFirst("vod_".count))
             let url = savedUrl ?? api.vodStreamUrl(streamId: sid, extension: favoriteInfo?.containerExtension ?? "mp4")
             if let url {
-                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey)
+                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey, coverUrl: cover)
             }
             return
         }
@@ -236,7 +249,7 @@ struct ContinueWatchingCard: View {
             let eid = String(contentKey.dropFirst("ep_".count))
             let url = savedUrl ?? api.seriesStreamUrl(episodeId: eid, extension: favoriteInfo?.containerExtension ?? "mp4")
             if let url {
-                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey)
+                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey, coverUrl: cover)
             }
             return
         }
@@ -244,7 +257,7 @@ struct ContinueWatchingCard: View {
             let sid = String(contentKey.dropFirst("live_".count))
             let url = savedUrl ?? api.liveStreamUrl(streamId: sid)
             if let url {
-                PlayerPresenter.playLive(url: url, title: title, contentKey: contentKey)
+                PlayerPresenter.playLive(url: url, title: title, contentKey: contentKey, coverUrl: cover)
             }
             return
         }

@@ -231,7 +231,8 @@ struct VODDetailView: View {
             url: url,
             title: item.name,
             resumeFromMs: savedProgress?.positionMs,
-            contentKey: contentKey
+            contentKey: contentKey,
+            coverUrl: item.displayIcon
         )
     }
 

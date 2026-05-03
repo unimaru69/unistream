@@ -10,8 +10,10 @@ struct HomeHeroBanner: View {
     @State private var currentIndex: Int = 0
     @State private var hasLoaded = false
 
-    // Hero height — enough to breathe, not so tall it eats the next row.
-    private let heroHeight: CGFloat = 460
+    // Hero height — full-bleed cinematic banner. The previous 460pt was
+    // tuned for a layout that included a foreground poster placeholder on
+    // the left; without that poster we can let the backdrop breathe.
+    private let heroHeight: CGFloat = 620
     // Auto-rotate period.
     private let rotationInterval: TimeInterval = 8
 
@@ -143,73 +145,56 @@ struct HomeHeroBanner: View {
 
     @ViewBuilder
     private func foreground(for item: RecentlyAddedItem) -> some View {
-        HStack(alignment: .center, spacing: 40) {
-            // Poster on the left — sharp, not blurred.
-            KFImage(URL(string: item.displayIcon))
-                .resizable()
-                .placeholder {
-                    RoundedRectangle(cornerRadius: DS.Radius.hero)
-                        .fill(DS.Colour.surface)
-                        .overlay {
-                            Image(systemName: item.badgeLabel == "SÉRIE" ? "tv.inset.filled" : "film")
-                                .font(.largeTitle)
-                                .foregroundColor(.white.opacity(0.3))
-                        }
-                }
-                .aspectRatio(2/3, contentMode: .fit)
-                .frame(width: 210)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.hero))
-                .shadow(color: .black.opacity(0.6), radius: 20, y: 8)
+        // Bottom-left overlay on top of the full-bleed backdrop.
+        // Apple TV / Netflix-style: no separate poster tile, the backdrop
+        // *is* the visual; the title block sits in the lower-left third.
+        VStack(alignment: .leading, spacing: 14) {
+            Spacer()
 
-            // Info column + CTA.
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    Text("À LA UNE")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(DS.Colour.accent, in: Capsule())
-                    Text(item.badgeLabel)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.8))
-                }
-
-                Text(item.name)
-                    .font(.system(size: 40, weight: .bold))
+            HStack(spacing: 10) {
+                Text("À LA UNE")
+                    .font(.caption)
+                    .fontWeight(.bold)
                     .foregroundColor(.white)
-                    .lineLimit(2)
-                    .shadow(color: .black.opacity(0.6), radius: 8, y: 2)
-
-                if let rating = ratingOf(item), !rating.isEmpty, rating != "0" {
-                    HStack(spacing: 6) {
-                        Image(systemName: "star.fill").foregroundColor(.yellow)
-                        Text(rating).foregroundColor(.white.opacity(0.9))
-                    }
-                    .font(.body)
-                }
-
-                if let plot = plotOf(item), !plot.isEmpty {
-                    Text(plot)
-                        .font(.callout)
-                        .foregroundColor(.white.opacity(0.80))
-                        .lineLimit(3)
-                        .frame(maxWidth: 720, alignment: .leading)
-                        .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
-                }
-
-                heroPrimaryButton(for: item)
-                    .padding(.top, 8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(DS.Colour.accent, in: Capsule())
+                Text(item.badgeLabel)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.85))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer(minLength: 0)
+            Text(item.name)
+                .font(.system(size: 56, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(2)
+                .shadow(color: .black.opacity(0.7), radius: 12, y: 3)
+
+            if let rating = ratingOf(item), !rating.isEmpty, rating != "0" {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.fill").foregroundColor(.yellow)
+                    Text(rating).foregroundColor(.white.opacity(0.9))
+                }
+                .font(.body)
+            }
+
+            if let plot = plotOf(item), !plot.isEmpty {
+                Text(plot)
+                    .font(.callout)
+                    .foregroundColor(.white.opacity(0.85))
+                    .lineLimit(3)
+                    .frame(maxWidth: 900, alignment: .leading)
+                    .shadow(color: .black.opacity(0.6), radius: 8, y: 1)
+            }
+
+            heroPrimaryButton(for: item)
+                .padding(.top, 8)
         }
-        .padding(.horizontal, 60)
-        .padding(.vertical, 30)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 80)
+        .padding(.bottom, 60)
+        .padding(.top, 40)
     }
 
     @ViewBuilder
@@ -370,37 +355,41 @@ private struct HeroSlideBackdrop: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .blur(radius: 18, opaque: true)
-                    .scaleEffect(1.15)
-                    .opacity(0.9)
+                    // Light blur so the backdrop reads as cinematic
+                    // wallpaper rather than a poster — but not so much
+                    // that we lose the imagery.
+                    .blur(radius: 8, opaque: true)
+                    .scaleEffect(1.06)
+                    .opacity(0.95)
                     .transition(.opacity)
             }
 
-            // Left darken — keeps title area readable.
+            // Bottom-up darken so the title block sitting in the
+            // lower-left third reads cleanly. No more left gradient —
+            // the foreground no longer hugs the left edge.
             LinearGradient(
                 colors: [
-                    DS.Colour.background.opacity(0.85),
-                    DS.Colour.background.opacity(0.50),
-                    DS.Colour.background.opacity(0.15),
                     .clear,
+                    DS.Colour.background.opacity(0.55),
+                    DS.Colour.background.opacity(0.92),
                 ],
-                startPoint: .leading,
-                endPoint: .trailing
+                startPoint: .top,
+                endPoint: .bottom
             )
 
             // Bottom fade into the next row.
             LinearGradient(
                 colors: [.clear, DS.Colour.background],
-                startPoint: .center,
+                startPoint: UnitPoint(x: 0.5, y: 0.85),
                 endPoint: .bottom
             )
 
-            // Brand accent wash.
+            // Brand accent wash — much subtler than before.
             RadialGradient(
-                colors: [DS.Colour.accent.opacity(0.22), .clear],
-                center: .topLeading,
-                startRadius: 80,
-                endRadius: 900
+                colors: [DS.Colour.accent.opacity(0.12), .clear],
+                center: .bottomLeading,
+                startRadius: 120,
+                endRadius: 1100
             )
         }
         .clipped()

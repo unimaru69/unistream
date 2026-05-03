@@ -7,10 +7,18 @@ struct VODGridView: View {
     let api: XtreamAPIService
 
     @Environment(AppState.self) private var appState
+    /// See SeriesGridView for the rationale — the focused card's cover
+    /// is rendered behind the grid as a Plex-style backdrop.
+    @FocusState private var focusedVodId: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
     ]
+
+    private var focusedItem: VodItem? {
+        guard let id = focusedVodId else { return nil }
+        return viewModel.items.first(where: { $0.streamId == id })
+    }
 
     var body: some View {
         Group {
@@ -45,6 +53,7 @@ struct VODGridView: View {
                                 )
                             }
                             .buttonStyle(.tvCard)
+                            .focused($focusedVodId, equals: item.streamId)
                             .contextMenu {
                                 // Favorite toggle
                                 let isFav = appState.syncService.isFavorite(item.streamId)
@@ -78,6 +87,16 @@ struct VODGridView: View {
                 }
             }
         }
+        .background {
+            if let item = focusedItem {
+                PlexBackdrop(imageUrl: item.displayIcon)
+                    .id(item.streamId)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+            } else {
+                DS.Colour.background.ignoresSafeArea()
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: focusedVodId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: VodItem.self) { item in
             VODDetailView(item: item, api: api)

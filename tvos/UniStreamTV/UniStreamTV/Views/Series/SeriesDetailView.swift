@@ -346,11 +346,15 @@ struct SeriesDetailView: View {
             episodeId: episode.episodeId,
             extension: episode.containerExtension
         ) else { return }
+        // Episode rows from Xtream don't carry their own cover, so reuse
+        // the series poster — keeps the Continue Watching row populated
+        // with real artwork instead of the placeholder.
         PlayerPresenter.playVOD(
             url: url,
             title: episode.displayTitle,
             resumeFromMs: resumeFromMs,
-            contentKey: contentKey(for: episode)
+            contentKey: contentKey(for: episode),
+            coverUrl: series.displayIcon
         )
     }
 

@@ -288,7 +288,7 @@ final class SyncService {
 
     // MARK: - Watch Progress
 
-    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil, streamUrl: String? = nil) {
+    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil, streamUrl: String? = nil, coverUrl: String? = nil) {
         guard durationMs > 10000 else { return }  // Ignore < 10s
 
         // Keep the entry even when > 95% watched — that flag tells us the
@@ -300,7 +300,8 @@ final class SyncService {
             durationMs: durationMs,
             updatedAt: Date(),
             title: title ?? existing?.title,
-            streamUrl: streamUrl ?? existing?.streamUrl
+            streamUrl: streamUrl ?? existing?.streamUrl,
+            coverUrl: coverUrl ?? existing?.coverUrl
         )
 
         debouncePushProgress(contentKey: contentKey)
@@ -319,7 +320,8 @@ final class SyncService {
             durationMs: durationMs,
             updatedAt: Date(),
             title: title ?? existing?.title,
-            streamUrl: existing?.streamUrl
+            streamUrl: existing?.streamUrl,
+            coverUrl: existing?.coverUrl
         )
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
@@ -343,7 +345,7 @@ final class SyncService {
 
     /// Register a playback session — stores the title immediately so history always has a name.
     /// Called at the start of playback, before any progress is tracked.
-    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil) {
+    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil, coverUrl: String? = nil) {
         let existing = watchProgress[contentKey]
         // Always update the title (even if one exists — caller has the latest)
         watchProgress[contentKey] = WatchEntry(
@@ -351,7 +353,8 @@ final class SyncService {
             durationMs: durationMs > 0 ? durationMs : (existing?.durationMs ?? 0),
             updatedAt: Date(),
             title: title,
-            streamUrl: streamUrl ?? existing?.streamUrl
+            streamUrl: streamUrl ?? existing?.streamUrl,
+            coverUrl: coverUrl ?? existing?.coverUrl
         )
         debouncePushProgress(contentKey: contentKey)
     }
@@ -410,17 +413,18 @@ final class SyncService {
                 let durMs = row["duration_ms"]?.intValue ?? 0
                 guard durMs > 10000 else { continue }
 
-                // Extract title + streamUrl from meta_json. Flutter writes the
-                // canonical Xtream URL under `url`; older tvOS-only entries
-                // wrote `title` only. Read both for compatibility, plus
-                // `name` (Flutter's pre-2026 key) as a final fallback.
+                // Extract title + streamUrl + coverUrl from meta_json.
+                // Flutter writes `name`, `cover`, `url`; older tvOS-only
+                // entries write `title`. Accept either side.
                 var title: String?
                 var streamUrl: String?
+                var coverUrl: String?
                 if let metaStr = row["meta_json"]?.stringValue,
                    let metaData = metaStr.data(using: .utf8),
                    let metaDict = try? JSONSerialization.jsonObject(with: metaData) as? [String: Any] {
                     title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
                     streamUrl = metaDict["url"] as? String
+                    coverUrl = metaDict["cover"] as? String
                 }
 
                 // Parse updated_at
@@ -436,7 +440,8 @@ final class SyncService {
                     durationMs: durMs,
                     updatedAt: updatedAt,
                     title: title,
-                    streamUrl: streamUrl
+                    streamUrl: streamUrl,
+                    coverUrl: coverUrl
                 )
             }
             return result
@@ -458,13 +463,17 @@ final class SyncService {
     private func pushProgress(contentKey: String) async {
         guard isReady, let entry = watchProgress[contentKey] else { return }
 
-        // Store title + URL in meta_json for cross-device sync. Use
-        // JSONSerialization to encode safely (handles quotes / unicode).
-        // `title` matches what tvOS reads back; `url` matches what Flutter
-        // writes/reads — together they keep both apps in sync.
+        // Store title + URL + cover in meta_json for cross-device sync.
+        // Use JSONSerialization so quotes / unicode encode safely.
+        // Keys mirror what Flutter writes (`name`/`url`/`cover`) plus the
+        // `title` alias tvOS reads — older tvOS builds only knew `title`.
         var metaDict: [String: Any] = [:]
-        if let title = entry.title { metaDict["title"] = title }
+        if let title = entry.title {
+            metaDict["title"] = title
+            metaDict["name"] = title
+        }
         if let url = entry.streamUrl { metaDict["url"] = url }
+        if let cover = entry.coverUrl { metaDict["cover"] = cover }
         let metaData = (try? JSONSerialization.data(withJSONObject: metaDict)) ?? Data("{}".utf8)
         let meta = String(data: metaData, encoding: .utf8) ?? "{}"
 
@@ -500,6 +509,12 @@ struct WatchEntry {
     /// which isn't carried in the key). Synced cross-device via
     /// `meta_json.url` on `user_watch_progress` — same key Flutter uses.
     var streamUrl: String?
+    /// Poster / cover URL for the item, captured at playback time. Lets
+    /// the Continue Watching shelf show real artwork instead of a grey
+    /// play-icon placeholder when the item isn't favorited (the favorite
+    /// store was the only previous source of cover URLs). Synced via
+    /// `meta_json.cover` — Flutter already writes that key.
+    var coverUrl: String?
 
     var progress: Double {
         guard durationMs > 0 else { return 0 }
