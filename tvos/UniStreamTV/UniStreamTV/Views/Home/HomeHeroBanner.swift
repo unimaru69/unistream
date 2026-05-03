@@ -10,11 +10,12 @@ struct HomeHeroBanner: View {
     @State private var currentIndex: Int = 0
     @State private var hasLoaded = false
 
-    // Hero height — Netflix / Apple TV+ style "above the fold" banner.
-    // ~80% of a 1080-line viewport so the hero feels dominant on first
-    // arrival; the rows below sit just at the edge of the screen,
-    // hinting that there's more content to scroll to.
-    private let heroHeight: CGFloat = 880
+    // Hero height — tall enough to feel cinematic without trapping the
+    // user inside it. 880pt left no room for the rows below to register
+    // as focusable (TestFlight: "impossible de descendre"), so cap at
+    // 640pt — the next row peeks ~120pt above the fold and the focus
+    // engine sees there's somewhere to go on Down press.
+    private let heroHeight: CGFloat = 640
     // Auto-rotate period.
     private let rotationInterval: TimeInterval = 8
 

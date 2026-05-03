@@ -125,8 +125,10 @@ struct HomeContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 40) {
-                    // Cinematic hero at the top.
+                    // Cinematic hero at the top — bleeds under the top
+                    // tab bar (no top padding from the safe area).
                     HomeHeroBanner()
+                        .ignoresSafeArea(edges: .top)
 
                     // Continue Watching
                     ContinueWatchingRow()
@@ -178,7 +180,10 @@ struct HomeContentView: View {
                 .padding(.bottom, 40)
             }
             .background(DS.Colour.background.ignoresSafeArea())
-            .navigationTitle("UniStream")
+            // Title omitted on purpose — the hero artwork carries the
+            // brand on Accueil, so we don't want a separate "UniStream"
+            // strip eating space above the hero.
+            .toolbar(.hidden, for: .automatic)
             .navigationDestination(for: SeriesItem.self) { series in
                 if let seriesVM = appState.seriesVM {
                     SeriesDetailView(series: series, viewModel: seriesVM, api: appState.api)

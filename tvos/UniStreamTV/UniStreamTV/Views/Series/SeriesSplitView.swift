@@ -25,30 +25,25 @@ struct SeriesSplitView: View {
                         Task { await viewModel.loadCategories() }
                     }
                 } else {
-                    VStack(spacing: 0) {
-                        // Continue watching row (episodes in progress) — hidden if empty
-                        ContinueWatchingRow(
-                            filter: .episodesOnly,
-                            horizontalPadding: 40,
-                            showsPlaceholder: false
-                        )
-                        .focusSection()
+                    // Sidebar now hosts the "Reprendre" row at its top so
+                    // the series grid can use the full viewport height —
+                    // the previous full-width Reprendre band pushed both
+                    // panes down by ~200pt and left a dead grey strip
+                    // above the grid header.
+                    HStack(spacing: 0) {
+                        sidebar
+                            .frame(width: 520)
+                            .focusSection()
 
-                        HStack(spacing: 0) {
-                            sidebar
-                                .frame(width: 520)
-                                .focusSection()
+                        Rectangle()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 1)
 
-                            Rectangle()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 1)
-
-                            detail
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .focusSection()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        detail
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .focusSection()
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .task {
@@ -65,6 +60,17 @@ struct SeriesSplitView: View {
     private var sidebar: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
+                // Continue Watching tucked into the sidebar so it doesn't
+                // eat full-width space above the grid. Hidden when empty
+                // (showsPlaceholder: false) so the categories list moves
+                // straight to the top for users with no in-progress
+                // episode.
+                ContinueWatchingRow(
+                    filter: .episodesOnly,
+                    horizontalPadding: 24,
+                    showsPlaceholder: false
+                )
+
                 Text("Catégories")
                     .font(.caption)
                     .fontWeight(.semibold)

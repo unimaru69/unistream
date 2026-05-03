@@ -29,30 +29,23 @@ struct VODSplitView: View {
                         Task { await viewModel.loadCategories() }
                     }
                 } else {
-                    VStack(spacing: 0) {
-                        // Continue watching row (films in progress) — hidden if empty
-                        ContinueWatchingRow(
-                            filter: .vodOnly,
-                            horizontalPadding: 40,
-                            showsPlaceholder: false
-                        )
-                        .focusSection()
+                    // See SeriesSplitView for the rationale: the "Reprendre"
+                    // row now lives inside the sidebar so it stops eating
+                    // a full-width band above the grid.
+                    HStack(spacing: 0) {
+                        sidebar
+                            .frame(width: 520)
+                            .focusSection()
 
-                        HStack(spacing: 0) {
-                            sidebar
-                                .frame(width: 520)
-                                .focusSection()
+                        Rectangle()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 1)
 
-                            Rectangle()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 1)
-
-                            detail
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .focusSection()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        detail
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .focusSection()
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .task {
@@ -71,6 +64,12 @@ struct VODSplitView: View {
     private var sidebar: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
+                ContinueWatchingRow(
+                    filter: .vodOnly,
+                    horizontalPadding: 24,
+                    showsPlaceholder: false
+                )
+
                 Text("Catégories")
                     .font(.caption)
                     .fontWeight(.semibold)
