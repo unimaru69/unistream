@@ -10,6 +10,9 @@ struct LoginView: View {
     @State private var isSignUp = false
     @State private var error: String?
     @State private var isLoading = false
+    // Retained while ASAuthorizationController is in flight; tvOS won't keep
+    // the delegate alive otherwise and the request silently no-ops.
+    @State private var appleCoordinator: AppleSignInCoordinator?
 
     var body: some View {
         ZStack {
@@ -75,14 +78,26 @@ struct LoginView: View {
                 }
                 .frame(maxWidth: 500)
 
-                // Apple Sign-In
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.email, .fullName]
-                } onCompletion: { result in
-                    handleAppleSignIn(result)
+                // Apple Sign-In — SwiftUI's SignInWithAppleButton is
+                // focusable on tvOS but doesn't fire its onCompletion when
+                // the Select button is pressed (works fine on iOS). Drive
+                // ASAuthorizationController ourselves so the Free / Bose
+                // remotes' Select actually triggers the auth flow.
+                Button {
+                    performAppleSignIn()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "applelogo")
+                            .font(.title3)
+                        Text("Se connecter avec Apple")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(width: 400, height: 50)
+                    .foregroundColor(.black)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .signInWithAppleButtonStyle(.white)
-                .frame(width: 400, height: 50)
+                .buttonStyle(.plain)
 
                 // Toggle sign up / sign in
                 Button(isSignUp ? "Déjà un compte ? Se connecter" : "Pas de compte ? Créer") {
@@ -129,6 +144,21 @@ struct LoginView: View {
         }
     }
 
+    private func performAppleSignIn() {
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.email, .fullName]
+
+        let coord = AppleSignInCoordinator { result in
+            handleAppleSignIn(result)
+        }
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = coord
+        controller.presentationContextProvider = coord
+        appleCoordinator = coord
+        controller.performRequests()
+    }
+
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         Task {
             isLoading = true
@@ -153,5 +183,43 @@ struct LoginView: View {
             }
             isLoading = false
         }
+    }
+}
+
+/// Bridges `ASAuthorizationController`'s ObjC-style delegate callbacks back
+/// into the SwiftUI completion closure used by `LoginView`. Lives as long
+/// as the auth request is in flight (retained on `LoginView` via @State).
+final class AppleSignInCoordinator: NSObject,
+    ASAuthorizationControllerDelegate,
+    ASAuthorizationControllerPresentationContextProviding
+{
+    private let completion: (Result<ASAuthorization, Error>) -> Void
+
+    init(completion: @escaping (Result<ASAuthorization, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        completion(.success(authorization))
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        completion(.failure(error))
+    }
+
+    func presentationAnchor(
+        for controller: ASAuthorizationController
+    ) -> ASPresentationAnchor {
+        // tvOS gives us one window scene; pick whichever key window we have.
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: { $0.isKeyWindow }) ?? UIWindow()
     }
 }
