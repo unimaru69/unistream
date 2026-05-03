@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../core/colors.dart';
 import '../core/logger.dart';
@@ -10,6 +11,7 @@ import '../models/app_config.dart';
 import '../models/profile.dart';
 import '../repositories/content_repository.dart';
 import '../services/supabase_config.dart';
+import '../utils/profile_scope.dart';
 import '../widgets/pin_dialog.dart';
 import 'epg/epg_grid_screen.dart';
 import 'home/home_screen.dart';
@@ -21,13 +23,13 @@ import 'settings_screen.dart';
 @visibleForTesting
 http.Client? splashHttpClient;
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
@@ -97,6 +99,11 @@ class _SplashScreenState extends State<SplashScreen>
 
     AppConfig.currentUserId = SupabaseConfig.currentUserId;
     await AppConfig.load();
+    // `_initSync` (post-frame callback in main.dart) may have already
+    // touched profile-scoped providers while `activeProfileId` was still
+    // empty — drop their stale state so the next watcher rebuilds against
+    // the now-loaded profile.
+    if (mounted) invalidateProfileScopedProviders(ref.invalidate);
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -143,6 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       if (selected != null && selected.id != AppConfig.activeProfileId) {
         await AppConfig.switchProfile(selected.id);
+        if (mounted) invalidateProfileScopedProviders(ref.invalidate);
       }
     } else if (AppConfig.profiles.length == 1 && AppConfig.profiles.first.hasPin) {
       // Single profile with PIN — verify before granting access

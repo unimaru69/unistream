@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/app_config.dart';
 import '../models/profile.dart';
+import '../utils/profile_scope.dart';
 
 class ConfigState {
   final List<Profile> profiles;
@@ -30,12 +31,19 @@ class ConfigState {
 }
 
 class ConfigNotifier extends StateNotifier<ConfigState> {
-  ConfigNotifier()
+  // `_ref` is optional so the unit-test suite can construct
+  // `ConfigNotifier()` without spinning up a ProviderContainer; in that
+  // mode `switchProfile` skips the cross-provider invalidation (there's
+  // no container to dispatch to anyway). Production paths always go
+  // through the provider builder below, which passes a real `Ref`.
+  ConfigNotifier([this._ref])
       : super(ConfigState(
           profiles: AppConfig.profiles,
           activeProfileId: AppConfig.activeProfileId,
           isConfigured: AppConfig.isConfigured,
         ));
+
+  final Ref? _ref;
 
   void refresh() {
     state = ConfigState(
@@ -48,6 +56,8 @@ class ConfigNotifier extends StateNotifier<ConfigState> {
   Future<void> switchProfile(String profileId) async {
     await AppConfig.switchProfile(profileId);
     if (!mounted) return;
+    final ref = _ref;
+    if (ref != null) invalidateProfileScopedProviders(ref.invalidate);
     refresh();
   }
 
@@ -77,5 +87,5 @@ class ConfigNotifier extends StateNotifier<ConfigState> {
 }
 
 final configProvider = StateNotifierProvider<ConfigNotifier, ConfigState>((ref) {
-  return ConfigNotifier();
+  return ConfigNotifier(ref);
 });
