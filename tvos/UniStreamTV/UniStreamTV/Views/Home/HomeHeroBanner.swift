@@ -9,6 +9,9 @@ struct HomeHeroBanner: View {
     @State private var items: [RecentlyAddedItem] = []
     @State private var currentIndex: Int = 0
     @State private var hasLoaded = false
+    /// Optional binding so a parent can render a full-screen backdrop
+    /// behind the entire home tab synced with the hero's auto-rotation.
+    var displayedItem: Binding<RecentlyAddedItem?>? = nil
 
     // Hero height — tall enough to feel cinematic without trapping the
     // user inside it. 880pt left no room for the rows below to register
@@ -27,9 +30,14 @@ struct HomeHeroBanner: View {
     var body: some View {
         ZStack {
             if let currentItem {
-                // Keyed on the item id so backdrop + foreground crossfade together.
+                // When a parent is rendering the full-screen wallpaper
+                // (passed via `displayedItem`), suppress the in-hero
+                // backdrop — otherwise we'd stack two PlexBackdrop
+                // gradients and the title would lose contrast.
                 Group {
-                    backdrop(for: currentItem)
+                    if displayedItem == nil {
+                        backdrop(for: currentItem)
+                    }
                     foreground(for: currentItem)
                 }
                 .id(currentItem.id)
@@ -44,12 +52,19 @@ struct HomeHeroBanner: View {
             }
         }
         .frame(height: heroHeight)
-        .clipped()
         .animation(.easeInOut(duration: 0.6), value: currentIndex)
         // The hero is a section on its own for focus navigation.
         .focusSection()
         .task(id: appState.api.isAuthenticated) { await load() }
         .task(id: items.count) { await autoRotate() }
+        // Mirror the auto-rotated item to the parent so it can render a
+        // full-screen wallpaper synced with the hero.
+        .onChange(of: currentIndex) { _, _ in
+            displayedItem?.wrappedValue = currentItem
+        }
+        .onChange(of: items.count) { _, _ in
+            displayedItem?.wrappedValue = currentItem
+        }
     }
 
     private var pageDots: some View {

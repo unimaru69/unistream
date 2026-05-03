@@ -9,6 +9,10 @@ struct SeriesSplitView: View {
 
     @State private var selection: Category?
     @FocusState private var focusedCategory: Category?
+    /// Lifted from the grid so the backdrop renders at split-view level
+    /// (full-screen, including behind the sidebar and the floating tab
+    /// bar). The grid pushes the currently-focused item up via Binding.
+    @State private var focusedSeries: SeriesItem?
 
     private var filteredCategories: [Category] {
         appState.parentalService.filterCategories(viewModel.categories, contentType: .series)
@@ -44,6 +48,7 @@ struct SeriesSplitView: View {
                             .focusSection()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(splitBackdrop)
                 }
             }
             .task {
@@ -100,11 +105,27 @@ struct SeriesSplitView: View {
     @ViewBuilder
     private var detail: some View {
         if let cat = selection {
-            SeriesGridView(category: cat, viewModel: viewModel, api: api)
+            SeriesGridView(category: cat, viewModel: viewModel, api: api, focusedItem: $focusedSeries)
         } else {
             Text("Sélectionne une catégorie")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Full-screen backdrop layer — bleeds behind sidebar + floating tab
+    /// bar so the focused poster fills the whole viewport, Apple TV+
+    /// style. Crossfades between focused items.
+    @ViewBuilder
+    private var splitBackdrop: some View {
+        if let item = focusedSeries {
+            PlexBackdrop(imageUrl: item.displayIcon)
+                .id(item.seriesId)
+                .ignoresSafeArea()
+                .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+                .animation(.easeInOut(duration: 0.4), value: item.seriesId)
+        } else {
+            DS.Colour.background.ignoresSafeArea()
         }
     }
 

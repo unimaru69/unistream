@@ -5,20 +5,18 @@ struct SeriesGridView: View {
     let category: Category
     @Bindable var viewModel: SeriesViewModel
     let api: XtreamAPIService
+    /// Reported back to the parent split view so the backdrop can render
+    /// at full screen (behind sidebar + tab bar), not just behind the
+    /// grid pane. Optional so the grid still works on its own.
+    var focusedItem: Binding<SeriesItem?>? = nil
 
     @Environment(AppState.self) private var appState
-    /// Tracks which series card the focus engine is currently on so we
-    /// can render its cover as the backdrop behind the grid (Plex-style).
+    /// Tracks which series card the focus engine is currently on.
     @FocusState private var focusedSeriesId: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
     ]
-
-    private var focusedItem: SeriesItem? {
-        guard let id = focusedSeriesId else { return nil }
-        return viewModel.items.first(where: { $0.seriesId == id })
-    }
 
     var body: some View {
         Group {
@@ -86,21 +84,18 @@ struct SeriesGridView: View {
         // Cinematic backdrop fades in/out as the focus engine moves
         // across the grid. `animation(_:value:)` ties the opacity to
         // the focused id so a different cover crossfades in.
-        .background {
-            if let item = focusedItem {
-                // `ignoresSafeArea: false` keeps the blurred wallpaper
-                // confined to the grid pane — otherwise it bled into
-                // (and tinted) the categories sidebar of the parent
-                // split view.
-                PlexBackdrop(imageUrl: item.displayIcon, ignoresSafeArea: false)
-                    .id(item.seriesId)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+        // Push the focused item up to the parent split view so the
+        // backdrop can render full-screen (behind sidebar + floating
+        // tab bar). When the binding isn't supplied (grid used in
+        // isolation), the parent simply doesn't render a backdrop.
+        .onChange(of: focusedSeriesId) { _, newId in
+            guard let binding = focusedItem else { return }
+            if let id = newId, let item = viewModel.items.first(where: { $0.seriesId == id }) {
+                binding.wrappedValue = item
             } else {
-                DS.Colour.background
+                binding.wrappedValue = nil
             }
         }
-        .clipped()
-        .animation(.easeInOut(duration: 0.4), value: focusedSeriesId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: SeriesItem.self) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)

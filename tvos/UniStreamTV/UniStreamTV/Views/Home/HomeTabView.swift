@@ -120,6 +120,10 @@ private struct EPGReminderToast: View {
 /// Home tab content — Continue Watching + favorites summary.
 struct HomeContentView: View {
     @Environment(AppState.self) private var appState
+    /// Mirrors `HomeHeroBanner.currentItem` so we can render a full-screen
+    /// wallpaper behind everything (under the floating tab bar, behind
+    /// the rows below the hero) — Apple TV+ / Netflix home pattern.
+    @State private var heroItem: RecentlyAddedItem?
 
     var body: some View {
         NavigationStack {
@@ -127,7 +131,7 @@ struct HomeContentView: View {
                 VStack(alignment: .leading, spacing: 40) {
                     // Cinematic hero at the top — bleeds under the top
                     // tab bar (no top padding from the safe area).
-                    HomeHeroBanner()
+                    HomeHeroBanner(displayedItem: $heroItem)
                         .ignoresSafeArea(edges: .top)
 
                     // Continue Watching
@@ -179,7 +183,17 @@ struct HomeContentView: View {
                 }
                 .padding(.bottom, 40)
             }
-            .background(DS.Colour.background.ignoresSafeArea())
+            .background {
+                ZStack {
+                    DS.Colour.background.ignoresSafeArea()
+                    if let item = heroItem {
+                        HomeBackdropWallpaper(item: item)
+                            .id(item.id)
+                            .transition(.opacity.animation(.easeInOut(duration: 0.6)))
+                    }
+                }
+                .ignoresSafeArea()
+            }
             // Title omitted on purpose — the hero artwork carries the
             // brand on Accueil, so we don't want a separate "UniStream"
             // strip eating space above the hero.
@@ -193,6 +207,37 @@ struct HomeContentView: View {
                 VODDetailView(item: vod, api: appState.api)
             }
         }
+    }
+}
+
+/// Full-screen wallpaper that mirrors whichever item the hero is currently
+/// showing. Sits behind the entire Accueil tab (under the floating tab
+/// bar, behind the rows below the hero) so the home feels immersive
+/// instead of a hero rectangle floating on a flat dark page.
+///
+/// Pulls the TMDB backdrop the same way `HomeHeroBanner` does, and uses
+/// `PlexBackdrop`'s blur/gradient treatment so the rows in front stay
+/// readable.
+private struct HomeBackdropWallpaper: View {
+    let item: RecentlyAddedItem
+    @State private var tmdbVM = TMDBViewModel()
+
+    private var imageURL: String {
+        if let b = tmdbVM.result?.backdropURL(size: "original") {
+            return b.absoluteString
+        }
+        return item.displayIcon
+    }
+
+    private var kind: TMDBKind {
+        item.id.hasPrefix("vod_") ? .movie : .tv
+    }
+
+    var body: some View {
+        PlexBackdrop(imageUrl: imageURL, blurRadius: 22)
+            .task(id: item.id) {
+                await tmdbVM.load(rawTitle: item.name, kind: kind)
+            }
     }
 }
 

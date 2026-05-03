@@ -5,20 +5,16 @@ struct VODGridView: View {
     let category: Category
     @Bindable var viewModel: VODViewModel
     let api: XtreamAPIService
+    /// Reported back to the parent so the backdrop can render full-screen
+    /// (behind sidebar + tab bar). Optional — grid still works without it.
+    var focusedItem: Binding<VodItem?>? = nil
 
     @Environment(AppState.self) private var appState
-    /// See SeriesGridView for the rationale — the focused card's cover
-    /// is rendered behind the grid as a Plex-style backdrop.
     @FocusState private var focusedVodId: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
     ]
-
-    private var focusedItem: VodItem? {
-        guard let id = focusedVodId else { return nil }
-        return viewModel.items.first(where: { $0.streamId == id })
-    }
 
     var body: some View {
         Group {
@@ -87,17 +83,14 @@ struct VODGridView: View {
                 }
             }
         }
-        .background {
-            if let item = focusedItem {
-                PlexBackdrop(imageUrl: item.displayIcon, ignoresSafeArea: false)
-                    .id(item.streamId)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+        .onChange(of: focusedVodId) { _, newId in
+            guard let binding = focusedItem else { return }
+            if let id = newId, let item = viewModel.items.first(where: { $0.streamId == id }) {
+                binding.wrappedValue = item
             } else {
-                DS.Colour.background
+                binding.wrappedValue = nil
             }
         }
-        .clipped()
-        .animation(.easeInOut(duration: 0.4), value: focusedVodId)
         // Titre inline dans le ScrollView (voir ChannelGridView)
         .navigationDestination(for: VodItem.self) { item in
             VODDetailView(item: item, api: api)

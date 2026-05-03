@@ -9,6 +9,9 @@ struct VODSplitView: View {
 
     @State private var selection: Category?
     @FocusState private var focusedCategory: Category?
+    /// Focused item lifted from the grid — see SeriesSplitView for the
+    /// rationale (full-screen backdrop, behind sidebar + tab bar).
+    @State private var focusedVod: VodItem?
 
     private var filteredCategories: [Category] {
         appState.parentalService.filterCategories(viewModel.categories, contentType: .vod)
@@ -46,6 +49,7 @@ struct VODSplitView: View {
                             .focusSection()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(splitBackdrop)
                 }
             }
             .task {
@@ -101,11 +105,24 @@ struct VODSplitView: View {
     @ViewBuilder
     private var detail: some View {
         if let cat = selection {
-            VODGridView(category: cat, viewModel: viewModel, api: api)
+            VODGridView(category: cat, viewModel: viewModel, api: api, focusedItem: $focusedVod)
         } else {
             Text("Sélectionne une catégorie")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var splitBackdrop: some View {
+        if let item = focusedVod {
+            PlexBackdrop(imageUrl: item.displayIcon)
+                .id(item.streamId)
+                .ignoresSafeArea()
+                .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+                .animation(.easeInOut(duration: 0.4), value: item.streamId)
+        } else {
+            DS.Colour.background.ignoresSafeArea()
         }
     }
 
