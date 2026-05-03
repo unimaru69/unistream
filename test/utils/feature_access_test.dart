@@ -42,20 +42,20 @@ void main() {
       });
     });
 
-    group('active trial (Basic-equivalent)', () {
-      test('denies all premium features', () {
+    group('active trial (full Premium)', () {
+      test('allows all premium features', () {
         final account = makeTrial(daysAgo: 0);
         for (final f in premiumFeatures) {
-          expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
+          expect(FeatureAccess.canUse(f, account), isTrue, reason: f.name);
         }
       });
     });
 
     group('trial day 13 (still active)', () {
-      test('denies all premium features', () {
+      test('allows all premium features', () {
         final account = makeTrial(daysAgo: 13);
         for (final f in premiumFeatures) {
-          expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
+          expect(FeatureAccess.canUse(f, account), isTrue, reason: f.name);
         }
       });
     });
@@ -122,8 +122,8 @@ void main() {
       expect(FeatureAccess.maxProfiles(null), 1);
     });
 
-    test('trial = 1', () {
-      expect(FeatureAccess.maxProfiles(makeTrial()), 1);
+    test('active trial = 10 (full Premium)', () {
+      expect(FeatureAccess.maxProfiles(makeTrial()), 10);
     });
 
     test('basic = 1', () {
