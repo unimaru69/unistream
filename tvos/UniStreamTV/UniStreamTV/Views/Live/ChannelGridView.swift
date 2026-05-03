@@ -24,7 +24,17 @@ struct ChannelGridView: View {
 
     private var displayedChannels: [Channel] {
         if showFavoritesOnly {
-            return viewModel.channels.filter { appState.syncService.isFavorite($0.streamId) }
+            // Build the set from FavoriteItem.resolvedStreamId so legacy
+            // entries whose `item_key` is "live:STREAMID" still match the
+            // bare `streamId` exposed on `Channel`. The plain
+            // `isFavorite($0.streamId)` lookup misses those (they live in
+            // the favorites map under the prefixed key) — that's why the
+            // sidebar showed "Favoris (7)" while the grid claimed "aucun
+            // favori".
+            let favIds = Set(appState.syncService.favorites.values
+                .filter { $0.isLive }
+                .compactMap { $0.resolvedStreamId })
+            return viewModel.channels.filter { favIds.contains($0.streamId) }
         }
         return viewModel.channels
     }

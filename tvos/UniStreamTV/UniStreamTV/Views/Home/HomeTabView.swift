@@ -134,40 +134,35 @@ struct HomeContentView: View {
 
                     // Quick access to favorite channels
                     let liveFavs = appState.syncService.favorites.values
-                        .filter { $0.mode == "live" }
+                        .filter { $0.isLive }
                         .sorted { $0.name < $1.name }
                         .prefix(10)
 
                     if !liveFavs.isEmpty {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Chaînes favorites")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 50)
+                        FavoritesShelf(title: "Chaînes favorites", items: Array(liveFavs))
+                            .focusSection()
+                    }
 
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 24) {
-                                    ForEach(Array(liveFavs), id: \.key) { fav in
-                                        Button {
-                                            if let sid = fav.streamId,
-                                               let url = appState.api.liveStreamUrl(streamId: sid) {
-                                                PlayerPresenter.playLive(url: url, title: fav.name, contentKey: "live_\(sid)")
-                                            }
-                                        } label: {
-                                            FocusableCardLabel(
-                                                title: fav.name,
-                                                imageUrl: fav.displayIcon
-                                            )
-                                            .frame(width: 200)
-                                        }
-                                        .buttonStyle(.tvCard)
-                                    }
-                                }
-                                .padding(.horizontal, 50)
-                            }
-                        }
-                        .focusSection()
+                    // Quick access to favorite movies
+                    let movieFavs = appState.syncService.favorites.values
+                        .filter { $0.isMovie }
+                        .sorted { $0.name < $1.name }
+                        .prefix(10)
+
+                    if !movieFavs.isEmpty {
+                        FavoritesShelf(title: "Films favoris", items: Array(movieFavs))
+                            .focusSection()
+                    }
+
+                    // Quick access to favorite series
+                    let seriesFavs = appState.syncService.favorites.values
+                        .filter { $0.isSeries }
+                        .sorted { $0.name < $1.name }
+                        .prefix(10)
+
+                    if !seriesFavs.isEmpty {
+                        FavoritesShelf(title: "Séries favorites", items: Array(seriesFavs))
+                            .focusSection()
                     }
 
                     // Catch-up replay (Premium only)
@@ -184,6 +179,104 @@ struct HomeContentView: View {
             }
             .background(DS.Colour.background.ignoresSafeArea())
             .navigationTitle("UniStream")
+            .navigationDestination(for: SeriesItem.self) { series in
+                if let seriesVM = appState.seriesVM {
+                    SeriesDetailView(series: series, viewModel: seriesVM, api: appState.api)
+                }
+            }
+            .navigationDestination(for: VodItem.self) { vod in
+                VODDetailView(item: vod, api: appState.api)
+            }
         }
+    }
+}
+
+/// Horizontal carousel of favorite items shown on the Accueil tab.
+///
+/// Each card routes the user to the right action based on the favorite's
+/// mode: live channels start playback, movies push the VOD detail view,
+/// series push the SeriesDetail view. Keeps the home tab feeling like a
+/// quick-access shelf rather than a duplicate of the Favoris tab.
+private struct FavoritesShelf: View {
+    let title: String
+    let items: [FavoriteItem]
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 50)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 24) {
+                    ForEach(items, id: \.key) { fav in
+                        card(for: fav)
+                    }
+                }
+                .padding(.horizontal, 50)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func card(for fav: FavoriteItem) -> some View {
+        if fav.isLive {
+            Button {
+                if let sid = fav.resolvedStreamId,
+                   let url = appState.api.liveStreamUrl(streamId: sid) {
+                    PlayerPresenter.playLive(url: url, title: fav.name, contentKey: "live_\(sid)")
+                }
+            } label: {
+                FocusableCardLabel(title: fav.name, imageUrl: fav.displayIcon)
+                    .frame(width: 200)
+            }
+            .buttonStyle(.tvCard)
+        } else if fav.isMovie {
+            NavigationLink(value: vodItem(from: fav)) {
+                FocusableCardLabel(
+                    title: fav.name,
+                    imageUrl: fav.displayIcon,
+                    aspectRatio: 2/3
+                )
+                .frame(width: 180)
+            }
+            .buttonStyle(.tvCard)
+        } else if fav.isSeries {
+            NavigationLink(value: seriesItem(from: fav)) {
+                FocusableCardLabel(
+                    title: fav.name,
+                    imageUrl: fav.displayIcon,
+                    aspectRatio: 2/3
+                )
+                .frame(width: 180)
+            }
+            .buttonStyle(.tvCard)
+        }
+    }
+
+    private func vodItem(from fav: FavoriteItem) -> VodItem {
+        VodItem(json: [
+            "stream_id": fav.streamId ?? fav.key,
+            "name": fav.name,
+            "cover": fav.cover ?? "",
+            "stream_icon": fav.streamIcon ?? "",
+            "category_id": fav.categoryId ?? "",
+            "container_extension": fav.containerExtension ?? "mp4",
+            "rating": fav.rating ?? "",
+        ])
+    }
+
+    private func seriesItem(from fav: FavoriteItem) -> SeriesItem {
+        SeriesItem(json: [
+            "series_id": fav.seriesId ?? fav.key,
+            "name": fav.name,
+            "cover": fav.cover ?? "",
+            "stream_icon": fav.streamIcon ?? "",
+            "category_id": fav.categoryId ?? "",
+            "rating": fav.rating ?? "",
+        ])
     }
 }

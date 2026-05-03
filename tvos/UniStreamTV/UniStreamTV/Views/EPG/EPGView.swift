@@ -26,9 +26,12 @@ struct EPGView: View {
     private var filteredChannels: [Channel] {
         guard let catId = selectedCategoryId else { return [] }
         if catId == "__favorites__" {
+            // Match by `resolvedStreamId` so legacy "live:STREAMID" keys
+            // (saved by older builds) still line up with the bare streamId
+            // exposed on `Channel`.
             let favIds = Set(appState.syncService.favorites.values
-                .filter { $0.mode == "live" }
-                .compactMap { $0.streamId })
+                .filter { $0.isLive }
+                .compactMap { $0.resolvedStreamId })
             return channels.filter { favIds.contains($0.streamId) }
         }
         return channels.filter { $0.categoryId == catId }
@@ -57,7 +60,7 @@ struct EPGView: View {
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 460), spacing: 30)], spacing: 30) {
                     // Favorites entry
-                    let favCount = appState.syncService.favorites.values.filter { $0.mode == "live" }.count
+                    let favCount = appState.syncService.favorites.values.filter { $0.isLive }.count
                     if favCount > 0 {
                         Button { selectedCategoryId = "__favorites__" } label: {
                             epgCategoryCard(name: "Favoris", count: favCount, icon: "heart.fill", color: .yellow)

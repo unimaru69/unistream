@@ -51,7 +51,7 @@ struct LiveSplitView: View {
     }
 
     private var favoriteCount: Int {
-        appState.syncService.favorites.values.filter { $0.mode == "live" }.count
+        appState.syncService.favorites.values.filter { $0.isLive }.count
     }
 
     private var canUseEPG: Bool {

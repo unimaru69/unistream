@@ -23,9 +23,9 @@ struct FavoritesView: View {
         selectedList == .favorites ? favorites : watchlist
     }
 
-    private var liveItems: [FavoriteItem] { items.filter { $0.mode == "live" } }
-    private var movieItems: [FavoriteItem] { items.filter { $0.mode == "movie" } }
-    private var seriesItems: [FavoriteItem] { items.filter { $0.mode == "series" } }
+    private var liveItems: [FavoriteItem] { items.filter { $0.isLive } }
+    private var movieItems: [FavoriteItem] { items.filter { $0.isMovie } }
+    private var seriesItems: [FavoriteItem] { items.filter { $0.isSeries } }
 
     private let posterColumns = [
         GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 32),
@@ -139,17 +139,16 @@ private struct FavoriteCard: View {
 
     var body: some View {
         Group {
-            switch item.mode {
-            case "series":
+            if item.isSeries {
                 NavigationLink(value: seriesItem) { cardLabel }
                     .buttonStyle(.tvCard)
-            case "movie":
+            } else if item.isMovie {
                 NavigationLink(value: vodItem) { cardLabel }
                     .buttonStyle(.tvCard)
-            case "live":
+            } else if item.isLive {
                 Button { playLive() } label: { cardLabel }
                     .buttonStyle(.tvCard)
-            default:
+            } else {
                 cardLabel
             }
         }
@@ -175,10 +174,10 @@ private struct FavoriteCard: View {
         FocusableCardLabel(
             title: item.name,
             imageUrl: item.displayIcon,
-            aspectRatio: item.mode == "live" ? 16/9 : 2/3,
-            isLive: item.mode == "live"
+            aspectRatio: item.isLive ? 16/9 : 2/3,
+            isLive: item.isLive
         )
-        .frame(width: item.mode == "live" ? 260 : 200)
+        .frame(width: item.isLive ? 260 : 200)
     }
 
     private var seriesItem: SeriesItem {

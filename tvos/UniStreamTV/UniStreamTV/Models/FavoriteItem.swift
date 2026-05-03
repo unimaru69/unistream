@@ -68,4 +68,25 @@ struct FavoriteItem: Codable, Identifiable, Hashable {
             rating: series.rating
         )
     }
+
+    // MARK: - Cross-platform mode normalisation
+    //
+    // Flutter writes `mode: 'vod'` when the user favorites a movie; tvOS
+    // writes `mode: 'movie'`. Both shapes coexist in Supabase
+    // `user_favorites.item_json` and we have to tolerate either side
+    // when filtering.
+
+    var isLive: Bool { mode == "live" }
+    var isMovie: Bool { mode == "movie" || mode == "vod" }
+    var isSeries: Bool { mode == "series" }
+
+    /// Stream id that survives the legacy `"live:STREAMID"` key format —
+    /// some older entries carry the prefix in `key` but the bare id in
+    /// `streamId`. Prefer `streamId`, fall back to stripping the prefix.
+    var resolvedStreamId: String? {
+        if let s = streamId, !s.isEmpty { return s }
+        if key.hasPrefix("live:") { return String(key.dropFirst("live:".count)) }
+        if key.hasPrefix("vod:") { return String(key.dropFirst("vod:".count)) }
+        return key
+    }
 }
