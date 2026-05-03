@@ -27,7 +27,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>fr.unimaru.unistream.tv</string>
+			<string>fr.unimaru.unistream</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>unistream</string>

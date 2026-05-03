@@ -35,7 +35,11 @@ targets:
           - group.fr.unimaru.unistream.tv
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.tv
+        # Same bundle ID as the iOS app on purpose — UniStream lives as a
+        # single multi-platform record on App Store Connect (iOS + macOS +
+        # tvOS share `fr.unimaru.unistream`), so customers buy one product
+        # and Apple cross-grants entitlements across their Apple devices.
+        PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream
         MARKETING_VERSION: "1.0.4"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
@@ -83,7 +87,7 @@ targets:
           - group.fr.unimaru.unistream.tv
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.tv.TopShelfExtension
+        PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.TopShelfExtension
         MARKETING_VERSION: "1.0.4"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
