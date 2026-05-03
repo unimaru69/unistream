@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/logger.dart';
-import '../utils/feature_access.dart';
-import 'auth_service.dart';
 import 'supabase_config.dart';
 
 /// Fire-and-forget Supabase sync engine.
@@ -31,11 +29,16 @@ class SyncService {
     if (_client == null || profileHash.isEmpty || _client!.auth.currentSession == null) {
       return false;
     }
-    // Cloud sync is Premium only. If account info is loaded and user is not Premium, block sync.
-    final account = AuthService.instance.cachedAccountInfo;
-    if (account != null && !FeatureAccess.canUse(Feature.cloudSync, account)) {
-      return false;
-    }
+    // Cloud sync is intentionally ungated until the monetisation refactor
+    // lands (single paid tier + 7-day trial — see auto-memory
+    // `project_business_model.md`). Previously this checked
+    // `FeatureAccess.canUse(Feature.cloudSync, account)`, which silently
+    // disabled push/pull on accounts whose 14-day trial had elapsed —
+    // including the team's own test account, leading to the "favorites
+    // don't sync between iPhone, iPad, Apple TV" bug we hunted in TF.
+    // tvOS never had this gate, so tvOS-pushed entries surfaced; iOS
+    // pushes silently no-op'd, and the resulting one-way data flow
+    // looked like total breakage.
     return true;
   }
 
