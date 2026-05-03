@@ -12,6 +12,12 @@ struct SeriesDetailView: View {
     @Environment(AppState.self) private var appState
     @State private var selectedSeason: String?
     @State private var tmdbVM = TMDBViewModel()
+    /// Episode awaiting the user's resume choice ("reprendre" vs
+    /// "depuis le début"). Set by `playEpisode` when there's >10s of
+    /// saved progress; the `confirmationDialog` reads this and the
+    /// matching `pendingResumeProgress` to render its two actions.
+    @State private var pendingResumeEpisode: Episode?
+    @State private var pendingResumeProgress: WatchEntry?
 
     private var sourceSynopsis: String {
         series.plot ?? series.description ?? ""
@@ -86,6 +92,34 @@ struct SeriesDetailView: View {
         .overlay {
             if viewModel.isLoadingEpisodes {
                 ProgressView()
+            }
+        }
+        .confirmationDialog(
+            "Reprendre la lecture ?",
+            isPresented: Binding(
+                get: { pendingResumeEpisode != nil },
+                set: { if !$0 { pendingResumeEpisode = nil; pendingResumeProgress = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingResumeProgress
+        ) { progress in
+            Button("Reprendre à \(Self.formatTime(progress.positionMs))") {
+                if let ep = pendingResumeEpisode {
+                    startPlayback(episode: ep, resumeFromMs: progress.positionMs)
+                }
+                pendingResumeEpisode = nil
+                pendingResumeProgress = nil
+            }
+            Button("Reprendre depuis le début") {
+                if let ep = pendingResumeEpisode {
+                    startPlayback(episode: ep, resumeFromMs: nil)
+                }
+                pendingResumeEpisode = nil
+                pendingResumeProgress = nil
+            }
+            Button("Annuler", role: .cancel) {
+                pendingResumeEpisode = nil
+                pendingResumeProgress = nil
             }
         }
     }
@@ -292,27 +326,42 @@ struct SeriesDetailView: View {
     // MARK: - Actions
 
     private func playEpisode(_ episode: Episode) {
-        // Before starting playback, mark previous episodes of the same season
-        // as watched (if they weren't already). Mirrors Flutter behaviour.
-        markPreviousAsWatched(before: episode)
+        let key = contentKey(for: episode)
+        let saved = appState.syncService.getProgress(contentKey: key)
+        // If there's meaningful progress (> 10s, < 95% — i.e. partially
+        // watched), let the user pick between resuming and starting over
+        // via the `confirmationDialog`. Otherwise launch directly.
+        if let saved, saved.positionMs > 10_000, !saved.isWatched {
+            pendingResumeEpisode = episode
+            pendingResumeProgress = saved
+            return
+        }
+        startPlayback(episode: episode, resumeFromMs: nil)
+    }
 
+    /// Actually launches playback. `resumeFromMs == nil` means start over.
+    private func startPlayback(episode: Episode, resumeFromMs: Int?) {
+        markPreviousAsWatched(before: episode)
         guard let url = api.seriesStreamUrl(
             episodeId: episode.episodeId,
             extension: episode.containerExtension
         ) else { return }
-        let key = contentKey(for: episode)
-        // Resume from last position if any — VODDetailView.play already does
-        // this for movies; episodes deserve the same. Skip the resume hint
-        // when progress is in the first ~10s (treat as "fresh start" to
-        // avoid the awkward "you were 8 seconds in" jump).
-        let saved = appState.syncService.getProgress(contentKey: key)
-        let resumeMs: Int? = (saved?.positionMs ?? 0) > 10_000 ? saved?.positionMs : nil
         PlayerPresenter.playVOD(
             url: url,
             title: episode.displayTitle,
-            resumeFromMs: resumeMs,
-            contentKey: key
+            resumeFromMs: resumeFromMs,
+            contentKey: contentKey(for: episode)
         )
+    }
+
+    private static func formatTime(_ ms: Int) -> String {
+        let total = ms / 1000
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%d:%02d", m, s)
     }
 
     /// Mark all episodes before [episode] in the current season as watched.

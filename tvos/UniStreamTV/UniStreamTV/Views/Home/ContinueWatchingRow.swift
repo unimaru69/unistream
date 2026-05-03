@@ -108,15 +108,30 @@ struct ContinueWatchingCard: View {
     let contentKey: String
     let entry: WatchEntry
     @Environment(AppState.self) private var appState
+    /// True while the user is choosing between resume and start-over.
+    /// Live channels skip the prompt — there's no position to resume to.
+    @State private var showResumeChoice = false
 
     /// Try to find the matching favorite to get name/cover.
     private var favoriteInfo: FavoriteItem? {
         appState.syncService.favorites[contentKey]
     }
 
+    /// Whether to ask "Reprendre à xx:xx" / "Démarrer du début" before
+    /// playing. Watched items skip the prompt and start over (the user
+    /// already saw them); live channels skip it (no position).
+    private var shouldPromptResume: Bool {
+        guard !contentKey.hasPrefix("live_") else { return false }
+        return entry.positionMs > 10_000 && !entry.isWatched
+    }
+
     var body: some View {
         Button {
-            resume()
+            if shouldPromptResume {
+                showResumeChoice = true
+            } else {
+                resume(fromMs: nil)
+            }
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 ZStack(alignment: .bottomLeading) {
@@ -182,9 +197,23 @@ struct ContinueWatchingCard: View {
             }
         }
         .buttonStyle(.tvCard)
+        .confirmationDialog(
+            "Reprendre la lecture ?",
+            isPresented: $showResumeChoice,
+            titleVisibility: .visible
+        ) {
+            Button("Reprendre à \(Self.formatTime(entry.positionMs))") {
+                resume(fromMs: entry.positionMs)
+            }
+            Button("Reprendre depuis le début") {
+                resume(fromMs: nil)
+            }
+            Button("Annuler", role: .cancel) {}
+        }
     }
 
-    private func resume() {
+    /// Launch playback. `fromMs == nil` means start over from 0.
+    private func resume(fromMs: Int?) {
         let api = appState.api
         let title = entry.title ?? favoriteInfo?.name ?? contentKey
 
@@ -199,7 +228,7 @@ struct ContinueWatchingCard: View {
             let sid = String(contentKey.dropFirst("vod_".count))
             let url = savedUrl ?? api.vodStreamUrl(streamId: sid, extension: favoriteInfo?.containerExtension ?? "mp4")
             if let url {
-                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: entry.positionMs, contentKey: contentKey)
+                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey)
             }
             return
         }
@@ -207,7 +236,7 @@ struct ContinueWatchingCard: View {
             let eid = String(contentKey.dropFirst("ep_".count))
             let url = savedUrl ?? api.seriesStreamUrl(episodeId: eid, extension: favoriteInfo?.containerExtension ?? "mp4")
             if let url {
-                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: entry.positionMs, contentKey: contentKey)
+                PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey)
             }
             return
         }
@@ -219,5 +248,15 @@ struct ContinueWatchingCard: View {
             }
             return
         }
+    }
+
+    private static func formatTime(_ ms: Int) -> String {
+        let total = ms / 1000
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%d:%02d", m, s)
     }
 }
