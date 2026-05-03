@@ -244,16 +244,28 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         ref.read(purchaseProvider.notifier).initialize(userId);
       }
     });
-    // Listen for auth state changes (stop sync on sign-out)
+    // Listen for auth state changes — sync needs to react to both fresh
+    // sign-ins AND session restores at launch. Supabase emits
+    // `initialSession` (not `signedIn`) when it rehydrates a saved
+    // session at startup; our previous listener ignored it, so a
+    // device that came up with a valid token but no fresh signedIn
+    // event never ran `_initSync` past the post-frame attempt that
+    // fires before auth has finished restoring. The user-visible
+    // symptom: cross-device sync only worked after a manual sign-out
+    // / sign-in round-trip.
     _authSub = AuthService.instance.onAuthStateChange?.listen((authState) {
       if (authState.event == AuthChangeEvent.signedOut) {
         SyncService.instance.stopRealtime();
         ref.read(purchaseProvider.notifier).logOut();
         AppConfig.currentUserId = null;
         AppLogger.info(LogModule.sync, 'Auth signed out — realtime stopped');
-      } else if (authState.event == AuthChangeEvent.signedIn) {
+      } else if (authState.event == AuthChangeEvent.signedIn ||
+          authState.event == AuthChangeEvent.initialSession) {
+        // `initialSession` can fire with a null session at cold start
+        // when the user has never signed in — only kick off sync if we
+        // really have a session in hand.
+        if (authState.session == null) return;
         _initSync();
-        // Initialize RevenueCat with the authenticated user ID
         final userId = AuthService.instance.userId;
         if (userId != null) {
           ref.read(purchaseProvider.notifier).initialize(userId);
