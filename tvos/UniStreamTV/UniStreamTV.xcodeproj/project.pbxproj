@@ -893,7 +893,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv;
 				SDKROOT = appletvos;
 				SWIFT_VERSION = 6.0;
@@ -915,7 +915,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv.TopShelfExtension;
 				SDKROOT = appletvos;
 				SKIP_INSTALL = YES;
@@ -938,7 +938,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv;
 				SDKROOT = appletvos;
 				SWIFT_VERSION = 6.0;
@@ -960,7 +960,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = fr.unimaru.unistream.tv.TopShelfExtension;
 				SDKROOT = appletvos;
 				SKIP_INSTALL = YES;
