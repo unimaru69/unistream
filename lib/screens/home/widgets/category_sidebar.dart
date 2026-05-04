@@ -65,18 +65,35 @@ class CategorySidebar extends StatelessWidget {
           width: width,
           child: _buildSidebarList(context),
         ),
-        // Resize handle
-        MouseRegion(
-          cursor: SystemMouseCursors.resizeColumn,
-          child: GestureDetector(
-            onHorizontalDragUpdate: (d) {
-              onWidthChanged(d.delta.dx);
-            },
-            onHorizontalDragEnd: (_) => onDragEnd(),
-            child: Container(
-              width: 5,
-              color: Colors.transparent,
-              child: Center(child: VerticalDivider(width: 1, color: tc.divider)),
+        // Resize handle. Wrapped in a RepaintBoundary so a setState in the
+        // parent (every category click rebuilds the home screen and
+        // therefore this Row) doesn't force a full repaint of the divider
+        // line; without it Skia re-renders the 1-px line every frame and
+        // its subpixel antialiasing produces a visible flicker that the
+        // user sees as a "dashed" vertical line.
+        // The divider itself is a plain Container, not a VerticalDivider.
+        // Flutter's VerticalDivider with width=1 has documented rendering
+        // quirks on EGL (the inspector showed it as h=800, w=1, with 2-px
+        // padding on each side) that interact badly with high-DPI scaling
+        // and produce the pointillé effect.
+        RepaintBoundary(
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeColumn,
+            child: GestureDetector(
+              onHorizontalDragUpdate: (d) {
+                onWidthChanged(d.delta.dx);
+              },
+              onHorizontalDragEnd: (_) => onDragEnd(),
+              child: SizedBox(
+                width: 5,
+                child: Center(
+                  child: SizedBox(
+                    width: 1,
+                    height: double.infinity,
+                    child: ColoredBox(color: tc.divider),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
