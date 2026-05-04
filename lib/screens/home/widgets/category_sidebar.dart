@@ -90,28 +90,7 @@ class CategorySidebar extends StatelessWidget {
     final modeCollections = collections.where((c) =>
         c.mode == null || c.mode == mode.key).toList();
 
-    // Two layers of protection against the dashed vertical lines
-    // bracketing the sidebar:
-    //
-    // 1. ScrollConfiguration with scrollbars: false drops Flutter
-    //    desktop's default Scrollbar — that's the one painting the
-    //    visible vertical track at the right edge of the sidebar.
-    //    Without this it stays painted permanently in dark themes.
-    // 2. Focus(canRequestFocus: false, descendantsAreFocusable: false)
-    //    blocks the inner Scrollable from ever taking primary focus,
-    //    which would otherwise repaint a dashed focus rectangle around
-    //    the whole sidebar on every category click.
-    //
-    // The trade-off: no built-in scrollbar in the sidebar, and no
-    // keyboard PageUp/PageDown navigation inside it. Mouse-wheel and
-    // trackpad scrolling still work. The category list never grows
-    // long enough to need the scrollbar visually.
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: Focus(
-      canRequestFocus: false,
-      descendantsAreFocusable: false,
-      child: ListView.builder(
+    return ListView.builder(
       // Top padding reserves room for the translucent app bar above (the
       // Scaffold now has extendBodyBehindAppBar: true), so sidebar items
       // don't appear under the "UniStream" title.
@@ -318,8 +297,6 @@ class CategorySidebar extends StatelessWidget {
           ),
         );
       },
-      ),
-      ),
     );
   }
 }

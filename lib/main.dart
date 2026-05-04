@@ -134,17 +134,6 @@ void showMiniOverlay(MiniPlayerState state) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Suppress the dashed-rectangle focus indicator that Material widgets
-  // draw on top of focused tiles when the user clicks them with a
-  // mouse. Set BEFORE runApp so it's already in effect on the first
-  // build; setting it after runApp lets the first frame paint with the
-  // default `automatic` strategy and the dashed indicator can still
-  // flash on early clicks. See category_sidebar — the symptom is a
-  // briefly visible dashed rectangle around the just-clicked category.
-  WidgetsBinding.instance.focusManager.highlightStrategy =
-      FocusHighlightStrategy.alwaysTouch;
-
   // media_kit wraps libmpv, which crashes at init on iOS (EXC_BAD_ACCESS
   // in the DartWorker thread). Until we wire the iOS player to AVPlayer
   // via `video_player`, skip the global init so the UI still boots on
