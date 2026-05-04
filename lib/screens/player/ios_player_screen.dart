@@ -115,7 +115,11 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
       } catch (_) {/* ignore — listener will surface real errors */}
     });
 
-    _progressSaveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Save every 30s — see player_screen.dart for the long story (the
+    // chained SharedPreferences writes inside WatchProgress.save can
+    // pre-empt the rendering microtask and drop a frame, producing a
+    // visible image stutter every 5s on slower disks).
+    _progressSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
         WatchProgress.save(widget.resumeKey!, _lastPos, _lastDur);
       }

@@ -68,7 +68,12 @@ class MiniPlayerState {
     if (resumeKey == null || _disposed) return;
     _posSub = player.stream.position.listen((p) => _lastPos = p);
     _durSub = player.stream.duration.listen((d) => _lastDur = d);
-    _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // 30s, not 5s — WatchProgress.save() chains three SharedPreferences
+    // writes that fsync to disk. On slower disks the chained awaits
+    // can pre-empt the rendering microtask and drop a frame.
+    // stopTracking() flushes a final save so we never lose more than
+    // ~30s of progress.
+    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_disposed) return;
       if (_lastDur > Duration.zero) WatchProgress.save(resumeKey!, _lastPos, _lastDur);
     });

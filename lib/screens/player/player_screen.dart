@@ -591,7 +591,16 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   }
 
   void _startSaveTimer() {
-    _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Save every 30s — not 5s. WatchProgress.save() chains three awaits
+    // on SharedPreferences (getInstance + setInt x2), which writes a
+    // JSON file with fsync. On Linux ext4/btrfs that fsync occasionally
+    // pre-empts the rendering microtask just enough to drop a frame,
+    // producing a visible image stutter every 5s during VOD playback
+    // (live streams don't have a resumeKey, hence no stutter there).
+    // We still call WatchProgress.save explicitly on pause / seek /
+    // dispose / minimize-to-mini-player so the user never loses more
+    // than ~30s of progress in the worst case (a hard crash mid-play).
+    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
         WatchProgress.save(widget.resumeKey!, _lastPos, _lastDur);
       }
