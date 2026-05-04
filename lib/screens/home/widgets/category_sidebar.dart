@@ -90,7 +90,19 @@ class CategorySidebar extends StatelessWidget {
     final modeCollections = collections.where((c) =>
         c.mode == null || c.mode == mode.key).toList();
 
-    return ListView.builder(
+    // Wrap the inner Scrollable in a Focus that refuses focus for itself
+    // and its descendants. Without this, every click on a category tile
+    // promotes the underlying ListView's Scrollable to primary focus and
+    // Flutter draws a dashed rectangle around the whole sidebar — visible
+    // as a flickering pointillé border on each click. The global
+    // FocusHighlightStrategy.alwaysTouch we set in main() doesn't cover
+    // Scrollable's own focus rendering; this does. Trade-off is no
+    // keyboard PageUp/PageDown navigation inside the sidebar, which a
+    // category list doesn't really need anyway.
+    return Focus(
+      canRequestFocus: false,
+      descendantsAreFocusable: false,
+      child: ListView.builder(
       // Top padding reserves room for the translucent app bar above (the
       // Scaffold now has extendBodyBehindAppBar: true), so sidebar items
       // don't appear under the "UniStream" title.
@@ -297,6 +309,7 @@ class CategorySidebar extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }
