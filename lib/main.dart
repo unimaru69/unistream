@@ -185,6 +185,16 @@ void main() async {
     return true;
   };
 
+  // Suppress the dashed-rectangle focus indicator that flashes on every
+  // mouse click on Linux desktop. Must be set BEFORE the first frame —
+  // otherwise the default `automatic` strategy renders one focus highlight
+  // before our override kicks in. `alwaysTouch` keeps focus working under
+  // the hood (screen readers still get focus events) but never paints the
+  // visual indicator. Acceptable trade-off for a mouse-and-remote-driven
+  // app — keyboard Tab navigation users on desktop are extremely rare here.
+  WidgetsBinding.instance.focusManager.highlightStrategy =
+      FocusHighlightStrategy.alwaysTouch;
+
   if (isSentryEnabled) {
     await SentryFlutter.init(
       (options) {
@@ -202,18 +212,6 @@ void main() async {
     };
     runApp(const ProviderScope(child: UniStreamApp()));
   }
-
-  // Suppress the dashed-rectangle focus indicator that flashes on every
-  // mouse click on Linux desktop. The default `automatic` strategy
-  // sometimes treats a mouse-up as a keyboard-style focus event and
-  // draws the highlight for one frame, producing a visible flicker on
-  // sidebar / list-tile / button taps. `alwaysTouch` keeps focus
-  // working under the hood (so screen readers still get focus events)
-  // but never paints the visual indicator. Acceptable trade-off for a
-  // mouse-and-remote-driven app — keyboard Tab navigation users on
-  // desktop are extremely rare here.
-  WidgetsBinding.instance.focusManager.highlightStrategy =
-      FocusHighlightStrategy.alwaysTouch;
 }
 
 class UniStreamApp extends ConsumerStatefulWidget {
