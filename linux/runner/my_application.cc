@@ -76,6 +76,24 @@ static void my_application_activate(GApplication* application) {
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
+
+  // Suppress the dashed focus rectangle that GTK / Adwaita paints
+  // around the FlView whenever it owns the keyboard focus. The rectangle
+  // is a GTK theme feature (CSS `outline-style: dashed` on `:focus`),
+  // not a Flutter widget — so no FocusHighlightStrategy or Focus widget
+  // on the Dart side can hide it. Inject a CSS provider that zeroes
+  // out the outline on every widget of this application; the Flutter
+  // view still grabs focus and forwards keyboard events normally, just
+  // without the visible rectangle.
+  GtkCssProvider* css_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(css_provider,
+      "* { outline: none; outline-width: 0; outline-color: transparent; }",
+      -1, nullptr);
+  gtk_style_context_add_provider_for_screen(
+      gdk_screen_get_default(),
+      GTK_STYLE_PROVIDER(css_provider),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_object_unref(css_provider);
 }
 
 // Implements GApplication::local_command_line.
