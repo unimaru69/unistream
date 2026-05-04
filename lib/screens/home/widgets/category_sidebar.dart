@@ -90,16 +90,25 @@ class CategorySidebar extends StatelessWidget {
     final modeCollections = collections.where((c) =>
         c.mode == null || c.mode == mode.key).toList();
 
-    // Wrap the inner Scrollable in a Focus that refuses focus for itself
-    // and its descendants. Without this, every click on a category tile
-    // promotes the underlying ListView's Scrollable to primary focus and
-    // Flutter draws a dashed rectangle around the whole sidebar — visible
-    // as a flickering pointillé border on each click. The global
-    // FocusHighlightStrategy.alwaysTouch we set in main() doesn't cover
-    // Scrollable's own focus rendering; this does. Trade-off is no
-    // keyboard PageUp/PageDown navigation inside the sidebar, which a
-    // category list doesn't really need anyway.
-    return Focus(
+    // Two layers of protection against the dashed vertical lines
+    // bracketing the sidebar:
+    //
+    // 1. ScrollConfiguration with scrollbars: false drops Flutter
+    //    desktop's default Scrollbar — that's the one painting the
+    //    visible vertical track at the right edge of the sidebar.
+    //    Without this it stays painted permanently in dark themes.
+    // 2. Focus(canRequestFocus: false, descendantsAreFocusable: false)
+    //    blocks the inner Scrollable from ever taking primary focus,
+    //    which would otherwise repaint a dashed focus rectangle around
+    //    the whole sidebar on every category click.
+    //
+    // The trade-off: no built-in scrollbar in the sidebar, and no
+    // keyboard PageUp/PageDown navigation inside it. Mouse-wheel and
+    // trackpad scrolling still work. The category list never grows
+    // long enough to need the scrollbar visually.
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: Focus(
       canRequestFocus: false,
       descendantsAreFocusable: false,
       child: ListView.builder(
@@ -309,6 +318,7 @@ class CategorySidebar extends StatelessWidget {
           ),
         );
       },
+      ),
       ),
     );
   }
