@@ -352,16 +352,42 @@ struct SeriesDetailView: View {
             episodeId: episode.episodeId,
             extension: episode.containerExtension
         ) else { return }
-        // Episode rows from Xtream don't carry their own cover, so reuse
-        // the series poster — keeps the Continue Watching row populated
-        // with real artwork instead of the placeholder.
+        let key = contentKey(for: episode)
+        // Episode rows from Xtream don't carry their own cover, so seed
+        // the WatchEntry with the series poster immediately. Then —
+        // without delaying playback — kick off a TMDB fetch for the
+        // per-episode still and patch the cover URL once it lands. The
+        // Continue Watching shelf upgrades from "series poster" to
+        // "actual episode screenshot" the first time it observes the
+        // updated entry.
         PlayerPresenter.playVOD(
             url: url,
             title: episode.displayTitle,
             resumeFromMs: resumeFromMs,
-            contentKey: contentKey(for: episode),
+            contentKey: key,
             coverUrl: series.displayIcon
         )
+        upgradeEpisodeCover(episode: episode, contentKey: key)
+    }
+
+    /// Fire-and-forget TMDB lookup for the episode's `still_path`. Updates
+    /// the live WatchEntry on success. Silently no-ops on TMDB miss /
+    /// network failure.
+    private func upgradeEpisodeCover(episode: Episode, contentKey: String) {
+        guard let tmdbId = tmdbVM.result?.id else { return }
+        guard let seasonStr = selectedSeason, let seasonNum = Int(seasonStr) else { return }
+        guard let episodeNum = episode.episodeNum else { return }
+
+        Task.detached(priority: .utility) { [appState] in
+            guard let url = await TMDBService.shared.fetchEpisodeStill(
+                tmdbId: tmdbId,
+                season: seasonNum,
+                episode: episodeNum
+            ) else { return }
+            await MainActor.run {
+                appState.syncService.updateCoverUrl(contentKey: contentKey, url.absoluteString)
+            }
+        }
     }
 
     private static func formatTime(_ ms: Int) -> String {

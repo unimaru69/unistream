@@ -345,6 +345,19 @@ final class SyncService {
 
     /// Register a playback session — stores the title immediately so history always has a name.
     /// Called at the start of playback, before any progress is tracked.
+    /// Patch only the `coverUrl` on an existing entry — used by the
+    /// series detail flow to upgrade the coarse "series poster"
+    /// fallback with a per-episode TMDB still once the async fetch
+    /// resolves. No-op if the entry doesn't exist yet (the caller
+    /// should have called `registerPlayback` first).
+    func updateCoverUrl(contentKey: String, _ url: String) {
+        guard var entry = watchProgress[contentKey] else { return }
+        entry.coverUrl = url
+        watchProgress[contentKey] = entry
+        debouncePushProgress(contentKey: contentKey)
+        writeTopShelfSnapshot()
+    }
+
     func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil, coverUrl: String? = nil) {
         let existing = watchProgress[contentKey]
         // Always update the title (even if one exists — caller has the latest)

@@ -210,4 +210,48 @@ final class TMDBService: @unchecked Sendable {
         guard let path = path, !path.isEmpty else { return nil }
         return imageBase.appendingPathComponent(size).appendingPathComponent(path)
     }
+
+    // MARK: - Episode stills
+
+    /// Fetch the per-episode "still" image (16:9 screenshot) — much
+    /// more visual in a Continue Watching row than the show's static
+    /// poster. Returns the absolute image URL or nil when the request
+    /// fails / the episode has no still on TMDB.
+    ///
+    /// - Parameters:
+    ///   - tmdbId: TMDB id of the SHOW (not the episode), as returned by
+    ///             `enrich(rawTitle:kind:.tv)`.
+    ///   - season: Season number (1-based).
+    ///   - episode: Episode number within the season (1-based).
+    ///   - size: TMDB image size ("w300", "w500", "original"). Defaults
+    ///           to "w500" — sized for our 280×160 CW card without
+    ///           wasting bandwidth on full-resolution stills.
+    func fetchEpisodeStill(
+        tmdbId: Int,
+        season: Int,
+        episode: Int,
+        size: String = "w500"
+    ) async -> URL? {
+        let cfg = TMDBConfig.shared
+        guard cfg.isActive else { return nil }
+        let path = "tv/\(tmdbId)/season/\(season)/episode/\(episode)"
+        var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            .init(name: "api_key", value: cfg.apiKey),
+            .init(name: "language", value: cfg.language),
+        ]
+        guard let url = components.url else { return nil }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let stillPath = json["still_path"] as? String, !stillPath.isEmpty else { return nil }
+            return Self.imageURL(path: stillPath, size: size)
+        } catch {
+            return nil
+        }
+    }
 }
