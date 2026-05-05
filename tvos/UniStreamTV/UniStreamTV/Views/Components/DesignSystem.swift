@@ -169,6 +169,28 @@ enum DS {
     static let glassRegular: Material = .regularMaterial
 }
 
+// MARK: - String helpers
+
+extension String {
+    /// Strip the IPTV provider's "XX|" tag from the start of a title
+    /// (≤4 alphanumeric characters followed by a pipe). Returns the
+    /// trimmed remainder, or the original string when no tag is found.
+    /// Used everywhere we present a user-facing title — keeps the
+    /// "ARI| Bhramam" / "FR| Drag Race France" format off-screen
+    /// without losing the tag for internal language scoring.
+    var strippingProviderTag: String {
+        guard let pipe = firstIndex(of: "|") else { return self }
+        let prefixLen = distance(from: startIndex, to: pipe)
+        guard prefixLen >= 1, prefixLen <= 4 else { return self }
+        // Make sure the prefix is mostly letters/digits — avoids
+        // stripping titles that legitimately contain "|" early on.
+        let prefix = self[startIndex..<pipe]
+        guard prefix.allSatisfy({ $0.isLetter || $0.isNumber || $0 == " " }) else { return self }
+        let after = self[index(after: pipe)...]
+        return String(after).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 // MARK: - Convenience modifiers
 
 extension View {

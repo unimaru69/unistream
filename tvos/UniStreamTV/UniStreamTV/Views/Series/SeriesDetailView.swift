@@ -145,7 +145,7 @@ struct SeriesDetailView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text(series.name)
+                Text(series.name.strippingProviderTag)
                     .font(.title2)
                     .fontWeight(.bold)
 

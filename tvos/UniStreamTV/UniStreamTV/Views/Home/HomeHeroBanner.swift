@@ -9,6 +9,10 @@ struct HomeHeroBanner: View {
     @State private var items: [RecentlyAddedItem] = []
     @State private var currentIndex: Int = 0
     @State private var hasLoaded = false
+    /// TMDB lookups resolved during `load()` so the foreground can fall
+    /// back on `result.overview` when the IPTV provider gives us no
+    /// plot of its own. Keyed on `RecentlyAddedItem.id`.
+    @State private var tmdbCache: [String: TMDBResult] = [:]
     /// Optional binding so a parent can render a full-screen backdrop
     /// behind the entire home tab synced with the hero's auto-rotation.
     var displayedItem: Binding<RecentlyAddedItem?>? = nil
@@ -123,10 +127,21 @@ struct HomeHeroBanner: View {
     }
 
     private func plotOf(_ item: RecentlyAddedItem) -> String? {
-        switch item {
-        case .vod(let v): return v.plot ?? v.description
-        case .series(let s): return s.plot ?? s.description
+        // Prefer the IPTV-provided plot (closest to provider's own
+        // copy); fall back to TMDB overview for items where the
+        // provider gives us nothing — the hero block reads "richer"
+        // and the page never feels like a one-line title floating
+        // alone on a backdrop.
+        let providerPlot: String? = {
+            switch item {
+            case .vod(let v): return v.plot ?? v.description
+            case .series(let s): return s.plot ?? s.description
+            }
+        }()
+        if let p = providerPlot, !p.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return p
         }
+        return tmdbCache[item.id]?.overview
     }
 
     private func ratingOf(_ item: RecentlyAddedItem) -> String? {
@@ -211,7 +226,7 @@ struct HomeHeroBanner: View {
                     .foregroundColor(DS.Colour.textSecondary)
             }
 
-            Text(item.name)
+            Text(item.name.strippingProviderTag)
                 .font(DS.Typography.displayHero)
                 .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)
@@ -406,18 +421,33 @@ struct HomeHeroBanner: View {
             return r + hasPoster + hasPlot + languageBoost(name: s.name, category: s.categoryName ?? "")
         }
 
+        // Hard-filter dispreferred languages BEFORE scoring — the
+        // previous penalty (-8) can be cancelled by a high TMDB rating
+        // + poster + plot, which is exactly how Arabic films with
+        // perfect TMDB metadata kept slipping into the À LA UNE
+        // rotation. An item tagged with a blacklisted prefix on either
+        // its title or its category never makes the candidate list.
+        func isDispreferred(name: String, category: String) -> Bool {
+            for tag in [providerTag(name), providerTag(category)] where !tag.isEmpty {
+                if tagMatches(tag, dispreferredPrefixes) { return true }
+            }
+            return false
+        }
+
         // Rotate among the top N films + top N series — interleaved so the
         // carousel alternates formats. We score then drop anything below
         // a quality threshold so the user never lands on a hero with
         // empty plot + no poster.
         let qualityThreshold: Double = 5.0
         let candidateVods = vods
+            .filter { !isDispreferred(name: $0.name, category: $0.categoryName ?? "") }
             .map { (item: $0, score: vodScore($0)) }
             .filter { $0.score >= qualityThreshold }
             .sorted { $0.score > $1.score }
             .prefix(15)
             .map { RecentlyAddedItem.vod($0.item) }
         let candidateSeries = seriesList
+            .filter { !isDispreferred(name: $0.name, category: $0.categoryName ?? "") }
             .map { (item: $0, score: seriesScore($0)) }
             .filter { $0.score >= qualityThreshold }
             .sorted { $0.score > $1.score }
@@ -434,28 +464,45 @@ struct HomeHeroBanner: View {
         // single TMDB roundtrip instead of N. `TMDBService.enrich`
         // caches across calls, so subsequent launches resolve from
         // memory.
-        let topVods = await filterByTMDBBackdrop(candidateVods).prefix(5)
-        let topSeries = await filterByTMDBBackdrop(candidateSeries).prefix(5)
+        let enrichedVods = await filterByTMDBBackdrop(candidateVods)
+        let enrichedSeries = await filterByTMDBBackdrop(candidateSeries)
+
+        let topVods = Array(enrichedVods.prefix(5))
+        let topSeries = Array(enrichedSeries.prefix(5))
 
         var interleaved: [RecentlyAddedItem] = []
+        var cache: [String: TMDBResult] = [:]
         let maxCount = max(topVods.count, topSeries.count)
         for i in 0..<maxCount {
-            if i < topVods.count { interleaved.append(topVods[i]) }
-            if i < topSeries.count { interleaved.append(topSeries[i]) }
+            if i < topVods.count {
+                interleaved.append(topVods[i].item)
+                cache[topVods[i].item.id] = topVods[i].tmdb
+            }
+            if i < topSeries.count {
+                interleaved.append(topSeries[i].item)
+                cache[topSeries[i].item.id] = topSeries[i].tmdb
+            }
         }
 
         items = interleaved
+        tmdbCache = cache
         // Start at a random index so successive launches don't always begin with
         // the same item.
         currentIndex = items.isEmpty ? 0 : Int.random(in: 0..<items.count)
     }
 
-    /// Drops candidates with no TMDB `backdrop_path`. Preserves input
-    /// order. Runs lookups concurrently via a TaskGroup so the wall
-    /// time is one TMDB roundtrip rather than `candidates.count` × one.
-    private func filterByTMDBBackdrop(_ candidates: [RecentlyAddedItem]) async -> [RecentlyAddedItem] {
+    /// Drops candidates with no TMDB `backdrop_path` and returns the
+    /// surviving items paired with their TMDB result, so the caller
+    /// can cache the result for downstream use (overview text fallback).
+    /// Runs lookups concurrently via a TaskGroup so the wall time is
+    /// one TMDB roundtrip rather than `candidates.count` × one.
+    private func filterByTMDBBackdrop(
+        _ candidates: [RecentlyAddedItem]
+    ) async -> [(item: RecentlyAddedItem, tmdb: TMDBResult)] {
         guard !candidates.isEmpty else { return [] }
-        let results: [(Int, RecentlyAddedItem)?] = await withTaskGroup(of: (Int, RecentlyAddedItem)?.self) { group in
+        let results: [(Int, RecentlyAddedItem, TMDBResult)?] = await withTaskGroup(
+            of: (Int, RecentlyAddedItem, TMDBResult)?.self
+        ) { group in
             for (idx, item) in candidates.enumerated() {
                 group.addTask {
                     let kind: TMDBKind = {
@@ -464,20 +511,22 @@ struct HomeHeroBanner: View {
                         case .series: return .tv
                         }
                     }()
-                    let result = await TMDBService.shared.enrich(rawTitle: item.name, kind: kind)
-                    if result?.backdropURL(size: "original") != nil {
-                        return (idx, item)
-                    }
-                    return nil
+                    guard let result = await TMDBService.shared.enrich(rawTitle: item.name, kind: kind),
+                          result.backdropURL(size: "original") != nil
+                    else { return nil }
+                    return (idx, item, result)
                 }
             }
-            var collected: [(Int, RecentlyAddedItem)?] = []
+            var collected: [(Int, RecentlyAddedItem, TMDBResult)?] = []
             for await value in group {
                 collected.append(value)
             }
             return collected
         }
-        return results.compactMap { $0 }.sorted { $0.0 < $1.0 }.map { $0.1 }
+        return results
+            .compactMap { $0 }
+            .sorted { $0.0 < $1.0 }
+            .map { (item: $0.1, tmdb: $0.2) }
     }
 }
 

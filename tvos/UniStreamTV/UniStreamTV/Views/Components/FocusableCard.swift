@@ -48,7 +48,7 @@ struct FocusableCardLabel: View {
                 .animation(DS.Focus.animation, value: isFocused)
 
             VStack(alignment: .center, spacing: 2) {
-                Text(title)
+                Text(title.strippingProviderTag)
                     .font(DS.Typography.title3)
                     .foregroundColor(DS.Colour.textPrimary)
                     .lineLimit(2)
@@ -56,7 +56,7 @@ struct FocusableCardLabel: View {
                     .frame(height: titleHeight, alignment: .top)
 
                 if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
+                    Text(subtitle.strippingProviderTag)
                         .font(DS.Typography.caption)
                         .foregroundColor(DS.Colour.textTertiary)
                         .lineLimit(1)

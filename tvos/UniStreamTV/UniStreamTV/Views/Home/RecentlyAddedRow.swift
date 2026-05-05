@@ -161,7 +161,7 @@ struct RecentlyAddedCard: View {
             }
             .frame(width: cardWidth, height: cardWidth / posterAspect)
 
-            Text(item.name)
+            Text(item.name.strippingProviderTag)
                 .font(DS.Typography.title3)
                 .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)

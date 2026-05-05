@@ -69,7 +69,7 @@ struct VODDetailView: View {
 
                 // Info
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(item.name)
+                    Text(item.name.strippingProviderTag)
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.white)

@@ -263,7 +263,7 @@ private struct CardContent: View {
                 )
                 .animation(DS.Focus.animation, value: isFocused)
 
-            Text(entry.title ?? favoriteInfo?.name ?? contentKey)
+            Text((entry.title ?? favoriteInfo?.name ?? contentKey).strippingProviderTag)
                 .font(DS.Typography.title3)
                 .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(1)
@@ -300,7 +300,7 @@ private struct CardContent: View {
                         .foregroundColor(DS.Colour.textPrimary.opacity(0.85))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
-                    Text(entry.title ?? favoriteInfo?.name ?? contentKey)
+                    Text((entry.title ?? favoriteInfo?.name ?? contentKey).strippingProviderTag)
                         .font(DS.Typography.label)
                         .foregroundColor(DS.Colour.textSecondary)
                         .lineLimit(2)
