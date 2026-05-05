@@ -21,6 +21,12 @@ struct TMDBResult: Codable, Identifiable, Equatable {
     let backdropPath: String?
     let cast: [TMDBCast]
     let videos: [TMDBVideo]
+    /// Movie: runtime in minutes. Series: average episode runtime
+    /// (TMDB's `episode_run_time[0]`). Nil when TMDB has no value.
+    let runtime: Int?
+    /// Series only — total seasons / episodes from TMDB.
+    let numberOfSeasons: Int?
+    let numberOfEpisodes: Int?
 
     /// Best-resolution backdrop URL for a given image size. TMDB serves the
     /// original asset behind `original`; we use that for hero banners.
@@ -184,6 +190,20 @@ final class TMDBService: @unchecked Sendable {
             return TMDBVideo(key: key, name: v["name"] as? String ?? "", type: type)
         }
 
+        // Runtime: movies use `runtime` (Int), series use
+        // `episode_run_time` (Array<Int>) — pick the first non-zero
+        // value, which is TMDB's most-typical episode length.
+        let runtime: Int? = {
+            if kind == .movie {
+                let r = json["runtime"] as? Int
+                return (r ?? 0) > 0 ? r : nil
+            }
+            let arr = json["episode_run_time"] as? [Int] ?? []
+            return arr.first(where: { $0 > 0 })
+        }()
+        let numSeasons = json["number_of_seasons"] as? Int
+        let numEpisodes = json["number_of_episodes"] as? Int
+
         return TMDBResult(
             id: json["id"] as? Int ?? 0,
             kind: kind,
@@ -195,7 +215,10 @@ final class TMDBService: @unchecked Sendable {
             posterPath: json["poster_path"] as? String,
             backdropPath: json["backdrop_path"] as? String,
             cast: Array(cast),
-            videos: videos
+            videos: videos,
+            runtime: runtime,
+            numberOfSeasons: kind == .tv ? numSeasons : nil,
+            numberOfEpisodes: kind == .tv ? numEpisodes : nil
         )
     }
 
@@ -209,6 +232,60 @@ final class TMDBService: @unchecked Sendable {
     static func imageURL(path: String?, size: String) -> URL? {
         guard let path = path, !path.isEmpty else { return nil }
         return imageBase.appendingPathComponent(size).appendingPathComponent(path)
+    }
+
+    // MARK: - Per-episode metadata
+
+    /// Per-episode meta returned by `fetchSeason`. The IPTV provider
+    /// rarely gives us episode-level synopses, so we lean on TMDB for
+    /// the full picture (still image + name + overview).
+    struct EpisodeMeta: Equatable, Sendable {
+        let episodeNumber: Int
+        let name: String?
+        let overview: String?
+        let stillPath: String?
+
+        func stillURL(size: String = "w500") -> URL? {
+            TMDBService.imageURL(path: stillPath, size: size)
+        }
+    }
+
+    /// Fetch the full season payload from TMDB — single network call
+    /// returns *all* episodes with their stills + overviews + names.
+    /// Much cheaper than calling `fetchEpisodeStill` per row when the
+    /// user opens a season picker.
+    ///
+    /// Returns an empty array on error / disabled TMDB.
+    func fetchSeason(tmdbId: Int, season: Int) async -> [EpisodeMeta] {
+        let cfg = TMDBConfig.shared
+        guard cfg.isActive else { return [] }
+        let path = "tv/\(tmdbId)/season/\(season)"
+        var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            .init(name: "api_key", value: cfg.apiKey),
+            .init(name: "language", value: cfg.language),
+        ]
+        guard let url = components.url else { return [] }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return [] }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let eps = json["episodes"] as? [[String: Any]] else { return [] }
+            return eps.compactMap { e in
+                guard let n = e["episode_number"] as? Int else { return nil }
+                return EpisodeMeta(
+                    episodeNumber: n,
+                    name: cleanOptional(e["name"] as? String),
+                    overview: cleanOptional(e["overview"] as? String),
+                    stillPath: e["still_path"] as? String
+                )
+            }
+        } catch {
+            return []
+        }
     }
 
     // MARK: - Episode stills

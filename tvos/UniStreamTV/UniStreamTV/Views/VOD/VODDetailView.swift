@@ -2,8 +2,12 @@ import SwiftUI
 @preconcurrency import AVKit
 import Kingfisher
 
-/// VOD movie detail — poster, info, play button.
-/// Player is presented via AVPlayerViewController (UIKit) for proper tvOS behavior.
+/// VOD movie detail — Apple TV+ style full-bleed backdrop with a hero
+/// info block in the upper-left, primary CTA pill, secondary actions,
+/// and the cast row underneath.
+///
+/// Player is launched via `PlayerPresenter.playVOD` (UIKit-backed
+/// `AVPlayerViewController` for proper tvOS chrome).
 struct VODDetailView: View {
     let item: VodItem
     let api: XtreamAPIService
@@ -24,203 +28,60 @@ struct VODDetailView: View {
         if let b = tmdbVM.result?.backdropURL(size: "original") {
             return b.absoluteString
         }
-        // While TMDB is still loading, keep the backdrop empty so PlexBackdrop
+        // While TMDB is loading, keep the backdrop empty so PlexBackdrop
         // stays plain dark — avoids flashing the low-res source poster.
-        if tmdbVM.isLoading || !tmdbVM.hasFetched {
-            return ""
-        }
+        if tmdbVM.isLoading || !tmdbVM.hasFetched { return "" }
         return item.displayIcon
     }
 
     private var isFav: Bool {
         appState.syncService.isFavorite(item.streamId)
     }
-
     private var isInWatchlist: Bool {
         appState.syncService.isInWatchlist(item.streamId)
     }
-
     private var isWatched: Bool {
         appState.syncService.isWatched(contentKey: contentKey)
     }
-
     private var savedProgress: WatchEntry? {
         appState.syncService.getProgress(contentKey: contentKey)
     }
 
+    /// Year used in the metadata strip — TMDB first, then a parse of
+    /// the title's trailing "(YYYY)" if any (so we still know the year
+    /// when TMDB hasn't resolved yet, even though the title now hides
+    /// it via `cleanedTitleNoYear`).
+    private var displayYear: String {
+        if let y = tmdbVM.result?.year { return "\(y)" }
+        return parseTrailingYear(from: item.name) ?? ""
+    }
+
+    private func parseTrailingYear(from title: String) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 6, trimmed.hasSuffix(")") else { return nil }
+        let close = trimmed.index(before: trimmed.endIndex)
+        let open = trimmed.index(close, offsetBy: -5)
+        guard open >= trimmed.startIndex, trimmed[open] == "(" else { return nil }
+        let yearStart = trimmed.index(after: open)
+        let year = trimmed[yearStart..<close]
+        return year.allSatisfy(\.isNumber) ? String(year) : nil
+    }
+
+    /// Primary CTA copy reflects the user's progress.
+    private var primaryCTACopy: String {
+        if isWatched { return "Revoir" }
+        if savedProgress != nil { return "Reprendre" }
+        return "Regarder"
+    }
+
     var body: some View {
         ScrollView {
-            HStack(alignment: .top, spacing: 50) {
-                // Poster
-                KFImage(URL(string: item.displayIcon))
-                    .resizable()
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(hex: 0x161230))
-                            .overlay {
-                                Image(systemName: "film")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white.opacity(0.3))
-                            }
-                    }
-                    .aspectRatio(2/3, contentMode: .fit)
-                    .frame(width: 300)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                // Info
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(item.name.strippingProviderTag)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-
-                    if let rating = item.rating, !rating.isEmpty, rating != "0" {
-                        HStack {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                            Text(rating)
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                    }
-
-                    // Synopsis — fall back to TMDB when the source has none.
-                    if !effectiveSynopsis.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(effectiveSynopsis)
-                                .font(.body)
-                                .foregroundColor(.white.opacity(0.75))
-                                .lineLimit(8)
-                            if sourceSynopsis.isEmpty && !effectiveSynopsis.isEmpty {
-                                TMDBBadge()
-                            }
-                        }
-                    } else if tmdbVM.isLoading {
-                        ProgressView()
-                            .tint(.white.opacity(0.6))
-                    }
-
-                    // Watched badge
-                    if isWatched {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Déjà vu")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.green)
-                        }
-                    }
-
-                    // Progress bar if resume available (and not marked watched)
-                    if let progress = savedProgress, !isWatched {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ProgressView(value: progress.progress)
-                                .tint(Color(hex: 0x1B6B8A))
-                            Text("Reprendre à \(formatTime(progress.positionMs))")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .frame(maxWidth: 400)
-                    }
-
-                    Spacer()
-
-                    // Primary actions
-                    HStack(spacing: 20) {
-                        Button {
-                            play()
-                        } label: {
-                            Label(
-                                isWatched ? "Revoir" : (savedProgress != nil ? "Reprendre" : "Regarder"),
-                                systemImage: "play.fill"
-                            )
-                            .font(.headline)
-                        }
-
-                        Button {
-                            appState.syncService.toggleFavorite(.from(vod: item))
-                        } label: {
-                            Label {
-                                Text(isFav ? "Retirer" : "Favori")
-                            } icon: {
-                                Image(systemName: isFav ? "heart.fill" : "heart")
-                                    .symbolEffect(.bounce, value: isFav)
-                            }
-                        }
-                        .tint(isFav ? .red : .gray)
-
-                        Button {
-                            appState.syncService.toggleWatchlist(.from(vod: item))
-                        } label: {
-                            Label {
-                                Text(isInWatchlist ? "Retirer de la liste" : "À regarder")
-                            } icon: {
-                                Image(systemName: isInWatchlist ? "bookmark.fill" : "bookmark")
-                                    .symbolEffect(.bounce, value: isInWatchlist)
-                            }
-                        }
-                        .tint(isInWatchlist ? Color(hex: 0x1B6B8A) : .gray)
-                    }
-
-                    // Secondary actions
-                    HStack(spacing: 20) {
-                        Button {
-                            if isWatched {
-                                appState.syncService.markAsUnwatched(contentKey: contentKey)
-                            } else {
-                                appState.syncService.markAsWatched(contentKey: contentKey, title: item.name)
-                            }
-                        } label: {
-                            Label(
-                                isWatched ? "Marquer non vu" : "Marquer vu",
-                                systemImage: isWatched ? "xmark.circle" : "checkmark.circle"
-                            )
-                            .font(.subheadline)
-                        }
-
-                        // Add to collection menu (Premium)
-                        if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo) {
-                            Menu {
-                                ForEach(appState.collectionsService.collections(for: "movie")) { collection in
-                                    Button {
-                                        appState.collectionsService.addToCollection(
-                                            collectionId: collection.id,
-                                            item: .from(vod: item)
-                                        )
-                                    } label: {
-                                        Label(collection.name, systemImage: "folder")
-                                    }
-                                }
-                            } label: {
-                                Label("Collection", systemImage: "folder.badge.plus")
-                                    .font(.subheadline)
-                            }
-                            .disabled(appState.collectionsService.collections.isEmpty)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: DS.Padding.sectionGap) {
+                hero
+                castRow
             }
-            .padding(80)
-
-            // TMDB cast row (below the hero) — only shown when we have data.
-            if let tmdb = tmdbVM.result, !tmdb.cast.isEmpty {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 10) {
-                        Text("Distribution")
-                            .font(.title3.weight(.bold))
-                            .foregroundColor(.white)
-                        TMDBBadge()
-                    }
-                    .padding(.horizontal, 40)
-
-                    TMDBCastRow(cast: tmdb.cast)
-                }
-                .padding(.bottom, 40)
-            }
+            .padding(.bottom, DS.Padding.contentBottom)
         }
-        // Force the cover to fill the entire screen — see
-        // SeriesDetailView for the rationale.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PlexBackdrop(imageUrl: backdropURL).ignoresSafeArea())
         .ignoresSafeArea()
@@ -228,6 +89,212 @@ struct VODDetailView: View {
             await tmdbVM.load(rawTitle: item.name, kind: .movie)
         }
     }
+
+    // MARK: - Hero block
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            Text(item.name.cleanedTitleNoYear)
+                .font(DS.Typography.displayHero)
+                .foregroundColor(DS.Colour.textPrimary)
+                .lineLimit(2)
+                .shadow(color: .black.opacity(0.6), radius: 12, y: 4)
+
+            metadataStrip
+
+            // Synopsis — capped height with a fade so long blurbs read
+            // as cinematic rather than wall-of-text.
+            if !effectiveSynopsis.isEmpty {
+                VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                    Text(effectiveSynopsis)
+                        .font(DS.Typography.body)
+                        .foregroundColor(DS.Colour.textSecondary)
+                        .frame(maxHeight: 200, alignment: .topLeading)
+                        .clipped()
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .black, location: 0),
+                                    .init(color: .black, location: 0.85),
+                                    .init(color: .clear, location: 1.0),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    if sourceSynopsis.isEmpty {
+                        TMDBBadge()
+                    }
+                }
+            } else if tmdbVM.isLoading {
+                ProgressView().tint(DS.Colour.textTertiary)
+            }
+
+            // Resume / watched indicators — sit above the CTA row so the
+            // user reads "Reprendre à 1:34:22" before pressing the
+            // primary button.
+            if isWatched {
+                watchedBadge
+            } else if let progress = savedProgress {
+                resumeProgressBar(progress)
+            }
+
+            primaryCTAs
+
+            secondaryCTAs
+        }
+        .frame(maxWidth: 980, alignment: .leading)
+        .padding(.horizontal, DS.Padding.screenHorizontal)
+        .padding(.top, DS.Padding.sectionGap)
+    }
+
+    private var metadataStrip: some View {
+        HStack(spacing: DS.Spacing.sm) {
+            if !formattedRating(tmdbVM.result?.rating).isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(DS.Colour.warning)
+                    Text(formattedRating(tmdbVM.result?.rating))
+                }
+            } else if let raw = item.rating, !raw.isEmpty, raw != "0" {
+                // Fallback: provider rating (string).
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(DS.Colour.warning)
+                    Text(raw)
+                }
+            }
+            if !displayYear.isEmpty {
+                separator
+                Text(displayYear)
+            }
+            let runtime = formattedRuntime(minutes: tmdbVM.result?.runtime)
+            if !runtime.isEmpty {
+                separator
+                Text(runtime)
+            }
+        }
+        .font(DS.Typography.bodyEmphasised)
+        .foregroundColor(DS.Colour.textSecondary)
+    }
+
+    private var separator: some View {
+        Text("·").foregroundColor(DS.Colour.textTertiary)
+    }
+
+    private var watchedBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+            Text("Déjà vu").font(DS.Typography.bodyEmphasised)
+        }
+        .foregroundColor(DS.Colour.success)
+    }
+
+    private func resumeProgressBar(_ progress: WatchEntry) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+            ProgressView(value: progress.progress)
+                .tint(DS.Colour.accent)
+            Text("Reprendre à \(formatTime(progress.positionMs))")
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Colour.textTertiary)
+        }
+        .frame(maxWidth: 460)
+    }
+
+    // MARK: - CTA rows
+
+    private var primaryCTAs: some View {
+        HStack(spacing: DS.Spacing.md) {
+            Button { play() } label: {
+                Label(primaryCTACopy, systemImage: "play.fill")
+            }
+            .buttonStyle(PrimaryHeroButton())
+
+            Button {
+                appState.syncService.toggleFavorite(.from(vod: item))
+            } label: {
+                Label {
+                    Text(isFav ? "Retirer" : "Favori")
+                } icon: {
+                    Image(systemName: isFav ? "heart.fill" : "heart")
+                        .symbolEffect(.bounce, value: isFav)
+                }
+            }
+            .buttonStyle(GhostHeroButton(activeTint: DS.Colour.accentWarm, isActive: isFav))
+
+            Button {
+                appState.syncService.toggleWatchlist(.from(vod: item))
+            } label: {
+                Label {
+                    Text(isInWatchlist ? "Retirer" : "À regarder")
+                } icon: {
+                    Image(systemName: isInWatchlist ? "bookmark.fill" : "bookmark")
+                        .symbolEffect(.bounce, value: isInWatchlist)
+                }
+            }
+            .buttonStyle(GhostHeroButton(activeTint: DS.Colour.accent, isActive: isInWatchlist))
+        }
+        .padding(.top, DS.Spacing.md)
+    }
+
+    @ViewBuilder
+    private var secondaryCTAs: some View {
+        HStack(spacing: DS.Spacing.md) {
+            Button {
+                if isWatched {
+                    appState.syncService.markAsUnwatched(contentKey: contentKey)
+                } else {
+                    appState.syncService.markAsWatched(contentKey: contentKey, title: item.name)
+                }
+            } label: {
+                Label(
+                    isWatched ? "Marquer non vu" : "Marquer vu",
+                    systemImage: isWatched ? "xmark.circle" : "checkmark.circle"
+                )
+            }
+            .buttonStyle(GhostHeroButton())
+
+            if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo) {
+                Menu {
+                    ForEach(appState.collectionsService.collections(for: "movie")) { collection in
+                        Button {
+                            appState.collectionsService.addToCollection(
+                                collectionId: collection.id,
+                                item: .from(vod: item)
+                            )
+                        } label: {
+                            Label(collection.name, systemImage: "folder")
+                        }
+                    }
+                } label: {
+                    Label("Collection", systemImage: "folder.badge.plus")
+                }
+                .buttonStyle(GhostHeroButton())
+                .disabled(appState.collectionsService.collections.isEmpty)
+            }
+        }
+    }
+
+    // MARK: - Cast row
+
+    @ViewBuilder
+    private var castRow: some View {
+        if let tmdb = tmdbVM.result, !tmdb.cast.isEmpty {
+            VStack(alignment: .leading, spacing: DS.Spacing.md) {
+                HStack(spacing: DS.Spacing.sm) {
+                    Text("Distribution")
+                        .font(DS.Typography.title1)
+                        .foregroundColor(DS.Colour.textPrimary)
+                    TMDBBadge()
+                }
+                .padding(.horizontal, DS.Padding.screenHorizontal)
+
+                TMDBCastRow(cast: tmdb.cast)
+            }
+        }
+    }
+
+    // MARK: - Actions
 
     private func play() {
         guard let url = api.vodStreamUrl(streamId: item.streamId, extension: item.containerExtension) else { return }

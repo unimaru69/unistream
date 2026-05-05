@@ -35,6 +35,7 @@
 		498620BBA9E626DCA6DDF8C2 /* ContinueWatchingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5908DCF7AD5D2C8ECC5650 /* ContinueWatchingRow.swift */; };
 		4CC492BBB4836AEC356D2CB0 /* PlexBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BED9531A21C40518012159 /* PlexBackdrop.swift */; };
 		4D359C8BABE1899006585AC5 /* DemoMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0B109201D90541B8CC2A4C /* DemoMode.swift */; };
+		4D9CEF782DC57BE3E69C4ED7 /* HeroButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 711F80A415BFD9955DD63D90 /* HeroButtonStyles.swift */; };
 		4DD371BAB445B1BEBC9C0C38 /* ChannelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5F50D4F0C4ACFB57A7A951 /* ChannelDetailView.swift */; };
 		52ACF0F6D91AA7EDB33CE11F /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B8355E41F4549D78A46A9F1 /* Channel.swift */; };
 		5A5A2DED8CB17BA518C20EFF /* FeatureAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B11D8444EA36EE220D4A5F1 /* FeatureAccessTests.swift */; };
@@ -180,6 +181,7 @@
 		64346A4025C492F01DFC1416 /* LiveCategoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCategoryListView.swift; sourceTree = "<group>"; };
 		6A72883A64F190F787A8978B /* FavoriteItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteItemTests.swift; sourceTree = "<group>"; };
 		6B5E765218D051555C0422BC /* CollectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsView.swift; sourceTree = "<group>"; };
+		711F80A415BFD9955DD63D90 /* HeroButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroButtonStyles.swift; sourceTree = "<group>"; };
 		72F38FD656B29860B601206D /* PurchaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseService.swift; sourceTree = "<group>"; };
 		74AE18A979D6885586FC5F8D /* TMDBBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBBadge.swift; sourceTree = "<group>"; };
 		74B5215C53F62C8492BAA9A2 /* TMDBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBService.swift; sourceTree = "<group>"; };
@@ -537,6 +539,7 @@
 				B2B873EF0E4218A8FC8FE419 /* EmptyStateView.swift */,
 				EE254BB2D2EFC59D3A2DC32A /* ErrorRetryView.swift */,
 				128BA5E87066CEE16997BC1C /* FocusableCard.swift */,
+				711F80A415BFD9955DD63D90 /* HeroButtonStyles.swift */,
 				4585D311780B0E1E1070318F /* PinEntryView.swift */,
 				18BED9531A21C40518012159 /* PlexBackdrop.swift */,
 				CF703BD873DE264823660A7E /* PremiumGate.swift */,
@@ -748,6 +751,7 @@
 				141C6932E3C5EFA9833F2159 /* FavoritesView.swift in Sources */,
 				08207ABB4F2ABA12FA5FCFEF /* Feature.swift in Sources */,
 				7F5C004035BD07FD07120542 /* FocusableCard.swift in Sources */,
+				4D9CEF782DC57BE3E69C4ED7 /* HeroButtonStyles.swift in Sources */,
 				A28876D3617EC849EDF82AD1 /* HistoryView.swift in Sources */,
 				33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */,
 				F2E8B4980B4137D48FDA266B /* HomeTabView.swift in Sources */,
@@ -886,7 +890,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -907,7 +911,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -931,7 +935,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -952,7 +956,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -189,6 +189,59 @@ extension String {
         let after = self[index(after: pipe)...]
         return String(after).trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// Strip a trailing parenthesised 4-digit year — e.g.
+    /// "Dune (2021)" → "Dune". Used in detail views where the year is
+    /// already shown on its own in the metadata strip; leaving "(2021)"
+    /// in the title duplicates the info and crowds the headline.
+    /// Conservative on purpose: only matches `(YYYY)` at the very end
+    /// (after trim), so titles that legitimately contain a year mid-
+    /// string ("Blade Runner 2049") are untouched.
+    var strippingYearSuffix: String {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 7, trimmed.hasSuffix(")") else { return self }
+        // Walk back from the closing paren — the last 6 chars must be
+        // "(YYYY)" with YYYY all digits between 1900 and 2099.
+        let closeIdx = trimmed.index(before: trimmed.endIndex)
+        let openIdx = trimmed.index(closeIdx, offsetBy: -5)
+        guard openIdx >= trimmed.startIndex, trimmed[openIdx] == "(" else { return self }
+        let yearStart = trimmed.index(after: openIdx)
+        let year = trimmed[yearStart..<closeIdx]
+        guard year.count == 4, year.allSatisfy(\.isNumber) else { return self }
+        if let n = Int(year), (1900...2099).contains(n) {
+            let cleaned = trimmed[..<openIdx]
+            return String(cleaned).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return self
+    }
+
+    /// Convenience: strip the provider tag *and* a trailing year. Use
+    /// in detail headlines where the year is rendered in the metadata
+    /// strip on its own.
+    var cleanedTitleNoYear: String {
+        strippingProviderTag.strippingYearSuffix
+    }
+}
+
+// MARK: - Format helpers
+
+/// Format minutes as "2h17" / "47 min" — matches the Apple TV+ /
+/// Strimr convention. Returns an empty string on `nil` so call-sites
+/// can do `if !formatted.isEmpty`.
+func formattedRuntime(minutes: Int?) -> String {
+    guard let m = minutes, m > 0 else { return "" }
+    if m >= 60 {
+        let h = m / 60
+        let rem = m % 60
+        return rem == 0 ? "\(h)h" : String(format: "%dh%02d", h, rem)
+    }
+    return "\(m) min"
+}
+
+/// One-decimal star rating ("8.4"), or empty for missing / zero.
+func formattedRating(_ score: Double?) -> String {
+    guard let s = score, s > 0 else { return "" }
+    return String(format: "%.1f", s)
 }
 
 // MARK: - Convenience modifiers
