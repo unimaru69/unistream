@@ -107,19 +107,34 @@ struct ContinueWatchingRow: View {
                         }
                         guard let entry = entries.first(where: { $0.key == key })?.entry else { return }
                         // Map to TMDB kind — live entries skip the
-                        // wallpaper update (no useful backdrop). Episode
-                        // and VOD both look up against TMDB; episode
-                        // titles match poorly so we fall back on the
-                        // series id when known.
+                        // wallpaper update (no useful backdrop).
                         if key.hasPrefix("live_") {
                             rowFocused?.wrappedValue = nil
                             return
                         }
                         let kind: TMDBKind = key.hasPrefix("vod_") ? .movie : .tv
-                        let title = entry.title ?? key
+
+                        // Episodes need the *series* name for TMDB; the
+                        // WatchEntry's `title` is just the episode
+                        // ("S03E07 — The Reckoning"), which TMDB can't
+                        // match. Look up the series by `seriesId` in
+                        // favorites — that's the only place we keep the
+                        // clean series title on tvOS today. If the user
+                        // never favorited the series, fall back on the
+                        // episode title (TMDB will miss and the
+                        // wallpaper stays flat dark, which is no worse
+                        // than the previous behaviour).
+                        var lookupTitle = entry.title ?? key
+                        if key.hasPrefix("ep_"), let sid = entry.seriesId {
+                            if let seriesFav = appState.syncService.favorites.values
+                                .first(where: { $0.isSeries && $0.seriesId == sid }) {
+                                lookupTitle = seriesFav.name
+                            }
+                        }
+
                         rowFocused?.wrappedValue = BackdropTarget(
                             id: "cw_\(key)",
-                            title: title,
+                            title: lookupTitle,
                             kind: kind
                         )
                     }

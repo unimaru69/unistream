@@ -302,27 +302,25 @@ struct HomeHeroBanner: View {
     // MARK: - Placeholder
 
     private var placeholder: some View {
-        ZStack {
-            LinearGradient(
-                colors: [DS.Colour.accent.opacity(0.35), DS.Colour.background],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+        // Quiet skeleton — used to be a "Bienvenue sur UniStream" wall
+        // (logo + welcome copy) that the user perceived as a slow
+        // welcome screen even though the rows below were already
+        // loading. Now we render a near-flat dark block so the eye
+        // drifts straight to Reprendre / Favoris while the hero pops in
+        // as soon as `load()` resolves the first item with a TMDB
+        // backdrop. No copy, no logo — the brand lives in the hero
+        // artwork itself the moment it's ready.
+        DS.Colour.background
+            .overlay(
+                LinearGradient(
+                    colors: [
+                        DS.Colour.accent.opacity(0.10),
+                        DS.Colour.background.opacity(0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
-            VStack(spacing: 16) {
-                Image("Logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 140, height: 140)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .shadow(color: DS.Colour.accent.opacity(0.4), radius: 16, y: 6)
-                Text("Bienvenue sur UniStream")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                Text("Parcourez Live, Films et Séries")
-                    .foregroundColor(.white.opacity(0.7))
-            }
-        }
     }
 
     // MARK: - CTA Style
