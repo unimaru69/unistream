@@ -85,14 +85,24 @@ struct SeriesGridView: View {
                     }
                     .padding(40)
                     }
-                    // Re-scroll to the top whenever we re-appear (after a
-                    // pop from SeriesDetailView) so the tvOS TabView's
-                    // auto-hidden tab bar is unconditionally re-revealed.
-                    // Without this the tab bar stayed hidden after Back
-                    // and the user had to navigate around to bring it
-                    // back.
+                    // Re-scroll to the top AND reset focus to the first
+                    // card whenever we re-appear (after a pop from
+                    // SeriesDetailView). Just scrolling wasn't enough:
+                    // the tvOS focus engine restores focus to the
+                    // previously-clicked card right after our scroll and
+                    // snaps the offset back, hiding the tab bar again.
+                    // Forcing focus to the first item — after a small
+                    // delay so we override the system's restoration —
+                    // keeps focus near the top, which is what the
+                    // TabView watches to decide whether to show the bar.
                     .onAppear {
-                        withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(120))
+                            if let first = viewModel.items.first?.seriesId {
+                                focusedSeriesId = first
+                            }
+                            withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                        }
                     }
                 }
             }

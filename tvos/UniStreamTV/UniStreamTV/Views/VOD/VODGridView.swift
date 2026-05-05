@@ -87,8 +87,19 @@ struct VODGridView: View {
                     }
                     .padding(40)
                     }
+                    // See SeriesGridView for the rationale: the scrollTo
+                    // alone is fought by the tvOS focus engine's auto-
+                    // restoration to the previously-tapped card; force
+                    // focus to the first item after a small delay so the
+                    // TabView's tab bar reveal sticks.
                     .onAppear {
-                        withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(120))
+                            if let first = viewModel.items.first?.streamId {
+                                focusedVodId = first
+                            }
+                            withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                        }
                     }
                 }
             }
