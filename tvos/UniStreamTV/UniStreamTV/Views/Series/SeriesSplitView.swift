@@ -59,6 +59,11 @@ struct SeriesSplitView: View {
                     selection = filteredCategories.first
                 }
             }
+            // Force the floating TabView tab bar back on after popping
+            // SeriesDetailView. Without this the bar sometimes stays
+            // collapsed because tvOS caches the "scrolled" state across
+            // the push/pop boundary regardless of where focus lands.
+            .toolbar(.visible, for: .tabBar)
         }
     }
 

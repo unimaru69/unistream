@@ -198,6 +198,10 @@ struct HomeContentView: View {
             // brand on Accueil, so we don't want a separate "UniStream"
             // strip eating space above the hero.
             .toolbar(.hidden, for: .automatic)
+            // Force the floating tab bar back on after popping detail
+            // views (FavoritesShelf navigates into VOD/Series detail) —
+            // tvOS otherwise caches the scrolled-collapsed state.
+            .toolbar(.visible, for: .tabBar)
             .navigationDestination(for: SeriesItem.self) { series in
                 if let seriesVM = appState.seriesVM {
                     SeriesDetailView(series: series, viewModel: seriesVM, api: appState.api)

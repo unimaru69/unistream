@@ -85,16 +85,15 @@ struct SeriesGridView: View {
                     }
                     .padding(40)
                     }
-                    // Re-scroll to the top AND reset focus to the first
-                    // card whenever we re-appear (after a pop from
-                    // SeriesDetailView). Just scrolling wasn't enough:
-                    // the tvOS focus engine restores focus to the
-                    // previously-clicked card right after our scroll and
-                    // snaps the offset back, hiding the tab bar again.
-                    // Forcing focus to the first item — after a small
-                    // delay so we override the system's restoration —
-                    // keeps focus near the top, which is what the
-                    // TabView watches to decide whether to show the bar.
+                    // Scroll back to the top + reset focus to the first
+                    // card on re-appear (after a pop from
+                    // SeriesDetailView). Even at the top with the first
+                    // card focused the tab bar can stay collapsed —
+                    // tvOS caches the "scrolled" tab-bar state across
+                    // the push/pop boundary regardless of focus
+                    // position. We explicitly re-show it via the
+                    // `.toolbar(.visible, for: .tabBar)` modifier on
+                    // the parent view.
                     .onAppear {
                         Task { @MainActor in
                             try? await Task.sleep(for: .milliseconds(120))

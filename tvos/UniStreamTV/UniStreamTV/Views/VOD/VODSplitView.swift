@@ -60,6 +60,10 @@ struct VODSplitView: View {
                     selection = filteredCategories.first
                 }
             }
+            // See SeriesSplitView for the rationale: force the TabView
+            // tab bar visible so it survives the push/pop into
+            // VODDetailView.
+            .toolbar(.visible, for: .tabBar)
         }
     }
 
