@@ -128,7 +128,7 @@ struct HomeContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 40) {
+                VStack(alignment: .leading, spacing: DS.Padding.sectionGap) {
                     // Cinematic hero at the top — bleeds under the top
                     // tab bar (no top padding from the safe area).
                     HomeHeroBanner(displayedItem: $heroItem)
@@ -263,20 +263,19 @@ private struct FavoritesShelf: View {
     @State private var presentedSeries: SeriesItem?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text(title)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 50)
+                .font(DS.Typography.title2)
+                .foregroundColor(DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Padding.screenHorizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 24) {
+                HStack(spacing: DS.Spacing.lg) {
                     ForEach(items, id: \.key) { fav in
                         card(for: fav)
                     }
                 }
-                .padding(.horizontal, 50)
+                .padding(.horizontal, DS.Padding.screenHorizontal)
             }
         }
         .fullScreenCover(item: $presentedVod) { vod in

@@ -3,21 +3,101 @@
 Cohérence entre l'app Flutter (iPhone, iPad, macOS, Windows, Linux, Android)
 et l'app native Swift tvOS. Code séparé, marque unique.
 
+## North star visuel (v2 — 2026-05)
+
+UniStream adopte un design language **Apple TV+ / Strimr** :
+- True-black canvas, surfaces lift par couches
+- Typographie **SF Pro Display** (système Apple), tracking serré
+- Backdrops TMDB plein écran sticky derrière le contenu
+- Focus engine = scale 1.10 + ombre profonde + ring teal subtil
+- Glassmorphism léger sur les modales (`.ultraThinMaterial`)
+- Mouvement lent et premium (0.18s à 0.4s easeOut)
+
+Référence visuelle : Apple TV+ Home, Strimr (https://strimr.app), Plex
+en mode "cinematic".
+
 ## Couleurs
+
+Source de vérité : `tvos/UniStreamTV/UniStreamTV/Views/Components/DesignSystem.swift::DS.Colour`
++ `lib/core/colors.dart::AppColors`. Les deux fichiers doivent rester en
+lock-step.
 
 | Rôle | Hex | Usage |
 |------|-----|-------|
-| Primary (teal) | `#1B6B8A` | Accent, CTAs, sélection |
-| Primary hover | `#2A8AB0` | États focus / hover (surtout tvOS focus engine) |
-| Dark background | `#0E0B1E` | Fond principal thème sombre |
-| Dark surface | `#161230` | Cartes, sections, modales |
-| Accent green | `#2E7D32` | Badges positifs ("Replay", "En direct") |
-| Error red | `#C62828` | Erreurs, destructif |
+| Background | `#000000` | Canvas principal — true black |
+| Surface | `#141414` | Cartes, panneaux soulevés |
+| Surface elevated | `#1C1C1E` | Cartes nested, hover preview |
+| Accent (teal) | `#1B6B8A` | Focus ring, CTAs primaires, "À LA UNE" |
+| Accent light | `#2A8AB0` | Hover / variant clair |
+| Accent warm | `#FF6B5B` | "En direct", "Nouveau" — usage très parcimonieux |
+| Error | `#FF453A` | Erreurs, destructif (système Apple) |
+| Success | `#32D74B` | "Vu", confirmations (système Apple) |
+| Warning | `#FFD60A` | Alertes EPG, "Bientôt expiré" |
+
+Texte sur fond sombre : `Color.white` à 1.0 / 0.72 / 0.50 / 0.30 d'opacité
+(primary / secondary / tertiary / disabled).
 
 **Règles :**
-- Thème sombre par défaut sur Flutter ET tvOS
-- tvOS peut laisser macOS/tvOS gérer le light mode via SwiftUI natif — pas d'obligation de forcer le dark
-- Le teal `#1B6B8A` est la signature visuelle, identique partout
+- Thème sombre par défaut partout. macOS/tvOS peuvent rendre un mode light
+  natif si le système le réclame, mais on ne forcera jamais le light.
+- Le teal `#1B6B8A` reste la signature unique. Pas de gradients
+  arc-en-ciel, pas de palette riche — la richesse vient des backdrops
+  TMDB, pas du chrome.
+
+## Typographie (SF Pro Display)
+
+Source : `DS.Typography` (Swift) — pour Flutter, utiliser le `TextTheme`
+par défaut qui résout sur SF Pro sur les plateformes Apple.
+
+| Token | Taille | Poids | Usage |
+|-------|--------|-------|-------|
+| `displayHero` | 56 | bold | Titre du hero "À LA UNE" |
+| `display` | 44 | bold | Headers très grands (rares) |
+| `title1` | 32 | bold | Titres de page / écran |
+| `title2` | 24 | semibold | Sous-titres ("Continuer à regarder", "Catégories") |
+| `title3` | 20 | semibold | Titres de cartes, dialogues |
+| `body` | 17 | regular | Corps |
+| `bodyEmphasised` | 17 | semibold | CTAs, focus titles |
+| `caption` | 13 | regular | Métadonnées (année, durée, genre) |
+| `label` | 13 | semibold smallcaps | Badges ("À LA UNE", "FILM", "VU") |
+
+## Spacing (4-pt grid)
+
+`DS.Spacing` / `AppSpacing` :
+`xxs=4 / xs=8 / sm=12 / md=16 / lg=24 / xl=32 / xxl=48 / xxxl=64 / huge=96`
+
+Padding écran tvOS : 60pt horizontal (safe area). 40pt pour les détails
+de split view. Sections séparées de 48pt verticaux.
+
+## Radii
+
+| Token | Valeur | Usage |
+|-------|--------|-------|
+| `card` | 12pt | Posters, rangées |
+| `hero` | 20pt | Hero, détail, modales |
+| `pill` | capsule | Pills, chips, badges |
+| `tag` | 6pt | Tags petits, métadonnées |
+
+## Focus (tvOS)
+
+Tout focusable utilise `focusCardEffect(isFocused:)` ou un `Button` avec
+le `tvCard` style :
+- Scale 1.10
+- Ombre y=8 / radius=24 / opacity=0.5
+- Ring teal opacity 0.7 / 2pt épaisseur
+- Animation easeOut 0.18s
+
+## Mouvement
+
+| Token | Durée | Usage |
+|-------|-------|-------|
+| `quick` | 0.15s | Focus, micro-interactions |
+| `standard` | 0.25s | Hover, transitions de cartes |
+| `slow` | 0.40s | Crossfades de backdrop, hero rotation |
+| `spring` | 0.45s response | Modales, présentations |
+
+Toujours easeOut. Jamais d'`easeInOut` (sentiment "rebondit"), jamais de
+`linear` (sauf timeline scrub player).
 
 ## Terminologie FR (alignée partout)
 

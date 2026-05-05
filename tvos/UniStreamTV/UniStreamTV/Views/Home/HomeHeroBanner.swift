@@ -163,55 +163,56 @@ struct HomeHeroBanner: View {
     @ViewBuilder
     private func foreground(for item: RecentlyAddedItem) -> some View {
         // Bottom-left overlay on top of the full-bleed backdrop.
-        // Apple TV / Netflix-style: no separate poster tile, the backdrop
+        // Apple TV / Strimr style: no separate poster tile, the backdrop
         // *is* the visual; the title block sits in the lower-left third.
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Spacer()
 
-            HStack(spacing: 10) {
-                Text("À LA UNE")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+            // À LA UNE pill — uses the brand label type (smallcaps).
+            HStack(spacing: DS.Spacing.sm) {
+                Text("À la une")
+                    .font(DS.Typography.label)
+                    .foregroundColor(DS.Colour.textPrimary)
+                    .padding(.horizontal, DS.Spacing.sm)
+                    .padding(.vertical, DS.Spacing.xxs + 2)
                     .background(DS.Colour.accent, in: Capsule())
                 Text(item.badgeLabel)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.85))
+                    .font(DS.Typography.label)
+                    .foregroundColor(DS.Colour.textSecondary)
             }
 
             Text(item.name)
-                .font(.system(size: 56, weight: .bold))
-                .foregroundColor(.white)
+                .font(DS.Typography.displayHero)
+                .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)
-                .shadow(color: .black.opacity(0.7), radius: 12, y: 3)
+                .shadow(color: .black.opacity(0.7), radius: 14, y: 3)
 
             if let rating = ratingOf(item), !rating.isEmpty, rating != "0" {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill").foregroundColor(.yellow)
-                    Text(rating).foregroundColor(.white.opacity(0.9))
+                HStack(spacing: DS.Spacing.xs) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(DS.Colour.warning)
+                    Text(rating)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
-                .font(.body)
+                .font(DS.Typography.caption)
             }
 
             if let plot = plotOf(item), !plot.isEmpty {
                 Text(plot)
-                    .font(.callout)
-                    .foregroundColor(.white.opacity(0.85))
+                    .font(DS.Typography.body)
+                    .foregroundColor(DS.Colour.textSecondary)
                     .lineLimit(3)
                     .frame(maxWidth: 900, alignment: .leading)
                     .shadow(color: .black.opacity(0.6), radius: 8, y: 1)
             }
 
             heroPrimaryButton(for: item)
-                .padding(.top, 8)
+                .padding(.top, DS.Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 80)
-        .padding(.bottom, 60)
-        .padding(.top, 40)
+        .padding(.horizontal, DS.Padding.screenHorizontal + DS.Spacing.lg)
+        .padding(.bottom, DS.Padding.contentBottom)
+        .padding(.top, DS.Spacing.xxl)
     }
 
     @ViewBuilder
