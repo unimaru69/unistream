@@ -79,10 +79,18 @@ struct HomeHeroBanner: View {
         .task(id: items.count) { await autoRotate() }
         // Mirror the auto-rotated item to the parent so it can render a
         // full-screen wallpaper synced with the hero.
-        .onChange(of: currentIndex) { _, _ in
-            displayedItem?.wrappedValue = currentItem
-        }
-        .onChange(of: items.count) { _, _ in
+        //
+        // `initial: true` is critical: SwiftUI's `onChange` doesn't fire
+        // for the *first* value, only subsequent transitions. Without
+        // it, when `load()` populates `items` and the very first hero
+        // item appears, we'd fire `currentItem?.id` from `nil` to `id`
+        // — but only if SwiftUI considered nil the "previous" value at
+        // observation time. In practice this race left `displayedItem`
+        // nil through the first render → the parent's wallpaper stayed
+        // empty until the user manually advanced or another row took
+        // focus. Forcing an initial fire pushes the first item up as
+        // soon as it resolves.
+        .onChange(of: currentItem?.id, initial: true) { _, _ in
             displayedItem?.wrappedValue = currentItem
         }
     }

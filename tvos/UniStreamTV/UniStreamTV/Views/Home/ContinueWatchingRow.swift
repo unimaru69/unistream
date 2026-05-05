@@ -95,14 +95,26 @@ struct ContinueWatchingRow: View {
                         .padding(.horizontal, horizontalPadding)
                     }
                     .onChange(of: focusedKey) { _, newKey in
-                        guard let key = newKey,
-                              let entry = entries.first(where: { $0.key == key })?.entry else { return }
+                        // Focus left the row entirely (e.g. moved up to
+                        // the hero or down to another shelf). Clear the
+                        // override so the wallpaper can fall back to the
+                        // hero's current item — otherwise `rowFocused`
+                        // stays sticky on the last focused card and the
+                        // hero loses its backdrop.
+                        guard let key = newKey else {
+                            rowFocused?.wrappedValue = nil
+                            return
+                        }
+                        guard let entry = entries.first(where: { $0.key == key })?.entry else { return }
                         // Map to TMDB kind — live entries skip the
                         // wallpaper update (no useful backdrop). Episode
                         // and VOD both look up against TMDB; episode
                         // titles match poorly so we fall back on the
                         // series id when known.
-                        if key.hasPrefix("live_") { return }
+                        if key.hasPrefix("live_") {
+                            rowFocused?.wrappedValue = nil
+                            return
+                        }
                         let kind: TMDBKind = key.hasPrefix("vod_") ? .movie : .tv
                         let title = entry.title ?? key
                         rowFocused?.wrappedValue = BackdropTarget(

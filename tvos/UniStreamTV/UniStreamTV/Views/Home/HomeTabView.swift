@@ -323,8 +323,16 @@ private struct FavoritesShelf: View {
             }
         }
         .onChange(of: focusedKey) { _, newKey in
-            guard let key = newKey,
-                  let fav = items.first(where: { $0.key == key }) else { return }
+            guard let key = newKey else {
+                // Focus left the row entirely (user pressed Up to the
+                // hero or Down to another section). Clear the
+                // wallpaper target so the parent falls back on the
+                // hero's auto-rotating item instead of staying stuck
+                // on the last card we were on.
+                rowFocused?.wrappedValue = nil
+                return
+            }
+            guard let fav = items.first(where: { $0.key == key }) else { return }
             // Live channels rarely have rich TMDB backdrops; map them
             // through `.tv` for now — better than `.movie` and the
             // wallpaper falls back to flat black if no match.
