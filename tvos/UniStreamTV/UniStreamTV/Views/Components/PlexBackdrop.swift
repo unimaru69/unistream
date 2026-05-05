@@ -18,7 +18,17 @@ struct PlexBackdrop: View {
     var ignoresSafeArea: Bool = true
 
     var body: some View {
-        ZStack {
+        // When blur is on we deliberately scale the image up by 15% and
+        // drop opacity to 85% so the soft edges of the blur disappear
+        // behind the frame. With no blur (used by the home wallpaper)
+        // both tricks become visible artefacts — the backdrop reads as
+        // "zoomed-in" and "washed-out". Skip them when `blurRadius == 0`
+        // so the artwork renders crisp and full-strength.
+        let isSharp = blurRadius == 0
+        let imageScale: CGFloat = isSharp ? 1.0 : 1.15
+        let imageOpacity: Double = isSharp ? 1.0 : 0.85
+
+        return ZStack {
             // Base dark fill so we never get a light flash while the image loads.
             DS.Colour.background
                 .applyingIgnoreSafeArea(ignoresSafeArea)
@@ -29,8 +39,8 @@ struct PlexBackdrop: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .blur(radius: blurRadius, opaque: true)
-                .scaleEffect(1.15)
-                .opacity(0.85)
+                .scaleEffect(imageScale)
+                .opacity(imageOpacity)
                 .applyingIgnoreSafeArea(ignoresSafeArea)
 
             // Darkening gradient — deeper on the leading edge where text lives,

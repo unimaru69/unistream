@@ -226,11 +226,15 @@ private struct HomeBackdropWallpaper: View {
     let item: RecentlyAddedItem
     @State private var tmdbVM = TMDBViewModel()
 
-    private var imageURL: String {
-        if let b = tmdbVM.result?.backdropURL(size: "original") {
-            return b.absoluteString
-        }
-        return item.displayIcon
+    /// Only use the TMDB backdrop ("original" = ≥1280px wide on TMDB,
+    /// matches our 1920×1080 viewport without scaling artefacts). The
+    /// IPTV provider's `displayIcon` is a poster sized for thumbnails
+    /// (~500px); stretched full-screen it reads as pixelated, especially
+    /// for obscure films. Returning nil here keeps the wallpaper at
+    /// `DS.Colour.background` — the hero foreground stays visible, just
+    /// over a flat dark page instead of a degraded image.
+    private var imageURL: String? {
+        tmdbVM.result?.backdropURL(size: "original")?.absoluteString
     }
 
     private var kind: TMDBKind {
@@ -238,15 +242,21 @@ private struct HomeBackdropWallpaper: View {
     }
 
     var body: some View {
-        // Lighter blur than the detail-screen Plex backdrop — the home
-        // wallpaper sits behind sparse rows and benefits from being
-        // legible as imagery rather than a coloured wash. 12pt keeps
-        // shapes recognisable while still blurring enough to keep text
-        // overlay readable.
-        PlexBackdrop(imageUrl: imageURL, blurRadius: 12)
-            .task(id: item.id) {
-                await tmdbVM.load(rawTitle: item.name, kind: kind)
+        // No blur on the home wallpaper — the hero is the only thing
+        // most users see on Accueil before they scroll, so showing the
+        // backdrop sharp keeps the page feeling cinematic. Plex-style
+        // gradients (left-darken + bottom-fade) inside `PlexBackdrop`
+        // continue to keep the title block readable over busy imagery.
+        Group {
+            if let url = imageURL {
+                PlexBackdrop(imageUrl: url, blurRadius: 0)
+            } else {
+                DS.Colour.background.ignoresSafeArea()
             }
+        }
+        .task(id: item.id) {
+            await tmdbVM.load(rawTitle: item.name, kind: kind)
+        }
     }
 }
 

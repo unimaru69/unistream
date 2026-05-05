@@ -411,18 +411,31 @@ struct HomeHeroBanner: View {
         // a quality threshold so the user never lands on a hero with
         // empty plot + no poster.
         let qualityThreshold: Double = 5.0
-        let topVods = vods
+        let candidateVods = vods
             .map { (item: $0, score: vodScore($0)) }
             .filter { $0.score >= qualityThreshold }
             .sorted { $0.score > $1.score }
-            .prefix(5)
+            .prefix(15)
             .map { RecentlyAddedItem.vod($0.item) }
-        let topSeries = seriesList
+        let candidateSeries = seriesList
             .map { (item: $0, score: seriesScore($0)) }
             .filter { $0.score >= qualityThreshold }
             .sorted { $0.score > $1.score }
-            .prefix(5)
+            .prefix(15)
             .map { RecentlyAddedItem.series($0.item) }
+
+        // Final quality gate: only keep candidates for which TMDB has a
+        // proper backdrop image. The home wallpaper is sharp (no blur)
+        // and renders at 1920×1080 — the IPTV provider's poster
+        // would look pixelated stretched there. Items without a TMDB
+        // backdrop simply don't deserve to be À la une.
+        //
+        // Run all the lookups in parallel so total wait time is a
+        // single TMDB roundtrip instead of N. `TMDBService.enrich`
+        // caches across calls, so subsequent launches resolve from
+        // memory.
+        let topVods = await filterByTMDBBackdrop(candidateVods).prefix(5)
+        let topSeries = await filterByTMDBBackdrop(candidateSeries).prefix(5)
 
         var interleaved: [RecentlyAddedItem] = []
         let maxCount = max(topVods.count, topSeries.count)
@@ -435,6 +448,36 @@ struct HomeHeroBanner: View {
         // Start at a random index so successive launches don't always begin with
         // the same item.
         currentIndex = items.isEmpty ? 0 : Int.random(in: 0..<items.count)
+    }
+
+    /// Drops candidates with no TMDB `backdrop_path`. Preserves input
+    /// order. Runs lookups concurrently via a TaskGroup so the wall
+    /// time is one TMDB roundtrip rather than `candidates.count` × one.
+    private func filterByTMDBBackdrop(_ candidates: [RecentlyAddedItem]) async -> [RecentlyAddedItem] {
+        guard !candidates.isEmpty else { return [] }
+        let results: [(Int, RecentlyAddedItem)?] = await withTaskGroup(of: (Int, RecentlyAddedItem)?.self) { group in
+            for (idx, item) in candidates.enumerated() {
+                group.addTask {
+                    let kind: TMDBKind = {
+                        switch item {
+                        case .vod: return .movie
+                        case .series: return .tv
+                        }
+                    }()
+                    let result = await TMDBService.shared.enrich(rawTitle: item.name, kind: kind)
+                    if result?.backdropURL(size: "original") != nil {
+                        return (idx, item)
+                    }
+                    return nil
+                }
+            }
+            var collected: [(Int, RecentlyAddedItem)?] = []
+            for await value in group {
+                collected.append(value)
+            }
+            return collected
+        }
+        return results.compactMap { $0 }.sorted { $0.0 < $1.0 }.map { $0.1 }
     }
 }
 
