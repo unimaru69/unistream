@@ -89,28 +89,52 @@ class SyncService {
     });
   }
 
+  /// Soft-delete a single favourite / watchlist row by setting
+  /// `deleted = true` on Supabase. Without this, removing an item
+  /// locally never reached the server — the next pullAll on another
+  /// device would fetch the still-present row and the user would see
+  /// their removal silently revert.
+  void deleteFavorite(String key, String listType) {
+    if (!_ready) return;
+    _enqueue(() async {
+      await _client!
+          .from('user_favorites')
+          .update({
+            'deleted': true,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', _userId!)
+          .eq('profile_hash', profileHash)
+          .eq('item_key', key)
+          .eq('list_type', listType);
+      AppLogger.debug(LogModule.sync, 'Deleted favorite $key ($listType)');
+    });
+  }
+
   /// Pull favorites for the given [listType].
   /// Returns a map of item_key -> decoded item JSON.
+  ///
+  /// Throws on network / decoding errors so callers can distinguish a
+  /// genuine empty server state (apply authoritative merge → wipe
+  /// local) from a transient failure (skip merge → keep local). Old
+  /// behaviour was to swallow the error and return `{}`, which
+  /// caused mergeFromRemote(authoritative: true) to wipe local data
+  /// on every network blip.
   Future<Map<String, dynamic>> pullFavorites(String listType) async {
     if (!_ready) return {};
-    try {
-      final data = await _client!
-          .from('user_favorites')
-          .select()
-          .eq('profile_hash', profileHash)
-          .eq('list_type', listType)
-          .eq('deleted', false);
-      final result = <String, dynamic>{};
-      for (final row in data) {
-        final key = row['item_key'] as String;
-        result[key] = jsonDecode(row['item_json'] as String);
-      }
-      AppLogger.debug(LogModule.sync, 'Pulled ${result.length} favorites ($listType)');
-      return result;
-    } catch (e, st) {
-      AppLogger.warning(LogModule.sync, 'pullFavorites failed', error: e, stackTrace: st);
-      return {};
+    final data = await _client!
+        .from('user_favorites')
+        .select()
+        .eq('profile_hash', profileHash)
+        .eq('list_type', listType)
+        .eq('deleted', false);
+    final result = <String, dynamic>{};
+    for (final row in data) {
+      final key = row['item_key'] as String;
+      result[key] = jsonDecode(row['item_json'] as String);
     }
+    AppLogger.debug(LogModule.sync, 'Pulled ${result.length} favorites ($listType)');
+    return result;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -139,25 +163,20 @@ class SyncService {
 
   Future<List<Map<String, dynamic>>> pullCollections() async {
     if (!_ready) return [];
-    try {
-      final data = await _client!
-          .from('user_collections')
-          .select()
-          .eq('profile_hash', profileHash)
-          .eq('deleted', false);
-      final result = data.map<Map<String, dynamic>>((row) => {
-            'collection_id': row['collection_id'],
-            'name': row['name'],
-            'mode': row['mode'],
-            'items': jsonDecode(row['items_json'] as String? ?? '[]'),
-            'updated_at': row['updated_at'],
-          }).toList();
-      AppLogger.debug(LogModule.sync, 'Pulled ${result.length} collections');
-      return result;
-    } catch (e, st) {
-      AppLogger.warning(LogModule.sync, 'pullCollections failed', error: e, stackTrace: st);
-      return [];
-    }
+    final data = await _client!
+        .from('user_collections')
+        .select()
+        .eq('profile_hash', profileHash)
+        .eq('deleted', false);
+    final result = data.map<Map<String, dynamic>>((row) => {
+          'collection_id': row['collection_id'],
+          'name': row['name'],
+          'mode': row['mode'],
+          'items': jsonDecode(row['items_json'] as String? ?? '[]'),
+          'updated_at': row['updated_at'],
+        }).toList();
+    AppLogger.debug(LogModule.sync, 'Pulled ${result.length} collections');
+    return result;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -180,28 +199,40 @@ class SyncService {
     });
   }
 
+  /// DELETE a watch-progress row outright — the table has no
+  /// `deleted` column, so we drop the row and rely on
+  /// `mergeFromRemote(authoritative: true)` on the receiving side to
+  /// reconcile its local cache.
+  void deleteWatchProgress(String key) {
+    if (!_ready) return;
+    _enqueue(() async {
+      await _client!
+          .from('user_watch_progress')
+          .delete()
+          .eq('user_id', _userId!)
+          .eq('profile_hash', profileHash)
+          .eq('content_key', key);
+      AppLogger.debug(LogModule.sync, 'Deleted watch progress for $key');
+    });
+  }
+
   Future<Map<String, dynamic>> pullWatchProgress() async {
     if (!_ready) return {};
-    try {
-      final data = await _client!
-          .from('user_watch_progress')
-          .select()
-          .eq('profile_hash', profileHash);
-      final result = <String, dynamic>{};
-      for (final row in data) {
-        result[row['content_key'] as String] = {
-          'position_ms': row['position_ms'],
-          'duration_ms': row['duration_ms'],
-          'meta': jsonDecode(row['meta_json'] as String? ?? '{}'),
-          'updated_at': row['updated_at'],
-        };
-      }
-      AppLogger.debug(LogModule.sync, 'Pulled ${result.length} watch progress entries');
-      return result;
-    } catch (e, st) {
-      AppLogger.warning(LogModule.sync, 'pullWatchProgress failed', error: e, stackTrace: st);
-      return {};
+    final data = await _client!
+        .from('user_watch_progress')
+        .select()
+        .eq('profile_hash', profileHash);
+    final result = <String, dynamic>{};
+    for (final row in data) {
+      result[row['content_key'] as String] = {
+        'position_ms': row['position_ms'],
+        'duration_ms': row['duration_ms'],
+        'meta': jsonDecode(row['meta_json'] as String? ?? '{}'),
+        'updated_at': row['updated_at'],
+      };
     }
+    AppLogger.debug(LogModule.sync, 'Pulled ${result.length} watch progress entries');
+    return result;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -255,12 +286,12 @@ class SyncService {
     Map<String, dynamic> watchProgress,
   })> pullAll() async {
     if (!_ready) {
-      return (
-        favorites: <String, dynamic>{},
-        watchlist: <String, dynamic>{},
-        collections: <Map<String, dynamic>>[],
-        watchProgress: <String, dynamic>{},
-      );
+      // Throw rather than return an empty record: the caller's
+      // authoritative `mergeFromRemote` would otherwise treat the
+      // emptiness as "server has nothing" and wipe the local cache,
+      // which is exactly the wrong thing to do when we just haven't
+      // finished resolving auth yet.
+      throw StateError('SyncService not ready (no auth / userId)');
     }
     final results = await Future.wait([
       pullFavorites('favorite'),

@@ -51,6 +51,12 @@ class WatchProgress {
     await p.remove(StorageKeys.wpPosition(_pid, key));
     await p.remove(StorageKeys.wpDuration(_pid, key));
     await p.remove(StorageKeys.wpMeta(_pid, key));
+    // Propagate the removal to Supabase so other devices stop
+    // showing this entry on their next pull. Without this, marking
+    // an item as not-watched / clearing local progress only mutates
+    // SharedPreferences — the cloud row stayed put and the next
+    // mergeFromRemote re-hydrated it.
+    SyncService.instance.deleteWatchProgress(key);
   }
 
   /// Sauvegarde les metadonnees d'un item (nom, cover, url, mode) pour le bandeau "Continuer a regarder".
@@ -157,13 +163,25 @@ class WatchProgress {
     await p.setString(histKey, jsonEncode(list));
   }
 
-  /// Merge remote watch progress into local storage.
-  /// Remote entries fill gaps (local takes precedence when both exist).
-  static Future<bool> mergeFromRemote(Map<String, dynamic> remote) async {
-    if (remote.isEmpty) return false;
+  /// Reconcile local watch progress with the latest server pull.
+  ///
+  /// When [authoritative] is true (default), local entries that the
+  /// server no longer has are removed — this is what makes
+  /// "Marquer non vu" / "Tout effacer" propagate from another device.
+  /// Without it, an unwatch gesture on tvOS never reached the iOS
+  /// SharedPreferences cache and the episode kept its progress here.
+  ///
+  /// Set [authoritative] to false when [remote] might be incomplete
+  /// (e.g. a partial pull / known offline state).
+  static Future<bool> mergeFromRemote(
+    Map<String, dynamic> remote, {
+    bool authoritative = true,
+  }) async {
+    if (!authoritative && remote.isEmpty) return false;
     final p = await SharedPreferences.getInstance();
     bool changed = false;
 
+    // Add / update remote entries.
     for (final entry in remote.entries) {
       final key = entry.key;
       final localPos = p.getInt(StorageKeys.wpPosition(_pid, key));
@@ -178,6 +196,28 @@ class WatchProgress {
       await p.setInt(StorageKeys.wpDuration(_pid, key), durMs ~/ 1000);
       changed = true;
     }
+
+    // Authoritative reconciliation: drop local progress entries the
+    // server doesn't know about. Walk every key in SharedPreferences
+    // that matches the wpPosition prefix and remove the trio
+    // (position / duration / meta) for any content_key absent from
+    // [remote].
+    if (authoritative) {
+      final prefix = StorageKeys.wpPositionPrefix(_pid);
+      final keysToWipe = <String>[];
+      for (final k in p.getKeys()) {
+        if (!k.startsWith(prefix)) continue;
+        final id = k.substring(prefix.length);
+        if (!remote.containsKey(id)) keysToWipe.add(id);
+      }
+      for (final id in keysToWipe) {
+        await p.remove(StorageKeys.wpPosition(_pid, id));
+        await p.remove(StorageKeys.wpDuration(_pid, id));
+        await p.remove(StorageKeys.wpMeta(_pid, id));
+        changed = true;
+      }
+    }
+
     return changed;
   }
 }

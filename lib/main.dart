@@ -323,22 +323,35 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
 
       AppLogger.info(LogModule.sync, 'Startup sync pull complete');
 
-      // Start realtime subscriptions for live sync
+      // Start realtime subscriptions for live sync. Wrap each pull in
+      // its own try/catch so a transient network error from one
+      // realtime event doesn't blow up the whole subscription chain
+      // *and* doesn't trigger an authoritative merge against an empty
+      // result (which would wipe local state on a network blip).
       sync.startRealtime((table) async {
         AppLogger.debug(LogModule.sync, 'Realtime change: $table');
-        switch (table) {
-          case 'user_favorites':
-            final favs = await sync.pullFavorites('favorite');
-            ref.read(favoritesProvider.notifier).mergeFromRemote(favs);
-            final wl = await sync.pullFavorites('watchlist');
-            ref.read(watchlistProvider.notifier).mergeFromRemote(wl);
-          case 'user_collections':
-            final cols = await sync.pullCollections();
-            ref.read(collectionsProvider.notifier).mergeFromRemote(cols);
-          case 'user_watch_progress':
-            final wp = await sync.pullWatchProgress();
-            final changed = await WatchProgress.mergeFromRemote(wp);
-            if (changed) ref.invalidate(watchProgressProvider);
+        try {
+          switch (table) {
+            case 'user_favorites':
+              final favs = await sync.pullFavorites('favorite');
+              await ref.read(favoritesProvider.notifier)
+                  .mergeFromRemote(favs, authoritative: true);
+              final wl = await sync.pullFavorites('watchlist');
+              await ref.read(watchlistProvider.notifier)
+                  .mergeFromRemote(wl, authoritative: true);
+            case 'user_collections':
+              final cols = await sync.pullCollections();
+              ref.read(collectionsProvider.notifier).mergeFromRemote(cols);
+            case 'user_watch_progress':
+              final wp = await sync.pullWatchProgress();
+              final changed = await WatchProgress
+                  .mergeFromRemote(wp, authoritative: true);
+              if (changed) ref.invalidate(watchProgressProvider);
+          }
+        } catch (e, st) {
+          AppLogger.warning(LogModule.sync,
+              'Realtime pull failed for $table — keeping local state',
+              error: e, stackTrace: st);
         }
       });
     } catch (e, st) {
