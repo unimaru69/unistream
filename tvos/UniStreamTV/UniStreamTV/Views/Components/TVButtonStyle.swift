@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// Custom button style for tvOS — provides clear focus feedback with scale + glow.
-/// Use on all interactive elements that use `.buttonStyle(.plain)`.
+/// Custom button style for tvOS — provides focus feedback for buttons
+/// that wrap a `FocusableCardLabel` (or any card-shaped label).
+///
+/// Important: scale + shadow are intentionally **not** applied here.
+/// `FocusableCardLabel` reads `\.isFocused` itself and scales only its
+/// image; the surrounding title block stays static. If we re-applied a
+/// scale at the button level it would compound (1.08 × 1.10 ≈ 1.19) and
+/// the title would still get pushed around. We keep this style purely
+/// for the press-down feedback + a subtle press scale.
 struct TVCardButtonStyle: ButtonStyle {
-    @Environment(\.isFocused) private var isFocused
-
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(isFocused ? 1.08 : (configuration.isPressed ? 0.95 : 1.0))
-            .brightness(isFocused ? 0.1 : 0)
-            .shadow(color: isFocused ? Color(hex: 0x1B6B8A).opacity(0.6) : .clear, radius: 12, y: 8)
-            .animation(.easeInOut(duration: 0.15), value: isFocused)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(DS.Focus.animation, value: configuration.isPressed)
     }
 }
 

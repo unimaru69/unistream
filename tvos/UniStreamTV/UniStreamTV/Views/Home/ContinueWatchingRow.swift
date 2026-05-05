@@ -142,68 +142,12 @@ struct ContinueWatchingCard: View {
                 resume(fromMs: nil)
             }
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                ZStack(alignment: .bottomLeading) {
-                    if let cover = coverUrl, let url = URL(string: cover) {
-                        KFImage(url)
-                            .resizable()
-                            .aspectRatio(16/9, contentMode: .fill)
-                            .frame(width: 280, height: 160)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(hex: 0x161230))
-                            .frame(width: 280, height: 160)
-                            .overlay {
-                                Image(systemName: "play.circle")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white.opacity(0.3))
-                            }
-                    }
-
-                    // Progress bar
-                    GeometryReader { geo in
-                        VStack {
-                            Spacer()
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.white.opacity(0.2))
-                                    .frame(height: 4)
-                                Capsule()
-                                    .fill(entry.isWatched ? Color.green : Color(hex: 0x1B6B8A))
-                                    .frame(width: geo.size.width * entry.progress, height: 4)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, 8)
-                        }
-                    }
-
-                    // "Vu" badge for watched episodes still kept in the row —
-                    // pinned to the top-right.
-                    if entry.isWatched {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                            Text("Vu")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.green.opacity(0.85), in: Capsule())
-                        .padding(8)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    }
-                }
-                .frame(width: 280, height: 160)
-
-                Text(entry.title ?? favoriteInfo?.name ?? contentKey)
-                    .font(DS.Typography.title3)
-                    .foregroundColor(DS.Colour.textPrimary)
-                    .lineLimit(1)
-                    .frame(width: 280, alignment: .leading)
-            }
+            CardContent(
+                contentKey: contentKey,
+                entry: entry,
+                coverUrl: coverUrl,
+                favoriteInfo: favoriteInfo
+            )
         }
         .buttonStyle(.tvCard)
         .confirmationDialog(
@@ -270,5 +214,102 @@ struct ContinueWatchingCard: View {
         return h > 0
             ? String(format: "%d:%02d:%02d", h, m, s)
             : String(format: "%d:%02d", m, s)
+    }
+}
+
+// MARK: - Card content
+//
+// Lifted out of `ContinueWatchingCard.body` so we can read
+// `\.isFocused` and apply the scale only on the artwork — see the
+// matching pattern in `FocusableCardLabel`. Keeping the title block
+// static prevents the focused card from clipping its own title.
+
+private struct CardContent: View {
+    let contentKey: String
+    let entry: WatchEntry
+    let coverUrl: String?
+    let favoriteInfo: FavoriteItem?
+
+    @Environment(\.isFocused) private var isFocused
+
+    /// Reserved height for the title — fits a single line of
+    /// `DS.Typography.title3` (20pt) so cards in a row stay aligned
+    /// regardless of length.
+    private var titleHeight: CGFloat { 28 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            artwork
+                .scaleEffect(isFocused ? DS.Focus.cardScale : 1.0)
+                .shadow(
+                    color: .black.opacity(isFocused ? DS.Focus.shadowOpacity : 0),
+                    radius: DS.Focus.shadowRadius,
+                    y: DS.Focus.shadowY
+                )
+                .animation(DS.Focus.animation, value: isFocused)
+
+            Text(entry.title ?? favoriteInfo?.name ?? contentKey)
+                .font(DS.Typography.title3)
+                .foregroundColor(DS.Colour.textPrimary)
+                .lineLimit(1)
+                .frame(width: 280, height: titleHeight, alignment: .leading)
+        }
+        .padding(.vertical, DS.Spacing.xs)
+    }
+
+    private var artwork: some View {
+        ZStack(alignment: .bottomLeading) {
+            if let cover = coverUrl, let url = URL(string: cover) {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(16/9, contentMode: .fill)
+                    .frame(width: 280, height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card))
+            } else {
+                RoundedRectangle(cornerRadius: DS.Radius.card)
+                    .fill(DS.Colour.surface)
+                    .frame(width: 280, height: 160)
+                    .overlay {
+                        Image(systemName: "play.circle")
+                            .font(.largeTitle)
+                            .foregroundColor(DS.Colour.textTertiary)
+                    }
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                VStack {
+                    Spacer()
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(entry.isWatched ? DS.Colour.success : DS.Colour.accent)
+                            .frame(width: geo.size.width * entry.progress, height: 4)
+                    }
+                    .padding(.horizontal, DS.Spacing.xs)
+                    .padding(.bottom, DS.Spacing.xs)
+                }
+            }
+
+            // "Vu" badge
+            if entry.isWatched {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                    Text("Vu")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Spacing.xs)
+                .padding(.vertical, 3)
+                .background(DS.Colour.success.opacity(0.85), in: Capsule())
+                .padding(DS.Spacing.xs)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+        }
+        .frame(width: 280, height: 160)
     }
 }
