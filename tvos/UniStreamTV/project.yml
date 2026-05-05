@@ -41,7 +41,7 @@ targets:
         # and Apple cross-grants entitlements across their Apple devices.
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream
         MARKETING_VERSION: "1.0.4"
-        CURRENT_PROJECT_VERSION: "18"
+        CURRENT_PROJECT_VERSION: "19"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: UniStreamTV/Info.plist
         CODE_SIGN_ENTITLEMENTS: UniStreamTV/UniStreamTV.entitlements
@@ -89,7 +89,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.TopShelfExtension
         MARKETING_VERSION: "1.0.4"
-        CURRENT_PROJECT_VERSION: "18"
+        CURRENT_PROJECT_VERSION: "19"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: TopShelfExtension/Info.plist
         DEVELOPMENT_TEAM: VS8P2MA59S

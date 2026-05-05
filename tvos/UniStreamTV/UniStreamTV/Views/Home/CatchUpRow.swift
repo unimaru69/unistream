@@ -42,15 +42,14 @@ struct CatchUpRow: View {
     }
 
     private var sectionHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DS.Spacing.xs) {
             Image(systemName: "gobackward")
-                .foregroundColor(.orange)
+                .foregroundColor(DS.Colour.accentWarm)
             Text("Replay disponible")
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
+                .font(DS.Typography.title2)
+                .foregroundColor(DS.Colour.textPrimary)
         }
-        .padding(.horizontal, 50)
+        .padding(.horizontal, DS.Padding.screenHorizontal)
     }
 
     @ViewBuilder

@@ -67,26 +67,24 @@ struct RecentlyAddedRow: View {
     // MARK: - Subviews
 
     private var loadingView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text("Ajoutés récemment")
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 50)
+                .font(DS.Typography.title2)
+                .foregroundColor(DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Padding.screenHorizontal)
 
             ProgressView()
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
+                .padding(.vertical, DS.Spacing.lg)
         }
     }
 
     private var contentView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text("Ajoutés récemment")
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 50)
+                .font(DS.Typography.title2)
+                .foregroundColor(DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Padding.screenHorizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 24) {
@@ -186,13 +184,13 @@ struct RecentlyAddedCard: View {
     }
 
     private var posterPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color(hex: 0x161230))
+        RoundedRectangle(cornerRadius: DS.Radius.card)
+            .fill(DS.Colour.surface)
             .frame(width: cardWidth, height: cardWidth / posterAspect)
             .overlay {
                 Image(systemName: "film")
                     .font(.title2)
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundColor(DS.Colour.textTertiary)
             }
     }
 

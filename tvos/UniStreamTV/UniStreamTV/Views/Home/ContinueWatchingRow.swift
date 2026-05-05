@@ -55,11 +55,10 @@ struct ContinueWatchingRow: View {
         if entries.isEmpty && !showsPlaceholder {
             EmptyView()
         } else {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: DS.Spacing.md) {
                 Text("Reprendre")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .font(DS.Typography.title2)
+                    .foregroundColor(DS.Colour.textPrimary)
                     .padding(.horizontal, horizontalPadding)
 
                 if entries.isEmpty {
@@ -67,7 +66,7 @@ struct ContinueWatchingRow: View {
                         .padding(.horizontal, horizontalPadding)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 24) {
+                        HStack(spacing: DS.Spacing.lg) {
                             ForEach(entries, id: \.key) { item in
                                 ContinueWatchingCard(contentKey: item.key, entry: item.entry)
                             }
@@ -80,17 +79,17 @@ struct ContinueWatchingRow: View {
     }
 
     private var emptyPlaceholder: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: DS.Spacing.md) {
             Image(systemName: "play.circle")
                 .font(.title2)
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(DS.Colour.textTertiary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Rien en cours pour le moment")
-                    .foregroundColor(.white.opacity(0.75))
-                    .font(.body)
+                    .foregroundColor(DS.Colour.textSecondary)
+                    .font(DS.Typography.body)
                 Text("Les films et épisodes que tu regardes apparaîtront ici.")
-                    .foregroundColor(.white.opacity(0.5))
-                    .font(.caption)
+                    .foregroundColor(DS.Colour.textTertiary)
+                    .font(DS.Typography.caption)
             }
             Spacer()
         }
@@ -200,8 +199,8 @@ struct ContinueWatchingCard: View {
                 .frame(width: 280, height: 160)
 
                 Text(entry.title ?? favoriteInfo?.name ?? contentKey)
-                    .font(.caption)
-                    .foregroundColor(.white)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Colour.textPrimary)
                     .lineLimit(1)
                     .frame(width: 280, alignment: .leading)
             }
