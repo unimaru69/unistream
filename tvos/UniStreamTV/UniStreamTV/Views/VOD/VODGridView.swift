@@ -31,12 +31,18 @@ struct VODGridView: View {
                     description: "Cette catégorie ne contient aucun film pour le moment."
                 )
             } else {
-                ScrollView {
+                // ScrollViewReader so .onAppear can scroll back to the top
+                // after a pop from VODDetailView — that re-reveals the
+                // tvOS TabView's auto-hidden tab bar. Same pattern as
+                // SeriesGridView.
+                ScrollViewReader { proxy in
+                    ScrollView {
                     HStack {
                         Text(category.categoryName)
                             .font(.largeTitle).bold()
                             .padding(.horizontal, 40)
                             .padding(.top, 20)
+                            .id("__top__")
                         Spacer()
                     }
                     LazyVGrid(columns: columns, spacing: 30) {
@@ -80,6 +86,10 @@ struct VODGridView: View {
                         }
                     }
                     .padding(40)
+                    }
+                    .onAppear {
+                        withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                    }
                 }
             }
         }

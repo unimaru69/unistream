@@ -29,12 +29,18 @@ struct SeriesGridView: View {
                     description: "Cette catégorie ne contient aucune série pour le moment."
                 )
             } else {
-                ScrollView {
+                // ScrollViewReader so we can programmatically scroll back
+                // to the top when the user returns from the detail view
+                // — that's what re-reveals the floating tab bar that the
+                // tvOS TabView auto-hides when the grid is scrolled.
+                ScrollViewReader { proxy in
+                    ScrollView {
                     HStack {
                         Text(category.categoryName)
                             .font(.largeTitle).bold()
                             .padding(.horizontal, 40)
                             .padding(.top, 20)
+                            .id("__top__")
                         Spacer()
                     }
                     LazyVGrid(columns: columns, spacing: 30) {
@@ -78,6 +84,16 @@ struct SeriesGridView: View {
                         }
                     }
                     .padding(40)
+                    }
+                    // Re-scroll to the top whenever we re-appear (after a
+                    // pop from SeriesDetailView) so the tvOS TabView's
+                    // auto-hidden tab bar is unconditionally re-revealed.
+                    // Without this the tab bar stayed hidden after Back
+                    // and the user had to navigate around to bring it
+                    // back.
+                    .onAppear {
+                        withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                    }
                 }
             }
         }
