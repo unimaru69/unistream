@@ -41,7 +41,10 @@ struct HomeHeroBanner: View {
                     foreground(for: currentItem)
                 }
                 .id(currentItem.id)
-                .transition(.opacity)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
+                ))
 
                 // Page dots at the bottom.
                 if items.count > 1 {
@@ -52,9 +55,22 @@ struct HomeHeroBanner: View {
             }
         }
         .frame(height: heroHeight)
-        .animation(.easeInOut(duration: 0.6), value: currentIndex)
-        // The hero is a section on its own for focus navigation.
+        .animation(DS.Motion.spring, value: currentIndex)
+        // The hero is a section on its own for focus navigation. The
+        // CTA is the only focusable inside, so pressing Left / Right
+        // would otherwise bounce off the section edge — intercept it
+        // and step the carousel manually.
         .focusSection()
+        .onMoveCommand { direction in
+            switch direction {
+            case .left:
+                advance(by: -1)
+            case .right:
+                advance(by: +1)
+            default:
+                break
+            }
+        }
         .task(id: appState.api.isAuthenticated) { await load() }
         .task(id: items.count) { await autoRotate() }
         // Mirror the auto-rotated item to the parent so it can render a
@@ -67,19 +83,33 @@ struct HomeHeroBanner: View {
         }
     }
 
+    /// Page dots at the lower edge of the hero. The active dot is wider
+    /// and brand-coloured; the rest are translucent white pebbles. The
+    /// width animation rides the same spring as the carousel transition
+    /// so the dots glide between states instead of popping.
     private var pageDots: some View {
         VStack {
             Spacer()
-            HStack(spacing: 8) {
+            HStack(spacing: DS.Spacing.xs) {
                 ForEach(0..<items.count, id: \.self) { i in
+                    let isActive = i == currentIndex % items.count
                     Capsule()
-                        .fill(i == currentIndex % items.count ? Color.white : Color.white.opacity(0.3))
-                        .frame(width: i == currentIndex % items.count ? 22 : 8, height: 4)
-                        .animation(.easeInOut(duration: 0.3), value: currentIndex)
+                        .fill(isActive ? DS.Colour.accentLight : Color.white.opacity(0.35))
+                        .frame(width: isActive ? 28 : 8, height: 5)
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, DS.Spacing.lg)
         }
+    }
+
+    /// Step the carousel manually. Wraps both ways so the user can spin
+    /// past the last / first item without dead-ending. Resets the auto-
+    /// rotate clock so the user-driven nav doesn't fight the timer.
+    @MainActor
+    private func advance(by step: Int) {
+        guard items.count > 1 else { return }
+        let newIndex = (currentIndex + step + items.count) % items.count
+        currentIndex = newIndex
     }
 
     @MainActor

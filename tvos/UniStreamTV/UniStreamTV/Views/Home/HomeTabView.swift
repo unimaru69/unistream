@@ -189,7 +189,7 @@ struct HomeContentView: View {
                     if let item = heroItem {
                         HomeBackdropWallpaper(item: item)
                             .id(item.id)
-                            .transition(.opacity.animation(.easeInOut(duration: 0.6)))
+                            .transition(.opacity.animation(DS.Motion.slow))
                     }
                 }
                 .ignoresSafeArea()
