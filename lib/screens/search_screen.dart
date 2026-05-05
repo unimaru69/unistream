@@ -16,6 +16,7 @@ import '../models/series_item.dart';
 import '../models/search_result.dart';
 import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
+import '../utils/content_key.dart';
 import '../utils/routes.dart';
 import 'series_detail_screen.dart';
 import 'player/player_screen.dart';
@@ -237,28 +238,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
       case 4: list = _results.whereType<EpgSearchResult>().toList(); break;
       default: list = List.from(_results);
     }
-    // Apply watch status filter (only for VOD/series items)
+    // Apply watch status filter (only for VOD/series items). Look up
+    // progress by canonical content key (`vod_<id>` / `series_<id>`)
+    // since v1.0.4+12 — the bare streamId form was the pre-migration
+    // convention.
     if (_statusFilter == 1) {
       list = list.where((r) {
         if (r is LiveSearchResult || r is EpgSearchResult) return true;
-        final id = switch (r) {
-          VodSearchResult v => v.streamId.toString(),
-          SeriesSearchResult s => s.seriesId.toString(),
+        final key = switch (r) {
+          VodSearchResult v => ContentKey.make(ContentKey.movie, v.streamId.toString()),
+          SeriesSearchResult s => ContentKey.make(ContentKey.series, s.seriesId.toString()),
           _ => null,
         };
-        if (id == null) return true;
-        return progress[id] == null;
+        if (key == null) return true;
+        return progress[key] == null;
       }).toList();
     } else if (_statusFilter == 2) {
       list = list.where((r) {
         if (r is LiveSearchResult || r is EpgSearchResult) return false;
-        final id = switch (r) {
-          VodSearchResult v => v.streamId.toString(),
-          SeriesSearchResult s => s.seriesId.toString(),
+        final key = switch (r) {
+          VodSearchResult v => ContentKey.make(ContentKey.movie, v.streamId.toString()),
+          SeriesSearchResult s => ContentKey.make(ContentKey.series, s.seriesId.toString()),
           _ => null,
         };
-        if (id == null) return false;
-        final p = progress[id];
+        if (key == null) return false;
+        final p = progress[key];
         return p != null && p > 0 && p <= 0.95;
       }).toList();
     }
@@ -309,11 +313,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
 
       case VodSearchResult v:
         final url = _repo.getVodStreamUrl(v.streamId.toString(), v.containerExtension);
-        ref.read(watchProgressActionsProvider).saveMeta(v.streamId.toString(), v.name,
+        final vKey = ContentKey.make(ContentKey.movie, v.streamId.toString());
+        ref.read(watchProgressActionsProvider).saveMeta(vKey, v.name,
             v.streamIcon, url, 'vod');
         Navigator.push(context, slideRoute(PlayerScreen(
           url: url, title: v.name,
-          resumeKey: v.streamId.toString(),
+          resumeKey: vKey,
           coverUrl: v.streamIcon.isNotEmpty ? v.streamIcon : null,
         )));
     }

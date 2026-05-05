@@ -12,6 +12,7 @@ import '../../providers/watch_progress_provider.dart';
 import '../../providers/tmdb_provider.dart';
 import '../../repositories/content_repository.dart';
 import '../../services/tmdb_service.dart';
+import '../../utils/content_key.dart';
 import '../../utils/routes.dart';
 import '../../widgets/plex_backdrop.dart';
 import '../../widgets/tmdb_cast_row.dart';
@@ -32,7 +33,12 @@ class VodDetailScreen extends ConsumerStatefulWidget {
 class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
   ContentRepository get _repo => ref.read(contentRepositoryProvider);
   VodItem get vod => widget.vod;
-  String get _favKey => 'vod:${vod.id}';
+  // Bare id for the favourite — aligns with tvOS's
+  // `FavoriteItem.from(vod:)` (key = streamId, no prefix).
+  String get _favKey => vod.id.toString();
+  // Underscore-prefixed id for watch progress / history — same format
+  // tvOS pushes to `user_watch_progress.content_key`.
+  String get _wpKey => ContentKey.make(ContentKey.movie, vod.id.toString());
 
   Duration? _savedPosition;
   Duration? _savedDuration;
@@ -47,14 +53,14 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
   /// Mark the current film as watched (fake a near-end progress) or clear it.
   Future<void> _toggleWatched() async {
     if (_isWatched) {
-      await _wp.clear(vod.id);
+      await _wp.clear(_wpKey);
     } else {
       // Use a 1-hour duration as a reasonable default when we have no real
       // duration yet — mirrors the pattern used for series episodes.
       const dur = Duration(hours: 1);
       const pos = Duration(minutes: 57);
-      await _wp.save(vod.id, pos, dur);
-      await _wp.saveMeta(vod.id, vod.name, vod.displayIcon, '', 'vod');
+      await _wp.save(_wpKey, pos, dur);
+      await _wp.saveMeta(_wpKey, vod.name, vod.displayIcon, '', 'vod');
     }
     await _loadProgress();
   }
@@ -68,7 +74,7 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
   WatchProgressActions get _wp => ref.read(watchProgressActionsProvider);
 
   Future<void> _loadProgress() async {
-    final progress = await _wp.getProgress(vod.id);
+    final progress = await _wp.getProgress(_wpKey);
     if (mounted) setState(() { _savedPosition = progress.position; _savedDuration = progress.duration; });
   }
 
@@ -76,12 +82,12 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     final ext = vod.containerExtension;
     final url = _repo.getVodStreamUrl(vod.id, ext);
     final title = vod.name.isEmpty ? AppLocalizations.of(context)!.sansTitre : vod.name;
-    _wp.saveMeta(vod.id, title, vod.displayIcon, url, 'vod');
-    _wp.saveHistory('vod:${vod.id}', title, vod.displayIcon, url, 'vod');
+    _wp.saveMeta(_wpKey, title, vod.displayIcon, url, 'vod');
+    _wp.saveHistory(_wpKey, title, vod.displayIcon, url, 'vod');
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
       title: title,
-      resumeKey: resume ? vod.id : null,
+      resumeKey: resume ? _wpKey : null,
       coverUrl: vod.displayIcon.isNotEmpty ? vod.displayIcon : null,
     ))).then((_) => _loadProgress());
   }

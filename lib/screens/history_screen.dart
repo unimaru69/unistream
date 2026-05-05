@@ -8,6 +8,7 @@ import 'package:unistream/core/cache_config.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/models/history_entry.dart';
 import 'package:unistream/providers/watch_progress_provider.dart';
+import 'package:unistream/utils/content_key.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
 import 'series_detail_screen.dart';
@@ -23,16 +24,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void _play(HistoryEntry item) {
     ScaffoldMessenger.of(context).clearSnackBars();
 
+    // Series-level history entry without a stream URL — open the
+    // series detail page. Post-migration `item.key` is `series_<id>`;
+    // we tolerate the legacy `series:<id>` form too in case older
+    // entries lingered through the migration.
     if (item.mode == 'series' && item.url.isEmpty) {
-      final seriesId = item.key.startsWith('series:') ? item.key.substring(7) : item.key;
+      final parsed = ContentKey.parse(item.key);
+      final seriesId = parsed?.$2 ??
+          (item.key.startsWith('series:') ? item.key.substring(7) : item.key);
       Navigator.push(context, slideRoute(SeriesDetailScreen(
         seriesId: seriesId, title: item.name, cover: item.cover,
       )));
       return;
     }
 
-    final resumeKey = item.mode == 'vod' || item.mode == 'series'
-        ? item.key.replaceFirst(RegExp(r'^(vod|series):'), '')
+    // For VOD / episode entries, the resume key now IS the canonical
+    // content key (`vod_<id>` or `ep_<id>`). The player passes it
+    // straight through to `WatchProgress.save`, which in turn syncs
+    // to the same Supabase row tvOS uses.
+    final resumeKey = (item.mode == 'vod' || item.mode == 'series')
+        ? item.key
         : null;
     Navigator.push(context, slideRoute(PlayerScreen(
       url: item.url, title: item.name,

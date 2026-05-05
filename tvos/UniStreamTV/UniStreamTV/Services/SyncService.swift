@@ -58,10 +58,16 @@ final class SyncService {
         let remoteWatchlist = await wlist
         let remoteProgress = await progress
 
-        // Merge: local wins, remote fills gaps. Pending deletes also
-        // win — a remote row that's been queued for deletion locally
-        // must not re-appear just because a pull happened to land
-        // before the matching push completed.
+        // Authoritative reconciliation: the pulled snapshot is the
+        // truth. We trust it for two operations:
+        //   1. Add gaps (remote-only items) — same as before.
+        //   2. Remove local items the server no longer has — this is
+        //      what makes a removal performed on Flutter (or any other
+        //      device) actually disappear from tvOS on the next pull.
+        //
+        // Pending deletes still take priority: a remote row queued for
+        // deletion locally can't be re-introduced by a pull that races
+        // the push.
         for (key, item) in remoteFavs where favorites[key] == nil && !pendingFavoriteDeletes.contains(key) {
             favorites[key] = item
         }
@@ -72,7 +78,26 @@ final class SyncService {
             watchProgress[key] = entry
         }
 
-        logger.info("Sync pulled: \(remoteFavs.count) favs, \(remoteWatchlist.count) watchlist, \(remoteProgress.count) progress")
+        // Reconciliation step — drop anything no longer on the server.
+        // Excludes keys we just queued for deletion ourselves (they're
+        // already gone locally; the push will remove them remotely
+        // shortly).
+        let favsToWipe = favorites.keys.filter {
+            !remoteFavs.keys.contains($0) && !pendingFavoriteDeletes.contains($0)
+        }
+        for key in favsToWipe { favorites.removeValue(forKey: key) }
+
+        let watchlistToWipe = watchlist.keys.filter {
+            !remoteWatchlist.keys.contains($0) && !pendingWatchlistDeletes.contains($0)
+        }
+        for key in watchlistToWipe { watchlist.removeValue(forKey: key) }
+
+        let progressToWipe = watchProgress.keys.filter {
+            !remoteProgress.keys.contains($0) && !pendingProgressDeletes.contains($0)
+        }
+        for key in progressToWipe { watchProgress.removeValue(forKey: key) }
+
+        logger.info("Sync pulled: \(remoteFavs.count) favs, \(remoteWatchlist.count) watchlist, \(remoteProgress.count) progress; wiped \(favsToWipe.count + watchlistToWipe.count + progressToWipe.count) stale local rows")
         writeTopShelfSnapshot()
     }
 

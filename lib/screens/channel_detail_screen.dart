@@ -129,7 +129,10 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     final favKeys = ref.watch(favoritesProvider).keys;
-    final favKey = 'live:${ch.id}';
+    // Bare channel id — aligns with tvOS FavoriteItem.from(channel:)
+    // which stores `key: channel.streamId`. The `mode: "live"` field
+    // on the JSON keeps the type discriminator.
+    final favKey = ch.id.toString();
     final isFav = favKeys.contains(favKey);
 
     return Scaffold(

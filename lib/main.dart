@@ -20,6 +20,7 @@ import 'models/app_config.dart';
 import 'providers/favorites_provider.dart';
 import 'providers/collections_provider.dart';
 import 'providers/watch_progress_provider.dart';
+import 'services/content_key_migration.dart';
 import 'services/supabase_config.dart';
 import 'services/epg_reminder_service.dart';
 import 'repositories/content_repository.dart';
@@ -308,7 +309,25 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         AppLogger.info(LogModule.sync, 'Auth migration: claimed orphaned data');
       }
 
+      // Build-12 content_key alignment: rename legacy local keys to the
+      // tvOS-aligned canonical format, then ask SyncService to clean
+      // up any leftover legacy rows on Supabase. Both halves are
+      // idempotent and gated by per-profile flags so this is a no-op
+      // on subsequent launches.
+      final activePid = AppConfig.activeProfileId;
+      await ContentKeyMigration.migrateLocalIfNeeded(activePid);
+      // Reload providers from disk so they reflect the renamed keys
+      // before we start merging remote data on top.
+      await ref.read(favoritesProvider.notifier).load();
+      await ref.read(watchlistProvider.notifier).load();
+      ref.invalidate(watchProgressProvider);
+
       final sync = SyncService.instance;
+      // Remote cleanup runs once we know auth is ready (pullAll throws
+      // if not, so this is a safe place). Ignore failures — they get
+      // retried on the next launch.
+      await ContentKeyMigration.migrateRemoteIfNeeded(activePid);
+
       final remote = await sync.pullAll();
 
       // Merge into providers (fire-and-forget, errors swallowed per-provider)

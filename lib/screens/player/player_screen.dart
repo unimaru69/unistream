@@ -16,6 +16,7 @@ import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
 import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
+import '../../utils/content_key.dart';
 import '../../utils/routes.dart';
 import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
 import '../../services/auth_service.dart';
@@ -408,15 +409,16 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   void _playNextEpisode() {
     _nextCountdown?.cancel();
     final ep = widget.nextEpisode!;
+    final epKey = ContentKey.make(ContentKey.episode, ep.id);
     final url = _repo.getSeriesEpisodeUrl(ep.id, ep.containerExtension);
-    WatchProgress.saveMeta(ep.id, ep.title, ep.coverUrl ?? '', url, 'series');
+    WatchProgress.saveMeta(epKey, ep.title, ep.coverUrl ?? '', url, 'series');
     if (widget.resumeKey != null && _lastDur > Duration.zero) {
       WatchProgress.save(widget.resumeKey!, _lastDur, _lastDur);
     }
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,
       title: ep.title,
-      resumeKey: ep.id,
+      resumeKey: epKey,
       coverUrl: ep.coverUrl,
     )));
   }

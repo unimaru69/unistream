@@ -13,6 +13,7 @@ import '../providers/watch_progress_provider.dart';
 import '../repositories/content_repository.dart';
 import '../models/next_episode_info.dart';
 import '../providers/tmdb_provider.dart';
+import '../utils/content_key.dart';
 import '../services/tmdb_service.dart';
 import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
@@ -51,7 +52,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   bool _loading = true;
   String? _error;
 
-  String get _favKey => 'series:${widget.seriesId}';
+  // Favourite key — bare seriesId, no prefix, to match tvOS's
+  // FavoriteItem.from(series:) which also stores the bare id. The
+  // `mode` field on the FavoriteItem JSON ("series") still tells the
+  // grid how to render it.
+  String get _favKey => widget.seriesId.toString();
 
   @override
   void initState() {
@@ -86,33 +91,35 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final marked = <String>[];
     for (var i = 0; i < idx; i++) {
       final prev = eps[i];
-      final prevId = prev.idStr;
-      final pos = await _wp.getPosition(prevId);
+      final prevKey = ContentKey.make(ContentKey.episode, prev.idStr);
+      final pos = await _wp.getPosition(prevKey);
       if (pos == null || pos.inSeconds < 30) {
-        await _wp.save(prevId, const Duration(minutes: 57), const Duration(hours: 1));
-        await _wp.saveMeta(prevId, prev.displayTitle, widget.cover, '', 'series');
-        marked.add(prevId);
+        await _wp.save(prevKey, const Duration(minutes: 57), const Duration(hours: 1));
+        await _wp.saveMeta(prevKey, prev.displayTitle, widget.cover, '', 'series');
+        // Track the *content key* so undo can clear the right entry.
+        marked.add(prevKey);
       }
     }
     return marked;
   }
 
-  /// Undo auto-marking: clear progress for the given episode IDs.
-  Future<void> _undoMarkAsWatched(List<String> episodeIds) async {
-    for (final id in episodeIds) {
-      await _wp.clear(id);
+  /// Undo auto-marking: clear progress for the given content keys.
+  Future<void> _undoMarkAsWatched(List<String> contentKeys) async {
+    for (final key in contentKeys) {
+      await _wp.clear(key);
     }
   }
 
   /// Mark a single episode as watched or unwatched (context menu).
   Future<void> _toggleEpisodeWatched(Episode ep) async {
-    final prog = await _wp.getPosition(ep.idStr);
+    final epKey = ContentKey.make(ContentKey.episode, ep.idStr);
+    final prog = await _wp.getPosition(epKey);
     final isWatched = prog != null && prog.inSeconds > 30;
     if (isWatched) {
-      await _wp.clear(ep.idStr);
+      await _wp.clear(epKey);
     } else {
-      await _wp.save(ep.idStr, const Duration(minutes: 57), const Duration(hours: 1));
-      await _wp.saveMeta(ep.idStr, ep.displayTitle, widget.cover, '', 'series');
+      await _wp.save(epKey, const Duration(minutes: 57), const Duration(hours: 1));
+      await _wp.saveMeta(epKey, ep.displayTitle, widget.cover, '', 'series');
     }
   }
 
@@ -120,7 +127,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final l10n = AppLocalizations.of(context)!;
     final tc = AppThemeColors.of(context);
     final progress = ref.read(watchProgressProvider).valueOrNull ?? {};
-    final prog = progress[ep.idStr];
+    final epKey = ContentKey.make(ContentKey.episode, ep.idStr);
+    final prog = progress[epKey];
     final isWatched = prog != null && prog > 0.95;
 
     showMenu<String>(
@@ -146,9 +154,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
   void _playEpisode(Episode ep) {
     final epId = ep.idStr;
+    final epKey = ContentKey.make(ContentKey.episode, epId);
     final url = _repo.getSeriesEpisodeUrl(epId, ep.containerExtension);
-    _wp.saveMeta(epId, ep.displayTitle, widget.cover, url, 'series');
-    _wp.saveHistory('series:$epId', ep.displayTitle, widget.cover, url, 'series');
+    _wp.saveMeta(epKey, ep.displayTitle, widget.cover, url, 'series');
+    _wp.saveHistory(epKey, ep.displayTitle, widget.cover, url, 'series');
 
     // Mark previous episodes as watched + show undo snackbar
     _markPreviousAsWatched(ep).then((marked) {
@@ -182,7 +191,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     Navigator.push(context, slideRoute(PlayerScreen(
       url: url,
       title: ep.displayTitle,
-      resumeKey: epId,
+      resumeKey: epKey,
       coverUrl: widget.cover,
       nextEpisode: nextEp,
     ))).then((_) {
@@ -476,7 +485,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       final ep = _episodes[_selectedSeason]![i];
                       final epNum = ep.number != 0 ? ep.number : i + 1;
                       final title = ep.displayTitle;
-                      final prog = progress[ep.idStr];
+                      final prog = progress[ContentKey.make(ContentKey.episode, ep.idStr)];
                       final bool isWatched = prog != null && prog > 0.95;
                       final bool isPartial = prog != null && prog <= 0.95;
                       final bool isNew = prog == null;

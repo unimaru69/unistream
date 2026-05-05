@@ -25,6 +25,10 @@ class SyncService {
 
   SupabaseClient? get _client => SupabaseConfig.client;
 
+  /// Public flag — true when the service is connected to Supabase and
+  /// has a session + profile hash to scope queries with.
+  bool get ready => _ready;
+
   bool get _ready {
     if (_client == null || profileHash.isEmpty || _client!.auth.currentSession == null) {
       return false;
@@ -385,6 +389,103 @@ class SyncService {
     } catch (e, st) {
       AppLogger.warning(LogModule.sync, 'claimOrphanedData failed (non-critical)',
           error: e, stackTrace: st);
+    }
+  }
+
+  /// One-time clean-up of legacy content_key formats on Supabase.
+  ///
+  /// Pre-build-12 Flutter wrote favourites under `<mode>:<id>` and watch
+  /// progress under bare `<id>`; tvOS used bare `<id>` for favourites
+  /// and `<type>_<id>` for watch progress. Build 12 unifies on the
+  /// tvOS conventions (bare for favourites, `<type>_<id>` for
+  /// progress). `migrateLegacyKeys` walks the Supabase rows for the
+  /// active profile and, for any row still in the legacy form:
+  ///
+  ///   * `user_favorites.item_key` matches `^(vod|series|live|ep):` →
+  ///     UPDATE `deleted = true`. The next pull filters it out and the
+  ///     bare-id companion row (already pushed by tvOS or by the new
+  ///     code path) becomes the canonical entry.
+  ///
+  ///   * `user_watch_progress.content_key` is bare digits without an
+  ///     underscore prefix → DELETE the row. The local migration has
+  ///     already renamed the SharedPreferences entry, and the next
+  ///     `WatchProgress.save` pushes the row back under the canonical
+  ///     `<type>_<id>` key.
+  ///
+  /// Runs in a single transaction-ish batch but is idempotent — calling
+  /// it after a successful migration is a no-op (no rows match the
+  /// legacy patterns).
+  Future<void> migrateLegacyKeys() async {
+    if (!_ready) {
+      throw StateError('SyncService not ready — cannot migrate legacy keys');
+    }
+
+    // ── Favourites & watchlist (soft-delete legacy colon keys) ──
+    try {
+      final favRows = await _client!
+          .from('user_favorites')
+          .select('item_key,list_type')
+          .eq('profile_hash', profileHash)
+          .eq('deleted', false);
+      final legacyFavKeys = <(String, String)>[]; // (key, list_type)
+      for (final row in favRows) {
+        final key = row['item_key'] as String?;
+        final lt = row['list_type'] as String?;
+        if (key == null || lt == null) continue;
+        if (RegExp(r'^(vod|series|live|ep):').hasMatch(key)) {
+          legacyFavKeys.add((key, lt));
+        }
+      }
+      for (final (key, lt) in legacyFavKeys) {
+        await _client!
+            .from('user_favorites')
+            .update({
+              'deleted': true,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', _userId!)
+            .eq('profile_hash', profileHash)
+            .eq('item_key', key)
+            .eq('list_type', lt);
+      }
+      AppLogger.info(LogModule.sync,
+          'Soft-deleted ${legacyFavKeys.length} legacy favourite/watchlist rows');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.sync,
+          'Favorites legacy cleanup failed', error: e, stackTrace: st);
+      rethrow;
+    }
+
+    // ── Watch progress (DELETE bare/legacy keys) ──
+    try {
+      final wpRows = await _client!
+          .from('user_watch_progress')
+          .select('content_key')
+          .eq('profile_hash', profileHash);
+      // Legacy = anything that doesn't start with one of our four type
+      // prefixes followed by an underscore. Catches both bare digits
+      // (Flutter pre-12) and the rare colon form (`vod:12345`).
+      final canonicalRe = RegExp(r'^(vod|ep|series|live)_');
+      final legacyKeys = <String>[];
+      for (final row in wpRows) {
+        final key = row['content_key'] as String?;
+        if (key == null) continue;
+        if (!canonicalRe.hasMatch(key)) legacyKeys.add(key);
+      }
+      for (final key in legacyKeys) {
+        await _client!
+            .from('user_watch_progress')
+            .delete()
+            .eq('user_id', _userId!)
+            .eq('profile_hash', profileHash)
+            .eq('content_key', key);
+      }
+      AppLogger.info(LogModule.sync,
+          'Deleted ${legacyKeys.length} legacy watch-progress rows');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.sync,
+          'Watch-progress legacy cleanup failed', error: e, stackTrace: st);
+      rethrow;
     }
   }
 

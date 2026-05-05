@@ -17,6 +17,7 @@ import '../../repositories/content_repository.dart';
 import '../../utils/api_error_localizer.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/routes.dart';
+import '../../utils/content_key.dart';
 import '../../utils/stream_helpers.dart';
 import '../../models/content_mode.dart';
 import '../../providers/favorites_provider.dart';
@@ -284,13 +285,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ── Favorites / Watchlist ──
+  //
+  // Favourite keys are now bare item ids (no prefix), aligning with the
+  // tvOS native app — both platforms write to `user_favorites.item_key`
+  // with the same string. The `mode` discriminator lives in the JSON
+  // payload (`item_json.mode`), so a movie streamId and a series id
+  // that happen to share digits are still distinguishable.
   String _favKey(String mode, dynamic s) {
     if (s is Map<String, dynamic>) {
-      final id = mode == 'series' ? s['series_id']?.toString() : s['stream_id']?.toString();
-      return '$mode:$id';
+      return (mode == 'series' ? s['series_id'] : s['stream_id'])?.toString() ?? '';
     }
-    final id = mode == 'series' ? getStreamId(s) : getStreamId(s);
-    return '$mode:$id';
+    return getStreamId(s);
   }
 
   void _toggleFavorite(dynamic stream) {
@@ -507,7 +512,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (_mode == ContentMode.series) {
       final seriesId = stream is SeriesItem ? stream.seriesId.toString() : (stream as Map<String, dynamic>)['series_id'].toString();
       final cover = stream is SeriesItem ? stream.displayIcon : (stream as Map<String, dynamic>)['cover']?.toString() ?? '';
-      ref.read(watchProgressActionsProvider).saveHistory('series:$seriesId', displayName, cover, '', _mode.key);
+      ref.read(watchProgressActionsProvider).saveHistory(
+          ContentKey.make(ContentKey.series, seriesId), displayName, cover, '', _mode.key);
       Navigator.push(context, slideRoute(SeriesDetailScreen(
         seriesId: seriesId,
         title: displayName,
@@ -533,17 +539,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final String? resumeKey;
     final cover = getStreamIcon(stream);
     final streamId = getStreamId(stream);
+    final contentType = ContentKey.typeForPlayMode(_mode.key);
+    final contentKey = ContentKey.make(contentType, streamId);
     if (_mode == ContentMode.live) {
       url = _repo.getLiveStreamUrl(streamId);
-      resumeKey = null;
+      resumeKey = null; // Live channels don't have a resume position.
     } else {
       final ext = stream is VodItem ? stream.containerExtension : (stream is Map<String, dynamic> ? (stream['container_extension'] ?? 'mp4') : 'mp4');
       url = _repo.getVodStreamUrl(streamId, ext);
-      resumeKey = streamId;
-      ref.read(watchProgressActionsProvider).saveMeta(resumeKey, displayName,
+      resumeKey = contentKey;
+      ref.read(watchProgressActionsProvider).saveMeta(contentKey, displayName,
           stream is VodItem ? (stream.streamIcon ?? '') : (stream is Map<String, dynamic> ? (stream['stream_icon']?.toString() ?? '') : ''), url, _mode.key);
     }
-    ref.read(watchProgressActionsProvider).saveHistory('${_mode.key}:$streamId', displayName, cover, url, _mode.key);
+    ref.read(watchProgressActionsProvider).saveHistory(contentKey, displayName, cover, url, _mode.key);
 
     List<Channel>? channelList;
     int? channelIndex;
@@ -709,6 +717,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
     final continueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
     final collections = ref.watch(collectionsProvider);
+
+    // Keep `_streams` in sync with the favourites/watchlist state when
+    // the user is viewing a virtual category. The original
+    // `onSpecialCategorySelected` snapshotted the provider's items at
+    // click time, so removing a favourite afterwards left the grid
+    // showing the now-stale list. Re-deriving here makes the grid
+    // reactive — the next state change reaches the renderer through the
+    // normal Riverpod rebuild path.
+    if (_selectedCategory == '__favorites__') {
+      final fresh = favItems
+          .where((e) => e.mode == _mode.key)
+          .map((e) => e.toJson())
+          .toList();
+      // Avoid setState() during build — schedule a microtask if the list
+      // has actually changed. Length comparison is cheap and catches
+      // both add/remove cases for the user's scope (≤10 items).
+      if (fresh.length != _streams.length) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _selectedCategory == '__favorites__') {
+            setState(() => _streams = fresh);
+          }
+        });
+      }
+    } else if (_selectedCategory == '__watchlist__') {
+      final fresh = wlItems
+          .where((e) => e.mode == _mode.key)
+          .map((e) => e.toJson())
+          .toList();
+      if (fresh.length != _streams.length) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _selectedCategory == '__watchlist__') {
+            setState(() => _streams = fresh);
+          }
+        });
+      }
+    }
 
     // Parental controls: filter categories and streams when locked
     final parental = ref.watch(parentalProvider);
