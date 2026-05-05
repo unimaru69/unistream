@@ -13,6 +13,13 @@ struct SeriesGridView: View {
     @Environment(AppState.self) private var appState
     /// Tracks which series card the focus engine is currently on.
     @FocusState private var focusedSeriesId: String?
+    /// Drives a fullScreenCover presentation instead of a
+    /// `NavigationLink` push. Push/pop on tvOS 17 caches the auto-
+    /// collapsed tab bar state and there's no public API to reset it
+    /// (`.toolbar(.visible, for: .tabBar)` is iOS 18+ in practice). A
+    /// modal cover dismisses cleanly without the parent ever scrolling,
+    /// so the tab bar's previous state is preserved.
+    @State private var presentedSeries: SeriesItem?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
@@ -45,7 +52,9 @@ struct SeriesGridView: View {
                     }
                     LazyVGrid(columns: columns, spacing: 30) {
                         ForEach(viewModel.items) { item in
-                            NavigationLink(value: item) {
+                            Button {
+                                presentedSeries = item
+                            } label: {
                                 FocusableCardLabel(
                                     title: item.name,
                                     imageUrl: item.displayIcon,
@@ -121,8 +130,10 @@ struct SeriesGridView: View {
                 binding.wrappedValue = nil
             }
         }
-        // Titre inline dans le ScrollView (voir ChannelGridView)
-        .navigationDestination(for: SeriesItem.self) { series in
+        // Modal cover (instead of NavigationLink push) so dismissing
+        // the detail view doesn't disturb the parent split view's tab
+        // bar visibility — see comment on `presentedSeries`.
+        .fullScreenCover(item: $presentedSeries) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)
         }
         // Keyed on category id — re-fires when the user picks a different category.

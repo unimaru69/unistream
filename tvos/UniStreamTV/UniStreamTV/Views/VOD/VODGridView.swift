@@ -11,6 +11,10 @@ struct VODGridView: View {
 
     @Environment(AppState.self) private var appState
     @FocusState private var focusedVodId: String?
+    /// See SeriesGridView for the rationale: presents the detail as a
+    /// modal cover instead of a NavigationLink push so the parent's
+    /// floating tab bar is never collapsed.
+    @State private var presentedVod: VodItem?
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
@@ -47,7 +51,9 @@ struct VODGridView: View {
                     }
                     LazyVGrid(columns: columns, spacing: 30) {
                         ForEach(viewModel.items) { item in
-                            NavigationLink(value: item) {
+                            Button {
+                                presentedVod = item
+                            } label: {
                                 FocusableCardLabel(
                                     title: item.name,
                                     imageUrl: item.displayIcon,
@@ -112,8 +118,7 @@ struct VODGridView: View {
                 binding.wrappedValue = nil
             }
         }
-        // Titre inline dans le ScrollView (voir ChannelGridView)
-        .navigationDestination(for: VodItem.self) { item in
+        .fullScreenCover(item: $presentedVod) { item in
             VODDetailView(item: item, api: api)
         }
         // Keyed on category id — re-fires when the user picks a different category.

@@ -255,6 +255,12 @@ private struct FavoritesShelf: View {
     let title: String
     let items: [FavoriteItem]
     @Environment(AppState.self) private var appState
+    /// Modal presentation drives instead of NavigationLink — see
+    /// SeriesGridView for the rationale (TabView's tab bar collapses
+    /// across push/pop and there's no public API on tvOS 17 to force
+    /// it back on).
+    @State private var presentedVod: VodItem?
+    @State private var presentedSeries: SeriesItem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -273,6 +279,14 @@ private struct FavoritesShelf: View {
                 .padding(.horizontal, 50)
             }
         }
+        .fullScreenCover(item: $presentedVod) { vod in
+            VODDetailView(item: vod, api: appState.api)
+        }
+        .fullScreenCover(item: $presentedSeries) { series in
+            if let seriesVM = appState.seriesVM {
+                SeriesDetailView(series: series, viewModel: seriesVM, api: appState.api)
+            }
+        }
     }
 
     @ViewBuilder
@@ -289,7 +303,9 @@ private struct FavoritesShelf: View {
             }
             .buttonStyle(.tvCard)
         } else if fav.isMovie {
-            NavigationLink(value: vodItem(from: fav)) {
+            Button {
+                presentedVod = vodItem(from: fav)
+            } label: {
                 FocusableCardLabel(
                     title: fav.name,
                     imageUrl: fav.displayIcon,
@@ -299,7 +315,9 @@ private struct FavoritesShelf: View {
             }
             .buttonStyle(.tvCard)
         } else if fav.isSeries {
-            NavigationLink(value: seriesItem(from: fav)) {
+            Button {
+                presentedSeries = seriesItem(from: fav)
+            } label: {
                 FocusableCardLabel(
                     title: fav.name,
                     imageUrl: fav.displayIcon,
