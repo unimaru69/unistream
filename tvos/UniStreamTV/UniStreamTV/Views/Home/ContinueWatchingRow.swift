@@ -266,14 +266,35 @@ private struct CardContent: View {
                     .frame(width: 280, height: 160)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card))
             } else {
-                RoundedRectangle(cornerRadius: DS.Radius.card)
-                    .fill(DS.Colour.surface)
-                    .frame(width: 280, height: 160)
-                    .overlay {
-                        Image(systemName: "play.circle")
-                            .font(.largeTitle)
-                            .foregroundColor(DS.Colour.textTertiary)
-                    }
+                // Richer fallback: brand-tinted gradient + the item's
+                // title baked into the artwork. Replaces the flat grey
+                // tile with a play icon that read as "broken card" on
+                // a row that's otherwise visual.
+                ZStack(alignment: .bottomLeading) {
+                    LinearGradient(
+                        colors: [
+                            DS.Colour.accent.opacity(0.7),
+                            DS.Colour.surface,
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 44, weight: .light))
+                        .foregroundColor(DS.Colour.textPrimary.opacity(0.85))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                    Text(entry.title ?? favoriteInfo?.name ?? contentKey)
+                        .font(DS.Typography.label)
+                        .foregroundColor(DS.Colour.textSecondary)
+                        .lineLimit(2)
+                        .padding(DS.Spacing.sm)
+                        .padding(.bottom, DS.Spacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(width: 280, height: 160)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card))
             }
 
             // Progress bar

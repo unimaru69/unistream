@@ -342,24 +342,78 @@ struct HomeHeroBanner: View {
         let vods = (try? await vodResult) ?? []
         let seriesList = (try? await seriesResult) ?? []
 
-        // Prefer items that have an actual poster + a description to display.
+        // Heuristic preference for content matching the user's primary
+        // language. IPTV providers tag categories with language prefixes
+        // ("FR|", "AR|", "EN|", "DO|"…). Until the settings expose a
+        // language picker, prefer the system locale's primary language —
+        // and apply a soft de-prioritisation to obviously-foreign tags
+        // so the À LA UNE rotation doesn't open on Arabic / Turkish
+        // titles for a French user.
+        let primaryLang = Locale.current.language.languageCode?.identifier.uppercased() ?? "FR"
+        let preferredPrefixes: Set<String> = {
+            switch primaryLang {
+            case "FR": return ["FR", "FRA", "VF"]
+            case "EN": return ["EN", "US", "UK", "ENG"]
+            default:   return [primaryLang]
+            }
+        }()
+        let dispreferredPrefixes: Set<String> = ["AR", "TR", "RU", "HI", "BN", "FA"]
+
+        /// Extract the "XX|" provider tag from either an item title or a
+        /// category name. Returns the uppercased prefix or "" if none.
+        func providerTag(_ s: String) -> String {
+            guard let prefix = s.split(separator: "|").first, prefix.count <= 4 else { return "" }
+            return String(prefix).trimmingCharacters(in: .whitespaces).uppercased()
+        }
+
+        func languageBoost(name: String, category: String) -> Double {
+            // Provider tags can appear on the title ("AR| Bhramam") or
+            // the category ("FR| Films Premium"). Read both — title
+            // first so a French film parked in a generic category still
+            // wins.
+            let titleTag = providerTag(name)
+            let catTag = providerTag(category)
+            for tag in [titleTag, catTag] where !tag.isEmpty {
+                if preferredPrefixes.contains(tag) { return 5.0 }
+                if dispreferredPrefixes.contains(tag) { return -8.0 }
+            }
+            return 0
+        }
+
+        // Prefer items that (a) match the user's language, (b) have an
+        // actual poster + description, and (c) carry a TMDB-grade
+        // rating. Penalise items without a real cover URL so the
+        // carousel never opens on a placeholder.
         func vodScore(_ v: VodItem) -> Double {
             let r = Double(v.rating ?? "") ?? 0
-            let hasPoster = !v.displayIcon.isEmpty ? 1.0 : 0.0
-            let hasPlot = ((v.plot ?? v.description)?.isEmpty == false) ? 1.0 : 0.0
-            return r + hasPoster * 3 + hasPlot * 2
+            let hasPoster = !v.displayIcon.isEmpty ? 3.0 : -2.0
+            let hasPlot = ((v.plot ?? v.description)?.isEmpty == false) ? 2.0 : 0.0
+            return r + hasPoster + hasPlot + languageBoost(name: v.name, category: v.categoryName ?? "")
         }
         func seriesScore(_ s: SeriesItem) -> Double {
             let r = Double(s.rating ?? "") ?? 0
-            let hasPoster = !s.displayIcon.isEmpty ? 1.0 : 0.0
-            let hasPlot = ((s.plot ?? s.description)?.isEmpty == false) ? 1.0 : 0.0
-            return r + hasPoster * 3 + hasPlot * 2
+            let hasPoster = !s.displayIcon.isEmpty ? 3.0 : -2.0
+            let hasPlot = ((s.plot ?? s.description)?.isEmpty == false) ? 2.0 : 0.0
+            return r + hasPoster + hasPlot + languageBoost(name: s.name, category: s.categoryName ?? "")
         }
 
         // Rotate among the top N films + top N series — interleaved so the
-        // carousel alternates formats.
-        let topVods = vods.sorted { vodScore($0) > vodScore($1) }.prefix(5).map { RecentlyAddedItem.vod($0) }
-        let topSeries = seriesList.sorted { seriesScore($0) > seriesScore($1) }.prefix(5).map { RecentlyAddedItem.series($0) }
+        // carousel alternates formats. We score then drop anything below
+        // a quality threshold so the user never lands on a hero with
+        // empty plot + no poster.
+        let qualityThreshold: Double = 5.0
+        let topVods = vods
+            .map { (item: $0, score: vodScore($0)) }
+            .filter { $0.score >= qualityThreshold }
+            .sorted { $0.score > $1.score }
+            .prefix(5)
+            .map { RecentlyAddedItem.vod($0.item) }
+        let topSeries = seriesList
+            .map { (item: $0, score: seriesScore($0)) }
+            .filter { $0.score >= qualityThreshold }
+            .sorted { $0.score > $1.score }
+            .prefix(5)
+            .map { RecentlyAddedItem.series($0.item) }
 
         var interleaved: [RecentlyAddedItem] = []
         let maxCount = max(topVods.count, topSeries.count)
