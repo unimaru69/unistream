@@ -14,6 +14,18 @@ final class SyncService {
     private(set) var watchlist: [String: FavoriteItem] = [:]  // key → item ("À regarder")
     private(set) var watchProgress: [String: WatchEntry] = [:]  // contentKey → entry
 
+    // Pending deletions — tracked separately so the push step can mark
+    // the matching Supabase rows as `deleted = true` (favorites /
+    // watchlist) or DELETE them outright (watch progress). Without
+    // this, removing a favourite or marking-as-unwatched only mutates
+    // the local dictionary; the next `pullAll` re-hydrates the same
+    // item from Supabase and the user sees their action revert. Also
+    // consulted by `pullAll`'s merge step so a remote row in flight
+    // can't override an explicit user removal.
+    private var pendingFavoriteDeletes: Set<String> = []
+    private var pendingWatchlistDeletes: Set<String> = []
+    private var pendingProgressDeletes: Set<String> = []
+
     // Debounce
     private var pushFavoritesTask: Task<Void, Never>?
     private var pushWatchlistTask: Task<Void, Never>?
@@ -46,14 +58,17 @@ final class SyncService {
         let remoteWatchlist = await wlist
         let remoteProgress = await progress
 
-        // Merge: local wins, remote fills gaps
-        for (key, item) in remoteFavs where favorites[key] == nil {
+        // Merge: local wins, remote fills gaps. Pending deletes also
+        // win — a remote row that's been queued for deletion locally
+        // must not re-appear just because a pull happened to land
+        // before the matching push completed.
+        for (key, item) in remoteFavs where favorites[key] == nil && !pendingFavoriteDeletes.contains(key) {
             favorites[key] = item
         }
-        for (key, item) in remoteWatchlist where watchlist[key] == nil {
+        for (key, item) in remoteWatchlist where watchlist[key] == nil && !pendingWatchlistDeletes.contains(key) {
             watchlist[key] = item
         }
-        for (key, entry) in remoteProgress where watchProgress[key] == nil {
+        for (key, entry) in remoteProgress where watchProgress[key] == nil && !pendingProgressDeletes.contains(key) {
             watchProgress[key] = entry
         }
 
@@ -130,8 +145,12 @@ final class SyncService {
     func toggleFavorite(_ item: FavoriteItem) {
         if favorites[item.key] != nil {
             favorites.removeValue(forKey: item.key)
+            pendingFavoriteDeletes.insert(item.key)
         } else {
             favorites[item.key] = item
+            // Re-favourite supersedes a pending delete — clear it so
+            // the push doesn't soft-delete the row we just upserted.
+            pendingFavoriteDeletes.remove(item.key)
         }
         debouncePushFavorites()
         writeTopShelfSnapshot()
@@ -204,6 +223,44 @@ final class SyncService {
                 logger.warning("pushFavorite failed for \(key): \(error.localizedDescription)")
             }
         }
+
+        // Flush pending deletes: mark the matching rows as deleted on
+        // Supabase. Failed deletes are re-queued so the next push
+        // retries them — otherwise an offline removal would silently
+        // disappear once the network comes back.
+        await flushFavoriteDeletes(listType: "favorite", pending: \.pendingFavoriteDeletes)
+    }
+
+    /// Soft-delete the rows queued in `keyPath` from Supabase. Pulls
+    /// the snapshot up-front, clears the local set, and re-queues any
+    /// failures so a future push retries.
+    private func flushFavoriteDeletes(
+        listType: String,
+        pending keyPath: ReferenceWritableKeyPath<SyncService, Set<String>>
+    ) async {
+        let pending = self[keyPath: keyPath]
+        guard !pending.isEmpty else { return }
+        self[keyPath: keyPath] = []
+        let nowIso = ISO8601DateFormatter().string(from: Date())
+
+        for key in pending {
+            do {
+                try await client
+                    .from("user_favorites")
+                    .update([
+                        "deleted": "true",
+                        "updated_at": nowIso,
+                    ])
+                    .eq("user_id", value: userId)
+                    .eq("profile_hash", value: profileHash)
+                    .eq("item_key", value: key)
+                    .eq("list_type", value: listType)
+                    .execute()
+            } catch {
+                logger.warning("\(listType) delete failed for \(key): \(error.localizedDescription)")
+                self[keyPath: keyPath].insert(key)
+            }
+        }
     }
 
     // MARK: - Watchlist ("À regarder")
@@ -211,8 +268,10 @@ final class SyncService {
     func toggleWatchlist(_ item: FavoriteItem) {
         if watchlist[item.key] != nil {
             watchlist.removeValue(forKey: item.key)
+            pendingWatchlistDeletes.insert(item.key)
         } else {
             watchlist[item.key] = item
+            pendingWatchlistDeletes.remove(item.key)
         }
         debouncePushWatchlist()
     }
@@ -284,6 +343,8 @@ final class SyncService {
                 logger.warning("pushWatchlist failed for \(key): \(error.localizedDescription)")
             }
         }
+
+        await flushFavoriteDeletes(listType: "watchlist", pending: \.pendingWatchlistDeletes)
     }
 
     // MARK: - Watch Progress
@@ -325,15 +386,18 @@ final class SyncService {
             coverUrl: existing?.coverUrl,
             seriesId: existing?.seriesId
         )
+        // Re-watch supersedes a pending delete from a prior unwatch
+        // gesture that hasn't flushed yet.
+        pendingProgressDeletes.remove(contentKey)
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
     }
 
     /// Clear any watched / in-progress state for the content item.
+    /// `removeProgress` handles the deletion queue + push + Top Shelf
+    /// snapshot — this is just the user-facing alias.
     func markAsUnwatched(contentKey: String) {
         removeProgress(contentKey: contentKey)
-        debouncePushProgress(contentKey: contentKey)
-        writeTopShelfSnapshot()
     }
 
     /// Whether the item has been fully watched (≥ 95%).
@@ -403,14 +467,28 @@ final class SyncService {
         }
     }
 
-    /// Remove a single watch progress entry.
+    /// Remove a single watch progress entry. Queues the row for
+    /// deletion on Supabase and writes the Top Shelf snapshot — the
+    /// HistoryView "Supprimer" gesture and `markAsUnwatched` both
+    /// land here, so callers don't have to remember to debounce.
     func removeProgress(contentKey: String) {
+        guard watchProgress[contentKey] != nil else { return }
         watchProgress.removeValue(forKey: contentKey)
+        pendingProgressDeletes.insert(contentKey)
+        debouncePushProgress(contentKey: contentKey)
+        writeTopShelfSnapshot()
     }
 
-    /// Clear all watch progress.
+    /// Clear all watch progress. Queues every key for cloud-side
+    /// deletion so the wipe persists across pulls / new devices.
     func clearAllProgress() {
+        let keys = Array(watchProgress.keys)
         watchProgress.removeAll()
+        for key in keys {
+            pendingProgressDeletes.insert(key)
+            debouncePushProgress(contentKey: key)
+        }
+        writeTopShelfSnapshot()
     }
 
     private func pullWatchProgress() async -> [String: WatchEntry] {
@@ -480,7 +558,33 @@ final class SyncService {
     }
 
     private func pushProgress(contentKey: String) async {
-        guard isReady, let entry = watchProgress[contentKey] else { return }
+        guard isReady else { return }
+
+        // Two cases. If the user just hit "Marquer non vu" (or
+        // otherwise removed the entry), the local entry is gone and
+        // the key sits in `pendingProgressDeletes` — issue a DELETE
+        // against Supabase so the row doesn't come back on the next
+        // pull. Otherwise upsert the local entry as before.
+        if watchProgress[contentKey] == nil, pendingProgressDeletes.contains(contentKey) {
+            pendingProgressDeletes.remove(contentKey)
+            do {
+                try await client
+                    .from("user_watch_progress")
+                    .delete()
+                    .eq("user_id", value: userId)
+                    .eq("profile_hash", value: profileHash)
+                    .eq("content_key", value: contentKey)
+                    .execute()
+            } catch {
+                logger.warning("pushProgress delete failed for \(contentKey): \(error.localizedDescription)")
+                // Re-queue so the next push retries. Without this an
+                // offline unwatch would silently revive once online.
+                pendingProgressDeletes.insert(contentKey)
+            }
+            return
+        }
+
+        guard let entry = watchProgress[contentKey] else { return }
 
         // Store title + URL + cover in meta_json for cross-device sync.
         // Use JSONSerialization so quotes / unicode encode safely.
