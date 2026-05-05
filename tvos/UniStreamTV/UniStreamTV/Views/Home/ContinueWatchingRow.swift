@@ -57,7 +57,7 @@ struct ContinueWatchingRow: View {
         } else {
             VStack(alignment: .leading, spacing: DS.Spacing.md) {
                 Text("Reprendre")
-                    .font(DS.Typography.title2)
+                    .font(DS.Typography.title1)
                     .foregroundColor(DS.Colour.textPrimary)
                     .padding(.horizontal, horizontalPadding)
 
@@ -199,7 +199,7 @@ struct ContinueWatchingCard: View {
                 .frame(width: 280, height: 160)
 
                 Text(entry.title ?? favoriteInfo?.name ?? contentKey)
-                    .font(DS.Typography.caption)
+                    .font(DS.Typography.title3)
                     .foregroundColor(DS.Colour.textPrimary)
                     .lineLimit(1)
                     .frame(width: 280, alignment: .leading)

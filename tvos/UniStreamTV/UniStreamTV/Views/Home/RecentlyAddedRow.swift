@@ -69,7 +69,7 @@ struct RecentlyAddedRow: View {
     private var loadingView: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text("Ajoutés récemment")
-                .font(DS.Typography.title2)
+                .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
                 .padding(.horizontal, DS.Padding.screenHorizontal)
 
@@ -82,7 +82,7 @@ struct RecentlyAddedRow: View {
     private var contentView: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text("Ajoutés récemment")
-                .font(DS.Typography.title2)
+                .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
                 .padding(.horizontal, DS.Padding.screenHorizontal)
 
@@ -162,8 +162,8 @@ struct RecentlyAddedCard: View {
             .frame(width: cardWidth, height: cardWidth / posterAspect)
 
             Text(item.name)
-                .font(.caption)
-                .foregroundColor(.white)
+                .font(DS.Typography.title3)
+                .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)
                 .frame(width: cardWidth, alignment: .leading)
         }

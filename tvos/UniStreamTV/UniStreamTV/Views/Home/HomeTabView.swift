@@ -265,7 +265,7 @@ private struct FavoritesShelf: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text(title)
-                .font(DS.Typography.title2)
+                .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
                 .padding(.horizontal, DS.Padding.screenHorizontal)
 

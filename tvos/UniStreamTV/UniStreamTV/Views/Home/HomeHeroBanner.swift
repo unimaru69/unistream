@@ -280,10 +280,10 @@ struct HomeHeroBanner: View {
         @Environment(\.isFocused) private var isFocused
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
-                .font(.callout.weight(.semibold))
-                .foregroundColor(isFocused ? .black : .white)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 12)
+                .font(DS.Typography.bodyEmphasised)
+                .foregroundColor(isFocused ? .black : DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Spacing.lg)
+                .padding(.vertical, DS.Spacing.sm)
                 .background(
                     isFocused
                     ? AnyShapeStyle(Color.white)
@@ -291,7 +291,7 @@ struct HomeHeroBanner: View {
                 )
                 .clipShape(Capsule())
                 .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? 1.05 : 1.0))
-                .animation(.easeOut(duration: 0.15), value: isFocused)
+                .animation(DS.Focus.animation, value: isFocused)
         }
     }
 

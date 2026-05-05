@@ -46,7 +46,7 @@ struct CatchUpRow: View {
             Image(systemName: "gobackward")
                 .foregroundColor(DS.Colour.accentWarm)
             Text("Replay disponible")
-                .font(DS.Typography.title2)
+                .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
         }
         .padding(.horizontal, DS.Padding.screenHorizontal)

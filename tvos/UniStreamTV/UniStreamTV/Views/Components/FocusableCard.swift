@@ -90,15 +90,15 @@ struct FocusableCardLabel: View {
             }
 
             Text(title)
-                .font(.caption)
-                .foregroundColor(.white)
+                .font(DS.Typography.title3)
+                .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.6))
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Colour.textTertiary)
                     .lineLimit(1)
             }
         }
