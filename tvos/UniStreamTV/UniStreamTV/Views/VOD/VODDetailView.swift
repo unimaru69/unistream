@@ -219,7 +219,11 @@ struct VODDetailView: View {
                 .padding(.bottom, 40)
             }
         }
-        .background(PlexBackdrop(imageUrl: backdropURL))
+        // Force the cover to fill the entire screen — see
+        // SeriesDetailView for the rationale.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PlexBackdrop(imageUrl: backdropURL).ignoresSafeArea())
+        .ignoresSafeArea()
         .task {
             await tmdbVM.load(rawTitle: item.name, kind: .movie)
         }

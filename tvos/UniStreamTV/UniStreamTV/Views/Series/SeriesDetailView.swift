@@ -81,7 +81,13 @@ struct SeriesDetailView: View {
             }
             .padding(.vertical, 40)
         }
-        .background(PlexBackdrop(imageUrl: backdropURL))
+        // Force the cover to fill the entire screen — without
+        // explicit max dims + ignoresSafeArea, fullScreenCover on
+        // tvOS leaves a translucent edge band where the parent grid
+        // shows through.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PlexBackdrop(imageUrl: backdropURL).ignoresSafeArea())
+        .ignoresSafeArea()
         .task {
             await viewModel.loadEpisodes(for: series)
             selectedSeason = sortedSeasons.first
