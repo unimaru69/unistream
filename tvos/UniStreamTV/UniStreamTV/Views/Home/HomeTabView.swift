@@ -117,6 +117,16 @@ private struct EPGReminderToast: View {
     }
 }
 
+/// What the home wallpaper currently shows. Carries just enough info
+/// for `HomeBackdropWallpaper` to do its TMDB lookup — the source of
+/// truth (favorite item, watch entry, hero rotation) is intentionally
+/// erased so the wallpaper layer doesn't need to know about each row.
+struct BackdropTarget: Equatable, Identifiable {
+    let id: String
+    let title: String
+    let kind: TMDBKind
+}
+
 /// Home tab content — Continue Watching + favorites summary.
 struct HomeContentView: View {
     @Environment(AppState.self) private var appState
@@ -124,6 +134,23 @@ struct HomeContentView: View {
     /// wallpaper behind everything (under the floating tab bar, behind
     /// the rows below the hero) — Apple TV+ / Netflix home pattern.
     @State private var heroItem: RecentlyAddedItem?
+    /// Set by whichever row card the user has currently focused. Wins
+    /// over the auto-rotating hero so the backdrop "follows" the user
+    /// when they navigate down into Reprendre / Films favoris / Séries
+    /// favorites — Plex-style.
+    @State private var rowFocused: BackdropTarget?
+
+    /// Resolved wallpaper source: focused card if any, falls back to
+    /// the auto-rotated hero item.
+    private var wallpaperTarget: BackdropTarget? {
+        if let r = rowFocused { return r }
+        guard let h = heroItem else { return nil }
+        return BackdropTarget(
+            id: h.id,
+            title: h.name,
+            kind: h.id.hasPrefix("vod_") ? .movie : .tv
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -135,7 +162,7 @@ struct HomeContentView: View {
                         .ignoresSafeArea(edges: .top)
 
                     // Continue Watching
-                    ContinueWatchingRow()
+                    ContinueWatchingRow(rowFocused: $rowFocused)
                         .focusSection()
 
                     // Quick access to favorite channels
@@ -145,7 +172,7 @@ struct HomeContentView: View {
                         .prefix(10)
 
                     if !liveFavs.isEmpty {
-                        FavoritesShelf(title: "Chaînes favorites", items: Array(liveFavs))
+                        FavoritesShelf(title: "Chaînes favorites", items: Array(liveFavs), rowFocused: $rowFocused)
                             .focusSection()
                     }
 
@@ -156,7 +183,7 @@ struct HomeContentView: View {
                         .prefix(10)
 
                     if !movieFavs.isEmpty {
-                        FavoritesShelf(title: "Films favoris", items: Array(movieFavs))
+                        FavoritesShelf(title: "Films favoris", items: Array(movieFavs), rowFocused: $rowFocused)
                             .focusSection()
                     }
 
@@ -167,7 +194,7 @@ struct HomeContentView: View {
                         .prefix(10)
 
                     if !seriesFavs.isEmpty {
-                        FavoritesShelf(title: "Séries favorites", items: Array(seriesFavs))
+                        FavoritesShelf(title: "Séries favorites", items: Array(seriesFavs), rowFocused: $rowFocused)
                             .focusSection()
                     }
 
@@ -186,9 +213,9 @@ struct HomeContentView: View {
             .background {
                 ZStack {
                     DS.Colour.background.ignoresSafeArea()
-                    if let item = heroItem {
-                        HomeBackdropWallpaper(item: item)
-                            .id(item.id)
+                    if let target = wallpaperTarget {
+                        HomeBackdropWallpaper(target: target)
+                            .id(target.id)
                             .transition(.opacity.animation(DS.Motion.slow))
                     }
                 }
@@ -223,7 +250,7 @@ struct HomeContentView: View {
 /// `PlexBackdrop`'s blur/gradient treatment so the rows in front stay
 /// readable.
 private struct HomeBackdropWallpaper: View {
-    let item: RecentlyAddedItem
+    let target: BackdropTarget
     @State private var tmdbVM = TMDBViewModel()
 
     /// Only use the TMDB backdrop ("original" = ≥1280px wide on TMDB,
@@ -235,10 +262,6 @@ private struct HomeBackdropWallpaper: View {
     /// over a flat dark page instead of a degraded image.
     private var imageURL: String? {
         tmdbVM.result?.backdropURL(size: "original")?.absoluteString
-    }
-
-    private var kind: TMDBKind {
-        item.id.hasPrefix("vod_") ? .movie : .tv
     }
 
     var body: some View {
@@ -254,8 +277,8 @@ private struct HomeBackdropWallpaper: View {
                 DS.Colour.background.ignoresSafeArea()
             }
         }
-        .task(id: item.id) {
-            await tmdbVM.load(rawTitle: item.name, kind: kind)
+        .task(id: target.id) {
+            await tmdbVM.load(rawTitle: target.title, kind: target.kind)
         }
     }
 }
@@ -269,6 +292,10 @@ private struct HomeBackdropWallpaper: View {
 private struct FavoritesShelf: View {
     let title: String
     let items: [FavoriteItem]
+    /// Optional — when supplied, each card pushes itself as the active
+    /// `BackdropTarget` whenever it gains focus, so the home wallpaper
+    /// "follows" the user's selection across rows.
+    var rowFocused: Binding<BackdropTarget?>? = nil
     @Environment(AppState.self) private var appState
     /// Modal presentation drives instead of NavigationLink — see
     /// SeriesGridView for the rationale (TabView's tab bar collapses
@@ -276,6 +303,7 @@ private struct FavoritesShelf: View {
     /// it back on).
     @State private var presentedVod: VodItem?
     @State private var presentedSeries: SeriesItem?
+    @FocusState private var focusedKey: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.md) {
@@ -288,10 +316,24 @@ private struct FavoritesShelf: View {
                 HStack(spacing: DS.Spacing.lg) {
                     ForEach(items, id: \.key) { fav in
                         card(for: fav)
+                            .focused($focusedKey, equals: fav.key)
                     }
                 }
                 .padding(.horizontal, DS.Padding.screenHorizontal)
             }
+        }
+        .onChange(of: focusedKey) { _, newKey in
+            guard let key = newKey,
+                  let fav = items.first(where: { $0.key == key }) else { return }
+            // Live channels rarely have rich TMDB backdrops; map them
+            // through `.tv` for now — better than `.movie` and the
+            // wallpaper falls back to flat black if no match.
+            let kind: TMDBKind = fav.isMovie ? .movie : .tv
+            rowFocused?.wrappedValue = BackdropTarget(
+                id: "fav_\(fav.key)",
+                title: fav.name,
+                kind: kind
+            )
         }
         .fullScreenCover(item: $presentedVod) { vod in
             VODDetailView(item: vod, api: appState.api)

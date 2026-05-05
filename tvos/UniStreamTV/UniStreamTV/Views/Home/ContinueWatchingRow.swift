@@ -30,6 +30,11 @@ struct ContinueWatchingRow: View {
     /// Show a placeholder panel when there's nothing in progress (instead of
     /// hiding the whole section). Default: true — caller can opt out.
     var showsPlaceholder: Bool = true
+    /// Optional — when supplied, the row pushes the focused entry up to
+    /// the parent so the home wallpaper can crossfade to that item.
+    var rowFocused: Binding<BackdropTarget?>? = nil
+
+    @FocusState private var focusedKey: String?
 
     private var entries: [(key: String, entry: WatchEntry)] {
         let raw = appState.syncService.watchProgress
@@ -84,9 +89,27 @@ struct ContinueWatchingRow: View {
                         HStack(spacing: DS.Spacing.lg) {
                             ForEach(entries, id: \.key) { item in
                                 ContinueWatchingCard(contentKey: item.key, entry: item.entry)
+                                    .focused($focusedKey, equals: item.key)
                             }
                         }
                         .padding(.horizontal, horizontalPadding)
+                    }
+                    .onChange(of: focusedKey) { _, newKey in
+                        guard let key = newKey,
+                              let entry = entries.first(where: { $0.key == key })?.entry else { return }
+                        // Map to TMDB kind — live entries skip the
+                        // wallpaper update (no useful backdrop). Episode
+                        // and VOD both look up against TMDB; episode
+                        // titles match poorly so we fall back on the
+                        // series id when known.
+                        if key.hasPrefix("live_") { return }
+                        let kind: TMDBKind = key.hasPrefix("vod_") ? .movie : .tv
+                        let title = entry.title ?? key
+                        rowFocused?.wrappedValue = BackdropTarget(
+                            id: "cw_\(key)",
+                            title: title,
+                            kind: kind
+                        )
                     }
                 }
             }
