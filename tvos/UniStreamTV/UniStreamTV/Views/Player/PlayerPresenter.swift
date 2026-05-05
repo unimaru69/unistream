@@ -116,11 +116,11 @@ enum PlayerPresenter {
 
     /// Present a VOD stream, optionally resuming from a position.
     /// Tries the given URL first. If playback fails, retries with alternate extensions.
-    static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil, coverUrl: String? = nil) {
+    static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
         // VLC path for unusual codecs (4K HEVC MKV, etc.) — opt-in via Settings.
         if useVlcForVod {
             let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: resumeFromMs, contentKey: contentKey)
-            if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
+            if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl, seriesId: seriesId) }
             guard let rootVC = rootViewController else { return }
             rootVC.present(vlc, animated: true)
             return
@@ -137,7 +137,7 @@ enum PlayerPresenter {
         playerVC.player = player
         playerVC.allowsPictureInPicturePlayback = false
         playerVC.requiresLinearPlayback = false
-        if let contentKey { playerVC.progressTracker = ProgressTracker(player: player, contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl, syncService: syncService) }
+        if let contentKey { playerVC.progressTracker = ProgressTracker(player: player, contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl, seriesId: seriesId, syncService: syncService) }
 
         // Metadata
         if let title {
@@ -148,7 +148,7 @@ enum PlayerPresenter {
         }
 
         // Register in history immediately
-        if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
+        if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl, seriesId: seriesId) }
 
         guard let rootVC = rootViewController else { return }
 
@@ -1126,15 +1126,17 @@ final class ProgressTracker {
     private let title: String?
     private let streamUrl: String?
     private let coverUrl: String?
+    private let seriesId: String?
     private weak var syncService: SyncService?
     private var timer: Timer?
 
-    init(player: AVPlayer, contentKey: String, title: String? = nil, streamUrl: String? = nil, coverUrl: String? = nil, syncService: SyncService?) {
+    init(player: AVPlayer, contentKey: String, title: String? = nil, streamUrl: String? = nil, coverUrl: String? = nil, seriesId: String? = nil, syncService: SyncService?) {
         self.player = player
         self.contentKey = contentKey
         self.title = title
         self.streamUrl = streamUrl
         self.coverUrl = coverUrl
+        self.seriesId = seriesId
         self.syncService = syncService
     }
 
@@ -1159,6 +1161,6 @@ final class ProgressTracker {
         let posMs = Int(posSec * 1000)
         let durMs = Int(durSec * 1000)
         guard durMs > 0, posMs > 0 else { return }
-        syncService?.saveProgress(contentKey: contentKey, positionMs: posMs, durationMs: durMs, title: title, streamUrl: streamUrl, coverUrl: coverUrl)
+        syncService?.saveProgress(contentKey: contentKey, positionMs: posMs, durationMs: durMs, title: title, streamUrl: streamUrl, coverUrl: coverUrl, seriesId: seriesId)
     }
 }

@@ -365,22 +365,29 @@ struct SeriesDetailView: View {
             title: episode.displayTitle,
             resumeFromMs: resumeFromMs,
             contentKey: key,
-            coverUrl: series.displayIcon
+            coverUrl: series.displayIcon,
+            seriesId: series.seriesId
         )
         upgradeEpisodeCover(episode: episode, contentKey: key)
     }
 
     /// Fire-and-forget TMDB lookup for the episode's `still_path`. Updates
     /// the live WatchEntry on success. Silently no-ops on TMDB miss /
-    /// network failure.
+    /// network failure / missing season+episode numbers.
+    ///
+    /// We don't rely on `tmdbVM.result` here — that view-model can still
+    /// be loading when the user taps an episode. Instead we do our own
+    /// `enrich()` (cached after the first hit) so the upgrade fires
+    /// regardless of view-model state.
     private func upgradeEpisodeCover(episode: Episode, contentKey: String) {
-        guard let tmdbId = tmdbVM.result?.id else { return }
         guard let seasonStr = selectedSeason, let seasonNum = Int(seasonStr) else { return }
         guard let episodeNum = episode.episodeNum else { return }
+        let seriesName = series.name
 
         Task.detached(priority: .utility) { [appState] in
+            guard let result = await TMDBService.shared.enrich(rawTitle: seriesName, kind: .tv) else { return }
             guard let url = await TMDBService.shared.fetchEpisodeStill(
-                tmdbId: tmdbId,
+                tmdbId: result.id,
                 season: seasonNum,
                 episode: episodeNum
             ) else { return }

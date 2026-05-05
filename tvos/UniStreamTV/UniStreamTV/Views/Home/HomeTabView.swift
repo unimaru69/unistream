@@ -238,7 +238,12 @@ private struct HomeBackdropWallpaper: View {
     }
 
     var body: some View {
-        PlexBackdrop(imageUrl: imageURL, blurRadius: 22)
+        // Lighter blur than the detail-screen Plex backdrop — the home
+        // wallpaper sits behind sparse rows and benefits from being
+        // legible as imagery rather than a coloured wash. 12pt keeps
+        // shapes recognisable while still blurring enough to keep text
+        // overlay readable.
+        PlexBackdrop(imageUrl: imageURL, blurRadius: 12)
             .task(id: item.id) {
                 await tmdbVM.load(rawTitle: item.name, kind: kind)
             }

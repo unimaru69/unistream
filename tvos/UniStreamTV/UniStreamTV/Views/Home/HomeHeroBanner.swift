@@ -366,16 +366,25 @@ struct HomeHeroBanner: View {
             return String(prefix).trimmingCharacters(in: .whitespaces).uppercased()
         }
 
+        /// `startsWith`-style match — providers tag content with
+        /// either "AR|" or "ARI|" / "ARTV|", so "AR" alone misses the
+        /// longer variants. Use prefix-startsWith instead of strict
+        /// equality.
+        func tagMatches(_ tag: String, _ candidates: Set<String>) -> Bool {
+            for c in candidates where tag == c || tag.hasPrefix(c) { return true }
+            return false
+        }
+
         func languageBoost(name: String, category: String) -> Double {
-            // Provider tags can appear on the title ("AR| Bhramam") or
-            // the category ("FR| Films Premium"). Read both — title
-            // first so a French film parked in a generic category still
-            // wins.
+            // Provider tags can appear on the title ("AR| Bhramam",
+            // "ARI| Bhramam") or the category ("FR| Films Premium").
+            // Read both — title first so a French film parked in a
+            // generic category still wins.
             let titleTag = providerTag(name)
             let catTag = providerTag(category)
             for tag in [titleTag, catTag] where !tag.isEmpty {
-                if preferredPrefixes.contains(tag) { return 5.0 }
-                if dispreferredPrefixes.contains(tag) { return -8.0 }
+                if tagMatches(tag, preferredPrefixes) { return 5.0 }
+                if tagMatches(tag, dispreferredPrefixes) { return -8.0 }
             }
             return 0
         }

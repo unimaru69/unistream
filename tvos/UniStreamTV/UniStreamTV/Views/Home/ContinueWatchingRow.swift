@@ -32,7 +32,7 @@ struct ContinueWatchingRow: View {
     var showsPlaceholder: Bool = true
 
     private var entries: [(key: String, entry: WatchEntry)] {
-        appState.syncService.watchProgress
+        let raw = appState.syncService.watchProgress
             .filter { filter.matches($0.key) }
             .filter { pair in
                 let p = pair.value.progress
@@ -47,8 +47,23 @@ struct ContinueWatchingRow: View {
                 return p > 0.005 && p < 0.95
             }
             .sorted { $0.value.updatedAt > $1.value.updatedAt }
-            .prefix(10)
-            .map { (key: $0.key, entry: $0.value) }
+
+        // Collapse multiple episodes of the same series down to the
+        // single most-recently-played one — otherwise watching five
+        // Drag Race episodes fills the row with five identical-looking
+        // tiles. Movies (`vod_*`) and live (`live_*`) entries are
+        // never deduped.
+        var seenSeries = Set<String>()
+        var deduped: [(key: String, entry: WatchEntry)] = []
+        for pair in raw {
+            if pair.key.hasPrefix("ep_"), let sid = pair.value.seriesId {
+                if seenSeries.contains(sid) { continue }
+                seenSeries.insert(sid)
+            }
+            deduped.append((key: pair.key, entry: pair.value))
+            if deduped.count >= 10 { break }
+        }
+        return deduped
     }
 
     var body: some View {

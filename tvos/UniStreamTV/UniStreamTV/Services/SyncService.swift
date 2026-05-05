@@ -288,7 +288,7 @@ final class SyncService {
 
     // MARK: - Watch Progress
 
-    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil, streamUrl: String? = nil, coverUrl: String? = nil) {
+    func saveProgress(contentKey: String, positionMs: Int, durationMs: Int, title: String? = nil, streamUrl: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
         guard durationMs > 10000 else { return }  // Ignore < 10s
 
         // Keep the entry even when > 95% watched — that flag tells us the
@@ -301,7 +301,8 @@ final class SyncService {
             updatedAt: Date(),
             title: title ?? existing?.title,
             streamUrl: streamUrl ?? existing?.streamUrl,
-            coverUrl: coverUrl ?? existing?.coverUrl
+            coverUrl: coverUrl ?? existing?.coverUrl,
+            seriesId: seriesId ?? existing?.seriesId
         )
 
         debouncePushProgress(contentKey: contentKey)
@@ -321,7 +322,8 @@ final class SyncService {
             updatedAt: Date(),
             title: title ?? existing?.title,
             streamUrl: existing?.streamUrl,
-            coverUrl: existing?.coverUrl
+            coverUrl: existing?.coverUrl,
+            seriesId: existing?.seriesId
         )
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
@@ -358,7 +360,7 @@ final class SyncService {
         writeTopShelfSnapshot()
     }
 
-    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil, coverUrl: String? = nil) {
+    func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
         let existing = watchProgress[contentKey]
         // Always update the title (even if one exists — caller has the latest)
         watchProgress[contentKey] = WatchEntry(
@@ -367,7 +369,8 @@ final class SyncService {
             updatedAt: Date(),
             title: title,
             streamUrl: streamUrl ?? existing?.streamUrl,
-            coverUrl: coverUrl ?? existing?.coverUrl
+            coverUrl: coverUrl ?? existing?.coverUrl,
+            seriesId: seriesId ?? existing?.seriesId
         )
         debouncePushProgress(contentKey: contentKey)
     }
@@ -426,18 +429,20 @@ final class SyncService {
                 let durMs = row["duration_ms"]?.intValue ?? 0
                 guard durMs > 10000 else { continue }
 
-                // Extract title + streamUrl + coverUrl from meta_json.
-                // Flutter writes `name`, `cover`, `url`; older tvOS-only
-                // entries write `title`. Accept either side.
+                // Extract title + streamUrl + coverUrl + seriesId from
+                // meta_json. Flutter writes `name`, `cover`, `url`; older
+                // tvOS-only entries write `title`. Accept either side.
                 var title: String?
                 var streamUrl: String?
                 var coverUrl: String?
+                var seriesId: String?
                 if let metaStr = row["meta_json"]?.stringValue,
                    let metaData = metaStr.data(using: .utf8),
                    let metaDict = try? JSONSerialization.jsonObject(with: metaData) as? [String: Any] {
                     title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
                     streamUrl = metaDict["url"] as? String
                     coverUrl = metaDict["cover"] as? String
+                    seriesId = metaDict["series_id"] as? String
                 }
 
                 // Parse updated_at
@@ -454,7 +459,8 @@ final class SyncService {
                     updatedAt: updatedAt,
                     title: title,
                     streamUrl: streamUrl,
-                    coverUrl: coverUrl
+                    coverUrl: coverUrl,
+                    seriesId: seriesId
                 )
             }
             return result
@@ -487,6 +493,7 @@ final class SyncService {
         }
         if let url = entry.streamUrl { metaDict["url"] = url }
         if let cover = entry.coverUrl { metaDict["cover"] = cover }
+        if let sid = entry.seriesId { metaDict["series_id"] = sid }
         let metaData = (try? JSONSerialization.data(withJSONObject: metaDict)) ?? Data("{}".utf8)
         let meta = String(data: metaData, encoding: .utf8) ?? "{}"
 
@@ -528,6 +535,11 @@ struct WatchEntry {
     /// store was the only previous source of cover URLs). Synced via
     /// `meta_json.cover` — Flutter already writes that key.
     var coverUrl: String?
+    /// Owning series id for episode entries (`ep_…` content keys).
+    /// Lets the CW shelf collapse a series down to its single most-
+    /// recently-played episode instead of repeating five Drag Race
+    /// rows in a row. Synced via `meta_json.series_id`.
+    var seriesId: String?
 
     var progress: Double {
         guard durationMs > 0 else { return 0 }
