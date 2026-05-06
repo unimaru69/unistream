@@ -73,6 +73,17 @@ struct SeriesGridView: View {
                                           systemImage: isFav ? "heart.slash" : "heart")
                                 }
 
+                                // Watchlist toggle — feeds the
+                                // À regarder shelf and stays in sync
+                                // with the Flutter watchlist.
+                                let isInWl = appState.syncService.isInWatchlist(item.seriesId)
+                                Button {
+                                    appState.syncService.toggleWatchlist(.from(series: item))
+                                } label: {
+                                    Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
+                                          systemImage: isInWl ? "bookmark.slash" : "bookmark")
+                                }
+
                                 // Add to collection (Premium)
                                 if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
                                    !appState.collectionsService.collections.isEmpty {

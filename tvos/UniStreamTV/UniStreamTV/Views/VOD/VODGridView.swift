@@ -72,6 +72,18 @@ struct VODGridView: View {
                                           systemImage: isFav ? "heart.slash" : "heart")
                                 }
 
+                                // Watchlist toggle — same FavoriteItem
+                                // model, served by `toggleWatchlist` so
+                                // the entry shows up in the À regarder
+                                // shelf cross-device.
+                                let isInWl = appState.syncService.isInWatchlist(item.streamId)
+                                Button {
+                                    appState.syncService.toggleWatchlist(.from(vod: item))
+                                } label: {
+                                    Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
+                                          systemImage: isInWl ? "bookmark.slash" : "bookmark")
+                                }
+
                                 // Add to collection (Premium)
                                 if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
                                    !appState.collectionsService.collections.isEmpty {

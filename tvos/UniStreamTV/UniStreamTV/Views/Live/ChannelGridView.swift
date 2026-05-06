@@ -103,6 +103,18 @@ struct ChannelGridView: View {
                                           systemImage: isFav ? "heart.slash" : "heart")
                                 }
 
+                                // Watchlist parity with VOD / series
+                                // grids — channels can also be queued
+                                // up under "À regarder" for later
+                                // viewing, syncs with Flutter.
+                                let isInWl = appState.syncService.isInWatchlist(channel.streamId)
+                                Button {
+                                    appState.syncService.toggleWatchlist(.from(channel: channel))
+                                } label: {
+                                    Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
+                                          systemImage: isInWl ? "bookmark.slash" : "bookmark")
+                                }
+
                                 // Add to collection (Premium)
                                 if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
                                    !appState.collectionsService.collections.isEmpty {

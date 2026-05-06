@@ -309,23 +309,46 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         AppLogger.info(LogModule.sync, 'Auth migration: claimed orphaned data');
       }
 
-      // Build-12 content_key alignment: rename legacy local keys to the
-      // tvOS-aligned canonical format, then ask SyncService to clean
-      // up any leftover legacy rows on Supabase. Both halves are
-      // idempotent and gated by per-profile flags so this is a no-op
-      // on subsequent launches.
+      // Content_key alignment migration. Sequence is critical to
+      // avoid the data-loss bug in build 13:
+      //
+      //   1. Rename local keys (`vod:12345` → `12345`, bare → `vod_12345`)
+      //   2. Reload providers so they see the renamed cache
+      //   3. RECOVER any data soft-deleted by the build-13 migration
+      //      (un-soft-deletes legacy rows by re-creating them under
+      //      bare-id canonical keys)
+      //   4. RE-PUSH the renamed local cache under canonical keys —
+      //      ensures Flutter-only items have a server companion
+      //      *before* the legacy rows get cleaned up
+      //   5. Soft-delete / DELETE the legacy server rows
+      //   6. PullAll + authoritative merge — now safely reconciles
+      //      since every local key has a matching server row
+      //
+      // Each step is idempotent and gated by its own per-profile flag.
       final activePid = AppConfig.activeProfileId;
       await ContentKeyMigration.migrateLocalIfNeeded(activePid);
-      // Reload providers from disk so they reflect the renamed keys
-      // before we start merging remote data on top.
       await ref.read(favoritesProvider.notifier).load();
       await ref.read(watchlistProvider.notifier).load();
       ref.invalidate(watchProgressProvider);
 
       final sync = SyncService.instance;
-      // Remote cleanup runs once we know auth is ready (pullAll throws
-      // if not, so this is a safe place). Ignore failures — they get
-      // retried on the next launch.
+
+      // Build-13 recovery — un-soft-deletes legacy favourite rows so
+      // the next push sees them. No-op on first install / after the
+      // recovery flag is set.
+      await ContentKeyMigration.recoverDeletedDataIfNeeded(activePid);
+
+      // Re-push local cache under canonical keys *before* deleting
+      // legacy server rows. Without this step, Flutter-only items
+      // would have no server presence in the new format and the
+      // authoritative merge below would wipe them.
+      await ContentKeyMigration.repushLocalIfNeeded(
+        activePid,
+        () => ref.read(favoritesProvider.notifier).repushAll(),
+        () => ref.read(watchlistProvider.notifier).repushAll(),
+      );
+
+      // Now safe to clean up legacy rows on the server side.
       await ContentKeyMigration.migrateRemoteIfNeeded(activePid);
 
       final remote = await sync.pullAll();

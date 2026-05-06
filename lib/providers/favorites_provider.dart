@@ -126,6 +126,11 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
     SyncService.instance.pushFavorites(map, 'favorite');
   }
 
+  /// Public wrapper around `_pushSync` — used by `ContentKeyMigration`
+  /// to force a fresh upsert of the entire local list under canonical
+  /// keys. Idempotent on Supabase (upsert with onConflict).
+  void repushAll() => _pushSync();
+
   bool isFavorite(String key) => state.keys.contains(key);
 }
 
@@ -238,6 +243,9 @@ class WatchlistNotifier extends StateNotifier<WatchlistState> {
     }
     SyncService.instance.pushFavorites(map, 'watchlist');
   }
+
+  /// See `FavoritesNotifier.repushAll` — same purpose, watchlist scope.
+  void repushAll() => _pushSync();
 
   bool isInWatchlist(String key) => state.keys.contains(key);
 }

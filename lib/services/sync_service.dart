@@ -489,6 +489,92 @@ class SyncService {
     }
   }
 
+  /// Recover favourites / watchlist rows lost in the build-13
+  /// sequencing bug. Walks `user_favorites` for soft-deleted rows
+  /// whose `item_key` matches a legacy `(vod|series|live|ep):` form
+  /// and recreates them under the canonical bare-id key (with
+  /// `deleted = false`).
+  ///
+  /// Skips any legacy row whose bare-id companion already exists
+  /// (deleted = false) — we don't want to revive entries the user
+  /// has explicitly removed since the bad migration. Returns the
+  /// number of rows recovered.
+  Future<int> recoverLegacyFavorites() async {
+    if (!_ready) {
+      throw StateError('SyncService not ready — cannot recover legacy data');
+    }
+
+    // 1. Pull *all* user_favorites rows (no deleted filter) so we can
+    //    distinguish "soft-deleted by build-13 migration" from "user
+    //    deliberately unfavourited".
+    final all = await _client!
+        .from('user_favorites')
+        .select('item_key,item_json,list_type,deleted')
+        .eq('profile_hash', profileHash);
+
+    // 2. Build a set of bare-id keys still alive on the server (per
+    //    list_type). Anything in here doesn't need recovering.
+    final aliveBareKeys = <String>{};
+    for (final row in all) {
+      final key = row['item_key'] as String?;
+      if (key == null) continue;
+      final deleted = row['deleted'] as bool? ?? false;
+      if (deleted) continue;
+      final lt = row['list_type'] as String? ?? 'favorite';
+      // Accept either bare or canonical underscore form as "alive".
+      if (!RegExp(r'^(vod|series|live|ep):').hasMatch(key)) {
+        aliveBareKeys.add('$lt|$key');
+      }
+    }
+
+    // 3. For each soft-deleted legacy row, upsert a bare-id companion
+    //    if one isn't already alive.
+    var recovered = 0;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    for (final row in all) {
+      final key = row['item_key'] as String?;
+      final deleted = row['deleted'] as bool? ?? false;
+      final jsonStr = row['item_json'] as String?;
+      final lt = row['list_type'] as String? ?? 'favorite';
+      if (key == null || jsonStr == null) continue;
+      if (!deleted) continue;
+      if (!RegExp(r'^(vod|series|live|ep):').hasMatch(key)) continue;
+
+      final m = RegExp(r'^(vod|series|live|ep):(.+)$').firstMatch(key)!;
+      final bareKey = m.group(2)!;
+      if (aliveBareKeys.contains('$lt|$bareKey')) continue; // already alive
+
+      // Rewrite the JSON payload so its `key` / `_key` fields match.
+      Map<String, dynamic> payload;
+      try {
+        final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+        payload = {...decoded, 'key': bareKey, '_key': bareKey};
+      } catch (_) {
+        // Malformed payload — preserve as-is rather than dropping.
+        payload = {'key': bareKey};
+      }
+
+      try {
+        await _client!.from('user_favorites').upsert({
+          'user_id': _userId,
+          'profile_hash': profileHash,
+          'item_key': bareKey,
+          'list_type': lt,
+          'item_json': jsonEncode(payload),
+          'updated_at': nowIso,
+          'deleted': false,
+        }, onConflict: 'user_id,profile_hash,item_key,list_type');
+        aliveBareKeys.add('$lt|$bareKey'); // avoid duplicate work in same loop
+        recovered++;
+      } catch (e, st) {
+        AppLogger.warning(LogModule.sync,
+            'recoverLegacyFavorites: upsert failed for $bareKey ($lt)',
+            error: e, stackTrace: st);
+      }
+    }
+    return recovered;
+  }
+
   /// Cancel pending operations and stop realtime.
   void dispose() {
     _debounceTimer?.cancel();
