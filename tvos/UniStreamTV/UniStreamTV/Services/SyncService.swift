@@ -26,6 +26,21 @@ final class SyncService {
     private var pendingWatchlistDeletes: Set<String> = []
     private var pendingProgressDeletes: Set<String> = []
 
+    // Pending *upserts* — keys whose local state hasn't yet flushed to
+    // Supabase. Critical for two reasons:
+    //   1. `debouncePushProgress` keeps a single task that gets
+    //      cancelled on each new call — without batching, bulk-marking
+    //      eight episodes back-to-back resulted in only the last one
+    //      ever reaching Supabase. The set accumulates every key that
+    //      changed; the eventual flush walks them all.
+    //   2. `pullAll`'s authoritative merge wipes local items missing
+    //      from the remote snapshot. A freshly-mutated key that
+    //      hasn't pushed yet would get wiped if we didn't exclude it
+    //      from the wipe filter.
+    private var pendingProgressPushes: Set<String> = []
+    private var pendingFavoritePushes: Set<String> = []
+    private var pendingWatchlistPushes: Set<String> = []
+
     // Debounce
     private var pushFavoritesTask: Task<Void, Never>?
     private var pushWatchlistTask: Task<Void, Never>?
@@ -99,10 +114,20 @@ final class SyncService {
         // actually succeeded. A failure → skip; the local cache stays
         // intact and we'll reconcile on the next successful pull /
         // realtime event.
+        //
+        // The wipe filters also exclude `pending*Pushes`: a key the
+        // user just mutated locally but that hasn't reached Supabase
+        // yet (still inside the 500 ms debounce window) can't be
+        // wiped just because the racing pull doesn't see it. Without
+        // this exclusion, bulk-marking eight episodes back-to-back
+        // and pulling immediately afterward would erase the seven
+        // most-recent marks before the push could land them.
         var wiped = 0
         if case .success(let dict) = remoteFavs {
             let toWipe = favorites.keys.filter {
-                !dict.keys.contains($0) && !pendingFavoriteDeletes.contains($0)
+                !dict.keys.contains($0)
+                    && !pendingFavoriteDeletes.contains($0)
+                    && !pendingFavoritePushes.contains($0)
             }
             for key in toWipe { favorites.removeValue(forKey: key) }
             wiped += toWipe.count
@@ -111,7 +136,9 @@ final class SyncService {
         }
         if case .success(let dict) = remoteWatchlist {
             let toWipe = watchlist.keys.filter {
-                !dict.keys.contains($0) && !pendingWatchlistDeletes.contains($0)
+                !dict.keys.contains($0)
+                    && !pendingWatchlistDeletes.contains($0)
+                    && !pendingWatchlistPushes.contains($0)
             }
             for key in toWipe { watchlist.removeValue(forKey: key) }
             wiped += toWipe.count
@@ -120,7 +147,9 @@ final class SyncService {
         }
         if case .success(let dict) = remoteProgress {
             let toWipe = watchProgress.keys.filter {
-                !dict.keys.contains($0) && !pendingProgressDeletes.contains($0)
+                !dict.keys.contains($0)
+                    && !pendingProgressDeletes.contains($0)
+                    && !pendingProgressPushes.contains($0)
             }
             for key in toWipe { watchProgress.removeValue(forKey: key) }
             wiped += toWipe.count
@@ -261,11 +290,17 @@ final class SyncService {
         if favorites[item.key] != nil {
             favorites.removeValue(forKey: item.key)
             pendingFavoriteDeletes.insert(item.key)
+            pendingFavoritePushes.remove(item.key)
         } else {
             favorites[item.key] = item
             // Re-favourite supersedes a pending delete — clear it so
             // the push doesn't soft-delete the row we just upserted.
             pendingFavoriteDeletes.remove(item.key)
+            // Track for the merge wipe filter — without this an
+            // authoritative pull that races the 500 ms push debounce
+            // would treat the new favourite as a stale local row and
+            // wipe it.
+            pendingFavoritePushes.insert(item.key)
         }
         debouncePushFavorites()
         writeTopShelfSnapshot()
@@ -341,6 +376,7 @@ final class SyncService {
                         "deleted": "false",
                     ])
                     .execute()
+                pendingFavoritePushes.remove(key)
             } catch {
                 logger.warning("pushFavorite failed for \(key): \(error.localizedDescription)")
             }
@@ -391,9 +427,11 @@ final class SyncService {
         if watchlist[item.key] != nil {
             watchlist.removeValue(forKey: item.key)
             pendingWatchlistDeletes.insert(item.key)
+            pendingWatchlistPushes.remove(item.key)
         } else {
             watchlist[item.key] = item
             pendingWatchlistDeletes.remove(item.key)
+            pendingWatchlistPushes.insert(item.key)
         }
         debouncePushWatchlist()
         // Persist to disk so the toggle survives an immediate Apple
@@ -463,6 +501,7 @@ final class SyncService {
                         "deleted": "false",
                     ])
                     .execute()
+                pendingWatchlistPushes.remove(key)
             } catch {
                 logger.warning("pushWatchlist failed for \(key): \(error.localizedDescription)")
             }
@@ -489,7 +528,8 @@ final class SyncService {
             coverUrl: coverUrl ?? existing?.coverUrl,
             seriesId: seriesId ?? existing?.seriesId
         )
-
+        // Re-mark / re-save supersedes a queued unwatch.
+        pendingProgressDeletes.remove(contentKey)
         debouncePushProgress(contentKey: contentKey)
         writeTopShelfSnapshot()
     }
@@ -673,11 +713,29 @@ final class SyncService {
     }
 
     private func debouncePushProgress(contentKey: String) {
+        // Accumulate the changed key in a Set rather than capturing
+        // it in the Task closure. Bulk operations like
+        // "Marquer tous les précédents comme vus" call this 8+ times
+        // back-to-back in a tight loop; the previous design cancelled
+        // each Task as the next call landed, so only the *last* key
+        // ever made it past the 500 ms sleep — every other mark was
+        // lost on Apple TV restart because Supabase never received
+        // the upsert. The Set means the eventual flush walks every
+        // accumulated key.
+        pendingProgressPushes.insert(contentKey)
         pushProgressTask?.cancel()
         pushProgressTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            await pushProgress(contentKey: contentKey)
+            let keys = pendingProgressPushes
+            for key in keys {
+                await pushProgress(contentKey: key)
+                // Remove only after a successful push so a racing
+                // pullAll's wipe step still excludes keys that didn't
+                // make it to Supabase yet (e.g. transient network
+                // failure mid-flush).
+                pendingProgressPushes.remove(key)
+            }
         }
     }
 
