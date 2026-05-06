@@ -176,9 +176,20 @@ struct ContinueWatchingCard: View {
     /// Live channels skip the prompt — there's no position to resume to.
     @State private var showResumeChoice = false
 
-    /// Try to find the matching favorite to get name/cover.
+    /// Try to find the matching favorite to get name/cover. For
+    /// episode entries (`ep_…`) the favourite that carries the
+    /// series-level metadata is keyed on the bare seriesId, not the
+    /// content_key — fall back to that so we display the series name
+    /// instead of the raw `ep_xxx` string when the watch_progress
+    /// row's meta_json got truncated by an old Flutter push.
     private var favoriteInfo: FavoriteItem? {
-        appState.syncService.favorites[contentKey]
+        if let direct = appState.syncService.favorites[contentKey] {
+            return direct
+        }
+        if contentKey.hasPrefix("ep_"), let sid = entry.seriesId {
+            return appState.syncService.favorites[sid]
+        }
+        return nil
     }
 
     /// Whether to ask "Reprendre à xx:xx" / "Démarrer du début" before

@@ -39,6 +39,13 @@ final class SyncService {
     func configure(profileHash: String, userId: String) {
         self.profileHash = profileHash
         self.userId = userId
+        // Hydrate the in-memory caches from disk *before* the first
+        // Supabase pull lands. This makes a "mark vu → power off Apple
+        // TV → boot back up" sequence reliable even if the Supabase
+        // push didn't get a chance to flush before shutdown — the
+        // local cache survives via UserDefaults and gets re-pushed on
+        // the next debounce.
+        loadLocalCache()
     }
 
     var isReady: Bool {
@@ -50,55 +57,135 @@ final class SyncService {
         guard isReady else { return }
         logger.info("Pulling sync data…")
 
-        async let favs = pullFavorites()
-        async let wlist = pullWatchlist()
-        async let progress = pullWatchProgress()
+        // Each pull returns a Result so the merge step can tell
+        // "remote really has zero items" (apply authoritative wipe)
+        // from "the network blew up" (skip wipe — the local cache is
+        // the only truth left). Before this distinction, a transient
+        // network error during pullWatchProgress wiped every locally-
+        // marked-as-watched episode on launch — exactly the bug
+        // reported on Apple TV restart in build 36.
+        async let favs: Result<[String: FavoriteItem], Error> = Result {
+            try await pullFavoritesThrowing()
+        }
+        async let wlist: Result<[String: FavoriteItem], Error> = Result {
+            try await pullWatchlistThrowing()
+        }
+        async let progress: Result<[String: WatchEntry], Error> = Result {
+            try await pullWatchProgressThrowing()
+        }
 
         let remoteFavs = await favs
         let remoteWatchlist = await wlist
         let remoteProgress = await progress
 
-        // Authoritative reconciliation: the pulled snapshot is the
-        // truth. We trust it for two operations:
-        //   1. Add gaps (remote-only items) — same as before.
-        //   2. Remove local items the server no longer has — this is
-        //      what makes a removal performed on Flutter (or any other
-        //      device) actually disappear from tvOS on the next pull.
-        //
-        // Pending deletes still take priority: a remote row queued for
-        // deletion locally can't be re-introduced by a pull that races
-        // the push.
-        for (key, item) in remoteFavs where favorites[key] == nil && !pendingFavoriteDeletes.contains(key) {
-            favorites[key] = item
+        // Apply additions first — always safe (we're filling gaps).
+        if case .success(let dict) = remoteFavs {
+            for (key, item) in dict where favorites[key] == nil && !pendingFavoriteDeletes.contains(key) {
+                favorites[key] = item
+            }
         }
-        for (key, item) in remoteWatchlist where watchlist[key] == nil && !pendingWatchlistDeletes.contains(key) {
-            watchlist[key] = item
+        if case .success(let dict) = remoteWatchlist {
+            for (key, item) in dict where watchlist[key] == nil && !pendingWatchlistDeletes.contains(key) {
+                watchlist[key] = item
+            }
         }
-        for (key, entry) in remoteProgress where watchProgress[key] == nil && !pendingProgressDeletes.contains(key) {
-            watchProgress[key] = entry
+        if case .success(let dict) = remoteProgress {
+            for (key, entry) in dict where watchProgress[key] == nil && !pendingProgressDeletes.contains(key) {
+                watchProgress[key] = entry
+            }
         }
 
-        // Reconciliation step — drop anything no longer on the server.
-        // Excludes keys we just queued for deletion ourselves (they're
-        // already gone locally; the push will remove them remotely
-        // shortly).
-        let favsToWipe = favorites.keys.filter {
-            !remoteFavs.keys.contains($0) && !pendingFavoriteDeletes.contains($0)
+        // Authoritative wipes — only run when the corresponding pull
+        // actually succeeded. A failure → skip; the local cache stays
+        // intact and we'll reconcile on the next successful pull /
+        // realtime event.
+        var wiped = 0
+        if case .success(let dict) = remoteFavs {
+            let toWipe = favorites.keys.filter {
+                !dict.keys.contains($0) && !pendingFavoriteDeletes.contains($0)
+            }
+            for key in toWipe { favorites.removeValue(forKey: key) }
+            wiped += toWipe.count
+        } else if case .failure(let err) = remoteFavs {
+            logger.warning("pullFavorites failed (skipping wipe): \(err.localizedDescription)")
         }
-        for key in favsToWipe { favorites.removeValue(forKey: key) }
-
-        let watchlistToWipe = watchlist.keys.filter {
-            !remoteWatchlist.keys.contains($0) && !pendingWatchlistDeletes.contains($0)
+        if case .success(let dict) = remoteWatchlist {
+            let toWipe = watchlist.keys.filter {
+                !dict.keys.contains($0) && !pendingWatchlistDeletes.contains($0)
+            }
+            for key in toWipe { watchlist.removeValue(forKey: key) }
+            wiped += toWipe.count
+        } else if case .failure(let err) = remoteWatchlist {
+            logger.warning("pullWatchlist failed (skipping wipe): \(err.localizedDescription)")
         }
-        for key in watchlistToWipe { watchlist.removeValue(forKey: key) }
-
-        let progressToWipe = watchProgress.keys.filter {
-            !remoteProgress.keys.contains($0) && !pendingProgressDeletes.contains($0)
+        if case .success(let dict) = remoteProgress {
+            let toWipe = watchProgress.keys.filter {
+                !dict.keys.contains($0) && !pendingProgressDeletes.contains($0)
+            }
+            for key in toWipe { watchProgress.removeValue(forKey: key) }
+            wiped += toWipe.count
+        } else if case .failure(let err) = remoteProgress {
+            logger.warning("pullWatchProgress failed (skipping wipe): \(err.localizedDescription)")
         }
-        for key in progressToWipe { watchProgress.removeValue(forKey: key) }
 
-        logger.info("Sync pulled: \(remoteFavs.count) favs, \(remoteWatchlist.count) watchlist, \(remoteProgress.count) progress; wiped \(favsToWipe.count + watchlistToWipe.count + progressToWipe.count) stale local rows")
+        let favCount = (try? remoteFavs.get().count) ?? -1
+        let wlCount = (try? remoteWatchlist.get().count) ?? -1
+        let progCount = (try? remoteProgress.get().count) ?? -1
+        logger.info("Sync pulled: \(favCount) favs, \(wlCount) watchlist, \(progCount) progress; wiped \(wiped) stale local rows (-1 = pull failed)")
         writeTopShelfSnapshot()
+    }
+
+    // MARK: - Local cache (restart-survival)
+
+    /// UserDefaults keys for the local mirror of the Supabase state.
+    /// Stored at the app group so the Top Shelf extension can also
+    /// read them later if needed; keyed by profile hash so two
+    /// profiles on the same Apple TV don't share data.
+    private static let localCacheGroup = "group.fr.unimaru.unistream.tv"
+    private func cacheKey(_ kind: String) -> String {
+        "synccache.\(kind).\(profileHash)"
+    }
+
+    /// Mirror the in-memory dictionaries to UserDefaults. Writes are
+    /// cheap and synchronous-ish — the snapshot gets to disk before
+    /// the user can power off the box, so a mark-vu / favourite-
+    /// toggle can't be lost to an instant shutdown that happens
+    /// inside the 500 ms push debounce.
+    private func writeLocalCache() {
+        guard !profileHash.isEmpty else { return }
+        guard let defaults = UserDefaults(suiteName: Self.localCacheGroup) else { return }
+        let encoder = JSONEncoder()
+        if let data = try? encoder.encode(favorites) {
+            defaults.set(data, forKey: cacheKey("favorites"))
+        }
+        if let data = try? encoder.encode(watchlist) {
+            defaults.set(data, forKey: cacheKey("watchlist"))
+        }
+        if let data = try? encoder.encode(watchProgress) {
+            defaults.set(data, forKey: cacheKey("watchProgress"))
+        }
+    }
+
+    /// Read the on-disk mirror back into memory. Called from
+    /// `configure` so the UI sees something the moment the user
+    /// returns to the app, even before the Supabase pull completes.
+    private func loadLocalCache() {
+        guard let defaults = UserDefaults(suiteName: Self.localCacheGroup) else { return }
+        let decoder = JSONDecoder()
+        if let data = defaults.data(forKey: cacheKey("favorites")),
+           let dict = try? decoder.decode([String: FavoriteItem].self, from: data) {
+            favorites = dict
+        }
+        if let data = defaults.data(forKey: cacheKey("watchlist")),
+           let dict = try? decoder.decode([String: FavoriteItem].self, from: data) {
+            watchlist = dict
+        }
+        if let data = defaults.data(forKey: cacheKey("watchProgress")),
+           let dict = try? decoder.decode([String: WatchEntry].self, from: data) {
+            watchProgress = dict
+        }
+        let counts = "\(favorites.count) favs, \(watchlist.count) watchlist, \(watchProgress.count) progress"
+        logger.info("Local cache hydrated: \(counts)")
     }
 
     // MARK: - Top Shelf sharing (App Group)
@@ -128,7 +215,10 @@ final class SyncService {
 
     /// Writes favorites and continue-watching to the shared App Group so the
     /// Top Shelf extension can display them without hitting Supabase or Xtream.
+    /// Also mirrors the full state to a local cache so the next launch can
+    /// hydrate before Supabase has had a chance to round-trip.
     func writeTopShelfSnapshot() {
+        writeLocalCache()
         guard let defaults = UserDefaults(suiteName: Self.topShelfAppGroup) else { return }
         let encoder = JSONEncoder()
 
@@ -186,31 +276,38 @@ final class SyncService {
     }
 
     private func pullFavorites() async -> [String: FavoriteItem] {
-        do {
-            let rows: [[String: String]] = try await client
-                .from("user_favorites")
-                .select("item_key, item_json")
-                .eq("profile_hash", value: profileHash)
-                .eq("list_type", value: "favorite")
-                .eq("deleted", value: false)
-                .execute()
-                .value
+        // Legacy non-throwing wrapper kept for the recovery /
+        // migration code paths that don't care to differentiate
+        // failure from emptiness.
+        (try? await pullFavoritesThrowing()) ?? [:]
+    }
 
-            var result: [String: FavoriteItem] = [:]
-            let decoder = JSONDecoder()
-            for row in rows {
-                guard let key = row["item_key"],
-                      let jsonStr = row["item_json"],
-                      let data = jsonStr.data(using: .utf8),
-                      let item = try? decoder.decode(FavoriteItem.self, from: data)
-                else { continue }
-                result[key] = item
-            }
-            return result
-        } catch {
-            logger.warning("pullFavorites failed: \(error.localizedDescription)")
-            return [:]
+    /// Throwing variant. Used by `pullAll` so the merge step can tell
+    /// "remote really has zero items" from "the network blew up".
+    /// Without that distinction, a transient pull failure on launch
+    /// silently wiped the entire local cache via the authoritative
+    /// merge path.
+    private func pullFavoritesThrowing() async throws -> [String: FavoriteItem] {
+        let rows: [[String: String]] = try await client
+            .from("user_favorites")
+            .select("item_key, item_json")
+            .eq("profile_hash", value: profileHash)
+            .eq("list_type", value: "favorite")
+            .eq("deleted", value: false)
+            .execute()
+            .value
+
+        var result: [String: FavoriteItem] = [:]
+        let decoder = JSONDecoder()
+        for row in rows {
+            guard let key = row["item_key"],
+                  let jsonStr = row["item_json"],
+                  let data = jsonStr.data(using: .utf8),
+                  let item = try? decoder.decode(FavoriteItem.self, from: data)
+            else { continue }
+            result[key] = item
         }
+        return result
     }
 
     private func debouncePushFavorites() {
@@ -299,6 +396,9 @@ final class SyncService {
             pendingWatchlistDeletes.remove(item.key)
         }
         debouncePushWatchlist()
+        // Persist to disk so the toggle survives an immediate Apple
+        // TV restart even if the 500 ms push debounce hasn't fired.
+        writeLocalCache()
     }
 
     func isInWatchlist(_ key: String) -> Bool {
@@ -306,31 +406,30 @@ final class SyncService {
     }
 
     private func pullWatchlist() async -> [String: FavoriteItem] {
-        do {
-            let rows: [[String: String]] = try await client
-                .from("user_favorites")
-                .select("item_key, item_json")
-                .eq("profile_hash", value: profileHash)
-                .eq("list_type", value: "watchlist")
-                .eq("deleted", value: false)
-                .execute()
-                .value
+        (try? await pullWatchlistThrowing()) ?? [:]
+    }
 
-            var result: [String: FavoriteItem] = [:]
-            let decoder = JSONDecoder()
-            for row in rows {
-                guard let key = row["item_key"],
-                      let jsonStr = row["item_json"],
-                      let data = jsonStr.data(using: .utf8),
-                      let item = try? decoder.decode(FavoriteItem.self, from: data)
-                else { continue }
-                result[key] = item
-            }
-            return result
-        } catch {
-            logger.warning("pullWatchlist failed: \(error.localizedDescription)")
-            return [:]
+    private func pullWatchlistThrowing() async throws -> [String: FavoriteItem] {
+        let rows: [[String: String]] = try await client
+            .from("user_favorites")
+            .select("item_key, item_json")
+            .eq("profile_hash", value: profileHash)
+            .eq("list_type", value: "watchlist")
+            .eq("deleted", value: false)
+            .execute()
+            .value
+
+        var result: [String: FavoriteItem] = [:]
+        let decoder = JSONDecoder()
+        for row in rows {
+            guard let key = row["item_key"],
+                  let jsonStr = row["item_json"],
+                  let data = jsonStr.data(using: .utf8),
+                  let item = try? decoder.decode(FavoriteItem.self, from: data)
+            else { continue }
+            result[key] = item
         }
+        return result
     }
 
     private func debouncePushWatchlist() {
@@ -517,66 +616,60 @@ final class SyncService {
     }
 
     private func pullWatchProgress() async -> [String: WatchEntry] {
-        do {
-            let rows: [[String: AnyJSON]] = try await client
-                .from("user_watch_progress")
-                .select("content_key, position_ms, duration_ms, updated_at, meta_json")
-                .eq("profile_hash", value: profileHash)
-                .execute()
-                .value
+        (try? await pullWatchProgressThrowing()) ?? [:]
+    }
 
-            var result: [String: WatchEntry] = [:]
-            for row in rows {
-                guard let key = row["content_key"]?.stringValue else { continue }
-                let posMs = row["position_ms"]?.intValue ?? 0
-                let durMs = row["duration_ms"]?.intValue ?? 0
-                guard durMs > 10000 else { continue }
+    private func pullWatchProgressThrowing() async throws -> [String: WatchEntry] {
+        let rows: [[String: AnyJSON]] = try await client
+            .from("user_watch_progress")
+            .select("content_key, position_ms, duration_ms, updated_at, meta_json")
+            .eq("profile_hash", value: profileHash)
+            .execute()
+            .value
 
-                // Extract title + streamUrl + coverUrl + seriesId from
-                // meta_json. Flutter writes `name`, `cover`, `url`;
-                // older tvOS-only entries write `title`. Accept either
-                // side. Use `objectValue` so we tolerate both shapes
-                // Supabase can return — JSONB columns come back as
-                // already-parsed objects, TEXT columns come back as
-                // JSON-encoded strings. The previous version only
-                // handled the TEXT case, which silently dropped every
-                // title when the project's column was JSONB and
-                // resulted in `ep_xxx` content_keys leaking into the
-                // Reprendre row.
-                var title: String?
-                var streamUrl: String?
-                var coverUrl: String?
-                var seriesId: String?
-                if let metaDict = row["meta_json"]?.objectValue {
-                    title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
-                    streamUrl = metaDict["url"] as? String
-                    coverUrl = metaDict["cover"] as? String
-                    seriesId = metaDict["series_id"] as? String
-                }
+        var result: [String: WatchEntry] = [:]
+        for row in rows {
+            guard let key = row["content_key"]?.stringValue else { continue }
+            let posMs = row["position_ms"]?.intValue ?? 0
+            let durMs = row["duration_ms"]?.intValue ?? 0
+            guard durMs > 10000 else { continue }
 
-                // Parse updated_at
-                var updatedAt = Date()
-                if let dateStr = row["updated_at"]?.stringValue {
-                    let fmt = ISO8601DateFormatter()
-                    fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                    updatedAt = fmt.date(from: dateStr) ?? Date()
-                }
-
-                result[key] = WatchEntry(
-                    positionMs: posMs,
-                    durationMs: durMs,
-                    updatedAt: updatedAt,
-                    title: title,
-                    streamUrl: streamUrl,
-                    coverUrl: coverUrl,
-                    seriesId: seriesId
-                )
+            // Extract title + streamUrl + coverUrl + seriesId from
+            // meta_json. Flutter writes `name`, `cover`, `url`;
+            // older tvOS-only entries write `title`. Accept either
+            // side. `objectValue` tolerates both shapes Supabase can
+            // return — JSONB columns come back as already-parsed
+            // objects, TEXT columns come back as JSON-encoded strings.
+            var title: String?
+            var streamUrl: String?
+            var coverUrl: String?
+            var seriesId: String?
+            if let metaDict = row["meta_json"]?.objectValue {
+                title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
+                streamUrl = metaDict["url"] as? String
+                coverUrl = metaDict["cover"] as? String
+                seriesId = metaDict["series_id"] as? String
             }
-            return result
-        } catch {
-            logger.warning("pullWatchProgress failed: \(error.localizedDescription)")
-            return [:]
+
+            // Parse updated_at
+            var updatedAt = Date()
+            if let dateStr = row["updated_at"]?.stringValue {
+                let fmt = ISO8601DateFormatter()
+                fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                updatedAt = fmt.date(from: dateStr) ?? Date()
+            }
+
+            result[key] = WatchEntry(
+                positionMs: posMs,
+                durationMs: durMs,
+                updatedAt: updatedAt,
+                title: title,
+                streamUrl: streamUrl,
+                coverUrl: coverUrl,
+                seriesId: seriesId
+            )
         }
+        return result
     }
 
     private func debouncePushProgress(contentKey: String) {
@@ -653,7 +746,7 @@ final class SyncService {
 
 // MARK: - Supporting Types
 
-struct WatchEntry {
+struct WatchEntry: Codable {
     var positionMs: Int
     var durationMs: Int
     var updatedAt: Date
