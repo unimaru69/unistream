@@ -231,12 +231,29 @@ class SyncService {
       result[row['content_key'] as String] = {
         'position_ms': row['position_ms'],
         'duration_ms': row['duration_ms'],
-        'meta': jsonDecode(row['meta_json'] as String? ?? '{}'),
+        // Supabase can return `meta_json` either as a JSON string
+        // (TEXT column) or already-parsed Map (JSONB column). Be
+        // tolerant of both — the cast-to-String form silently broke
+        // cross-device titles whenever a project landed on JSONB.
+        'meta': _decodeMaybeJson(row['meta_json']),
         'updated_at': row['updated_at'],
       };
     }
     AppLogger.debug(LogModule.sync, 'Pulled ${result.length} watch progress entries');
     return result;
+  }
+
+  Map<String, dynamic> _decodeMaybeJson(Object? raw) {
+    if (raw == null) return const {};
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    if (raw is String) {
+      if (raw.isEmpty) return const {};
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {/* malformed — drop silently */}
+    }
+    return const {};
   }
 
   // ══════════════════════════════════════════════════════════════════════════

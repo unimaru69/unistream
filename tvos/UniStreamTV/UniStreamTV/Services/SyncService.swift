@@ -533,15 +533,21 @@ final class SyncService {
                 guard durMs > 10000 else { continue }
 
                 // Extract title + streamUrl + coverUrl + seriesId from
-                // meta_json. Flutter writes `name`, `cover`, `url`; older
-                // tvOS-only entries write `title`. Accept either side.
+                // meta_json. Flutter writes `name`, `cover`, `url`;
+                // older tvOS-only entries write `title`. Accept either
+                // side. Use `objectValue` so we tolerate both shapes
+                // Supabase can return — JSONB columns come back as
+                // already-parsed objects, TEXT columns come back as
+                // JSON-encoded strings. The previous version only
+                // handled the TEXT case, which silently dropped every
+                // title when the project's column was JSONB and
+                // resulted in `ep_xxx` content_keys leaking into the
+                // Reprendre row.
                 var title: String?
                 var streamUrl: String?
                 var coverUrl: String?
                 var seriesId: String?
-                if let metaStr = row["meta_json"]?.stringValue,
-                   let metaData = metaStr.data(using: .utf8),
-                   let metaDict = try? JSONSerialization.jsonObject(with: metaData) as? [String: Any] {
+                if let metaDict = row["meta_json"]?.objectValue {
                     title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
                     streamUrl = metaDict["url"] as? String
                     coverUrl = metaDict["cover"] as? String
@@ -710,5 +716,46 @@ extension AnyJSON {
         if case .double(let d) = self { return Int(d) }
         if case .string(let s) = self { return Int(s) }
         return nil
+    }
+
+    /// Decode a JSON object regardless of whether the column came back
+    /// as a JSON string (TEXT column) or already-parsed object (JSONB
+    /// column). The `meta_json` column on `user_watch_progress` ships
+    /// as both depending on Supabase project config — this accessor
+    /// hides that.
+    var objectValue: [String: Any]? {
+        switch self {
+        case .object(let dict):
+            // Convert AnyJSON values to plain Foundation types so
+            // call-sites can keep using `as? String` etc.
+            var out: [String: Any] = [:]
+            for (k, v) in dict {
+                out[k] = v.unwrappedValue
+            }
+            return out
+        case .string(let s):
+            guard let data = s.data(using: .utf8),
+                  let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return nil }
+            return parsed
+        default:
+            return nil
+        }
+    }
+
+    /// Recursively unwrap an AnyJSON tree to plain Foundation values.
+    fileprivate var unwrappedValue: Any {
+        switch self {
+        case .null: return NSNull()
+        case .bool(let b): return b
+        case .integer(let i): return i
+        case .double(let d): return d
+        case .string(let s): return s
+        case .array(let a): return a.map { $0.unwrappedValue }
+        case .object(let o):
+            var out: [String: Any] = [:]
+            for (k, v) in o { out[k] = v.unwrappedValue }
+            return out
+        }
     }
 }

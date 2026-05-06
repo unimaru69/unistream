@@ -17,10 +17,32 @@ class WatchProgress {
     final p = await SharedPreferences.getInstance();
     await p.setInt(StorageKeys.wpPosition(_pid, key), pos.inSeconds);
     await p.setInt(StorageKeys.wpDuration(_pid, key), dur.inSeconds);
-    // Sync to Supabase (fire-and-forget)
+    // Push to Supabase WITH the title/cover/url/mode that
+    // `saveMeta()` stashed locally — without this, every Flutter
+    // push went out as `meta_json: "{}"` and tvOS displayed the raw
+    // content_key in its Reprendre row when it pulled. tvOS reads
+    // `title` (or `name`) and `cover` keys from meta_json.
     SyncService.instance.pushWatchProgress(
-      key, pos.inMilliseconds, dur.inMilliseconds, {},
+      key, pos.inMilliseconds, dur.inMilliseconds, _readMeta(p, key),
     );
+  }
+
+  /// Read the locally-stored meta blob and shape it for cross-platform
+  /// consumption. Adds an explicit `title` field (mirrors `name`) so
+  /// the tvOS native app finds it under either key.
+  static Map<String, dynamic> _readMeta(SharedPreferences p, String key) {
+    final raw = p.getString(StorageKeys.wpMeta(_pid, key));
+    if (raw == null) return const {};
+    try {
+      final m = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      // tvOS expects `title`; Flutter stores under `name`. Mirror.
+      if (m['name'] != null && m['title'] == null) {
+        m['title'] = m['name'];
+      }
+      return m;
+    } catch (_) {
+      return const {};
+    }
   }
 
   static Future<Duration?> getPosition(String key) async {
@@ -60,12 +82,35 @@ class WatchProgress {
   }
 
   /// Sauvegarde les metadonnees d'un item (nom, cover, url, mode) pour le bandeau "Continuer a regarder".
+  ///
+  /// When the matching progress row already exists locally
+  /// (`save()` ran first), also push the updated meta_json to Supabase
+  /// so other devices see the title in their Continue Watching row.
+  /// Without this push, a meta change after the initial save would
+  /// stay local-only and remote consumers kept the old (or empty)
+  /// title forever.
   static Future<void> saveMeta(String key, String name, String cover, String url, String mode) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(StorageKeys.wpMeta(_pid, key), jsonEncode({
-      'name': name, 'cover': cover, 'url': url, 'mode': mode,
+    final meta = {
+      'name': name,
+      'title': name, // mirror for tvOS readers
+      'cover': cover,
+      'url': url,
+      'mode': mode,
       'ts': DateTime.now().millisecondsSinceEpoch,
-    }));
+    };
+    await p.setString(StorageKeys.wpMeta(_pid, key), jsonEncode(meta));
+    // Push only if there's an existing progress row to attach the
+    // meta to — Supabase's user_watch_progress requires position +
+    // duration to make sense, and a fresh saveMeta with no save() yet
+    // would create a zombie row that fails the `dur > 10s` filter.
+    final posSec = p.getInt(StorageKeys.wpPosition(_pid, key));
+    final durSec = p.getInt(StorageKeys.wpDuration(_pid, key));
+    if (posSec != null && durSec != null && durSec >= 10) {
+      SyncService.instance.pushWatchProgress(
+        key, posSec * 1000, durSec * 1000, meta,
+      );
+    }
   }
 
   /// Retourne une map id -> ratio [0,1] pour tous les items avec une progression.
@@ -184,14 +229,39 @@ class WatchProgress {
     // Add / update remote entries.
     for (final entry in remote.entries) {
       final key = entry.key;
-      final localPos = p.getInt(StorageKeys.wpPosition(_pid, key));
-      if (localPos != null) continue; // Local already has this entry
-
       final data = entry.value as Map<String, dynamic>;
       final posMs = data['position_ms'] as int? ?? 0;
       final durMs = data['duration_ms'] as int? ?? 0;
+      final meta = data['meta'];
       if (durMs < 10000) continue; // Skip very short items
 
+      // Always pull the meta blob across so the Continue Watching
+      // shelf can show the proper title/cover. tvOS pushes `title`
+      // + `name` in meta_json; Flutter prefers `name`. Mirror both.
+      if (meta is Map) {
+        final remoteMeta = Map<String, dynamic>.from(meta);
+        if (remoteMeta['title'] != null && remoteMeta['name'] == null) {
+          remoteMeta['name'] = remoteMeta['title'];
+        }
+        // Local always wins on URL since the resume URL is platform-
+        // specific; pull the rest verbatim.
+        final existingMetaStr = p.getString(StorageKeys.wpMeta(_pid, key));
+        Map<String, dynamic> merged = remoteMeta;
+        if (existingMetaStr != null) {
+          try {
+            final existing = Map<String, dynamic>.from(
+                jsonDecode(existingMetaStr) as Map);
+            if ((existing['url'] as String?)?.isNotEmpty ?? false) {
+              merged = {...remoteMeta, 'url': existing['url']};
+            }
+          } catch (_) {/* keep remote */}
+        }
+        await p.setString(StorageKeys.wpMeta(_pid, key), jsonEncode(merged));
+        changed = true;
+      }
+
+      final localPos = p.getInt(StorageKeys.wpPosition(_pid, key));
+      if (localPos != null) continue; // pos/dur already up to date
       await p.setInt(StorageKeys.wpPosition(_pid, key), posMs ~/ 1000);
       await p.setInt(StorageKeys.wpDuration(_pid, key), durMs ~/ 1000);
       changed = true;

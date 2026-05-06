@@ -55,12 +55,14 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     if (_isWatched) {
       await _wp.clear(_wpKey);
     } else {
-      // Use a 1-hour duration as a reasonable default when we have no real
-      // duration yet — mirrors the pattern used for series episodes.
+      // Order matters: `saveMeta` must run *before* `save` so the
+      // upcoming Supabase push carries the title. Otherwise the row
+      // briefly hits Supabase with `meta_json: "{}"` and any other
+      // device that pulls in that window shows the raw content key.
       const dur = Duration(hours: 1);
       const pos = Duration(minutes: 57);
-      await _wp.save(_wpKey, pos, dur);
       await _wp.saveMeta(_wpKey, vod.name, vod.displayIcon, '', 'vod');
+      await _wp.save(_wpKey, pos, dur);
     }
     await _loadProgress();
   }

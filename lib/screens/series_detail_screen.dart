@@ -94,8 +94,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       final prevKey = ContentKey.make(ContentKey.episode, prev.idStr);
       final pos = await _wp.getPosition(prevKey);
       if (pos == null || pos.inSeconds < 30) {
-        await _wp.save(prevKey, const Duration(minutes: 57), const Duration(hours: 1));
+        // saveMeta first so the push carries the episode title.
         await _wp.saveMeta(prevKey, prev.displayTitle, widget.cover, '', 'series');
+        await _wp.save(prevKey, const Duration(minutes: 57), const Duration(hours: 1));
         // Track the *content key* so undo can clear the right entry.
         marked.add(prevKey);
       }
@@ -118,8 +119,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     if (isWatched) {
       await _wp.clear(epKey);
     } else {
-      await _wp.save(epKey, const Duration(minutes: 57), const Duration(hours: 1));
+      // saveMeta first so the Supabase push includes the episode title.
       await _wp.saveMeta(epKey, ep.displayTitle, widget.cover, '', 'series');
+      await _wp.save(epKey, const Duration(minutes: 57), const Duration(hours: 1));
     }
   }
 
