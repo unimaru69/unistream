@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 import VLCKitSPM
 
@@ -33,12 +34,12 @@ final class VLCPlayerViewController: UIViewController {
 
     // UI
     private let videoView = UIView()
-    private let overlayView = UIView()
-    private let titleLabel = UILabel()
-    private let timeLabel = UILabel()
-    private let progressBar = UIProgressView(progressViewStyle: .default)
+    /// SwiftUI drawer overlay — replaces the previous UIKit chrome
+    /// (gradients + UILabel + UIProgressView) with a focusable
+    /// Apple TV+-style drawer hosted by `overlayHost`.
+    private let overlayModel = VLCVODPlayerModel()
+    private var overlayHost: UIHostingController<VLCVODOverlayView>!
     private var overlayTimer: Timer?
-    private var isOverlayVisible = true
 
     init(url: URL, title: String, resumeFromMs: Int? = nil, contentKey: String? = nil) {
         self.url = url
@@ -126,61 +127,32 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     private func setupOverlay() {
-        overlayView.frame = view.bounds
-        overlayView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        overlayView.backgroundColor = .clear
-        view.addSubview(overlayView)
+        // Initial model state — title is the only static piece, the
+        // rest gets pushed by the timer below.
+        overlayModel.title = videoTitle
+        overlayModel.isPlaying = true
+        overlayModel.isDrawerVisible = true  // drawer briefly visible on launch
+        overlayModel.aspectRatioLabel = aspectRatios[aspectRatioIndex].label
+        overlayModel.onPlayPause = { [weak self] in self?.handleTap() }
+        overlayModel.onSeek = { [weak self] delta in self?.seek(delta: Int32(delta)) }
+        overlayModel.onShowAudioPicker = { [weak self] in self?.showAudioPicker() }
+        overlayModel.onShowSubtitlePicker = { [weak self] in self?.showSubtitlePicker() }
+        overlayModel.onCycleAspect = { [weak self] in self?.cycleAspectRatio() }
+        overlayModel.onShowMore = { [weak self] in self?.showOptionsMenu() }
+        overlayModel.onDismiss = { [weak self] in self?.handleMenu() }
 
-        // Top gradient — use a UIView wrapper since CALayer.autoresizingMask is unavailable on tvOS
-        let topGradientView = GradientView(
-            colors: [UIColor.black.withAlphaComponent(0.7), .clear],
-            frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: 150)
-        )
-        topGradientView.autoresizingMask = [.flexibleWidth]
-        overlayView.addSubview(topGradientView)
+        let host = UIHostingController(rootView: VLCVODOverlayView(model: overlayModel))
+        host.view.frame = view.bounds
+        host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.view.backgroundColor = .clear
+        addChild(host)
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+        overlayHost = host
 
-        // Bottom gradient
-        let bottomGradientView = GradientView(
-            colors: [.clear, UIColor.black.withAlphaComponent(0.7)],
-            frame: CGRect(x: 0, y: view.bounds.height - 100, width: view.bounds.width, height: 100)
-        )
-        bottomGradientView.autoresizingMask = [.flexibleWidth, .flexibleTopMargin]
-        overlayView.addSubview(bottomGradientView)
-
-        // Title
-        titleLabel.text = videoTitle
-        titleLabel.font = .systemFont(ofSize: 38, weight: .bold)
-        titleLabel.textColor = .white
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.addSubview(titleLabel)
-
-        // Time
-        timeLabel.font = .monospacedDigitSystemFont(ofSize: 24, weight: .medium)
-        timeLabel.textColor = .white.withAlphaComponent(0.8)
-        timeLabel.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.addSubview(timeLabel)
-
-        // Progress
-        progressBar.progressTintColor = UIColor(red: 0.106, green: 0.42, blue: 0.541, alpha: 1) // 0x1B6B8A
-        progressBar.trackTintColor = .white.withAlphaComponent(0.3)
-        progressBar.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.addSubview(progressBar)
-
-        NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: overlayView.safeAreaLayoutGuide.topAnchor, constant: 30),
-            titleLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: overlayView.trailingAnchor, constant: -60),
-
-            progressBar.bottomAnchor.constraint(equalTo: overlayView.safeAreaLayoutGuide.bottomAnchor, constant: -30),
-            progressBar.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
-            progressBar.trailingAnchor.constraint(equalTo: overlayView.trailingAnchor, constant: -60),
-            progressBar.heightAnchor.constraint(equalToConstant: 4),
-
-            timeLabel.bottomAnchor.constraint(equalTo: progressBar.topAnchor, constant: -12),
-            timeLabel.leadingAnchor.constraint(equalTo: progressBar.leadingAnchor),
-        ])
-
-        // Update timer
+        // Update timer — pushes VLC time / state into the model so the
+        // SwiftUI drawer re-renders. 0.5s feels responsive without
+        // wasting frames on a static drawer.
         Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateProgress()
@@ -274,11 +246,11 @@ final class VLCPlayerViewController: UIViewController {
                 self.mediaPlayer.time = VLCTime(int: Int32(resumeMs))
             }
         }
-        // brief hint to the user
-        titleLabel.text = "Décodage logiciel…"
+        // brief hint to the user — flash a subtitle on the drawer.
+        overlayModel.subtitle = "Décodage logiciel…"
         showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.titleLabel.text = self?.videoTitle
+            self?.overlayModel.subtitle = nil
         }
     }
 
@@ -368,8 +340,10 @@ final class VLCPlayerViewController: UIViewController {
     @objc private func handleTap() {
         if mediaPlayer.isPlaying {
             mediaPlayer.pause()
+            overlayModel.isPlaying = false
         } else {
             mediaPlayer.play()
+            overlayModel.isPlaying = true
         }
         showOverlay()
     }
@@ -385,12 +359,21 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     @objc private func seekForward() {
-        mediaPlayer.jumpForward(30)
-        showOverlay()
+        seek(delta: 30)
     }
 
     @objc private func seekBackward() {
-        mediaPlayer.jumpBackward(15)
+        seek(delta: -15)
+    }
+
+    /// Unified VLC seek used by both the UIKit press handlers and the
+    /// SwiftUI overlay buttons. Positive delta = forward.
+    private func seek(delta: Int32) {
+        if delta >= 0 {
+            mediaPlayer.jumpForward(delta)
+        } else {
+            mediaPlayer.jumpBackward(-delta)
+        }
         showOverlay()
     }
 
@@ -490,18 +473,15 @@ final class VLCPlayerViewController: UIViewController {
         } else {
             mediaPlayer.videoAspectRatio = nil
         }
-        // Show brief overlay
-        titleLabel.text = "Format : \(ratio.label)"
+        // Refresh the aspect ratio button label and re-show the drawer.
+        overlayModel.aspectRatioLabel = ratio.label
         showOverlay()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.titleLabel.text = self?.videoTitle
-        }
     }
 
     // MARK: - Overlay
 
     private func toggleOverlay() {
-        if isOverlayVisible {
+        if overlayModel.isDrawerVisible {
             hideOverlay()
         } else {
             showOverlay()
@@ -510,14 +490,12 @@ final class VLCPlayerViewController: UIViewController {
 
     private func showOverlay() {
         overlayTimer?.invalidate()
-        UIView.animate(withDuration: 0.3) { self.overlayView.alpha = 1 }
-        isOverlayVisible = true
+        overlayModel.isDrawerVisible = true
         startOverlayAutoHide()
     }
 
     private func hideOverlay() {
-        UIView.animate(withDuration: 0.5) { self.overlayView.alpha = 0 }
-        isOverlayVisible = false
+        overlayModel.isDrawerVisible = false
     }
 
     private func startOverlayAutoHide() {
@@ -529,14 +507,20 @@ final class VLCPlayerViewController: UIViewController {
         }
     }
 
+    /// Push VLC time / state into the SwiftUI overlay model. Called
+    /// every 0.5s by the timer set up in `setupOverlay`.
     private func updateProgress() {
         guard mediaPlayer.media != nil else { return }
-        let position = mediaPlayer.position
-        progressBar.progress = position
-
-        let current = mediaPlayer.time.stringValue ?? "--:--"
-        let remaining = mediaPlayer.remainingTime?.stringValue ?? "--:--"
-        timeLabel.text = "\(current)  /  \(remaining)"
+        let posMs = Int(mediaPlayer.time.intValue)
+        let durMs: Int = {
+            if let remaining = mediaPlayer.remainingTime {
+                return posMs + Int(abs(remaining.intValue))
+            }
+            return 0
+        }()
+        overlayModel.positionSeconds = Double(posMs) / 1000.0
+        overlayModel.durationSeconds = Double(durMs) / 1000.0
+        overlayModel.isPlaying = mediaPlayer.isPlaying
     }
 }
 
