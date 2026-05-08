@@ -52,6 +52,13 @@ struct VODSplitView: View {
                     .background(splitBackdrop)
                 }
             }
+            // Focus-driven preview — moving the focus engine across
+            // sidebar categories updates the right-hand grid live,
+            // no tap required. See LiveSplitView for the rationale.
+            .onChange(of: focusedCategory) { _, newValue in
+                guard let newValue, newValue != selection else { return }
+                selection = newValue
+            }
             .task {
                 if viewModel.categories.isEmpty {
                     await viewModel.loadCategories()

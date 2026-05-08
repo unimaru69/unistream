@@ -74,6 +74,16 @@ struct LiveSplitView: View {
                     .focusSection()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Focus-driven preview — when the user moves the focus
+            // engine across sidebar entries, the right-hand grid
+            // updates immediately, no tap required. Tap then just
+            // locks focus into the grid. Without this hook the user
+            // had to confirm every category with Select before
+            // seeing what's inside.
+            .onChange(of: focusedEntry) { _, newValue in
+                guard let newValue, newValue != selection else { return }
+                selection = newValue
+            }
             .task {
                 await viewModel.loadCategories()
                 await viewModel.loadAllChannels()
