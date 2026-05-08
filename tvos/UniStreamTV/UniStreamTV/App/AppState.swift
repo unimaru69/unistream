@@ -15,6 +15,11 @@ final class AppState {
     let parentalService = ParentalService()
     let collectionsService = CollectionsService()
     let reminderService = EPGReminderService()
+    /// Lazy full-catalog index used by `CastFilmographyView` to
+    /// resolve a TMDB credit ("est-ce que cet acteur a tourné autre
+    /// chose que j'ai dans mon catalogue ?") without forcing the
+    /// user to navigate every category first.
+    let catalogIndex = CatalogIndex()
 
     // Navigation state
     var isAuthenticated = false
@@ -122,6 +127,7 @@ final class AppState {
         let pvm = PlayerViewModel(api: api)
         pvm.syncService = syncService
         playerVM = pvm
+        catalogIndex.configure(api: api)
         logger.info("ViewModels created")
     }
 

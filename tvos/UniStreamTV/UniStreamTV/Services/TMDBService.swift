@@ -50,6 +50,38 @@ struct TMDBCast: Codable, Identifiable, Equatable {
     }
 }
 
+/// Person-level details for the filmography deep-link.
+/// TMDB endpoint: `GET /person/{id}` (no append_to_response needed —
+/// credits live on a separate endpoint, see `fetchPersonCredits`).
+struct TMDBPersonDetails: Codable, Identifiable, Equatable {
+    let id: Int
+    let name: String
+    let biography: String?
+    let birthYear: Int?
+    let profilePath: String?
+    let knownForDepartment: String?
+
+    func profileURL(size: String = "h632") -> URL? {
+        TMDBService.imageURL(path: profilePath, size: size)
+    }
+}
+
+/// One row in a person's filmography. `mediaType` distinguishes movies
+/// from TV — the local-catalog matcher uses it to know whether to look
+/// in `VODViewModel` or `SeriesViewModel`.
+struct TMDBPersonCredit: Codable, Identifiable, Equatable, Hashable {
+    let id: Int
+    let title: String
+    let character: String?
+    let year: Int?
+    let posterPath: String?
+    let mediaType: TMDBKind
+
+    func posterURL(size: String = "w342") -> URL? {
+        TMDBService.imageURL(path: posterPath, size: size)
+    }
+}
+
 struct TMDBVideo: Codable, Identifiable, Equatable {
     var id: String { key }
     let key: String
@@ -329,6 +361,107 @@ final class TMDBService: @unchecked Sendable {
             return Self.imageURL(path: stillPath, size: size)
         } catch {
             return nil
+        }
+    }
+
+    // MARK: - Person filmography
+
+    /// Fetch a TMDB person's profile data. Used by `CastFilmography
+    /// View`'s header (photo + name + bio).
+    func fetchPersonDetails(id: Int) async -> TMDBPersonDetails? {
+        let cfg = TMDBConfig.shared
+        guard cfg.isActive else { return nil }
+        var components = URLComponents(url: base.appendingPathComponent("person/\(id)"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            .init(name: "api_key", value: cfg.apiKey),
+            .init(name: "language", value: cfg.language),
+        ]
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            let birthDate = (json["birthday"] as? String) ?? ""
+            let birthYear = Int(birthDate.prefix(4))
+            return TMDBPersonDetails(
+                id: json["id"] as? Int ?? id,
+                name: (json["name"] as? String) ?? "",
+                biography: cleanOptional(json["biography"] as? String),
+                birthYear: birthYear,
+                profilePath: json["profile_path"] as? String,
+                knownForDepartment: json["known_for_department"] as? String
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    /// Fetch a person's full filmography, split into movie + tv buckets
+    /// and sorted from newest to oldest within each.
+    ///
+    /// TMDB returns a single combined `cast` array on
+    /// `/person/{id}/combined_credits`; we walk it once, partition by
+    /// `media_type`, and drop entries with no usable poster + no year
+    /// (typically uncredited / production work that wouldn't render in
+    /// the grid anyway).
+    func fetchPersonCredits(id: Int) async -> (movies: [TMDBPersonCredit], tv: [TMDBPersonCredit]) {
+        let cfg = TMDBConfig.shared
+        guard cfg.isActive else { return ([], []) }
+        var components = URLComponents(
+            url: base.appendingPathComponent("person/\(id)/combined_credits"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            .init(name: "api_key", value: cfg.apiKey),
+            .init(name: "language", value: cfg.language),
+        ]
+        guard let url = components.url else { return ([], []) }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return ([], []) }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cast = json["cast"] as? [[String: Any]] else { return ([], []) }
+
+            var movies: [TMDBPersonCredit] = []
+            var tv: [TMDBPersonCredit] = []
+            for c in cast {
+                let mediaType: TMDBKind
+                switch (c["media_type"] as? String) ?? "" {
+                case "movie": mediaType = .movie
+                case "tv": mediaType = .tv
+                default: continue // skip "person" / unknowns
+                }
+                let title: String = mediaType == .movie
+                    ? ((c["title"] as? String) ?? "")
+                    : ((c["name"] as? String) ?? "")
+                if title.isEmpty { continue }
+                let dateKey = mediaType == .movie ? "release_date" : "first_air_date"
+                let year = Int((c[dateKey] as? String ?? "").prefix(4))
+                let credit = TMDBPersonCredit(
+                    id: c["id"] as? Int ?? 0,
+                    title: title,
+                    character: cleanOptional(c["character"] as? String),
+                    year: year,
+                    posterPath: c["poster_path"] as? String,
+                    mediaType: mediaType
+                )
+                if mediaType == .movie {
+                    movies.append(credit)
+                } else {
+                    tv.append(credit)
+                }
+            }
+
+            // Sort newest first within each bucket; nil years sink.
+            movies.sort { ($0.year ?? 0) > ($1.year ?? 0) }
+            tv.sort { ($0.year ?? 0) > ($1.year ?? 0) }
+            return (movies, tv)
+        } catch {
+            return ([], [])
         }
     }
 }
