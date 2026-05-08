@@ -94,10 +94,6 @@ struct SeriesGridView: View {
         .task(id: category.categoryId) {
             await viewModel.loadItems(for: category)
         }
-        .searchable(
-            text: $searchQuery,
-            prompt: "Rechercher dans \(category.categoryName)"
-        )
     }
 
     @ViewBuilder
@@ -112,9 +108,15 @@ struct SeriesGridView: View {
                             .padding(.top, 20)
                             .id("__top__")
 
-                        CatalogSortChips(selection: $sortMode)
-                            .padding(.horizontal, 40)
-                            .focusSection()
+                        HStack(spacing: DS.Spacing.md) {
+                            CatalogSortChips(selection: $sortMode)
+                            InlineSearchField(
+                                query: $searchQuery,
+                                placeholder: "Rechercher dans \(category.categoryName)"
+                            )
+                        }
+                        .padding(.horizontal, 40)
+                        .focusSection()
 
                         if displayedItems.isEmpty {
                             emptySearchResult

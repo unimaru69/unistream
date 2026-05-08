@@ -87,10 +87,6 @@ struct VODGridView: View {
         .task(id: category.categoryId) {
             await viewModel.loadItems(for: category)
         }
-        .searchable(
-            text: $searchQuery,
-            prompt: "Rechercher dans \(category.categoryName)"
-        )
     }
 
     @ViewBuilder
@@ -105,13 +101,22 @@ struct VODGridView: View {
                             .padding(.top, 20)
                             .id("__top__")
 
-                        // Sort chips — sit between the heading and the
-                        // grid, scroll with the content so the user can
-                        // get full vertical real estate when deep in
-                        // the grid.
-                        CatalogSortChips(selection: $sortMode)
-                            .padding(.horizontal, 40)
-                            .focusSection()
+                        // Sort chips + inline search trigger — sit
+                        // between the heading and the grid, scroll
+                        // with the content. Search is a button by
+                        // default so it stays unobtrusive; tapping
+                        // opens a focused sheet with the on-screen
+                        // keyboard rather than letting `.searchable`
+                        // dominate the top of the screen.
+                        HStack(spacing: DS.Spacing.md) {
+                            CatalogSortChips(selection: $sortMode)
+                            InlineSearchField(
+                                query: $searchQuery,
+                                placeholder: "Rechercher dans \(category.categoryName)"
+                            )
+                        }
+                        .padding(.horizontal, 40)
+                        .focusSection()
 
                         if displayedItems.isEmpty {
                             emptySearchResult

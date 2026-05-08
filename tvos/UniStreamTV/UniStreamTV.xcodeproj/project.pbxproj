@@ -24,6 +24,7 @@
 		2070D518A2ADBD63D8AA6E26 /* CastFilmographyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440F74C477BCD53382BEC1DC /* CastFilmographyView.swift */; };
 		26363E96DCCDB7232E13C823 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5E765218D051555C0422BC /* CollectionsView.swift */; };
 		27470FAD91871586A5AAB276 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829B54BD78A0F43891464D71 /* LoginView.swift */; };
+		2D6BE5C54384C5AA93C12E12 /* InlineSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59DEB4AF326646995E8A570B /* InlineSearchField.swift */; };
 		31EE19C6604182185813B0E8 /* AccountInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788A2CCE0A1CDD5AC39D5B61 /* AccountInfoTests.swift */; };
 		33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD553224771A148184A803D /* HomeHeroBanner.swift */; };
 		333CC08443DB8EE7AE6CD3E7 /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D396CE8FF4090C7142CE2E /* ProfileEditorView.swift */; };
@@ -182,6 +183,7 @@
 		53EA502B4CF22F4EF0CC2577 /* AccountInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountInfo.swift; sourceTree = "<group>"; };
 		55096A5D6EE9B3F8E34B424F /* SeriesDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesDetailView.swift; sourceTree = "<group>"; };
 		566F9A1DCF37AA901E7809F0 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+		59DEB4AF326646995E8A570B /* InlineSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineSearchField.swift; sourceTree = "<group>"; };
 		5B901F25959A0C6144E309C3 /* UniStreamTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UniStreamTVApp.swift; sourceTree = "<group>"; };
 		5C775B1B4C494C9799EC3BEF /* CollectionsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsServiceTests.swift; sourceTree = "<group>"; };
 		5FA85FC56DAE2ABD61B9F2A6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -555,6 +557,7 @@
 				128BA5E87066CEE16997BC1C /* FocusableCard.swift */,
 				831E830AE5C134212C6B264B /* FocusedItemPreview.swift */,
 				711F80A415BFD9955DD63D90 /* HeroButtonStyles.swift */,
+				59DEB4AF326646995E8A570B /* InlineSearchField.swift */,
 				4585D311780B0E1E1070318F /* PinEntryView.swift */,
 				18BED9531A21C40518012159 /* PlexBackdrop.swift */,
 				CF703BD873DE264823660A7E /* PremiumGate.swift */,
@@ -774,6 +777,7 @@
 				A28876D3617EC849EDF82AD1 /* HistoryView.swift in Sources */,
 				33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */,
 				F2E8B4980B4137D48FDA266B /* HomeTabView.swift in Sources */,
+				2D6BE5C54384C5AA93C12E12 /* InlineSearchField.swift in Sources */,
 				8094FA14E4430AEDB7CFBA0C /* LiveCategoryListView.swift in Sources */,
 				1B4479EFFA49C34209FF1174 /* LiveFocusedPreview.swift in Sources */,
 				BB19028D23263D4F974F7365 /* LiveSplitView.swift in Sources */,

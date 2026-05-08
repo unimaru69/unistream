@@ -35,44 +35,51 @@ struct FocusedItemPreview: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: DS.Spacing.lg) {
-            cover
-            VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-                Text(rawTitle.cleanedTitleNoYear)
-                    .font(DS.Typography.title2)
-                    .foregroundColor(DS.Colour.textPrimary)
-                    .lineLimit(1)
+        VStack(spacing: 0) {
+            // Thin accent bar on top so the panel reads as a clean
+            // boundary against the grid behind. Without it the
+            // gradient blended into the cards and the user couldn't
+            // tell where the preview started.
+            DS.Colour.accent.opacity(0.6)
+                .frame(height: 2)
 
-                metadataStrip
+            HStack(alignment: .top, spacing: DS.Spacing.lg) {
+                cover
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                    Text(rawTitle.cleanedTitleNoYear)
+                        .font(DS.Typography.title2)
+                        .foregroundColor(DS.Colour.textPrimary)
+                        .lineLimit(1)
 
-                if !synopsis.isEmpty {
-                    Text(synopsis)
-                        .font(DS.Typography.body)
-                        .foregroundColor(DS.Colour.textSecondary)
-                        .lineLimit(3)
-                } else if tmdbVM.isLoading {
-                    Text("Chargement de la synopsis…")
-                        .font(DS.Typography.caption)
-                        .foregroundColor(DS.Colour.textTertiary)
-                } else {
-                    // Empty state — keep the strip the same height so the
-                    // grid above doesn't shift when the preview swaps in.
-                    Color.clear.frame(height: 60)
+                    metadataStrip
+
+                    if !synopsis.isEmpty {
+                        Text(synopsis)
+                            .font(DS.Typography.body)
+                            .foregroundColor(DS.Colour.textSecondary)
+                            .lineLimit(3)
+                    } else if tmdbVM.isLoading {
+                        Text("Chargement de la synopsis…")
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Colour.textTertiary)
+                    } else {
+                        Color.clear.frame(height: 60)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.horizontal, DS.Padding.screenHorizontal)
+            .padding(.vertical, DS.Spacing.md)
         }
-        .padding(.horizontal, DS.Padding.screenHorizontal)
-        .padding(.vertical, DS.Spacing.md)
         .background(
-            LinearGradient(
-                colors: [
-                    DS.Colour.background.opacity(0.0),
-                    DS.Colour.background.opacity(0.9),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            // Solid + blur stack so the cards behind don't bleed
+            // through. The gradient in the previous version wasn't
+            // strong enough — the user reported the preview was
+            // "peu lisible en overlay".
+            ZStack {
+                Rectangle().fill(.regularMaterial)
+                Rectangle().fill(DS.Colour.background.opacity(0.55))
+            }
         )
         .task(id: rawTitle) {
             await tmdbVM.load(rawTitle: rawTitle, kind: kind)
