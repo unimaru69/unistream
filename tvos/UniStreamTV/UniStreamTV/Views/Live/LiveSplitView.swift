@@ -11,6 +11,12 @@ struct LiveSplitView: View {
     @State private var selection: CategoryEntry = .all
     @State private var didInitSelection = false
     @FocusState private var focusedEntry: CategoryEntry?
+    /// Debounces sidebar focus → selection updates so a quick scroll
+    /// doesn't constantly re-render the grid. Without this the grid
+    /// flickers under a fast-moving focus and the engine occasionally
+    /// drifts sideways into it; the Siri Remote trackpad makes this
+    /// especially bad because every micro-glissement bumps focus.
+    @State private var selectionDebounce: Task<Void, Never>?
 
     enum CategoryEntry: Hashable {
         case favorites
@@ -80,9 +86,19 @@ struct LiveSplitView: View {
             // locks focus into the grid. Without this hook the user
             // had to confirm every category with Select before
             // seeing what's inside.
+            //
+            // Debounced ~250ms so a fast scroll (especially Siri
+            // Remote trackpad, which fires many onChange ticks per
+            // second) doesn't thrash the grid. Selection only
+            // commits once focus has stabilised on a category.
             .onChange(of: focusedEntry) { _, newValue in
+                selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
-                selection = newValue
+                selectionDebounce = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    guard !Task.isCancelled else { return }
+                    selection = newValue
+                }
             }
             .task {
                 await viewModel.loadCategories()

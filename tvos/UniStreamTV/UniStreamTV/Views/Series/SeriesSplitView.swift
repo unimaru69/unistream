@@ -13,6 +13,9 @@ struct SeriesSplitView: View {
     /// (full-screen, including behind the sidebar and the floating tab
     /// bar). The grid pushes the currently-focused item up via Binding.
     @State private var focusedSeries: SeriesItem?
+    /// Debounces sidebar focus → selection updates. See LiveSplitView
+    /// for the rationale.
+    @State private var selectionDebounce: Task<Void, Never>?
 
     private var filteredCategories: [Category] {
         appState.parentalService.filterCategories(viewModel.categories, contentType: .series)
@@ -53,10 +56,16 @@ struct SeriesSplitView: View {
             }
             // Focus-driven preview — moving the focus engine across
             // sidebar categories updates the right-hand grid live,
-            // no tap required. See LiveSplitView for the rationale.
+            // no tap required. Debounced 250ms — see LiveSplitView
+            // for the rationale (Siri Remote trackpad jitter).
             .onChange(of: focusedCategory) { _, newValue in
+                selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
-                selection = newValue
+                selectionDebounce = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    guard !Task.isCancelled else { return }
+                    selection = newValue
+                }
             }
             .task {
                 if viewModel.categories.isEmpty {

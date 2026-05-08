@@ -12,6 +12,9 @@ struct VODSplitView: View {
     /// Focused item lifted from the grid — see SeriesSplitView for the
     /// rationale (full-screen backdrop, behind sidebar + tab bar).
     @State private var focusedVod: VodItem?
+    /// Debounces sidebar focus → selection updates. See LiveSplitView
+    /// for the rationale.
+    @State private var selectionDebounce: Task<Void, Never>?
 
     private var filteredCategories: [Category] {
         appState.parentalService.filterCategories(viewModel.categories, contentType: .vod)
@@ -54,10 +57,16 @@ struct VODSplitView: View {
             }
             // Focus-driven preview — moving the focus engine across
             // sidebar categories updates the right-hand grid live,
-            // no tap required. See LiveSplitView for the rationale.
+            // no tap required. Debounced 250ms — see LiveSplitView
+            // for the rationale (Siri Remote trackpad jitter).
             .onChange(of: focusedCategory) { _, newValue in
+                selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
-                selection = newValue
+                selectionDebounce = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    guard !Task.isCancelled else { return }
+                    selection = newValue
+                }
             }
             .task {
                 if viewModel.categories.isEmpty {
