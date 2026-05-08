@@ -58,17 +58,53 @@ struct ContinueWatchingRow: View {
         // Drag Race episodes fills the row with five identical-looking
         // tiles. Movies (`vod_*`) and live (`live_*`) entries are
         // never deduped.
+        //
+        // Dedup key resolution (in priority order):
+        //   1. `entry.seriesId` — the canonical id, set when the
+        //      WatchEntry was minted by SeriesDetailView (post build
+        //      39).
+        //   2. Title-based fallback — extract everything before
+        //      " - SXXEXX" from `entry.title`. Catches legacy entries
+        //      that were marked-as-watched before the seriesId pass-
+        //      through landed and that haven't been backfilled yet.
+        //
+        // Without (2), the user had to open every series' detail page
+        // once before the Reprendre row stopped showing every just-
+        // bulk-marked episode side-by-side.
         var seenSeries = Set<String>()
         var deduped: [(key: String, entry: WatchEntry)] = []
         for pair in raw {
-            if pair.key.hasPrefix("ep_"), let sid = pair.value.seriesId {
-                if seenSeries.contains(sid) { continue }
-                seenSeries.insert(sid)
+            if pair.key.hasPrefix("ep_") {
+                if let dedupKey = Self.seriesDedupKey(for: pair.value) {
+                    if seenSeries.contains(dedupKey) { continue }
+                    seenSeries.insert(dedupKey)
+                }
             }
             deduped.append((key: pair.key, entry: pair.value))
             if deduped.count >= 10 { break }
         }
         return deduped
+    }
+
+    /// Compute a series-level dedup key. Prefers the explicit
+    /// seriesId when present; otherwise extracts the show name from a
+    /// title shaped like "Show name - S02E10" / "Show name - S02E10
+    /// - Episode title".
+    private static func seriesDedupKey(for entry: WatchEntry) -> String? {
+        if let sid = entry.seriesId, !sid.isEmpty { return "id:\(sid)" }
+        guard let title = entry.title else { return nil }
+        let pattern = #"^(.+?)\s+-\s+S\d+\s*E\d+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(
+                in: title,
+                range: NSRange(title.startIndex..., in: title)
+              ),
+              let baseRange = Range(match.range(at: 1), in: title)
+        else { return nil }
+        let base = title[baseRange]
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+        return base.isEmpty ? nil : "title:\(base)"
     }
 
     var body: some View {
@@ -336,10 +372,18 @@ private struct CardContent: View {
     private var artwork: some View {
         ZStack(alignment: .bottomLeading) {
             if let cover = coverUrl, let url = URL(string: cover) {
+                // `.aspectRatio(contentMode: .fill)` (no explicit
+                // ratio) lets the image keep its native shape and
+                // crop within the 280×160 frame instead of being
+                // stretched. The previous explicit `16/9` ratio
+                // double-constrained the layout (frame ≠ 16:9
+                // exactly) and squashed portrait posters
+                // vertically.
                 KFImage(url)
                     .resizable()
-                    .aspectRatio(16/9, contentMode: .fill)
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: 280, height: 160)
+                    .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card))
             } else {
                 // Richer fallback: brand-tinted gradient + the item's

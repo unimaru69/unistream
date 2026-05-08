@@ -175,9 +175,26 @@ struct SeriesDetailView: View {
             // seriesId — fixes the "every just-marked episode shows
             // in Reprendre" bug for items marked before the explicit
             // seriesId pass-through landed.
-            let allEpisodeIds = viewModel.episodes.values.flatMap { $0 }.map(\.episodeId)
+            let allEpisodes = viewModel.episodes.values.flatMap { $0 }
+            let allEpisodeIds = allEpisodes.map(\.episodeId)
             if !allEpisodeIds.isEmpty {
                 appState.syncService.backfillSeriesId(series.seriesId, episodeIds: allEpisodeIds)
+            }
+            // Also upgrade any cover that's still on the series
+            // poster — happens when the user marked-as-vu on this
+            // episode before build 39 wired up the auto-still fetch.
+            // Skip entries whose cover is already a TMDB-hosted image
+            // (it's either the per-episode still we want or a poster
+            // we already swapped — either way TMDBService.fetchEpisode
+            // Still is idempotent + cached and the no-op is cheap).
+            for (seasonStr, eps) in viewModel.episodes {
+                for ep in eps {
+                    let key = contentKey(for: ep)
+                    guard let entry = appState.syncService.getProgress(contentKey: key) else { continue }
+                    let cover = entry.coverUrl ?? ""
+                    if cover.contains("image.tmdb.org") { continue }
+                    upgradeEpisodeCover(episode: ep, season: seasonStr, contentKey: key)
+                }
             }
         }
         .task {
@@ -398,11 +415,18 @@ struct SeriesDetailView: View {
                             progress: progressEntry(for: episode)?.progress ?? 0,
                             onTap: { playEpisode(episode, season: season, force: false) },
                             onMarkWatched: {
+                                let key = contentKey(for: episode)
                                 appState.syncService.markAsWatched(
-                                    contentKey: contentKey(for: episode),
+                                    contentKey: key,
                                     title: episode.displayTitle,
                                     seriesId: series.seriesId
                                 )
+                                // Auto-fetch the per-episode TMDB still
+                                // so the Reprendre card uses a 16:9
+                                // screenshot instead of falling back to
+                                // the series poster (which then gets
+                                // squashed in the horizontal slot).
+                                upgradeEpisodeCover(episode: episode, season: season, contentKey: key)
                             },
                             onMarkUnwatched: {
                                 appState.syncService.markAsUnwatched(
@@ -539,19 +563,11 @@ struct SeriesDetailView: View {
             let prev = eps[i]
             let key = contentKey(for: prev)
             guard let existing = appState.syncService.getProgress(contentKey: key) else {
-                appState.syncService.markAsWatched(
-                    contentKey: key,
-                    title: prev.displayTitle,
-                    seriesId: series.seriesId
-                )
+                markEpisodeWatched(prev, key: key, season: season)
                 continue
             }
             if existing.positionMs < 30_000 {
-                appState.syncService.markAsWatched(
-                    contentKey: key,
-                    title: prev.displayTitle,
-                    seriesId: series.seriesId
-                )
+                markEpisodeWatched(prev, key: key, season: season)
             }
         }
     }
@@ -563,12 +579,21 @@ struct SeriesDetailView: View {
         else { return }
         for i in 0...idx {
             let e = eps[i]
-            appState.syncService.markAsWatched(
-                contentKey: contentKey(for: e),
-                title: e.displayTitle,
-                seriesId: series.seriesId
-            )
+            markEpisodeWatched(e, key: contentKey(for: e), season: season)
         }
+    }
+
+    /// Single mark + cover-upgrade entry point so every "Marquer vu"
+    /// path stays consistent. Without the upgrade, the Reprendre card
+    /// falls back to the series poster (2:3) and looks vertically
+    /// squashed in the horizontal slot.
+    private func markEpisodeWatched(_ episode: Episode, key: String, season: String) {
+        appState.syncService.markAsWatched(
+            contentKey: key,
+            title: episode.displayTitle,
+            seriesId: series.seriesId
+        )
+        upgradeEpisodeCover(episode: episode, season: season, contentKey: key)
     }
 }
 
