@@ -338,7 +338,11 @@ struct EPGGridView: View {
         // observation dependency at this view's render scope.
         let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
         let progs = dayMap[channel.streamId] ?? []
-        let _ = print("[EPG] \(channel.streamId) day=\(EPGCache.dayKey(for: selectedDay)) progs=\(progs.count)")
+        let layoutOK = progs.compactMap { layoutCell(for: $0) }.count
+        let _ = print("[EPG] \(channel.streamId) progs=\(progs.count) layoutOK=\(layoutOK) gridStart=\(gridStart) gridEnd=\(gridEnd)")
+        if progs.count > 0 && layoutOK == 0, let first = progs.first {
+            let _ = print("[EPG]   ⚠ first prog: title=\(first.title) start=\(String(describing: first.start)) end=\(String(describing: first.end))")
+        }
 
         ZStack(alignment: .leading) {
             ForEach(timeTicks.dropFirst(), id: \.self) { date in
