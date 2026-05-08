@@ -332,6 +332,14 @@ struct EPGGridView: View {
 
     @ViewBuilder
     private func programGrid(_ channel: Channel) -> some View {
+        // Pull cache state at the top so we can use `progs` both
+        // inside the ZStack content AND in the modifier chain
+        // (.background) below. Reading byDay here registers the
+        // observation dependency at this view's render scope.
+        let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
+        let progs = dayMap[channel.streamId] ?? []
+        let _ = print("[EPG] \(channel.streamId) day=\(EPGCache.dayKey(for: selectedDay)) progs=\(progs.count)")
+
         ZStack(alignment: .leading) {
             ForEach(timeTicks.dropFirst(), id: \.self) { date in
                 Rectangle()
@@ -351,24 +359,15 @@ struct EPGGridView: View {
                 }
             }
 
-            // Force the ZStack to observe `byDay` directly.
-            let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
-            let progs = dayMap[channel.streamId] ?? []
-
-            // DEBUG: huge tinted strip + count so we can see
-            // exactly what each row is reading. Red = 0 progs,
-            // green = ≥1 prog. The tint is positioned over the
-            // full row width to be impossible to miss.
-            Rectangle()
-                .fill(progs.isEmpty ? Color.red.opacity(0.30) : Color.green.opacity(0.18))
-                .frame(width: 240, height: rowHeight - 8)
-                .offset(x: 4, y: 4)
-            Text("DBG \(progs.count)P · \(channel.streamId)")
-                .font(.system(size: 14, weight: .heavy))
-                .foregroundColor(.white)
-                .padding(.horizontal, 6)
-                .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 4))
-                .offset(x: 8, y: 8)
+            // DEBUG: fixed badge in the first 280pt of the row.
+            // If neither this badge nor the row tint shows, the
+            // programGrid view itself isn't being called.
+            Text("DBG \(progs.count)P")
+                .font(.system(size: 24, weight: .heavy))
+                .foregroundColor(progs.isEmpty ? .red : .green)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 6))
 
             ForEach(progs) { prog in
                 if let cell = layoutCell(for: prog) {
@@ -379,6 +378,14 @@ struct EPGGridView: View {
             }
         }
         .frame(width: totalGridWidth, height: rowHeight)
+        // Apply tint to the whole programGrid so we can SEE if the
+        // view is rendering. Bright red across the row = empty cache,
+        // bright green across the row = data is there but cells
+        // aren't laying out, no tint at all = programGrid is
+        // genuinely not being rendered.
+        .background(progs.isEmpty
+            ? Color.red.opacity(0.45)
+            : Color.green.opacity(0.30))
     }
 
     private struct CellLayout {
