@@ -344,12 +344,20 @@ struct EPGGridView: View {
             let _ = print("[EPG]   ⚠ first prog: title=\(first.title) start=\(String(describing: first.start)) end=\(String(describing: first.end))")
         }
 
-        ZStack(alignment: .leading) {
+        ZStack(alignment: .topLeading) {
+            // Anchor the ZStack's bounds to the full grid width/height
+            // so children with `.offset(x: ...)` position from the
+            // *real* leading edge instead of getting centred inside a
+            // larger outer frame. Without this, every cell ended up
+            // bunched in the center of the row, off-screen relative
+            // to where layoutCell thought it was placing them.
+            Color.clear
+                .frame(width: totalGridWidth, height: rowHeight)
+
             ForEach(timeTicks.dropFirst(), id: \.self) { date in
                 Rectangle()
                     .fill(Color.white.opacity(0.03))
-                    .frame(width: 1)
-                    .frame(maxHeight: .infinity)
+                    .frame(width: 1, height: rowHeight)
                     .offset(x: position(for: date))
             }
             if isToday {
@@ -357,8 +365,7 @@ struct EPGGridView: View {
                 if nowX >= 0 && nowX <= totalGridWidth {
                     Rectangle()
                         .fill(DS.Colour.accentWarm)
-                        .frame(width: 2)
-                        .frame(maxHeight: .infinity)
+                        .frame(width: 2, height: rowHeight)
                         .offset(x: nowX)
                 }
             }
