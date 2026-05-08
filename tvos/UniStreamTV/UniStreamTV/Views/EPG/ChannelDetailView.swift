@@ -95,6 +95,12 @@ struct ChannelDetailView: View {
             }
             .padding(50)
         }
+        // Solid background so a fullScreenCover presentation actually
+        // covers what's behind. Without it the parent (e.g. EPG grid +
+        // LiveSplitView sidebar) bleeds through and the page reads as
+        // a translucent overlay rather than a fresh screen.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DS.Colour.background.ignoresSafeArea())
         .navigationTitle(channel.name)
         .task {
             await loadPrograms()

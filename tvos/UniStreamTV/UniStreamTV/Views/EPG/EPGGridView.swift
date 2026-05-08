@@ -12,6 +12,11 @@ import Kingfisher
 struct EPGGridView: View {
     let channels: [Channel]
     let categoryNames: [String: String]
+    /// Optional callback so the parent can dismiss the EPG view —
+    /// `LiveSplitView` wires this to switch back to its default
+    /// category selection so the user always has a way out without
+    /// hunting for the Menu button.
+    var onBackToCategories: (() -> Void)? = nil
 
     @Environment(AppState.self) private var appState
 
@@ -27,18 +32,19 @@ struct EPGGridView: View {
     private let channelColumnWidth: CGFloat = 200
     private let headerHeight: CGFloat = 44
 
-    /// Anchor: now floored to the previous hour, minus 1 hour, so the
-    /// catch-up window (last hour of programming) is reachable on the
-    /// left.
+    /// Anchor: now floored to the previous hour, minus 4 hours, so
+    /// the user can scroll the timeline backwards into the catch-up
+    /// window (most providers offer last-24h replay; 4h covers the
+    /// "what was on this afternoon?" use case).
     private var gridStart: Date {
         let now = Date()
         let cal = Calendar.current
         let flooredHour = cal.dateInterval(of: .hour, for: now)?.start ?? now
-        return cal.date(byAdding: .hour, value: -1, to: flooredHour) ?? flooredHour
+        return cal.date(byAdding: .hour, value: -4, to: flooredHour) ?? flooredHour
     }
-    /// 9-hour window — enough for the rest of an evening + late night.
+    /// 12-hour window — covers an entire evening + buffer either side.
     private var gridEnd: Date {
-        Calendar.current.date(byAdding: .hour, value: 9, to: gridStart) ?? gridStart
+        Calendar.current.date(byAdding: .hour, value: 12, to: gridStart) ?? gridStart
     }
     private var totalMinutes: CGFloat {
         CGFloat(gridEnd.timeIntervalSince(gridStart) / 60)
@@ -81,6 +87,22 @@ struct EPGGridView: View {
 
     private var header: some View {
         HStack(spacing: DS.Spacing.md) {
+            // Explicit "Catégories" pill — focusable so the user has
+            // an obvious way back when the focus engine has trapped
+            // them inside the grid. Default-focused on appear so
+            // pressing Up on any cell will always reach it within 1-2
+            // hops.
+            if let onBack = onBackToCategories {
+                Button(action: onBack) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.caption)
+                        Text("Catégories")
+                    }
+                }
+                .buttonStyle(EPGHeaderButtonStyle())
+            }
+
             Text("Guide TV")
                 .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
@@ -326,6 +348,28 @@ private struct ProgramCellLabel: View {
         f.dateFormat = "HH:mm"
         return f
     }()
+}
+
+/// Pill style for the "Catégories" back button at the top of the
+/// EPG grid. Same visual language as the sort chips on the Films /
+/// Séries grids so the language stays consistent.
+private struct EPGHeaderButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(DS.Typography.bodyEmphasised)
+            .foregroundColor(isFocused ? .black : DS.Colour.textSecondary)
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.xs)
+            .background(
+                isFocused
+                ? AnyShapeStyle(Color.white)
+                : AnyShapeStyle(Color.white.opacity(0.10))
+            )
+            .clipShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? DS.Focus.chipScale : 1.0))
+            .animation(DS.Focus.animation, value: isFocused)
+    }
 }
 
 private struct EPGCellButtonStyle: ButtonStyle {

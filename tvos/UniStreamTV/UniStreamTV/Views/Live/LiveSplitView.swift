@@ -180,7 +180,23 @@ struct LiveSplitView: View {
             let favourites = viewModel.allChannels.filter { favIds.contains($0.streamId) }
             let rest = viewModel.allChannels.filter { !favIds.contains($0.streamId) }
             let slice = favourites + rest.prefix(50 - favourites.count)
-            EPGGridView(channels: Array(slice), categoryNames: catNames)
+            EPGGridView(
+                channels: Array(slice),
+                categoryNames: catNames,
+                onBackToCategories: {
+                    // Snap back to a sane default in the sidebar so
+                    // the user has a clear "exit" from the grid even
+                    // when the focus engine has been swallowed by
+                    // the timeline.
+                    if favoriteCount > 0 {
+                        selection = .favorites
+                    } else if let first = filteredCategories.first {
+                        selection = .category(first)
+                    } else {
+                        selection = .all
+                    }
+                }
+            )
         case .category(let cat):
             ChannelGridView(category: cat, viewModel: viewModel)
         }
