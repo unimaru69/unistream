@@ -167,27 +167,13 @@ struct LiveSplitView: View {
                 isAllChannels: true
             )
         case .epg:
-            let catNames = Dictionary(uniqueKeysWithValues: viewModel.categories.map {
-                ($0.categoryId, $0.categoryName)
-            })
-            // True 2-axis EPG grid (channels Y / time X). Limit to a
-            // reasonable channel slice — full 6k channel grid would
-            // be unusable. Prefer favourites first, then the next
-            // ~50 channels from the active category set.
-            let favIds = Set(appState.syncService.favorites.values
-                .filter { $0.isLive }
-                .compactMap { $0.resolvedStreamId })
-            let favourites = viewModel.allChannels.filter { favIds.contains($0.streamId) }
-            let rest = viewModel.allChannels.filter { !favIds.contains($0.streamId) }
-            let slice = favourites + rest.prefix(50 - favourites.count)
+            // The grid drives its own category + day selection from
+            // the LiveViewModel + EPGCache directly — no need to
+            // pre-slice channels here. The ranger callback gives the
+            // user an explicit "← Catégories" exit.
             EPGGridView(
-                channels: Array(slice),
-                categoryNames: catNames,
+                liveViewModel: viewModel,
                 onBackToCategories: {
-                    // Snap back to a sane default in the sidebar so
-                    // the user has a clear "exit" from the grid even
-                    // when the focus engine has been swallowed by
-                    // the timeline.
                     if favoriteCount > 0 {
                         selection = .favorites
                     } else if let first = filteredCategories.first {

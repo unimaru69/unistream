@@ -1,50 +1,75 @@
 import SwiftUI
 import Kingfisher
 
-/// True 2-axis EPG grid — channels on the Y axis, time on the X axis.
-/// Standard "guide programmes" layout used by Free, Bbox, Apple TV
-/// Channels: scroll horizontally to navigate the timeline, scroll
-/// vertically to switch channels, focus a cell to see programme info.
-///
-/// The earlier `EPGView` was a 2-step picker (category → channel
-/// list with the inline current program); this view is the temporal
-/// grid users explicitly asked for in Session 4b.
+/// True 2-axis EPG grid — channels on Y, time on X. The header lets
+/// the user switch category and day without leaving the view, and
+/// the underlying data is cached on `AppState.epgCache` so re-
+/// entering the screen doesn't re-fetch what's already there.
 struct EPGGridView: View {
-    let channels: [Channel]
-    let categoryNames: [String: String]
-    /// Optional callback so the parent can dismiss the EPG view —
-    /// `LiveSplitView` wires this to switch back to its default
-    /// category selection so the user always has a way out without
-    /// hunting for the Menu button.
+    @Bindable var liveViewModel: LiveViewModel
+    /// Optional dismiss callback — wired from `LiveSplitView` so the
+    /// "← Catégories" button has somewhere to go. Optional so the
+    /// view stays usable in a preview / standalone test context.
     var onBackToCategories: (() -> Void)? = nil
 
     @Environment(AppState.self) private var appState
 
-    @State private var epgViewModel: EPGViewModel?
     @FocusState private var focusedCell: EPGCellId?
     @State private var selectedProgram: ProgramSelection?
 
-    /// Geometry tokens. Tweakable but tuned for 1080p tvOS — at 5pt
-    /// per minute, an hour is 300pt wide → ~4-5h visible inside the
-    /// 1500pt rightmost area without scrolling.
+    /// Selected category id. `nil` = "Toutes les chaînes". Special
+    /// value `__favorites__` filters by live favourites.
+    @State private var selectedCategoryId: String? = "__favorites__"
+    /// Day offset relative to today: -3 → 3 days ago, 0 → today,
+    /// 2 → in 2 days. The strip allows -3 … +2.
+    @State private var dayOffset: Int = 0
+
     private let pixelsPerMinute: CGFloat = 5
     private let rowHeight: CGFloat = 80
     private let channelColumnWidth: CGFloat = 200
     private let headerHeight: CGFloat = 44
+    private let maxChannelsPerView: Int = 50
 
-    /// Anchor: now floored to the previous hour, minus 4 hours, so
-    /// the user can scroll the timeline backwards into the catch-up
-    /// window (most providers offer last-24h replay; 4h covers the
-    /// "what was on this afternoon?" use case).
-    private var gridStart: Date {
-        let now = Date()
-        let cal = Calendar.current
-        let flooredHour = cal.dateInterval(of: .hour, for: now)?.start ?? now
-        return cal.date(byAdding: .hour, value: -4, to: flooredHour) ?? flooredHour
+    // MARK: - Derived state
+
+    private var selectedDay: Date {
+        Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
     }
-    /// 12-hour window — covers an entire evening + buffer either side.
+    private var isToday: Bool { dayOffset == 0 }
+
+    /// Channels visible in the grid for the current category +
+    /// favourites slicing. Capped at `maxChannelsPerView` so the
+    /// load is bounded.
+    private var visibleChannels: [Channel] {
+        let pool: [Channel]
+        switch selectedCategoryId {
+        case "__favorites__":
+            let favIds = Set(appState.syncService.favorites.values
+                .filter { $0.isLive }
+                .compactMap { $0.resolvedStreamId })
+            pool = liveViewModel.allChannels.filter { favIds.contains($0.streamId) }
+        case let cat? where !cat.isEmpty:
+            pool = liveViewModel.allChannels.filter { $0.categoryId == cat }
+        default:
+            pool = liveViewModel.allChannels
+        }
+        return Array(pool.prefix(maxChannelsPerView))
+    }
+
+    /// Anchor: today gets a "now − 4h" window; other days are
+    /// pinned to the start of the calendar day.
+    private var gridStart: Date {
+        let cal = Calendar.current
+        if isToday {
+            let now = Date()
+            let flooredHour = cal.dateInterval(of: .hour, for: now)?.start ?? now
+            return cal.date(byAdding: .hour, value: -4, to: flooredHour) ?? flooredHour
+        } else {
+            return cal.startOfDay(for: selectedDay)
+        }
+    }
     private var gridEnd: Date {
-        Calendar.current.date(byAdding: .hour, value: 12, to: gridStart) ?? gridStart
+        Calendar.current.date(byAdding: .hour, value: isToday ? 12 : 24, to: gridStart) ?? gridStart
     }
     private var totalMinutes: CGFloat {
         CGFloat(gridEnd.timeIntervalSince(gridStart) / 60)
@@ -53,17 +78,29 @@ struct EPGGridView: View {
         totalMinutes * pixelsPerMinute
     }
 
+    private var dayKey: String { EPGCache.dayKey(for: selectedDay) }
+    private var isLoading: Bool { appState.epgCache.loadingDays.contains(dayKey) }
+    private var loadProgress: (Int, Int)? { appState.epgCache.loadProgress[dayKey] }
+
+    // MARK: - Body
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            dayPicker
+            categoryPicker
             ScrollView([.horizontal, .vertical], showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     timeMarkers
                         .frame(width: channelColumnWidth + totalGridWidth, height: headerHeight)
 
-                    ForEach(channels) { channel in
-                        channelRow(channel)
-                            .frame(width: channelColumnWidth + totalGridWidth, height: rowHeight)
+                    if visibleChannels.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(visibleChannels) { channel in
+                            channelRow(channel)
+                                .frame(width: channelColumnWidth + totalGridWidth, height: rowHeight)
+                        }
                     }
                 }
             }
@@ -71,27 +108,23 @@ struct EPGGridView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.Colour.background)
-        .task(id: channels.map(\.streamId).joined()) {
-            let vm = EPGViewModel(api: appState.api)
-            epgViewModel = vm
-            await vm.loadEPG(for: channels)
-        }
+        .task(id: cacheKey) { await loadIfNeeded() }
         .fullScreenCover(item: $selectedProgram) { sel in
-            // Reuse the existing channel detail for now — gives the
-            // user the programme list + reminders + replay hooks.
-            ChannelDetailView(channel: sel.channel, allChannels: channels)
+            ChannelDetailView(channel: sel.channel, allChannels: visibleChannels)
         }
+    }
+
+    /// Combined key so the .task fires when *either* day or category
+    /// changes — and only then. Stable on view re-creation, which
+    /// is what gives us the cache hit.
+    private var cacheKey: String {
+        "\(dayKey)|\(selectedCategoryId ?? "__all__")|\(visibleChannels.count)"
     }
 
     // MARK: - Header
 
     private var header: some View {
         HStack(spacing: DS.Spacing.md) {
-            // Explicit "Catégories" pill — focusable so the user has
-            // an obvious way back when the focus engine has trapped
-            // them inside the grid. Default-focused on appear so
-            // pressing Up on any cell will always reach it within 1-2
-            // hops.
             if let onBack = onBackToCategories {
                 Button(action: onBack) {
                     HStack(spacing: 6) {
@@ -106,10 +139,11 @@ struct EPGGridView: View {
             Text("Guide TV")
                 .font(DS.Typography.title1)
                 .foregroundColor(DS.Colour.textPrimary)
-            if let vm = epgViewModel, vm.isLoading {
+
+            if isLoading, let prog = loadProgress {
                 HStack(spacing: 6) {
                     ProgressView().tint(DS.Colour.textTertiary)
-                    Text("\(vm.loadedCount)/\(vm.totalCount)")
+                    Text("\(prog.0)/\(prog.1)")
                         .font(DS.Typography.caption)
                         .foregroundColor(DS.Colour.textTertiary)
                 }
@@ -124,21 +158,89 @@ struct EPGGridView: View {
         .padding(.bottom, DS.Spacing.sm)
     }
 
+    // MARK: - Day picker
+
+    private var dayPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Spacing.sm) {
+                ForEach(-3...2, id: \.self) { offset in
+                    Button {
+                        dayOffset = offset
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(dayLabel(for: offset))
+                                .font(DS.Typography.bodyEmphasised)
+                            Text(dayDateLabel(for: offset))
+                                .font(.caption2)
+                                .opacity(0.7)
+                        }
+                    }
+                    .buttonStyle(EPGChipButtonStyle(isSelected: dayOffset == offset))
+                }
+            }
+            .padding(.horizontal, DS.Padding.screenHorizontal)
+        }
+        .padding(.bottom, DS.Spacing.xs)
+        .focusSection()
+    }
+
+    private func dayLabel(for offset: Int) -> String {
+        switch offset {
+        case 0: return "Aujourd'hui"
+        case 1: return "Demain"
+        case -1: return "Hier"
+        default:
+            let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+            return weekdayFmt.string(from: date).capitalized
+        }
+    }
+    private func dayDateLabel(for offset: Int) -> String {
+        let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        return shortDateFmt.string(from: date)
+    }
+
+    // MARK: - Category picker
+
+    private var categoryPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Spacing.sm) {
+                Button {
+                    selectedCategoryId = "__favorites__"
+                } label: {
+                    Label("Favoris", systemImage: "heart.fill")
+                }
+                .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == "__favorites__"))
+
+                Button {
+                    selectedCategoryId = nil
+                } label: {
+                    Label("Toutes", systemImage: "tv.fill")
+                }
+                .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == nil))
+
+                ForEach(liveViewModel.categories, id: \.categoryId) { cat in
+                    Button {
+                        selectedCategoryId = cat.categoryId
+                    } label: {
+                        Text(cat.categoryName)
+                    }
+                    .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == cat.categoryId))
+                }
+            }
+            .padding(.horizontal, DS.Padding.screenHorizontal)
+        }
+        .padding(.bottom, DS.Spacing.sm)
+        .focusSection()
+    }
+
     // MARK: - Time markers row
 
     private var timeMarkers: some View {
         ZStack(alignment: .topLeading) {
-            // Empty corner above the channel column.
             HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: channelColumnWidth)
-                Rectangle()
-                    .fill(Color.white.opacity(0.04))
-                    .frame(width: totalGridWidth)
+                Rectangle().fill(Color.clear).frame(width: channelColumnWidth)
+                Rectangle().fill(Color.white.opacity(0.04)).frame(width: totalGridWidth)
             }
-
-            // 30-min ticks. Every 30 minutes from gridStart.
             ForEach(timeTicks, id: \.self) { date in
                 Text(timeFmt.string(from: date))
                     .font(DS.Typography.caption)
@@ -149,15 +251,16 @@ struct EPGGridView: View {
                         y: headerHeight / 2 - 8
                     )
             }
-
-            // Now indicator on the time markers — small triangle.
-            Image(systemName: "arrowtriangle.down.fill")
-                .font(.caption2)
-                .foregroundColor(DS.Colour.accentWarm)
-                .offset(
-                    x: channelColumnWidth + position(for: Date()) - 6,
-                    y: headerHeight - 16
-                )
+            // Now indicator only when we're showing today.
+            if isToday {
+                let nowX = position(for: Date())
+                if nowX >= 0 && nowX <= totalGridWidth {
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.caption2)
+                        .foregroundColor(DS.Colour.accentWarm)
+                        .offset(x: channelColumnWidth + nowX - 6, y: headerHeight - 16)
+                }
+            }
         }
     }
 
@@ -177,19 +280,13 @@ struct EPGGridView: View {
     @ViewBuilder
     private func channelRow(_ channel: Channel) -> some View {
         ZStack(alignment: .leading) {
-            // Row separator (subtle) so the eye can track horizontally.
             VStack(spacing: 0) {
                 Spacer()
-                Rectangle()
-                    .fill(Color.white.opacity(0.04))
-                    .frame(height: 1)
+                Rectangle().fill(Color.white.opacity(0.04)).frame(height: 1)
             }
-
             HStack(spacing: 0) {
-                channelCell(channel)
-                    .frame(width: channelColumnWidth, height: rowHeight)
-                programGrid(channel)
-                    .frame(width: totalGridWidth, height: rowHeight)
+                channelCell(channel).frame(width: channelColumnWidth, height: rowHeight)
+                programGrid(channel).frame(width: totalGridWidth, height: rowHeight)
             }
         }
     }
@@ -199,13 +296,11 @@ struct EPGGridView: View {
             KFImage(URL(string: channel.displayIcon))
                 .resizable()
                 .placeholder {
-                    Image(systemName: "tv")
-                        .foregroundColor(DS.Colour.textTertiary)
+                    Image(systemName: "tv").foregroundColor(DS.Colour.textTertiary)
                 }
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 50, height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-
             VStack(alignment: .leading, spacing: 2) {
                 Text(channel.name.strippingProviderTag)
                     .font(DS.Typography.caption)
@@ -214,7 +309,7 @@ struct EPGGridView: View {
                     .lineLimit(2)
                 if let num = channel.num {
                     Text("\(num)")
-                        .font(.system(size: 10, weight: .regular))
+                        .font(.system(size: 10))
                         .foregroundColor(DS.Colour.textTertiary)
                 }
             }
@@ -228,8 +323,6 @@ struct EPGGridView: View {
     @ViewBuilder
     private func programGrid(_ channel: Channel) -> some View {
         ZStack(alignment: .leading) {
-            // Row backdrop with vertical 30-min separators so the eye
-            // can align titles with the time markers.
             ForEach(timeTicks.dropFirst(), id: \.self) { date in
                 Rectangle()
                     .fill(Color.white.opacity(0.03))
@@ -237,19 +330,18 @@ struct EPGGridView: View {
                     .frame(maxHeight: .infinity)
                     .offset(x: position(for: date))
             }
-
-            // Vertical "now" line — only inside the visible window.
-            let nowX = position(for: Date())
-            if nowX >= 0 && nowX <= totalGridWidth {
-                Rectangle()
-                    .fill(DS.Colour.accentWarm)
-                    .frame(width: 2)
-                    .frame(maxHeight: .infinity)
-                    .offset(x: nowX)
+            if isToday {
+                let nowX = position(for: Date())
+                if nowX >= 0 && nowX <= totalGridWidth {
+                    Rectangle()
+                        .fill(DS.Colour.accentWarm)
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                        .offset(x: nowX)
+                }
             }
 
-            // Programme cells.
-            if let progs = epgViewModel?.epgData[channel.streamId] {
+            if let progs = appState.epgCache.programs(for: channel.streamId, day: selectedDay) {
                 ForEach(progs) { prog in
                     if let cell = layoutCell(for: prog) {
                         programCell(prog, channel: channel, layout: cell)
@@ -262,9 +354,6 @@ struct EPGGridView: View {
         .frame(width: totalGridWidth, height: rowHeight)
     }
 
-    /// Compute the on-screen position + width of a programme cell,
-    /// clipped to the visible grid window. Returns nil when the
-    /// programme falls entirely outside the grid.
     private struct CellLayout {
         let x: CGFloat
         let width: CGFloat
@@ -297,6 +386,43 @@ struct EPGGridView: View {
         return .upcoming
     }
 
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: DS.Spacing.sm) {
+                Image(systemName: "tv.slash")
+                    .font(.system(size: 36))
+                    .foregroundColor(DS.Colour.textTertiary)
+                Text(emptyStateMessage)
+                    .font(DS.Typography.body)
+                    .foregroundColor(DS.Colour.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(.top, DS.Spacing.huge)
+    }
+
+    private var emptyStateMessage: String {
+        switch selectedCategoryId {
+        case "__favorites__": return "Aucune chaîne dans vos favoris"
+        case nil: return "Aucune chaîne disponible"
+        default: return "Aucune chaîne dans cette catégorie"
+        }
+    }
+
+    // MARK: - Loaders
+
+    private func loadIfNeeded() async {
+        if liveViewModel.allChannels.isEmpty {
+            await liveViewModel.loadAllChannels()
+        }
+        let channels = visibleChannels
+        guard !channels.isEmpty else { return }
+        await appState.epgCache.loadDay(selectedDay, channels: channels, api: appState.api)
+    }
+
     // MARK: - Math helpers
 
     private func position(for date: Date) -> CGFloat {
@@ -311,10 +437,19 @@ struct EPGGridView: View {
         f.dateFormat = "HH:mm"
         return f
     }()
-
     private let rangeFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEE HH:mm"
+        return f
+    }()
+    private let weekdayFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+    private let shortDateFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM"
         return f
     }()
 }
@@ -334,7 +469,7 @@ private struct ProgramCellLabel: View {
                 .multilineTextAlignment(.leading)
             if let s = program.start {
                 Text(timeFmt.string(from: s))
-                    .font(.system(size: 10, weight: .regular))
+                    .font(.system(size: 10))
                     .foregroundColor(DS.Colour.textTertiary)
             }
         }
@@ -350,9 +485,8 @@ private struct ProgramCellLabel: View {
     }()
 }
 
-/// Pill style for the "Catégories" back button at the top of the
-/// EPG grid. Same visual language as the sort chips on the Films /
-/// Séries grids so the language stays consistent.
+// MARK: - Button styles
+
 private struct EPGHeaderButtonStyle: ButtonStyle {
     @Environment(\.isFocused) private var isFocused
     func makeBody(configuration: Configuration) -> some View {
@@ -369,6 +503,39 @@ private struct EPGHeaderButtonStyle: ButtonStyle {
             .clipShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? DS.Focus.chipScale : 1.0))
             .animation(DS.Focus.animation, value: isFocused)
+    }
+}
+
+private struct EPGChipButtonStyle: ButtonStyle {
+    let isSelected: Bool
+    @Environment(\.isFocused) private var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(DS.Typography.bodyEmphasised)
+            .foregroundColor(textColor)
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.xs)
+            .background(background)
+            .clipShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? DS.Focus.chipScale : 1.0))
+            .animation(DS.Focus.animation, value: isFocused)
+    }
+
+    private var textColor: Color {
+        if isFocused { return .black }
+        return isSelected ? DS.Colour.textPrimary : DS.Colour.textSecondary
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        if isFocused {
+            Color.white
+        } else if isSelected {
+            DS.Colour.accent
+        } else {
+            Color.white.opacity(0.10)
+        }
     }
 }
 

@@ -20,6 +20,9 @@ final class AppState {
     /// chose que j'ai dans mon catalogue ?") without forcing the
     /// user to navigate every category first.
     let catalogIndex = CatalogIndex()
+    /// Day-keyed EPG cache so the Guide TV grid doesn't re-fetch
+    /// the entire payload every time the user re-enters the view.
+    let epgCache = EPGCache()
 
     // Navigation state
     var isAuthenticated = false
