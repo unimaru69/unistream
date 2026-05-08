@@ -11,19 +11,60 @@ struct SeriesGridView: View {
     var focusedItem: Binding<SeriesItem?>? = nil
 
     @Environment(AppState.self) private var appState
-    /// Tracks which series card the focus engine is currently on.
     @FocusState private var focusedSeriesId: String?
-    /// Drives a fullScreenCover presentation instead of a
-    /// `NavigationLink` push. Push/pop on tvOS 17 caches the auto-
-    /// collapsed tab bar state and there's no public API to reset it
-    /// (`.toolbar(.visible, for: .tabBar)` is iOS 18+ in practice). A
-    /// modal cover dismisses cleanly without the parent ever scrolling,
-    /// so the tab bar's previous state is preserved.
     @State private var presentedSeries: SeriesItem?
+    @State private var sortMode: CatalogSortMode = .default
+    @State private var searchQuery: String = ""
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
     ]
+
+    /// Items after applying search filter + selected sort mode. Series
+    /// progress is tracked per-episode (`ep_<id>`), so "non vus" means
+    /// "no episode of this series has any progress" and "en cours"
+    /// means "at least one episode is in progress".
+    private var displayedItems: [SeriesItem] {
+        var items = viewModel.items
+        let q = searchQuery.trimmingCharacters(in: .whitespaces)
+        if !q.isEmpty {
+            items = items.filter { $0.name.localizedCaseInsensitiveContains(q) }
+        }
+        let progress = appState.syncService.watchProgress
+        switch sortMode {
+        case .default:
+            return items
+        case .recent:
+            return items.sorted { (a, b) in
+                (a.added ?? a.lastModified ?? "") > (b.added ?? b.lastModified ?? "")
+            }
+        case .alphabetical:
+            return items.sorted {
+                $0.name.cleanedTitleNoYear.localizedCaseInsensitiveCompare(
+                    $1.name.cleanedTitleNoYear) == .orderedAscending
+            }
+        case .unwatched:
+            return items.filter { series in
+                !progress.contains { (_, entry) in
+                    entry.seriesId == series.seriesId && entry.progress > 0.005
+                }
+            }
+        case .inProgress:
+            return items.filter { series in
+                progress.contains { (_, entry) in
+                    entry.seriesId == series.seriesId
+                        && entry.progress > 0.005
+                        && entry.progress < 0.95
+                }
+            }
+        }
+    }
+
+    /// Currently-focused SeriesItem — drives the bottom preview.
+    private var focusedSeries: SeriesItem? {
+        guard let id = focusedSeriesId else { return nil }
+        return viewModel.items.first(where: { $0.seriesId == id })
+    }
 
     var body: some View {
         Group {
@@ -36,103 +77,9 @@ struct SeriesGridView: View {
                     description: "Cette catégorie ne contient aucune série pour le moment."
                 )
             } else {
-                // ScrollViewReader so we can programmatically scroll back
-                // to the top when the user returns from the detail view
-                // — that's what re-reveals the floating tab bar that the
-                // tvOS TabView auto-hides when the grid is scrolled.
-                ScrollViewReader { proxy in
-                    ScrollView {
-                    HStack {
-                        Text(category.categoryName)
-                            .font(.largeTitle).bold()
-                            .padding(.horizontal, 40)
-                            .padding(.top, 20)
-                            .id("__top__")
-                        Spacer()
-                    }
-                    LazyVGrid(columns: columns, spacing: 30) {
-                        ForEach(viewModel.items) { item in
-                            Button {
-                                presentedSeries = item
-                            } label: {
-                                FocusableCardLabel(
-                                    title: item.name,
-                                    imageUrl: item.displayIcon,
-                                    aspectRatio: 2/3
-                                )
-                            }
-                            .buttonStyle(.tvCard)
-                            .focused($focusedSeriesId, equals: item.seriesId)
-                            .contextMenu {
-                                // Favorite toggle
-                                let isFav = appState.syncService.isFavorite(item.seriesId)
-                                Button {
-                                    appState.syncService.toggleFavorite(.from(series: item))
-                                } label: {
-                                    Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
-                                          systemImage: isFav ? "heart.slash" : "heart")
-                                }
-
-                                // Watchlist toggle — feeds the
-                                // À regarder shelf and stays in sync
-                                // with the Flutter watchlist.
-                                let isInWl = appState.syncService.isInWatchlist(item.seriesId)
-                                Button {
-                                    appState.syncService.toggleWatchlist(.from(series: item))
-                                } label: {
-                                    Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
-                                          systemImage: isInWl ? "bookmark.slash" : "bookmark")
-                                }
-
-                                // Add to collection (Premium)
-                                if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
-                                   !appState.collectionsService.collections.isEmpty {
-                                    Menu("Ajouter à une collection") {
-                                        ForEach(appState.collectionsService.collections(for: "series")) { collection in
-                                            Button {
-                                                appState.collectionsService.addToCollection(
-                                                    collectionId: collection.id,
-                                                    item: .from(series: item)
-                                                )
-                                            } label: {
-                                                Label(collection.name, systemImage: "folder")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(40)
-                    }
-                    // Scroll back to the top + reset focus to the first
-                    // card on re-appear (after a pop from
-                    // SeriesDetailView). Even at the top with the first
-                    // card focused the tab bar can stay collapsed —
-                    // tvOS caches the "scrolled" tab-bar state across
-                    // the push/pop boundary regardless of focus
-                    // position. We explicitly re-show it via the
-                    // `.toolbar(.visible, for: .tabBar)` modifier on
-                    // the parent view.
-                    .onAppear {
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(120))
-                            if let first = viewModel.items.first?.seriesId {
-                                focusedSeriesId = first
-                            }
-                            withAnimation { proxy.scrollTo("__top__", anchor: .top) }
-                        }
-                    }
-                }
+                gridContent
             }
         }
-        // Cinematic backdrop fades in/out as the focus engine moves
-        // across the grid. `animation(_:value:)` ties the opacity to
-        // the focused id so a different cover crossfades in.
-        // Push the focused item up to the parent split view so the
-        // backdrop can render full-screen (behind sidebar + floating
-        // tab bar). When the binding isn't supplied (grid used in
-        // isolation), the parent simply doesn't render a backdrop.
         .onChange(of: focusedSeriesId) { _, newId in
             guard let binding = focusedItem else { return }
             if let id = newId, let item = viewModel.items.first(where: { $0.seriesId == id }) {
@@ -141,15 +88,133 @@ struct SeriesGridView: View {
                 binding.wrappedValue = nil
             }
         }
-        // Modal cover (instead of NavigationLink push) so dismissing
-        // the detail view doesn't disturb the parent split view's tab
-        // bar visibility — see comment on `presentedSeries`.
         .fullScreenCover(item: $presentedSeries) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)
         }
-        // Keyed on category id — re-fires when the user picks a different category.
         .task(id: category.categoryId) {
             await viewModel.loadItems(for: category)
         }
+        .searchable(
+            text: $searchQuery,
+            prompt: "Rechercher dans \(category.categoryName)"
+        )
+    }
+
+    @ViewBuilder
+    private var gridContent: some View {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DS.Spacing.md) {
+                        Text(category.categoryName)
+                            .font(.largeTitle).bold()
+                            .padding(.horizontal, 40)
+                            .padding(.top, 20)
+                            .id("__top__")
+
+                        CatalogSortChips(selection: $sortMode)
+                            .padding(.horizontal, 40)
+                            .focusSection()
+
+                        if displayedItems.isEmpty {
+                            emptySearchResult
+                        } else {
+                            grid
+                        }
+
+                        Color.clear.frame(height: 180)
+                    }
+                }
+                .focusSection()
+
+                if let focused = focusedSeries {
+                    FocusedItemPreview(
+                        rawTitle: focused.name,
+                        coverUrl: focused.displayIcon,
+                        providerRating: focused.rating,
+                        kind: .tv
+                    )
+                    .id(focused.seriesId)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
+            .animation(DS.Motion.standard, value: focusedSeries?.seriesId)
+            .onAppear {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(120))
+                    if let first = displayedItems.first?.seriesId {
+                        focusedSeriesId = first
+                    }
+                    withAnimation { proxy.scrollTo("__top__", anchor: .top) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: 30) {
+            ForEach(displayedItems) { item in
+                Button {
+                    presentedSeries = item
+                } label: {
+                    FocusableCardLabel(
+                        title: item.name,
+                        imageUrl: item.displayIcon,
+                        aspectRatio: 2/3
+                    )
+                }
+                .buttonStyle(.tvCard)
+                .focused($focusedSeriesId, equals: item.seriesId)
+                .contextMenu {
+                    let isFav = appState.syncService.isFavorite(item.seriesId)
+                    Button {
+                        appState.syncService.toggleFavorite(.from(series: item))
+                    } label: {
+                        Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
+                              systemImage: isFav ? "heart.slash" : "heart")
+                    }
+
+                    let isInWl = appState.syncService.isInWatchlist(item.seriesId)
+                    Button {
+                        appState.syncService.toggleWatchlist(.from(series: item))
+                    } label: {
+                        Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
+                              systemImage: isInWl ? "bookmark.slash" : "bookmark")
+                    }
+
+                    if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
+                       !appState.collectionsService.collections.isEmpty {
+                        Menu("Ajouter à une collection") {
+                            ForEach(appState.collectionsService.collections(for: "series")) { collection in
+                                Button {
+                                    appState.collectionsService.addToCollection(
+                                        collectionId: collection.id,
+                                        item: .from(series: item)
+                                    )
+                                } label: {
+                                    Label(collection.name, systemImage: "folder")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 40)
+        .padding(.top, DS.Spacing.md)
+    }
+
+    private var emptySearchResult: some View {
+        VStack(spacing: DS.Spacing.md) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundColor(DS.Colour.textTertiary)
+            Text("Aucun résultat pour \"\(searchQuery)\"")
+                .font(DS.Typography.body)
+                .foregroundColor(DS.Colour.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, DS.Spacing.xxl)
     }
 }
