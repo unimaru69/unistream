@@ -85,15 +85,16 @@ final class EPGCache {
         let key = Self.dayKey(for: day)
         let isToday = Calendar.current.isDateInToday(day)
 
-        var dayMap = byDay[key] ?? [:]
+        // Snapshot for filtering — but we never mutate a *local copy*
+        // of `byDay[key]` and write it back in one shot. That's what
+        // caused the race in the previous version: two concurrent
+        // `loadDay` calls (e.g. category switch mid-fetch) each held
+        // their own local dictionary, then alternated writes to the
+        // observable, clobbering each other's channel data.
+        let snapshotMap = byDay[key] ?? [:]
         let inFlight = inFlightChannels[key] ?? []
-        // Skip channels that are already cached OR currently being
-        // fetched by another in-progress loadDay call. The previous
-        // version bailed globally on `loadingDays.contains(key)`,
-        // which meant a category switch mid-fetch silently dropped
-        // every channel of the new category.
         let toFetch = channels.filter {
-            dayMap[$0.streamId] == nil && !inFlight.contains($0.streamId)
+            snapshotMap[$0.streamId] == nil && !inFlight.contains($0.streamId)
         }
         guard !toFetch.isEmpty else {
             logger.debug("EPGCache: \(key) already cached/in-flight for all \(channels.count) requested channels")
@@ -131,10 +132,14 @@ final class EPGCache {
                     }
                 }
                 for await (sid, progs) in group {
-                    dayMap[sid] = progs
-                    byDay[key] = dayMap // emit progressively so the
-                    // grid populates as channels land instead of all-
-                    // at-once. @Observable picks up each write.
+                    // Read the *latest* dayMap right before merging so
+                    // we never overwrite another in-flight loader's
+                    // contributions. Single-key writes keep
+                    // @Observable consumers updating per channel.
+                    var latest = byDay[key] ?? [:]
+                    latest[sid] = progs
+                    byDay[key] = latest
+
                     var current = inFlightChannels[key] ?? []
                     current.remove(sid)
                     inFlightChannels[key] = current
@@ -150,6 +155,7 @@ final class EPGCache {
             inFlightChannels[key] = nil
         }
         if isToday { lastTodayFetch = Date() }
-        logger.info("EPGCache: \(key) cached for \(dayMap.count) channels")
+        let cachedCount = self.byDay[key]?.count ?? 0
+        logger.info("EPGCache: \(key) cached for \(cachedCount) channels")
     }
 }

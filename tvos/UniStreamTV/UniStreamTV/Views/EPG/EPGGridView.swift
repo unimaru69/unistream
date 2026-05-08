@@ -87,8 +87,7 @@ struct EPGGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            dayPicker
-            categoryPicker
+            filterBar
             ScrollView([.horizontal, .vertical], showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     timeMarkers
@@ -158,56 +157,35 @@ struct EPGGridView: View {
         .padding(.bottom, DS.Spacing.sm)
     }
 
-    // MARK: - Day picker
+    // MARK: - Filter bar (day + category in a single row)
 
-    private var dayPicker: some View {
+    /// Single horizontal row combining day chips on the left and
+    /// category chips on the right, separated by a thin divider.
+    /// Stacked rows (the previous design) trapped the tvOS focus
+    /// engine: pressing ↑ from a category chip didn't escape back to
+    /// the day row. With one row, ↑↓ only ever hops between the
+    /// filter bar and the grid below — much simpler for the engine.
+    private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: DS.Spacing.sm) {
+                // Day chips
                 ForEach(-3...2, id: \.self) { offset in
                     Button {
                         dayOffset = offset
                     } label: {
-                        VStack(spacing: 2) {
-                            Text(dayLabel(for: offset))
-                                .font(DS.Typography.bodyEmphasised)
-                            Text(dayDateLabel(for: offset))
-                                .font(.caption2)
-                                .opacity(0.7)
-                        }
+                        Text(dayLabelInline(for: offset))
                     }
                     .buttonStyle(EPGChipButtonStyle(isSelected: dayOffset == offset))
                 }
-            }
-            .padding(.horizontal, DS.Padding.screenHorizontal)
-        }
-        .padding(.bottom, DS.Spacing.xs)
-        // No `.focusSection()` here on purpose — wrapping each chip
-        // row in its own section trapped focus inside it: pressing
-        // ↑ from the category row didn't escape back up to the day
-        // row. Letting the focus engine see them as a flat vertical
-        // list of chips fixes the traversal.
-    }
 
-    private func dayLabel(for offset: Int) -> String {
-        switch offset {
-        case 0: return "Aujourd'hui"
-        case 1: return "Demain"
-        case -1: return "Hier"
-        default:
-            let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
-            return weekdayFmt.string(from: date).capitalized
-        }
-    }
-    private func dayDateLabel(for offset: Int) -> String {
-        let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
-        return shortDateFmt.string(from: date)
-    }
+                // Visual separator between day filters and category
+                // filters — keeps the eye oriented while scrolling.
+                Rectangle()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 1, height: 24)
+                    .padding(.horizontal, DS.Spacing.xs)
 
-    // MARK: - Category picker
-
-    private var categoryPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DS.Spacing.sm) {
+                // Category chips
                 Button {
                     selectedCategoryId = "__favorites__"
                 } label: {
@@ -234,8 +212,21 @@ struct EPGGridView: View {
             .padding(.horizontal, DS.Padding.screenHorizontal)
         }
         .padding(.bottom, DS.Spacing.sm)
-        // See note on `dayPicker` — no .focusSection() so the focus
-        // engine can move ↑ from this row into the day row.
+    }
+
+    /// Single-line day label combining relative term + date —
+    /// "Aujourd'hui · 8 mai" / "Hier · 7 mai" / "ven · 9 mai".
+    private func dayLabelInline(for offset: Int) -> String {
+        let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        let dateStr = shortDateFmt.string(from: date)
+        switch offset {
+        case 0: return "Aujourd'hui · \(dateStr)"
+        case 1: return "Demain · \(dateStr)"
+        case -1: return "Hier · \(dateStr)"
+        default:
+            let weekday = weekdayFmt.string(from: date).capitalized
+            return "\(weekday) · \(dateStr)"
+        }
     }
 
     // MARK: - Time markers row
