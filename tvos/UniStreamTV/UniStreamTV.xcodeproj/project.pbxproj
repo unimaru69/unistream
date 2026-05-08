@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		01C209C0F57146C60D378C85 /* ParentalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E707B4DAC31BC40B877C8DD /* ParentalService.swift */; };
 		027D10CB35877B7B2E2881E3 /* String+Base64.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B558E30E5A11052968616A /* String+Base64.swift */; };
+		0747D767D5226D36558DAA76 /* EPGGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83EC71FAE38D5CF1CDA263F9 /* EPGGridView.swift */; };
 		07601BF835CD06ACA8C2E3F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E868467221E5324BDE5EB5F /* SettingsView.swift */; };
 		08207ABB4F2ABA12FA5FCFEF /* Feature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9B41B3186FB8546EEE4897 /* Feature.swift */; };
 		0BBBFFED2409C2EDE8D81694 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 13493CCA54D704317A960906 /* Supabase */; };
@@ -206,6 +207,7 @@
 		8264B86EFECAACF504505140 /* PlayerPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPresenter.swift; sourceTree = "<group>"; };
 		829B54BD78A0F43891464D71 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		831E830AE5C134212C6B264B /* FocusedItemPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedItemPreview.swift; sourceTree = "<group>"; };
+		83EC71FAE38D5CF1CDA263F9 /* EPGGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGGridView.swift; sourceTree = "<group>"; };
 		86F40537748B9D0F7C2C251D /* EpgProgram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpgProgram.swift; sourceTree = "<group>"; };
 		89CFF589A164C8FEC186A7E9 /* HomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabView.swift; sourceTree = "<group>"; };
 		8B145C105C58D8FFCEFADE90 /* TMDBViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBViewModel.swift; sourceTree = "<group>"; };
@@ -486,6 +488,7 @@
 			isa = PBXGroup;
 			children = (
 				CF5F50D4F0C4ACFB57A7A951 /* ChannelDetailView.swift */,
+				83EC71FAE38D5CF1CDA263F9 /* EPGGridView.swift */,
 				5385194B16C126435316CB1E /* EPGView.swift */,
 			);
 			path = EPG;
@@ -761,6 +764,7 @@
 				498620BBA9E626DCA6DDF8C2 /* ContinueWatchingRow.swift in Sources */,
 				4D359C8BABE1899006585AC5 /* DemoMode.swift in Sources */,
 				9DE50478D2783589389B7D9E /* DesignSystem.swift in Sources */,
+				0747D767D5226D36558DAA76 /* EPGGridView.swift in Sources */,
 				7F72E6424C41D1A9956BD2C6 /* EPGReminderService.swift in Sources */,
 				C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */,
 				7258D547473FF8BE255E5094 /* EPGViewModel.swift in Sources */,

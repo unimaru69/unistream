@@ -170,7 +170,17 @@ struct LiveSplitView: View {
             let catNames = Dictionary(uniqueKeysWithValues: viewModel.categories.map {
                 ($0.categoryId, $0.categoryName)
             })
-            EPGView(channels: viewModel.allChannels, categoryNames: catNames)
+            // True 2-axis EPG grid (channels Y / time X). Limit to a
+            // reasonable channel slice — full 6k channel grid would
+            // be unusable. Prefer favourites first, then the next
+            // ~50 channels from the active category set.
+            let favIds = Set(appState.syncService.favorites.values
+                .filter { $0.isLive }
+                .compactMap { $0.resolvedStreamId })
+            let favourites = viewModel.allChannels.filter { favIds.contains($0.streamId) }
+            let rest = viewModel.allChannels.filter { !favIds.contains($0.streamId) }
+            let slice = favourites + rest.prefix(50 - favourites.count)
+            EPGGridView(channels: Array(slice), categoryNames: catNames)
         case .category(let cat):
             ChannelGridView(category: cat, viewModel: viewModel)
         }
