@@ -371,31 +371,35 @@ final class VLCLivePlayerViewController: UIViewController {
     }
 
     private func showAudioPicker() {
-        let picker = UIAlertController(title: "Piste audio", message: nil, preferredStyle: .actionSheet)
         let names = mediaPlayer.audioTrackNames as? [String] ?? []
         let ids = mediaPlayer.audioTrackIndexes as? [NSNumber] ?? []
-        for (name, id) in zip(names, ids) {
-            let mark = (id.int32Value == mediaPlayer.currentAudioTrackIndex) ? "✓ " : ""
-            picker.addAction(UIAlertAction(title: "\(mark)\(name)", style: .default) { [weak self] _ in
-                self?.mediaPlayer.currentAudioTrackIndex = id.int32Value
-            })
+        let options: [TrackPickerView.Option] = zip(names, ids).map { name, id in
+            TrackPickerView.Option(id: id.int32Value, label: name, detail: nil)
         }
-        picker.addAction(UIAlertAction(title: "Retour", style: .cancel))
-        present(picker, animated: true)
+        presentTrackPicker(
+            title: "Piste audio",
+            options: options,
+            selectedId: mediaPlayer.currentAudioTrackIndex,
+            allowOff: false
+        ) { [weak self] id in
+            self?.mediaPlayer.currentAudioTrackIndex = id
+        }
     }
 
     private func showSubtitlePicker() {
-        let picker = UIAlertController(title: "Sous-titres", message: nil, preferredStyle: .actionSheet)
         let names = mediaPlayer.videoSubTitlesNames as? [String] ?? []
         let ids = mediaPlayer.videoSubTitlesIndexes as? [NSNumber] ?? []
-        for (name, id) in zip(names, ids) {
-            let mark = (id.int32Value == mediaPlayer.currentVideoSubTitleIndex) ? "✓ " : ""
-            picker.addAction(UIAlertAction(title: "\(mark)\(name)", style: .default) { [weak self] _ in
-                self?.mediaPlayer.currentVideoSubTitleIndex = id.int32Value
-            })
+        let options: [TrackPickerView.Option] = zip(names, ids).map { name, id in
+            TrackPickerView.Option(id: id.int32Value, label: name, detail: nil)
         }
-        picker.addAction(UIAlertAction(title: "Retour", style: .cancel))
-        present(picker, animated: true)
+        presentTrackPicker(
+            title: "Sous-titres",
+            options: options,
+            selectedId: mediaPlayer.currentVideoSubTitleIndex,
+            allowOff: true
+        ) { [weak self] id in
+            self?.mediaPlayer.currentVideoSubTitleIndex = id
+        }
     }
 
     private func cycleAspectRatio() {

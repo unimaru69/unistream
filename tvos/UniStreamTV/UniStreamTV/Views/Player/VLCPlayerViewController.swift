@@ -443,43 +443,35 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     private func showAudioPicker() {
-        let alert = UIAlertController(title: "Piste audio", message: nil, preferredStyle: .actionSheet)
         let names = mediaPlayer.audioTrackNames as? [String] ?? []
         let indexes = mediaPlayer.audioTrackIndexes as? [Int32] ?? []
-        let current = mediaPlayer.currentAudioTrackIndex
-
-        for (i, name) in names.enumerated() where i < indexes.count {
-            let idx = indexes[i]
-            let label = idx == current ? "✓ \(name)" : name
-            alert.addAction(UIAlertAction(title: label, style: .default) { [weak self] _ in
-                self?.mediaPlayer.currentAudioTrackIndex = idx
-            })
+        let options: [TrackPickerView.Option] = zip(names, indexes).map { name, idx in
+            TrackPickerView.Option(id: idx, label: name, detail: nil)
         }
-        alert.addAction(UIAlertAction(title: "Retour", style: .cancel))
-        present(alert, animated: true)
+        presentTrackPicker(
+            title: "Piste audio",
+            options: options,
+            selectedId: mediaPlayer.currentAudioTrackIndex,
+            allowOff: false
+        ) { [weak self] id in
+            self?.mediaPlayer.currentAudioTrackIndex = id
+        }
     }
 
     private func showSubtitlePicker() {
-        let alert = UIAlertController(title: "Sous-titres", message: nil, preferredStyle: .actionSheet)
         let names = mediaPlayer.videoSubTitlesNames as? [String] ?? []
         let indexes = mediaPlayer.videoSubTitlesIndexes as? [Int32] ?? []
-        let current = mediaPlayer.currentVideoSubTitleIndex
-
-        // Off option
-        let isOff = current == -1
-        alert.addAction(UIAlertAction(title: isOff ? "✓ Désactivés" : "Désactivés", style: .default) { [weak self] _ in
-            self?.mediaPlayer.currentVideoSubTitleIndex = -1
-        })
-
-        for (i, name) in names.enumerated() where i < indexes.count {
-            let idx = indexes[i]
-            let label = idx == current ? "✓ \(name)" : name
-            alert.addAction(UIAlertAction(title: label, style: .default) { [weak self] _ in
-                self?.mediaPlayer.currentVideoSubTitleIndex = idx
-            })
+        let options: [TrackPickerView.Option] = zip(names, indexes).map { name, idx in
+            TrackPickerView.Option(id: idx, label: name, detail: nil)
         }
-        alert.addAction(UIAlertAction(title: "Retour", style: .cancel))
-        present(alert, animated: true)
+        presentTrackPicker(
+            title: "Sous-titres",
+            options: options,
+            selectedId: mediaPlayer.currentVideoSubTitleIndex,
+            allowOff: true
+        ) { [weak self] id in
+            self?.mediaPlayer.currentVideoSubTitleIndex = id
+        }
     }
 
     private var aspectRatioIndex = 0

@@ -26,6 +26,7 @@
 		2070D518A2ADBD63D8AA6E26 /* CastFilmographyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440F74C477BCD53382BEC1DC /* CastFilmographyView.swift */; };
 		26363E96DCCDB7232E13C823 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5E765218D051555C0422BC /* CollectionsView.swift */; };
 		27470FAD91871586A5AAB276 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829B54BD78A0F43891464D71 /* LoginView.swift */; };
+		2A00549F237BEAC8E9BADA96 /* TrackPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE6BD3767D6AD0F42CC6E58 /* TrackPickerView.swift */; };
 		2D6BE5C54384C5AA93C12E12 /* InlineSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59DEB4AF326646995E8A570B /* InlineSearchField.swift */; };
 		31EE19C6604182185813B0E8 /* AccountInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788A2CCE0A1CDD5AC39D5B61 /* AccountInfoTests.swift */; };
 		33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD553224771A148184A803D /* HomeHeroBanner.swift */; };
@@ -240,6 +241,7 @@
 		C2077BDA4546954E744A4079 /* SubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionView.swift; sourceTree = "<group>"; };
 		C28E382440D792AE090F1428 /* VODGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODGridView.swift; sourceTree = "<group>"; };
 		CDD553224771A148184A803D /* HomeHeroBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeroBanner.swift; sourceTree = "<group>"; };
+		CEE6BD3767D6AD0F42CC6E58 /* TrackPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPickerView.swift; sourceTree = "<group>"; };
 		CF5F50D4F0C4ACFB57A7A951 /* ChannelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelDetailView.swift; sourceTree = "<group>"; };
 		CF703BD873DE264823660A7E /* PremiumGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumGate.swift; sourceTree = "<group>"; };
 		D1F8C32DD3D1D784098988B7 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
@@ -395,6 +397,7 @@
 				8264B86EFECAACF504505140 /* PlayerPresenter.swift */,
 				D1F8C32DD3D1D784098988B7 /* PlayerView.swift */,
 				F2933C0B3DDF31B332BB7E91 /* ResumeConfirmView.swift */,
+				CEE6BD3767D6AD0F42CC6E58 /* TrackPickerView.swift */,
 				E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */,
 				EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */,
 			);
@@ -833,6 +836,7 @@
 				6A9FA16BEC126790811F010A /* TMDBViewModel.swift in Sources */,
 				17F480142B20CB11F47244DA /* TVButtonStyle.swift in Sources */,
 				DC2A32795471F291CEE61246 /* TitleYearParser.swift in Sources */,
+				2A00549F237BEAC8E9BADA96 /* TrackPickerView.swift in Sources */,
 				8BF843686CDE1A063FCDD98D /* URLSession+Retry.swift in Sources */,
 				1B224F4FD9FB7D03D2E64D1F /* UniStreamTVApp.swift in Sources */,
 				A8224D1D857EA6D962988122 /* VLCLivePlayerViewController.swift in Sources */,
