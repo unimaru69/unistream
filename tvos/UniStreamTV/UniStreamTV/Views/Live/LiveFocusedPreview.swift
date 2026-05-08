@@ -26,37 +26,37 @@ struct LiveFocusedPreview: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Same accent rule as FocusedItemPreview for visual
-            // continuity — clearly delimits the panel from the grid.
-            DS.Colour.accent.opacity(0.6)
-                .frame(height: 2)
-
-            HStack(alignment: .top, spacing: DS.Spacing.lg) {
-                artwork
-                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-                    channelLine
-                    if let prog = currentProgram {
-                        currentProgramBlock(prog)
-                    } else {
-                        Text("Aucune information de programme")
-                            .font(DS.Typography.body)
-                            .foregroundColor(DS.Colour.textTertiary)
-                    }
-                    if let next = nextProgram {
-                        nextProgramLine(next)
-                    }
+        HStack(alignment: .top, spacing: DS.Spacing.lg) {
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                channelLine
+                if let prog = currentProgram {
+                    currentProgramBlock(prog)
+                } else {
+                    Text("Aucune information de programme")
+                        .font(DS.Typography.body)
+                        .foregroundColor(DS.Colour.textTertiary)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                if let next = nextProgram {
+                    nextProgramLine(next)
+                }
             }
-            .padding(.horizontal, DS.Padding.screenHorizontal)
-            .padding(.vertical, DS.Spacing.md)
+            .frame(maxWidth: 760, alignment: .leading)
+            artwork
         }
+        .padding(.horizontal, DS.Padding.screenHorizontal)
+        .padding(.vertical, DS.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .background(
-            ZStack {
-                Rectangle().fill(.regularMaterial)
-                Rectangle().fill(DS.Colour.background.opacity(0.55))
-            }
+            LinearGradient(
+                colors: [
+                    DS.Colour.background.opacity(0.0),
+                    DS.Colour.background.opacity(0.75),
+                    DS.Colour.background.opacity(0.95),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         )
         .task(id: currentProgram?.title) {
             // Only attempt a TMDB lookup when there's a current program

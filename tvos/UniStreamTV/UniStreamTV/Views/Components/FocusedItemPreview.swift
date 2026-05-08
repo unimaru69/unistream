@@ -35,51 +35,53 @@ struct FocusedItemPreview: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Thin accent bar on top so the panel reads as a clean
-            // boundary against the grid behind. Without it the
-            // gradient blended into the cards and the user couldn't
-            // tell where the preview started.
-            DS.Colour.accent.opacity(0.6)
-                .frame(height: 2)
+        // Right-anchored content over a soft vertical gradient — no
+        // accent rule, no contained rectangle. The grid above stays
+        // visible (just dimmed by the gradient) so the preview feels
+        // like part of the same surface rather than a floating box.
+        HStack(alignment: .top, spacing: DS.Spacing.lg) {
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                Text(rawTitle.cleanedTitleNoYear)
+                    .font(DS.Typography.title2)
+                    .foregroundColor(DS.Colour.textPrimary)
+                    .lineLimit(1)
 
-            HStack(alignment: .top, spacing: DS.Spacing.lg) {
-                cover
-                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-                    Text(rawTitle.cleanedTitleNoYear)
-                        .font(DS.Typography.title2)
-                        .foregroundColor(DS.Colour.textPrimary)
-                        .lineLimit(1)
+                metadataStrip
 
-                    metadataStrip
-
-                    if !synopsis.isEmpty {
-                        Text(synopsis)
-                            .font(DS.Typography.body)
-                            .foregroundColor(DS.Colour.textSecondary)
-                            .lineLimit(3)
-                    } else if tmdbVM.isLoading {
-                        Text("Chargement de la synopsis…")
-                            .font(DS.Typography.caption)
-                            .foregroundColor(DS.Colour.textTertiary)
-                    } else {
-                        Color.clear.frame(height: 60)
-                    }
+                if !synopsis.isEmpty {
+                    Text(synopsis)
+                        .font(DS.Typography.body)
+                        .foregroundColor(DS.Colour.textSecondary)
+                        .lineLimit(3)
+                } else if tmdbVM.isLoading {
+                    Text("Chargement de la synopsis…")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Colour.textTertiary)
+                } else {
+                    Color.clear.frame(height: 60)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(.horizontal, DS.Padding.screenHorizontal)
-            .padding(.vertical, DS.Spacing.md)
+            .frame(maxWidth: 760, alignment: .leading)
+            cover
         }
+        .padding(.horizontal, DS.Padding.screenHorizontal)
+        .padding(.vertical, DS.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .background(
-            // Solid + blur stack so the cards behind don't bleed
-            // through. The gradient in the previous version wasn't
-            // strong enough — the user reported the preview was
-            // "peu lisible en overlay".
-            ZStack {
-                Rectangle().fill(.regularMaterial)
-                Rectangle().fill(DS.Colour.background.opacity(0.55))
-            }
+            // Soft transparent → dark gradient. The cards above keep
+            // showing through the top of the band; the bottom fades
+            // fully into DS.Colour.background so the title + synopsis
+            // stay legible without a hard rectangle drawn behind them.
+            LinearGradient(
+                colors: [
+                    DS.Colour.background.opacity(0.0),
+                    DS.Colour.background.opacity(0.75),
+                    DS.Colour.background.opacity(0.95),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         )
         .task(id: rawTitle) {
             await tmdbVM.load(rawTitle: rawTitle, kind: kind)
