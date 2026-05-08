@@ -173,6 +173,7 @@ struct LiveSplitView: View {
             // user an explicit "← Catégories" exit.
             EPGGridView(
                 liveViewModel: viewModel,
+                epgCache: appState.epgCache,
                 onBackToCategories: {
                     if favoriteCount > 0 {
                         selection = .favorites

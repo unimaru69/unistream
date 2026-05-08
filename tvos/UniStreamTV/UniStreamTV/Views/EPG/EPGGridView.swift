@@ -7,6 +7,15 @@ import Kingfisher
 /// entering the screen doesn't re-fetch what's already there.
 struct EPGGridView: View {
     @Bindable var liveViewModel: LiveViewModel
+    /// Direct binding to the cache — passing the reference explicitly
+    /// (rather than reaching for `appState.epgCache` from inside the
+    /// body) makes the SwiftUI Observation framework track byDay
+    /// changes on this exact instance. The previous version's
+    /// nested `appState.epgCache.programs(...)` access didn't
+    /// trigger re-renders reliably when the cache mutated, which is
+    /// why the grid stayed empty even though the loader logged
+    /// "cached for 51 channels".
+    @Bindable var epgCache: EPGCache
     /// Optional dismiss callback — wired from `LiveSplitView` so the
     /// "← Catégories" button has somewhere to go. Optional so the
     /// view stays usable in a preview / standalone test context.
@@ -84,8 +93,8 @@ struct EPGGridView: View {
     }
 
     private var dayKey: String { EPGCache.dayKey(for: selectedDay) }
-    private var isLoading: Bool { appState.epgCache.loadingDays.contains(dayKey) }
-    private var loadProgress: (Int, Int)? { appState.epgCache.loadProgress[dayKey] }
+    private var isLoading: Bool { epgCache.loadingDays.contains(dayKey) }
+    private var loadProgress: (Int, Int)? { epgCache.loadProgress[dayKey] }
 
     // MARK: - Body
 
@@ -342,7 +351,7 @@ struct EPGGridView: View {
                 }
             }
 
-            if let progs = appState.epgCache.programs(for: channel.streamId, day: selectedDay) {
+            if let progs = epgCache.programs(for: channel.streamId, day: selectedDay) {
                 ForEach(progs) { prog in
                     if let cell = layoutCell(for: prog) {
                         programCell(prog, channel: channel, layout: cell)
@@ -421,7 +430,7 @@ struct EPGGridView: View {
         }
         let channels = visibleChannels
         guard !channels.isEmpty else { return }
-        await appState.epgCache.loadDay(selectedDay, channels: channels, api: appState.api)
+        await epgCache.loadDay(selectedDay, channels: channels, api: appState.api)
     }
 
     // MARK: - Math helpers
