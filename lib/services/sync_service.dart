@@ -364,7 +364,29 @@ class SyncService {
                 onRemoteChange(table);
               },
             )
-            .subscribe();
+            // Subscribe with a status callback so a missing
+            // `supabase_realtime` publication on the project (or a
+            // dead WebSocket) shows up clearly in the logs instead
+            // of silently failing. SUBSCRIBED = good; CHANNEL_ERROR
+            // / TIMED_OUT / CLOSED = the problem.
+            .subscribe((status, error) {
+              switch (status) {
+                case RealtimeSubscribeStatus.subscribed:
+                  AppLogger.info(LogModule.sync,
+                      'Realtime SUBSCRIBED to $table');
+                case RealtimeSubscribeStatus.channelError:
+                  AppLogger.warning(LogModule.sync,
+                      'Realtime CHANNEL_ERROR on $table — is the table in the supabase_realtime publication?',
+                      error: error);
+                case RealtimeSubscribeStatus.timedOut:
+                  AppLogger.warning(LogModule.sync,
+                      'Realtime TIMED_OUT on $table',
+                      error: error);
+                case RealtimeSubscribeStatus.closed:
+                  AppLogger.info(LogModule.sync,
+                      'Realtime CLOSED on $table');
+              }
+            });
         _channels.add(channel);
       } catch (e, st) {
         AppLogger.warning(

@@ -279,14 +279,58 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
           AppLogger.info(LogModule.sync, 'App paused — realtime stopped');
         }
       case AppLifecycleState.resumed:
+        // ALWAYS pull on resume — not just when we paused.
+        //
+        // Two reasons:
+        //   1. Realtime subscriptions can silently die (network drop,
+        //      Supabase project realtime publication missing for a
+        //      table, …). The previous "only re-init if paused"
+        //      branch left iOS sitting on stale data forever in
+        //      those cases. The user had to log out/in to force a
+        //      refresh — exactly the symptom reported.
+        //   2. Coming back from a tvOS-side mutation, the iPad has
+        //      no way to know what changed; a foreground re-pull is
+        //      cheap insurance.
         if (_syncPaused) {
           _syncPaused = false;
-          _initSync();
-          AppLogger.info(LogModule.sync, 'App resumed — realtime restarted');
+          _initSync(); // full re-init incl. migration + realtime
+        } else {
+          // Already running — just refresh the snapshot.
+          unawaited(_refreshOnResume());
         }
+        AppLogger.info(LogModule.sync, 'App resumed — pull refresh triggered');
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         break;
+    }
+  }
+
+  /// Lightweight resume refresh — pulls remote data and applies the
+  /// authoritative merge without re-running migration / re-subscribing
+  /// realtime. Skips silently when not authenticated.
+  Future<void> _refreshOnResume() async {
+    if (!AuthService.instance.isAuthenticated) return;
+    try {
+      final sync = SyncService.instance;
+      final remote = await sync.pullAll();
+      await Future.wait([
+        ref.read(favoritesProvider.notifier)
+            .mergeFromRemote(remote.favorites, authoritative: true),
+        ref.read(watchlistProvider.notifier)
+            .mergeFromRemote(remote.watchlist, authoritative: true),
+        ref.read(collectionsProvider.notifier)
+            .mergeFromRemote(remote.collections),
+        WatchProgress
+            .mergeFromRemote(remote.watchProgress, authoritative: true)
+            .then((changed) {
+          if (changed) ref.invalidate(watchProgressProvider);
+        }),
+      ]);
+      AppLogger.debug(LogModule.sync, 'Resume refresh complete');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.sync,
+          'Resume refresh failed (offline? auth not ready?)',
+          error: e, stackTrace: st);
     }
   }
 
