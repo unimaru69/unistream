@@ -167,10 +167,12 @@ enum PlayerPresenter {
 
         let player = AVPlayer(url: url)
         player.applyDefaultSubtitleStyle()
-        if let ms = resumeFromMs, ms > 0 {
-            let time = CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600)
-            player.seek(to: time)
-        }
+        // NOTE: do NOT seek here. AVPlayer silently drops a seek issued
+        // before the player item's duration has been resolved (the asset
+        // hasn't loaded yet at this point), which manifested as "Reprendre
+        // restarts from 0" right after the resume-confirm dialog. We seek
+        // inside the present completion below with a proper completion
+        // handler so playback only starts once the seek has committed.
 
         let playerVC = EnhancedPlayerViewController()
         playerVC.player = player
@@ -206,8 +208,20 @@ enum PlayerPresenter {
         objc_setAssociatedObject(playerVC, "fallbackHandler", fallbackHandler, .OBJC_ASSOCIATION_RETAIN)
 
         rootVC.present(playerVC, animated: true) {
-            player.play()
-            playerVC.progressTracker?.start()
+            // Seek before play so we never flash a frame at t=0. Use the
+            // completion handler so playback only starts once the seek
+            // has actually committed; without it AVPlayer can race the
+            // play() call against the not-yet-loaded asset and start at 0.
+            if let ms = resumeFromMs, ms > 0 {
+                let time = CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600)
+                player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                    player.play()
+                    playerVC.progressTracker?.start()
+                }
+            } else {
+                player.play()
+                playerVC.progressTracker?.start()
+            }
         }
     }
 

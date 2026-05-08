@@ -140,6 +140,7 @@ final class VLCPlayerViewController: UIViewController {
         overlayModel.onCycleAspect = { [weak self] in self?.cycleAspectRatio() }
         overlayModel.onShowMore = { [weak self] in self?.showOptionsMenu() }
         overlayModel.onDismiss = { [weak self] in self?.handleMenu() }
+        overlayModel.onUserActivity = { [weak self] in self?.startOverlayAutoHide() }
 
         let host = UIHostingController(rootView: VLCVODOverlayView(model: overlayModel))
         host.view.frame = view.bounds
@@ -285,6 +286,23 @@ final class VLCPlayerViewController: UIViewController {
     // `press.key` branch at the end.
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        // When the SwiftUI drawer is visible, hand all input over to the
+        // SwiftUI focus engine so ←/→ traverses the transport buttons
+        // (skip / play / audio / sub …) and Select invokes the focused
+        // button. Without this short-circuit we'd seize ←/→ here as
+        // seek presses before SwiftUI ever sees them — which broke
+        // every button to the right of play/pause.
+        //
+        // The only thing we still consume is `.menu`, which always
+        // means "dismiss the player" regardless of drawer state.
+        if overlayModel.isDrawerVisible {
+            for press in presses {
+                if press.type == .menu { return }  // swallow Began; Ended dismisses
+            }
+            super.pressesBegan(presses, with: event)
+            return
+        }
+
         var handled = false
         for press in presses {
             switch press.type {

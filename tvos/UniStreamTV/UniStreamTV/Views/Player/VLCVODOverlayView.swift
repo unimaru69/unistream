@@ -43,6 +43,13 @@ struct VLCVODOverlayView: View {
                 focused = nil
             }
         }
+        // Each focus change inside the drawer counts as user activity —
+        // tell the VC so it can re-arm its auto-hide timer. Without
+        // this the drawer would vanish 5 s after appearance even while
+        // the user is busy navigating buttons.
+        .onChange(of: focused) { _, _ in
+            model.onUserActivity()
+        }
     }
 
     // MARK: - Drawer
@@ -69,6 +76,11 @@ struct VLCVODOverlayView: View {
                 endPoint: .bottom
             )
         )
+        // Tell tvOS the drawer is one navigable focus region. Without
+        // this hint the engine has been observed to refuse horizontal
+        // traversal across the Spacer() between the transport cluster
+        // and the audio/subs/more cluster.
+        .focusSection()
     }
 
     private var header: some View {

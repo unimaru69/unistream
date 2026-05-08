@@ -52,4 +52,10 @@ final class VLCVODPlayerModel {
     var onCycleAspect: () -> Void = {}
     var onShowMore: () -> Void = {}
     var onDismiss: () -> Void = {}
+
+    /// Fires whenever the user shows activity inside the drawer
+    /// (focus traversal, button invocation). The VC uses this to
+    /// reset the 5-second auto-hide timer so the drawer stays put as
+    /// long as the user is navigating it.
+    var onUserActivity: () -> Void = {}
 }
