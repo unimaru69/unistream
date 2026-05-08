@@ -351,25 +351,24 @@ struct EPGGridView: View {
                 }
             }
 
-            // Force the ZStack to observe `byDay` directly. Reaching
-            // through `epgCache.programs(...)` calls a method whose
-            // body access doesn't always register as a dependency
-            // for the parent view's render context — pulling the
-            // dictionary into a local lookup makes the read happen
-            // *here*, in this view's tracked region.
+            // Force the ZStack to observe `byDay` directly.
             let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
             let progs = dayMap[channel.streamId] ?? []
 
-            // DEBUG counter — visible badge in each row showing the
-            // programme count this row is seeing. If "0P" but logs
-            // say cached, the binding is broken; if "5P" but no
-            // cells visible, layoutCell is dropping them.
-            Text("\(progs.count)P")
-                .font(.system(size: 11, weight: .heavy))
-                .foregroundColor(.yellow)
-                .padding(.horizontal, 4)
-                .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+            // DEBUG: huge tinted strip + count so we can see
+            // exactly what each row is reading. Red = 0 progs,
+            // green = ≥1 prog. The tint is positioned over the
+            // full row width to be impossible to miss.
+            Rectangle()
+                .fill(progs.isEmpty ? Color.red.opacity(0.30) : Color.green.opacity(0.18))
+                .frame(width: 240, height: rowHeight - 8)
                 .offset(x: 4, y: 4)
+            Text("DBG \(progs.count)P · \(channel.streamId)")
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundColor(.white)
+                .padding(.horizontal, 6)
+                .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 4))
+                .offset(x: 8, y: 8)
 
             ForEach(progs) { prog in
                 if let cell = layoutCell(for: prog) {
