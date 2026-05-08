@@ -25,6 +25,8 @@ struct EPGGridView: View {
 
     @FocusState private var focusedCell: EPGCellId?
     @State private var selectedProgram: ProgramSelection?
+    @State private var unavailableAlertVisible = false
+    @State private var unavailableAlertMessage = ""
 
     /// Selected category id. `nil` = "Toutes les chaînes". Special
     /// value `__favorites__` filters by live favourites.
@@ -124,6 +126,11 @@ struct EPGGridView: View {
         .task(id: cacheKey) { await loadIfNeeded() }
         .fullScreenCover(item: $selectedProgram) { sel in
             ChannelDetailView(channel: sel.channel, allChannels: visibleChannels)
+        }
+        .alert("Replay non disponible", isPresented: $unavailableAlertVisible) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(unavailableAlertMessage)
         }
     }
 
@@ -332,25 +339,23 @@ struct EPGGridView: View {
 
     @ViewBuilder
     private func programGrid(_ channel: Channel) -> some View {
-        // Pull cache state at the top so we can use `progs` both
-        // inside the ZStack content AND in the modifier chain
-        // (.background) below. Reading byDay here registers the
-        // observation dependency at this view's render scope.
+        // Pull cache state at the top so the byDay observation
+        // registers on this view's render scope (debugging
+        // demonstrated the access has to happen in the body, not
+        // inside a method, for SwiftUI to track it through the
+        // ForEach across channels).
         let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
         let progs = dayMap[channel.streamId] ?? []
-        let layoutOK = progs.compactMap { layoutCell(for: $0) }.count
-        let _ = print("[EPG] \(channel.streamId) progs=\(progs.count) layoutOK=\(layoutOK) gridStart=\(gridStart) gridEnd=\(gridEnd)")
-        if progs.count > 0 && layoutOK == 0, let first = progs.first {
-            let _ = print("[EPG]   ⚠ first prog: title=\(first.title) start=\(String(describing: first.start)) end=\(String(describing: first.end))")
-        }
 
         ZStack(alignment: .topLeading) {
-            // Anchor the ZStack's bounds to the full grid width/height
-            // so children with `.offset(x: ...)` position from the
-            // *real* leading edge instead of getting centred inside a
-            // larger outer frame. Without this, every cell ended up
-            // bunched in the center of the row, off-screen relative
-            // to where layoutCell thought it was placing them.
+            // Anchor the ZStack's bounds to the full grid width and
+            // height. Without this, the ZStack sized itself to the
+            // bounding box of its children (small) and the outer
+            // `.frame(width: totalGridWidth)` padded around the
+            // centred ZStack — so children's `.offset(x: ...)` was
+            // measured from the *centred* leading edge, not the
+            // actual leading edge of the row. Cells ended up off-
+            // screen.
             Color.clear
                 .frame(width: totalGridWidth, height: rowHeight)
 
@@ -370,16 +375,6 @@ struct EPGGridView: View {
                 }
             }
 
-            // DEBUG: fixed badge in the first 280pt of the row.
-            // If neither this badge nor the row tint shows, the
-            // programGrid view itself isn't being called.
-            Text("DBG \(progs.count)P")
-                .font(.system(size: 24, weight: .heavy))
-                .foregroundColor(progs.isEmpty ? .red : .green)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.black, in: RoundedRectangle(cornerRadius: 6))
-
             ForEach(progs) { prog in
                 if let cell = layoutCell(for: prog) {
                     programCell(prog, channel: channel, layout: cell)
@@ -389,14 +384,6 @@ struct EPGGridView: View {
             }
         }
         .frame(width: totalGridWidth, height: rowHeight)
-        // Apply tint to the whole programGrid so we can SEE if the
-        // view is rendering. Bright red across the row = empty cache,
-        // bright green across the row = data is there but cells
-        // aren't laying out, no tint at all = programGrid is
-        // genuinely not being rendered.
-        .background(progs.isEmpty
-            ? Color.red.opacity(0.45)
-            : Color.green.opacity(0.30))
     }
 
     private struct CellLayout {
@@ -417,7 +404,7 @@ struct EPGGridView: View {
     private func programCell(_ prog: EpgProgram, channel: Channel, layout: CellLayout) -> some View {
         let id = EPGCellId(channelId: channel.streamId, programId: prog.id)
         Button {
-            selectedProgram = ProgramSelection(channel: channel, program: prog)
+            handleProgramTap(prog: prog, channel: channel)
         } label: {
             ProgramCellLabel(program: prog)
         }
@@ -429,6 +416,40 @@ struct EPGGridView: View {
         if prog.isCurrent { return .current }
         if prog.isPast { return .past }
         return .upcoming
+    }
+
+    /// Smart tap action for EPG cells. Behaviour by programme state:
+    ///   - **Past + channel has catch-up** → launch the timeshift
+    ///     replay directly. The user picked a specific past show; no
+    ///     point detouring through the channel page.
+    ///   - **Currently airing** → open the channel detail (Watch live
+    ///     button + replay shelf). Could be improved later to launch
+    ///     the live stream directly.
+    ///   - **Past without catch-up** → friendly alert, no detour.
+    ///   - **Future** → channel detail so the user can set a reminder
+    ///     via the existing reminders flow.
+    private func handleProgramTap(prog: EpgProgram, channel: Channel) {
+        if prog.isPast {
+            if channel.hasCatchup,
+               let url = appState.api.timeshiftUrlFromLocal(
+                   streamId: channel.streamId,
+                   serverLocalStart: prog.serverLocalStart,
+                   durationMinutes: prog.durationMinutes
+               ) {
+                PlayerPresenter.playLive(
+                    url: url,
+                    title: "\(channel.name) — \(prog.title)",
+                    contentKey: "live_\(channel.streamId)",
+                    coverUrl: channel.displayIcon
+                )
+                return
+            }
+            unavailableAlertMessage = "Le replay de ce programme n'est pas disponible chez votre fournisseur."
+            unavailableAlertVisible = true
+            return
+        }
+        // Current or future — open the channel detail page.
+        selectedProgram = ProgramSelection(channel: channel, program: prog)
     }
 
     // MARK: - Empty state
