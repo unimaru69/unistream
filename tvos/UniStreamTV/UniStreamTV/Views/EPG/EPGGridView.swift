@@ -351,13 +351,31 @@ struct EPGGridView: View {
                 }
             }
 
-            if let progs = epgCache.programs(for: channel.streamId, day: selectedDay) {
-                ForEach(progs) { prog in
-                    if let cell = layoutCell(for: prog) {
-                        programCell(prog, channel: channel, layout: cell)
-                            .frame(width: cell.width, height: rowHeight - 4)
-                            .offset(x: cell.x, y: 2)
-                    }
+            // Force the ZStack to observe `byDay` directly. Reaching
+            // through `epgCache.programs(...)` calls a method whose
+            // body access doesn't always register as a dependency
+            // for the parent view's render context — pulling the
+            // dictionary into a local lookup makes the read happen
+            // *here*, in this view's tracked region.
+            let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
+            let progs = dayMap[channel.streamId] ?? []
+
+            // DEBUG counter — visible badge in each row showing the
+            // programme count this row is seeing. If "0P" but logs
+            // say cached, the binding is broken; if "5P" but no
+            // cells visible, layoutCell is dropping them.
+            Text("\(progs.count)P")
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundColor(.yellow)
+                .padding(.horizontal, 4)
+                .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                .offset(x: 4, y: 4)
+
+            ForEach(progs) { prog in
+                if let cell = layoutCell(for: prog) {
+                    programCell(prog, channel: channel, layout: cell)
+                        .frame(width: cell.width, height: rowHeight - 4)
+                        .offset(x: cell.x, y: 2)
                 }
             }
         }
