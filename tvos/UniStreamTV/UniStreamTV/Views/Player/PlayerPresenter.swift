@@ -1,4 +1,5 @@
 @preconcurrency import AVKit
+import SwiftUI
 import UIKit
 import VLCKitSPM
 
@@ -116,7 +117,40 @@ enum PlayerPresenter {
 
     /// Present a VOD stream, optionally resuming from a position.
     /// Tries the given URL first. If playback fails, retries with alternate extensions.
+    ///
+    /// When `resumeFromMs` exceeds the resume-confirm threshold (~30 s) the
+    /// user gets a "Reprendre / Recommencer" dialog before playback starts.
+    /// Below the threshold we skip the dialog (it'd be annoying to confirm
+    /// a 5-second resume).
     static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
+        if let ms = resumeFromMs, ms >= resumeConfirmThresholdMs {
+            // Pull duration from saved progress (if any) so the dialog can
+            // show "X% vu". Failure to find it is harmless — we just omit
+            // the percentage.
+            let durMs: Int? = contentKey.flatMap { syncService?.watchProgress[$0]?.durationMs }
+            presentResumeConfirm(
+                title: title,
+                positionMs: ms,
+                durationMs: durMs,
+                onResume: {
+                    actuallyPlayVOD(url: url, title: title, resumeFromMs: ms, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+                },
+                onRestart: {
+                    actuallyPlayVOD(url: url, title: title, resumeFromMs: nil, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+                }
+            )
+            return
+        }
+        actuallyPlayVOD(url: url, title: title, resumeFromMs: resumeFromMs, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+    }
+
+    /// Threshold below which we don't bother prompting. 30 s mirrors what
+    /// most "Continue Watching" rows already filter out.
+    private static let resumeConfirmThresholdMs: Int = 30_000
+
+    /// Internal — actually launches VOD playback once the user has chosen
+    /// resume vs. restart (or there's no progress to confirm).
+    private static func actuallyPlayVOD(url: URL, title: String?, resumeFromMs: Int?, contentKey: String?, coverUrl: String?, seriesId: String?) {
         // VLC path for unusual codecs (4K HEVC MKV, etc.) — opt-in via Settings.
         if useVlcForVod {
             let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: resumeFromMs, contentKey: contentKey)
@@ -170,6 +204,52 @@ enum PlayerPresenter {
             player.play()
             playerVC.progressTracker?.start()
         }
+    }
+
+    /// Hosts the SwiftUI `ResumeConfirmView` over the current top VC.
+    /// Calls one of `onResume` / `onRestart` after the dialog is fully
+    /// dismissed; cancellation simply dismisses without firing either.
+    private static func presentResumeConfirm(
+        title: String?,
+        positionMs: Int,
+        durationMs: Int?,
+        onResume: @escaping () -> Void,
+        onRestart: @escaping () -> Void
+    ) {
+        guard let rootVC = rootViewController else {
+            // Couldn't find a presenting VC — fall back to silent resume so
+            // the user doesn't lose their place.
+            onResume()
+            return
+        }
+
+        // Wrapper holds the hosting controller so the SwiftUI closures can
+        // dismiss themselves (the closures are captured before `hosting`
+        // exists, hence the indirection).
+        final class Holder { weak var hosting: UIViewController? }
+        let holder = Holder()
+
+        let view = ResumeConfirmView(
+            title: title,
+            positionMs: positionMs,
+            durationMs: durationMs,
+            onResume: {
+                holder.hosting?.dismiss(animated: true) { onResume() }
+            },
+            onRestart: {
+                holder.hosting?.dismiss(animated: true) { onRestart() }
+            },
+            onCancel: {
+                holder.hosting?.dismiss(animated: true)
+            }
+        )
+
+        let hosting = UIHostingController(rootView: view)
+        hosting.modalPresentationStyle = .overFullScreen
+        hosting.modalTransitionStyle = .crossDissolve
+        hosting.view.backgroundColor = .clear
+        holder.hosting = hosting
+        rootVC.present(hosting, animated: true)
     }
 
     /// Present a catch-up/replay stream.

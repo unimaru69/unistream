@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01274DDB81330AB9D108DAC5 /* ResumeConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2933C0B3DDF31B332BB7E91 /* ResumeConfirmView.swift */; };
 		01C209C0F57146C60D378C85 /* ParentalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E707B4DAC31BC40B877C8DD /* ParentalService.swift */; };
 		027D10CB35877B7B2E2881E3 /* String+Base64.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B558E30E5A11052968616A /* String+Base64.swift */; };
 		0747D767D5226D36558DAA76 /* EPGGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83EC71FAE38D5CF1CDA263F9 /* EPGGridView.swift */; };
@@ -254,6 +255,7 @@
 		EF69BBFA0D440F5DA021DEAB /* UniStreamTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = UniStreamTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCPlayerViewController.swift; sourceTree = "<group>"; };
 		EFC0F536AD1A1A5A39FD4857 /* VODDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODDetailView.swift; sourceTree = "<group>"; };
+		F2933C0B3DDF31B332BB7E91 /* ResumeConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeConfirmView.swift; sourceTree = "<group>"; };
 		F79248D886BCAA3CAB4BD358 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FF82E67EE5912F0E7C7D21E1 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
 		FF9A66BE8205446C706338D2 /* VODSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODSplitView.swift; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 			children = (
 				8264B86EFECAACF504505140 /* PlayerPresenter.swift */,
 				D1F8C32DD3D1D784098988B7 /* PlayerView.swift */,
+				F2933C0B3DDF31B332BB7E91 /* ResumeConfirmView.swift */,
 				E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */,
 				EFB3D36BA702FA891D2CBAD2 /* VLCPlayerViewController.swift */,
 			);
@@ -805,6 +808,7 @@
 				8F012E4BAFE69904109CB7BB /* ProfilePickerView.swift in Sources */,
 				82F12FC2278B13700D80F57C /* PurchaseService.swift in Sources */,
 				35CEC4B5A6A0B363698431FC /* RecentlyAddedRow.swift in Sources */,
+				01274DDB81330AB9D108DAC5 /* ResumeConfirmView.swift in Sources */,
 				B3EDB73821767045CEC564CC /* SearchView.swift in Sources */,
 				8F68A1E8095F127B74AF12F2 /* SearchViewModel.swift in Sources */,
 				3DA76FEED5723C6F69E22973 /* SeriesCategoryListView.swift in Sources */,
