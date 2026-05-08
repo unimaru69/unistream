@@ -56,14 +56,19 @@ struct EPGGridView: View {
         return Array(pool.prefix(maxChannelsPerView))
     }
 
-    /// Anchor: today gets a "now − 4h" window; other days are
-    /// pinned to the start of the calendar day.
+    /// Anchor for "today": now floored to the previous hour, minus
+    /// 1 h. Going further back used to make the grid look empty on
+    /// first paint — `getShortEpg` only returns programmes from
+    /// roughly "now" forward, so a wide backward window meant the
+    /// initial scroll position (gridStart, leftmost) showed only
+    /// empty cells before the programmes appeared on the right
+    /// edge. Deeper catch-up is reachable via the day picker.
     private var gridStart: Date {
         let cal = Calendar.current
         if isToday {
             let now = Date()
             let flooredHour = cal.dateInterval(of: .hour, for: now)?.start ?? now
-            return cal.date(byAdding: .hour, value: -4, to: flooredHour) ?? flooredHour
+            return cal.date(byAdding: .hour, value: -1, to: flooredHour) ?? flooredHour
         } else {
             return cal.startOfDay(for: selectedDay)
         }
