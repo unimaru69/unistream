@@ -166,11 +166,19 @@ struct SeriesDetailView: View {
             .padding(.bottom, DS.Padding.contentBottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PlexBackdrop(imageUrl: backdropURL).ignoresSafeArea())
+        .background(PlexBackdrop(imageUrl: backdropURL, blurRadius: 0).ignoresSafeArea())
         .ignoresSafeArea()
         .task {
             await viewModel.loadEpisodes(for: series)
             if selectedSeason == nil { selectedSeason = sortedSeasons.first }
+            // Patch any legacy watch-progress entries that lack a
+            // seriesId — fixes the "every just-marked episode shows
+            // in Reprendre" bug for items marked before the explicit
+            // seriesId pass-through landed.
+            let allEpisodeIds = viewModel.episodes.values.flatMap { $0 }.map(\.episodeId)
+            if !allEpisodeIds.isEmpty {
+                appState.syncService.backfillSeriesId(series.seriesId, episodeIds: allEpisodeIds)
+            }
         }
         .task {
             await tmdbVM.load(rawTitle: series.name, kind: .tv)
@@ -258,7 +266,10 @@ struct SeriesDetailView: View {
         }
         .frame(maxWidth: 980, alignment: .leading)
         .padding(.horizontal, DS.Padding.screenHorizontal)
-        .padding(.top, DS.Padding.sectionGap)
+        // Hero pushed down to the lower-middle of the viewport so the
+        // backdrop can breathe — matches the home hero / Apple TV+
+        // feel rather than the previous "tassé en haut" layout.
+        .padding(.top, 380)
     }
 
     private var metadataStrip: some View {
@@ -389,7 +400,8 @@ struct SeriesDetailView: View {
                             onMarkWatched: {
                                 appState.syncService.markAsWatched(
                                     contentKey: contentKey(for: episode),
-                                    title: episode.displayTitle
+                                    title: episode.displayTitle,
+                                    seriesId: series.seriesId
                                 )
                             },
                             onMarkUnwatched: {
@@ -513,7 +525,10 @@ struct SeriesDetailView: View {
 
     /// Mark all earlier episodes in the active season as watched (only
     /// those without meaningful progress, so we don't squash a user
-    /// who's actively partway through one).
+    /// who's actively partway through one). Passes seriesId on every
+    /// mark so the Reprendre row can dedup properly — without it the
+    /// Continue Watching shelf shows every just-marked episode side-
+    /// by-side instead of the most recent one per series.
     private func markPreviousAsWatched(before episode: Episode, in season: String?) {
         guard let season,
               let eps = viewModel.episodes[season],
@@ -524,11 +539,19 @@ struct SeriesDetailView: View {
             let prev = eps[i]
             let key = contentKey(for: prev)
             guard let existing = appState.syncService.getProgress(contentKey: key) else {
-                appState.syncService.markAsWatched(contentKey: key, title: prev.displayTitle)
+                appState.syncService.markAsWatched(
+                    contentKey: key,
+                    title: prev.displayTitle,
+                    seriesId: series.seriesId
+                )
                 continue
             }
             if existing.positionMs < 30_000 {
-                appState.syncService.markAsWatched(contentKey: key, title: prev.displayTitle)
+                appState.syncService.markAsWatched(
+                    contentKey: key,
+                    title: prev.displayTitle,
+                    seriesId: series.seriesId
+                )
             }
         }
     }
@@ -542,7 +565,8 @@ struct SeriesDetailView: View {
             let e = eps[i]
             appState.syncService.markAsWatched(
                 contentKey: contentKey(for: e),
-                title: e.displayTitle
+                title: e.displayTitle,
+                seriesId: series.seriesId
             )
         }
     }

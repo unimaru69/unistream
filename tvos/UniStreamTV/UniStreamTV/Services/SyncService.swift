@@ -536,7 +536,29 @@ final class SyncService {
 
     /// Mark a content item as fully watched (progress ≈ 99%).
     /// Used for "Marquer vu" and auto-mark-previous-episodes on play.
-    func markAsWatched(contentKey: String, title: String? = nil) {
+    /// One-shot patch for legacy watch-progress entries whose
+    /// `seriesId` never got persisted (created before the
+    /// markAsWatched call site started passing it). Sets seriesId on
+    /// every matching entry, triggers a Supabase upsert so the fix
+    /// propagates cross-device, and updates the Reprendre row's
+    /// dedup. No-op when nothing needs patching.
+    func backfillSeriesId(_ seriesId: String, episodeIds: [String]) {
+        var patched = 0
+        for eid in episodeIds {
+            let key = "ep_\(eid)"
+            guard var entry = watchProgress[key], entry.seriesId != seriesId else { continue }
+            entry.seriesId = seriesId
+            watchProgress[key] = entry
+            debouncePushProgress(contentKey: key)
+            patched += 1
+        }
+        if patched > 0 {
+            logger.info("Backfilled seriesId on \(patched) watch-progress entries for series \(seriesId)")
+            writeTopShelfSnapshot()
+        }
+    }
+
+    func markAsWatched(contentKey: String, title: String? = nil, seriesId: String? = nil) {
         let existing = watchProgress[contentKey]
         // Synthetic 1h duration — real duration will overwrite on first real play.
         let durationMs = existing?.durationMs ?? 3_600_000
@@ -548,7 +570,13 @@ final class SyncService {
             title: title ?? existing?.title,
             streamUrl: existing?.streamUrl,
             coverUrl: existing?.coverUrl,
-            seriesId: existing?.seriesId
+            // Caller-provided seriesId takes priority — without it, an
+            // episode entry created from "Marquer tous les précédents
+            // comme vus" has no way to dedup against its siblings in
+            // the Reprendre row, and the user sees every previously-
+            // marked episode line up instead of the single most-recent
+            // one. existing?.seriesId is the fallback for re-marks.
+            seriesId: seriesId ?? existing?.seriesId
         )
         // Re-watch supersedes a pending delete from a prior unwatch
         // gesture that hasn't flushed yet.

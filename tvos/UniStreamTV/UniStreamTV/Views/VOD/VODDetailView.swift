@@ -83,7 +83,12 @@ struct VODDetailView: View {
             .padding(.bottom, DS.Padding.contentBottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PlexBackdrop(imageUrl: backdropURL).ignoresSafeArea())
+        // Sharp backdrop (blurRadius: 0) for the same cinematic feel
+        // as the home hero — the user pointed out the previous default
+        // 28pt blur made detail views look soft / muddy compared to
+        // the Accueil shelf header. PlexBackdrop's gradients still
+        // run for legibility (left-darken + bottom-fade + brand tint).
+        .background(PlexBackdrop(imageUrl: backdropURL, blurRadius: 0).ignoresSafeArea())
         .ignoresSafeArea()
         .task {
             await tmdbVM.load(rawTitle: item.name, kind: .movie)
@@ -145,7 +150,12 @@ struct VODDetailView: View {
         }
         .frame(maxWidth: 980, alignment: .leading)
         .padding(.horizontal, DS.Padding.screenHorizontal)
-        .padding(.top, DS.Padding.sectionGap)
+        // Push the hero block down to roughly the lower-middle of the
+        // first viewport so the backdrop has room to breathe — the
+        // Apple TV+ / Strimr feel the user asked for. The text reads
+        // over the image's darker bottom-left zone (PlexBackdrop's
+        // gradient takes care of legibility there).
+        .padding(.top, 380)
     }
 
     private var metadataStrip: some View {
