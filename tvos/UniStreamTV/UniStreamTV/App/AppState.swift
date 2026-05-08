@@ -110,6 +110,7 @@ final class AppState {
             )
             syncService.configure(profileHash: hash, userId: uid)
             PlayerPresenter.syncService = syncService
+            PlayerPresenter.epgCache = epgCache
             collectionsService.configure(
                 profilePrefix: "\(profile.serverUrl)_\(profile.username)"
             )
@@ -156,6 +157,7 @@ final class AppState {
             let hash = SupabaseConfig.profileHash(serverUrl: profile.serverUrl, username: profile.username)
             syncService.configure(profileHash: hash, userId: uid)
             PlayerPresenter.syncService = syncService
+            PlayerPresenter.epgCache = epgCache
             Task { await syncService.pullAll() }
         }
 

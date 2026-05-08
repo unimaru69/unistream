@@ -11,6 +11,11 @@ enum PlayerPresenter {
     /// Shared sync service reference — set once from AppState at startup.
     static weak var syncService: SyncService?
 
+    /// Shared EPG cache reference — set from AppState. Used by the live
+    /// player overlay to surface the current programme title without
+    /// having to round-trip to the API for every channel zap.
+    static weak var epgCache: EPGCache?
+
     /// Whether to use VLC (true) or AVPlayer (false) for live streams.
     /// VLC supports HEVC in MPEG-TS, MPEG-1 audio, and many broadcast-style
     /// streams that AVPlayer refuses (audio-only / black screen).

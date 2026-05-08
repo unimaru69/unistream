@@ -1,3 +1,4 @@
+import Kingfisher
 import UIKit
 import VLCKitSPM
 
@@ -29,12 +30,29 @@ final class VLCLivePlayerViewController: UIViewController {
 
     // Views
     private let videoView = UIView()
+    /// Backdrop image of the current programme (TMDB-enriched) — sits
+    /// between the video and the overlay so that when the overlay shows,
+    /// it crossfades into a "Plex-style" themed scene that's clearly
+    /// distinct from the raw video. Kept transparent when no image is
+    /// available so we don't dim the live image for nothing.
+    private let backdropImageView = UIImageView()
+    private let backdropDimView = UIView()
     private let overlayView = UIView()
     private let channelNameLabel = UILabel()
     private let channelNumberLabel = UILabel()
     private let liveBadge = UILabel()
     private let clockLabel = UILabel()
+    /// Current programme — title + start/end times. Hidden when the
+    /// EPG cache has nothing for the current channel.
+    private let programmeTitleLabel = UILabel()
+    private let programmeTimeLabel = UILabel()
+    private let nextProgrammeLabel = UILabel()
     private let playPauseIcon = UIImageView()
+
+    /// Token cancelled when the channel changes — prevents a slow TMDB
+    /// fetch for channel A from clobbering the overlay after the user
+    /// has zapped to channel B.
+    private var currentEnrichmentTask: Task<Void, Never>?
 
     // Zap overlay (large, centered, auto-hiding)
     private let zapChannelLabel = UILabel()
@@ -59,6 +77,7 @@ final class VLCLivePlayerViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .black
         setupVideoView()
+        setupBackdrop()
         setupOverlay()
         setupZapOverlay()
         setupGestures()
@@ -101,6 +120,28 @@ final class VLCLivePlayerViewController: UIViewController {
         mediaPlayer.drawable = videoView
     }
 
+    /// The backdrop image sits between the live video and the overlay,
+    /// completely transparent until we fetch a TMDB still for the
+    /// current programme. When available, crossfades in alongside the
+    /// overlay (and out with it) so it never competes with the video
+    /// itself.
+    private func setupBackdrop() {
+        backdropImageView.frame = view.bounds
+        backdropImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        backdropImageView.contentMode = .scaleAspectFill
+        backdropImageView.clipsToBounds = true
+        backdropImageView.alpha = 0
+        view.addSubview(backdropImageView)
+
+        // A second dim layer over the backdrop so the foreground text
+        // stays readable even when the still has bright tones.
+        backdropDimView.frame = view.bounds
+        backdropDimView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        backdropDimView.backgroundColor = UIColor.black.withAlphaComponent(0.45)
+        backdropDimView.alpha = 0
+        view.addSubview(backdropDimView)
+    }
+
     private func setupOverlay() {
         overlayView.frame = view.bounds
         overlayView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -140,6 +181,30 @@ final class VLCLivePlayerViewController: UIViewController {
         channelNumberLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(channelNumberLabel)
 
+        // Current programme — title (large, plus emoji LIVE dot when
+        // we know the show is on right now) and time range. Hidden
+        // until the EPG cache yields a hit for the current channel.
+        programmeTitleLabel.font = .systemFont(ofSize: 26, weight: .semibold)
+        programmeTitleLabel.textColor = .white.withAlphaComponent(0.95)
+        programmeTitleLabel.numberOfLines = 1
+        programmeTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        programmeTitleLabel.isHidden = true
+        overlayView.addSubview(programmeTitleLabel)
+
+        programmeTimeLabel.font = .monospacedDigitSystemFont(ofSize: 16, weight: .regular)
+        programmeTimeLabel.textColor = .white.withAlphaComponent(0.7)
+        programmeTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+        programmeTimeLabel.isHidden = true
+        overlayView.addSubview(programmeTimeLabel)
+
+        // Next programme — small grey "Suite : …" line below.
+        nextProgrammeLabel.font = .systemFont(ofSize: 15, weight: .regular)
+        nextProgrammeLabel.textColor = .white.withAlphaComponent(0.55)
+        nextProgrammeLabel.numberOfLines = 1
+        nextProgrammeLabel.translatesAutoresizingMaskIntoConstraints = false
+        nextProgrammeLabel.isHidden = true
+        overlayView.addSubview(nextProgrammeLabel)
+
         // Clock (current time)
         clockLabel.font = .monospacedDigitSystemFont(ofSize: 26, weight: .medium)
         clockLabel.textColor = .white.withAlphaComponent(0.85)
@@ -165,6 +230,19 @@ final class VLCLivePlayerViewController: UIViewController {
 
             channelNumberLabel.topAnchor.constraint(equalTo: channelNameLabel.bottomAnchor, constant: 4),
             channelNumberLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
+
+            // Programme block — title sits below the channel number, time
+            // range below that, "Suite" line at the very bottom.
+            programmeTitleLabel.topAnchor.constraint(equalTo: channelNumberLabel.bottomAnchor, constant: 14),
+            programmeTitleLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
+            programmeTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: clockLabel.leadingAnchor, constant: -30),
+
+            programmeTimeLabel.topAnchor.constraint(equalTo: programmeTitleLabel.bottomAnchor, constant: 4),
+            programmeTimeLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
+
+            nextProgrammeLabel.topAnchor.constraint(equalTo: programmeTimeLabel.bottomAnchor, constant: 6),
+            nextProgrammeLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
+            nextProgrammeLabel.trailingAnchor.constraint(lessThanOrEqualTo: clockLabel.leadingAnchor, constant: -30),
 
             clockLabel.topAnchor.constraint(equalTo: overlayView.safeAreaLayoutGuide.topAnchor, constant: 38),
             clockLabel.trailingAnchor.constraint(equalTo: overlayView.trailingAnchor, constant: -60),
@@ -531,6 +609,89 @@ final class VLCLivePlayerViewController: UIViewController {
         channelNameLabel.text = channel.name
         channelNumberLabel.text = "Chaîne \(currentIndex + 1) / \(channels.count)"
         updateLiveBadge()
+        refreshProgrammeAndBackdrop(for: channel)
+    }
+
+    /// Look up the current + next programme from `EPGCache`, update
+    /// the overlay labels, then kick off a TMDB enrichment in the
+    /// background to fetch a backdrop still. The latter is best-effort:
+    /// many EPG titles (newscasts, regional shows) won't map to TMDB
+    /// at all, in which case we simply leave the backdrop transparent.
+    private func refreshProgrammeAndBackdrop(for channel: Channel) {
+        // Cancel a stale enrichment from the previous channel.
+        currentEnrichmentTask?.cancel()
+        currentEnrichmentTask = nil
+
+        // Reset visible state — never carry the old programme over.
+        programmeTitleLabel.isHidden = true
+        programmeTimeLabel.isHidden = true
+        nextProgrammeLabel.isHidden = true
+        UIView.animate(withDuration: 0.25) {
+            self.backdropImageView.alpha = 0
+            self.backdropDimView.alpha = 0
+        }
+        backdropImageView.image = nil
+
+        guard let cache = PlayerPresenter.epgCache,
+              let programmes = cache.programs(for: channel.streamId, day: Date()),
+              !programmes.isEmpty else { return }
+
+        let now = Date()
+        let current = programmes.first(where: { ($0.start ?? .distantFuture) <= now && ($0.end ?? .distantPast) > now })
+        let next = programmes.first(where: { ($0.start ?? .distantPast) > now })
+
+        if let current {
+            programmeTitleLabel.text = current.title
+            programmeTimeLabel.text = formatProgrammeTime(start: current.start, end: current.end)
+            programmeTitleLabel.isHidden = false
+            programmeTimeLabel.isHidden = false
+
+            // TMDB backdrop — best-effort, async. We use `.tv` because
+            // most live programmes that match TMDB are series/shows
+            // rather than films.
+            let title = current.title
+            currentEnrichmentTask = Task { [weak self] in
+                guard let result = await TMDBService.shared.enrich(rawTitle: title, kind: .tv) else { return }
+                guard let url = result.backdropURL(size: "w1280") else { return }
+                await MainActor.run {
+                    guard let self, !Task.isCancelled else { return }
+                    self.loadBackdrop(url: url)
+                }
+            }
+        }
+
+        if let next {
+            let nextTime = formatProgrammeTime(start: next.start, end: nil) ?? ""
+            nextProgrammeLabel.text = "Suite — \(nextTime) \(next.title)"
+            nextProgrammeLabel.isHidden = false
+        }
+    }
+
+    private func loadBackdrop(url: URL) {
+        // Kingfisher handles the cache + decode + main-thread set.
+        // We fade-in only if the overlay is currently visible — the
+        // `showOverlay` / `hideOverlay` pair handles the full fade.
+        backdropImageView.kf.setImage(with: url) { [weak self] _ in
+            guard let self else { return }
+            if self.overlayView.alpha > 0 {
+                UIView.animate(withDuration: 0.4) {
+                    self.backdropImageView.alpha = 1
+                    self.backdropDimView.alpha = 1
+                }
+            }
+        }
+    }
+
+    /// "20:30 – 22:00" when both bounds are known; "20:30" when only
+    /// start is known; nil when neither.
+    private func formatProgrammeTime(start: Date?, end: Date?) -> String? {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        switch (start, end) {
+        case (let s?, let e?): return "\(f.string(from: s)) – \(f.string(from: e))"
+        case (let s?, nil):    return f.string(from: s)
+        default:               return nil
+        }
     }
 
     /// Swap the top-left badge between "EN DIRECT" (red) and "REPLAY" (orange)
@@ -568,8 +729,13 @@ final class VLCLivePlayerViewController: UIViewController {
     // MARK: - Overlays
 
     private func showOverlay(autoHide: Bool) {
+        let hasBackdrop = backdropImageView.image != nil
         UIView.animate(withDuration: 0.25) {
             self.overlayView.alpha = 1
+            if hasBackdrop {
+                self.backdropImageView.alpha = 1
+                self.backdropDimView.alpha = 1
+            }
         }
         if autoHide {
             hideOverlayTimer?.invalidate()
@@ -583,6 +749,8 @@ final class VLCLivePlayerViewController: UIViewController {
         hideOverlayTimer?.invalidate()
         UIView.animate(withDuration: 0.4) {
             self.overlayView.alpha = 0
+            self.backdropImageView.alpha = 0
+            self.backdropDimView.alpha = 0
         }
     }
 
