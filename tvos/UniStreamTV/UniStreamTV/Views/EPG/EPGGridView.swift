@@ -181,7 +181,11 @@ struct EPGGridView: View {
             .padding(.horizontal, DS.Padding.screenHorizontal)
         }
         .padding(.bottom, DS.Spacing.xs)
-        .focusSection()
+        // No `.focusSection()` here on purpose — wrapping each chip
+        // row in its own section trapped focus inside it: pressing
+        // ↑ from the category row didn't escape back up to the day
+        // row. Letting the focus engine see them as a flat vertical
+        // list of chips fixes the traversal.
     }
 
     private func dayLabel(for offset: Int) -> String {
@@ -230,7 +234,8 @@ struct EPGGridView: View {
             .padding(.horizontal, DS.Padding.screenHorizontal)
         }
         .padding(.bottom, DS.Spacing.sm)
-        .focusSection()
+        // See note on `dayPicker` — no .focusSection() so the focus
+        // engine can move ↑ from this row into the day row.
     }
 
     // MARK: - Time markers row

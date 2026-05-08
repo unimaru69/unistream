@@ -23,11 +23,16 @@ final class EPGCache {
     /// `[dayKey: [streamId: [EpgProgram]]]`
     private(set) var byDay: [String: [String: [EpgProgram]]] = [:]
 
-    /// Days currently being fetched — UI surfaces a progress indicator
-    /// while the set is non-empty.
+    /// Days that have at least one channel currently being fetched.
+    /// Drives the spinner in the EPG header.
     private(set) var loadingDays: Set<String> = []
     /// Per-day load progress for the user: `(loaded, total)`.
     private(set) var loadProgress: [String: (Int, Int)] = [:]
+    /// Per-day in-flight channel set. A second `loadDay` call (for
+    /// example when the user switches category mid-fetch) skips
+    /// channels that are already in here — but doesn't bail out
+    /// globally, so the new category's channels still get queued.
+    private var inFlightChannels: [String: Set<String>] = [:]
 
     /// Refresh threshold for the *current* day — past/future days
     /// don't change so we cache them indefinitely within the session.
@@ -78,37 +83,36 @@ final class EPGCache {
         api: XtreamAPIService
     ) async {
         let key = Self.dayKey(for: day)
-        if loadingDays.contains(key) { return }
-
         let isToday = Calendar.current.isDateInToday(day)
-        // Skip the load entirely when today is fresh.
-        if isToday, let last = lastTodayFetch,
-           Date().timeIntervalSince(last) < Self.todayRefreshInterval {
-            // Still need to load any newly-added channel that wasn't
-            // in the cache before — fall through but only fetch the
-            // missing ones below.
-        }
 
         var dayMap = byDay[key] ?? [:]
-        let toFetch = channels.filter { dayMap[$0.streamId] == nil }
+        let inFlight = inFlightChannels[key] ?? []
+        // Skip channels that are already cached OR currently being
+        // fetched by another in-progress loadDay call. The previous
+        // version bailed globally on `loadingDays.contains(key)`,
+        // which meant a category switch mid-fetch silently dropped
+        // every channel of the new category.
+        let toFetch = channels.filter {
+            dayMap[$0.streamId] == nil && !inFlight.contains($0.streamId)
+        }
         guard !toFetch.isEmpty else {
-            logger.debug("EPGCache: \(key) already cached for all \(channels.count) channels")
+            logger.debug("EPGCache: \(key) already cached/in-flight for all \(channels.count) requested channels")
             return
         }
 
+        // Reserve our slice of channels so concurrent callers don't
+        // duplicate the fetch.
+        var reservation = inFlight
+        for ch in toFetch { reservation.insert(ch.streamId) }
+        inFlightChannels[key] = reservation
         loadingDays.insert(key)
-        loadProgress[key] = (0, toFetch.count)
-        defer {
-            loadingDays.remove(key)
-            loadProgress[key] = nil
-        }
+        let prevTotal = loadProgress[key]?.1 ?? 0
+        let prevLoaded = loadProgress[key]?.0 ?? 0
+        loadProgress[key] = (prevLoaded, prevTotal + toFetch.count)
 
         logger.info("EPGCache: loading \(toFetch.count) channels for \(key) (\(isToday ? "today/short" : "full-day"))")
 
-        // Bounded concurrency — Xtream backends typically rate-limit;
-        // 6 in flight matches what `EPGViewModel.loadEPG` was doing.
         let batchSize = 6
-        var loaded = 0
         for batchStart in stride(from: 0, to: toFetch.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, toFetch.count)
             let batch = Array(toFetch[batchStart..<batchEnd])
@@ -128,13 +132,23 @@ final class EPGCache {
                 }
                 for await (sid, progs) in group {
                     dayMap[sid] = progs
-                    loaded += 1
-                    loadProgress[key] = (loaded, toFetch.count)
+                    byDay[key] = dayMap // emit progressively so the
+                    // grid populates as channels land instead of all-
+                    // at-once. @Observable picks up each write.
+                    var current = inFlightChannels[key] ?? []
+                    current.remove(sid)
+                    inFlightChannels[key] = current
+                    let cur = loadProgress[key] ?? (0, 0)
+                    loadProgress[key] = (cur.0 + 1, cur.1)
                 }
             }
         }
 
-        byDay[key] = dayMap
+        if (inFlightChannels[key]?.isEmpty ?? true) {
+            loadingDays.remove(key)
+            loadProgress[key] = nil
+            inFlightChannels[key] = nil
+        }
         if isToday { lastTodayFetch = Date() }
         logger.info("EPGCache: \(key) cached for \(dayMap.count) channels")
     }
