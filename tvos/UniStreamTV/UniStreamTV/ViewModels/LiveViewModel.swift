@@ -118,6 +118,14 @@ final class LiveViewModel {
         return programs.first(where: { $0.isCurrent }) ?? programs.first
     }
 
+    /// Get the next-up programme — the first one that hasn't started
+    /// yet — for the LiveFocusedPreview "Ensuite : …" line.
+    func nextProgram(for streamId: String) -> EpgProgram? {
+        guard let programs = epgData[streamId] else { return nil }
+        let now = Date()
+        return programs.first { ($0.start ?? .distantPast) > now }
+    }
+
     /// Set channels directly (used when showing favorites or "all channels").
     func setChannels(_ newChannels: [Channel]) {
         channels = newChannels

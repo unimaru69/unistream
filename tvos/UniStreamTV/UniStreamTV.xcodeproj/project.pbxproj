@@ -18,6 +18,7 @@
 		17F480142B20CB11F47244DA /* TVButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517B9C4B9B525DF85EB03F04 /* TVButtonStyle.swift */; };
 		186C179E7AE6FA1708BC2CF2 /* ChannelGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA9107E16E147F4BCF7E578 /* ChannelGridView.swift */; };
 		1B224F4FD9FB7D03D2E64D1F /* UniStreamTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B901F25959A0C6144E309C3 /* UniStreamTVApp.swift */; };
+		1B4479EFFA49C34209FF1174 /* LiveFocusedPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC098256E4044D03F74240BF /* LiveFocusedPreview.swift */; };
 		1F294089B6206E5B22425241 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF82E67EE5912F0E7C7D21E1 /* Category.swift */; };
 		1F622255124A3A7418DEC4B4 /* CollectionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39D57B2FBA0F19FC72B159E4 /* CollectionsService.swift */; };
 		2070D518A2ADBD63D8AA6E26 /* CastFilmographyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440F74C477BCD53382BEC1DC /* CastFilmographyView.swift */; };
@@ -215,6 +216,7 @@
 		A5712621A2D936C3A2D53353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A5E315AF490837A1C541826E /* URLSession+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Retry.swift"; sourceTree = "<group>"; };
 		A9F53EF3C573E71F4AA5EFE8 /* TMDBCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBCache.swift; sourceTree = "<group>"; };
+		AC098256E4044D03F74240BF /* LiveFocusedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveFocusedPreview.swift; sourceTree = "<group>"; };
 		AE0B109201D90541B8CC2A4C /* DemoMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMode.swift; sourceTree = "<group>"; };
 		B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XtreamAPIService.swift; sourceTree = "<group>"; };
 		B2B873EF0E4218A8FC8FE419 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -503,6 +505,7 @@
 			children = (
 				1CA9107E16E147F4BCF7E578 /* ChannelGridView.swift */,
 				64346A4025C492F01DFC1416 /* LiveCategoryListView.swift */,
+				AC098256E4044D03F74240BF /* LiveFocusedPreview.swift */,
 				E6C8A7C4167CC8454E6FA4BC /* LiveSplitView.swift */,
 			);
 			path = Live;
@@ -772,6 +775,7 @@
 				33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */,
 				F2E8B4980B4137D48FDA266B /* HomeTabView.swift in Sources */,
 				8094FA14E4430AEDB7CFBA0C /* LiveCategoryListView.swift in Sources */,
+				1B4479EFFA49C34209FF1174 /* LiveFocusedPreview.swift in Sources */,
 				BB19028D23263D4F974F7365 /* LiveSplitView.swift in Sources */,
 				96657B3CFC4A4AB040C51C06 /* LiveViewModel.swift in Sources */,
 				27470FAD91871586A5AAB276 /* LoginView.swift in Sources */,

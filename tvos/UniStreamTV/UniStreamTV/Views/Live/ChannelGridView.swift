@@ -9,6 +9,7 @@ struct ChannelGridView: View {
     var isAllChannels: Bool = false
 
     @Environment(AppState.self) private var appState
+    @FocusState private var focusedChannelId: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 40)
@@ -26,17 +27,22 @@ struct ChannelGridView: View {
         if showFavoritesOnly {
             // Build the set from FavoriteItem.resolvedStreamId so legacy
             // entries whose `item_key` is "live:STREAMID" still match the
-            // bare `streamId` exposed on `Channel`. The plain
-            // `isFavorite($0.streamId)` lookup misses those (they live in
-            // the favorites map under the prefixed key) — that's why the
-            // sidebar showed "Favoris (7)" while the grid claimed "aucun
-            // favori".
+            // bare `streamId` exposed on `Channel`.
             let favIds = Set(appState.syncService.favorites.values
                 .filter { $0.isLive }
                 .compactMap { $0.resolvedStreamId })
             return viewModel.channels.filter { favIds.contains($0.streamId) }
         }
         return viewModel.channels
+    }
+
+    private var focusedChannel: Channel? {
+        guard let id = focusedChannelId else { return nil }
+        return displayedChannels.first(where: { $0.streamId == id })
+    }
+
+    private var canUseCatchup: Bool {
+        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
     }
 
     var body: some View {
@@ -63,98 +69,126 @@ struct ChannelGridView: View {
                         : "Cette catégorie ne contient aucune chaîne pour le moment."
                 )
             } else {
-                ScrollView {
-                    // Titre inline qui défile avec le contenu (évite la surimpression
-                    // du grand titre de navigation sur les cartes lors du scroll).
-                    HStack {
-                        Text(
-                            showFavoritesOnly ? "Favoris" :
-                            isAllChannels ? "Toutes les chaînes" :
-                            category.categoryName
-                        )
-                        .font(.largeTitle).bold()
-                        .padding(.horizontal, 40)
-                        .padding(.top, 20)
-                        Spacer()
-                    }
-
-                    LazyVGrid(columns: columns, spacing: 40) {
-                        ForEach(displayedChannels) { channel in
-                            Button {
-                                playChannel(channel)
-                            } label: {
-                                FocusableCardLabel(
-                                    title: channel.name,
-                                    imageUrl: channel.displayIcon,
-                                    hasBadge: channel.hasCatchup,
-                                    subtitle: viewModel.currentProgram(for: channel.streamId)?.title,
-                                    channelNumber: channel.num,
-                                    isFavorite: appState.syncService.isFavorite(channel.streamId),
-                                    isLive: viewModel.currentProgram(for: channel.streamId) != nil
-                                )
-                            }
-                            .buttonStyle(.tvCard)
-                            .contextMenu {
-                                let isFav = appState.syncService.isFavorite(channel.streamId)
-                                Button {
-                                    appState.syncService.toggleFavorite(.from(channel: channel))
-                                } label: {
-                                    Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
-                                          systemImage: isFav ? "heart.slash" : "heart")
-                                }
-
-                                // Watchlist parity with VOD / series
-                                // grids — channels can also be queued
-                                // up under "À regarder" for later
-                                // viewing, syncs with Flutter.
-                                let isInWl = appState.syncService.isInWatchlist(channel.streamId)
-                                Button {
-                                    appState.syncService.toggleWatchlist(.from(channel: channel))
-                                } label: {
-                                    Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
-                                          systemImage: isInWl ? "bookmark.slash" : "bookmark")
-                                }
-
-                                // Add to collection (Premium)
-                                if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
-                                   !appState.collectionsService.collections.isEmpty {
-                                    Menu("Ajouter à une collection") {
-                                        ForEach(appState.collectionsService.collections(for: "live")) { collection in
-                                            Button {
-                                                appState.collectionsService.addToCollection(
-                                                    collectionId: collection.id,
-                                                    item: .from(channel: channel)
-                                                )
-                                            } label: {
-                                                Label(collection.name, systemImage: "folder")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(40)
-                }
+                gridContent
             }
         }
-        // Pas de .navigationTitle ici — on utilise un titre inline dans le ScrollView
-        // pour éviter le grand titre tvOS qui reste en surimpression lors du scroll.
-        // Keyed on the category id so switching between two categories re-triggers
-        // the load (otherwise SwiftUI reuses the view and .task never re-fires).
         .task(id: taskKey) {
             await reload()
         }
     }
 
+    @ViewBuilder
+    private var gridContent: some View {
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Spacing.lg) {
+                    // Inline title that scrolls with content (avoids the
+                    // tvOS large-title overlay overdraw on the cards).
+                    Text(
+                        showFavoritesOnly ? "Favoris" :
+                        isAllChannels ? "Toutes les chaînes" :
+                        category.categoryName
+                    )
+                    .font(.largeTitle).bold()
+                    .padding(.horizontal, 40)
+                    .padding(.top, 20)
+
+                    // Catch-up shelf — only for users with the replay
+                    // feature; surfaces "what was on lately" without
+                    // having to drill into a channel's EPG.
+                    if canUseCatchup {
+                        CatchUpRow()
+                            .focusSection()
+                    }
+
+                    LazyVGrid(columns: columns, spacing: 40) {
+                        ForEach(displayedChannels) { channel in
+                            channelCard(channel)
+                        }
+                    }
+                    .padding(.horizontal, 40)
+
+                    // Bottom inset so the preview overlay doesn't cover
+                    // the last grid row.
+                    Color.clear.frame(height: 200)
+                }
+            }
+            .focusSection()
+
+            // Focused-channel preview — slides in/out as the focus
+            // engine moves. TMDB-enriched programme image when one
+            // resolves, otherwise channel logo fallback.
+            if let focused = focusedChannel {
+                LiveFocusedPreview(
+                    channel: focused,
+                    currentProgram: viewModel.currentProgram(for: focused.streamId),
+                    nextProgram: viewModel.nextProgram(for: focused.streamId)
+                )
+                .id(focused.streamId)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(DS.Motion.standard, value: focusedChannel?.streamId)
+    }
+
+    @ViewBuilder
+    private func channelCard(_ channel: Channel) -> some View {
+        Button {
+            playChannel(channel)
+        } label: {
+            FocusableCardLabel(
+                title: channel.name,
+                imageUrl: channel.displayIcon,
+                hasBadge: channel.hasCatchup,
+                subtitle: viewModel.currentProgram(for: channel.streamId)?.title,
+                channelNumber: channel.num,
+                isFavorite: appState.syncService.isFavorite(channel.streamId),
+                isLive: viewModel.currentProgram(for: channel.streamId) != nil
+            )
+        }
+        .buttonStyle(.tvCard)
+        .focused($focusedChannelId, equals: channel.streamId)
+        .contextMenu {
+            let isFav = appState.syncService.isFavorite(channel.streamId)
+            Button {
+                appState.syncService.toggleFavorite(.from(channel: channel))
+            } label: {
+                Label(isFav ? "Retirer des favoris" : "Ajouter aux favoris",
+                      systemImage: isFav ? "heart.slash" : "heart")
+            }
+
+            let isInWl = appState.syncService.isInWatchlist(channel.streamId)
+            Button {
+                appState.syncService.toggleWatchlist(.from(channel: channel))
+            } label: {
+                Label(isInWl ? "Retirer de À regarder" : "Ajouter à À regarder",
+                      systemImage: isInWl ? "bookmark.slash" : "bookmark")
+            }
+
+            if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
+               !appState.collectionsService.collections.isEmpty {
+                Menu("Ajouter à une collection") {
+                    ForEach(appState.collectionsService.collections(for: "live")) { collection in
+                        Button {
+                            appState.collectionsService.addToCollection(
+                                collectionId: collection.id,
+                                item: .from(channel: channel)
+                            )
+                        } label: {
+                            Label(collection.name, systemImage: "folder")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func reload() async {
         if showFavoritesOnly || isAllChannels {
-            // Use all channels for favorites/all views
             if viewModel.allChannels.isEmpty {
                 await viewModel.loadAllChannels()
             }
             viewModel.setChannels(viewModel.allChannels)
-            // Load EPG for visible subset
             let epgTargets = Array(displayedChannels.prefix(30))
             if !epgTargets.isEmpty {
                 await viewModel.loadEpgForChannels(epgTargets)
@@ -165,9 +199,7 @@ struct ChannelGridView: View {
     }
 
     private func playChannel(_ channel: Channel) {
-        // Launch with zapping support — swipe left/right to change channel
         guard let index = displayedChannels.firstIndex(where: { $0.streamId == channel.streamId }) else {
-            // Fallback without zapping
             guard let url = appState.api.liveStreamUrl(streamId: channel.streamId) else { return }
             PlayerPresenter.playLive(url: url, title: channel.name, contentKey: "live_\(channel.streamId)")
             return
