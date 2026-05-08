@@ -98,6 +98,7 @@ struct ResumeConfirmView: View {
                 }
                 .buttonStyle(.plain)
                 .focused($focused, equals: .cancel)
+                .focusEffectDisabled()
             }
             .padding(DS.Spacing.huge)
             .frame(maxWidth: 1100)
@@ -139,6 +140,7 @@ struct ResumeConfirmView: View {
         }
         .buttonStyle(.plain)
         .focused($focused, equals: action)
+        .focusEffectDisabled()
         .focusCardEffect(isFocused: focused == action)
     }
 

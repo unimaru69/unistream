@@ -201,6 +201,11 @@ struct VLCVODOverlayView: View {
         }
         .buttonStyle(.plain)
         .focused($focused, equals: id)
+        // Suppress the system focus halo (the wide pale-grey rounded
+        // backdrop tvOS draws around any focused Button by default) —
+        // we already paint our own focus state via accent fill +
+        // scaleEffect, so the halo just looked dirty around them.
+        .focusEffectDisabled()
         .scaleEffect(isFocused ? 1.10 : 1.0)
         .animation(DS.Focus.animation, value: isFocused)
     }

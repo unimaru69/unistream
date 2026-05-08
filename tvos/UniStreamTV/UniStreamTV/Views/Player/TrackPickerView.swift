@@ -61,6 +61,7 @@ struct TrackPickerView: View {
                     }
                     .buttonStyle(.plain)
                     .focused($focused, equals: Int32.max)
+                    .focusEffectDisabled()
                 }
                 .padding(.bottom, DS.Spacing.sm)
 
@@ -129,6 +130,7 @@ struct TrackPickerView: View {
         }
         .buttonStyle(.plain)
         .focused($focused, equals: option.id)
+        .focusEffectDisabled()
     }
 }
 
