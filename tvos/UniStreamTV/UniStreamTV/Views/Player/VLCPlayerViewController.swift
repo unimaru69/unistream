@@ -570,6 +570,16 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             switch mediaPlayer.state {
+            case .opening, .buffering:
+                // Surface a spinner on the drawer's play/pause so long
+                // initial loads and mid-stream stalls don't read as a
+                // frozen player. Cleared as soon as VLC starts decoding
+                // again (see `.playing` below).
+                overlayModel.isBuffering = true
+            case .playing:
+                overlayModel.isBuffering = false
+            case .paused, .stopped:
+                overlayModel.isBuffering = false
             case .error:
                 // One automatic retry with software decoding before giving up.
                 if !softwareDecodeRetryDone {

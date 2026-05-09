@@ -14,6 +14,11 @@ struct VLCVODOverlayView: View {
     /// Default focus target when the drawer appears. Pulling focus
     /// onto play/pause means a single Select toggles playback.
     @FocusState private var focused: ButtonId?
+    /// Remembers which button the user was on the last time the
+    /// drawer hid, so reopening lands focus where they left off
+    /// instead of always snapping back to play/pause. Initialised
+    /// to play/pause for the very first appearance.
+    @State private var lastFocused: ButtonId = .playPause
 
     enum ButtonId: Hashable {
         case skipBack, playPause, skipForward
@@ -30,15 +35,16 @@ struct VLCVODOverlayView: View {
             }
         }
         .animation(DS.Motion.standard, value: model.isDrawerVisible)
-        // Default focus when drawer becomes visible. SwiftUI on tvOS
-        // sometimes lands focus on the leftmost focusable; we want the
-        // big play/pause to be the default since that's what 90% of
-        // users actually press.
+        // Default focus when drawer becomes visible. Restore the last
+        // focused button (saved in `lastFocused` below) so the drawer
+        // doesn't always snap back to play/pause when the user was
+        // mid-way through the secondary cluster — an annoying reset on
+        // every auto-hide tick.
         .onChange(of: model.isDrawerVisible) { _, visible in
             if visible {
                 // Defer one runloop so SwiftUI has materialised the
                 // focusable buttons before we move focus onto one.
-                DispatchQueue.main.async { focused = .playPause }
+                DispatchQueue.main.async { focused = lastFocused }
             } else {
                 focused = nil
             }
@@ -47,8 +53,13 @@ struct VLCVODOverlayView: View {
         // tell the VC so it can re-arm its auto-hide timer. Without
         // this the drawer would vanish 5 s after appearance even while
         // the user is busy navigating buttons.
-        .onChange(of: focused) { _, _ in
+        // Also snapshots the latest focused button into `lastFocused`
+        // so the drawer's next appearance can restore it.
+        .onChange(of: focused) { _, newValue in
             model.onUserActivity()
+            if let id = newValue {
+                lastFocused = id
+            }
         }
         // Belt-and-braces: per-button `.focusEffectDisabled()` proved
         // insufficient inside a UIHostingController on tvOS — the
@@ -200,9 +211,19 @@ struct VLCVODOverlayView: View {
                 Circle()
                     .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
                     .frame(width: big ? 76 : 56, height: big ? 76 : 56)
-                Image(systemName: icon)
-                    .font(.system(size: big ? 30 : 22, weight: .semibold))
-                    .foregroundColor(.white)
+                // Show a spinner over the play/pause button when VLC
+                // is buffering (initial load, mid-stream stall, seek
+                // re-buffer). Without this the icon stays static
+                // through long buffers and the player feels frozen.
+                if id == .playPause && model.isBuffering {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.6)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: big ? 30 : 22, weight: .semibold))
+                        .foregroundColor(.white)
+                }
             }
             Text(label)
                 .font(DS.Typography.caption)

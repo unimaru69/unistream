@@ -65,7 +65,10 @@ private struct CastAvatar: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 110, height: 110)
                 .clipShape(Circle())
-                .scaleEffect(isFocused ? DS.Focus.cardScale : 1.0)
+                // Cast avatars are circular and small — the standard
+                // 1.10 cardScale reads as too aggressive on a row of
+                // them. chipScale (1.04) keeps the focus subtle.
+                .scaleEffect(isFocused ? DS.Focus.chipScale : 1.0)
                 .shadow(
                     color: .black.opacity(isFocused ? DS.Focus.shadowOpacity : 0),
                     radius: DS.Focus.shadowRadius,

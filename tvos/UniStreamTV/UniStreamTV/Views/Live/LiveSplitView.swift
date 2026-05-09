@@ -80,6 +80,11 @@ struct LiveSplitView: View {
                     .focusSection()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Force the canvas black like Films / Séries split views.
+            // Without this, tvOS shades the area in a default light grey
+            // when nothing else paints behind — visibly inconsistent
+            // with the other tabs.
+            .background(DS.Colour.background.ignoresSafeArea())
             // Focus-driven preview — when the user moves the focus
             // engine across sidebar entries, the right-hand grid
             // updates immediately, no tap required. Tap then just
