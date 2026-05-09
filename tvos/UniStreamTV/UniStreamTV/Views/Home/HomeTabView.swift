@@ -86,12 +86,19 @@ struct HomeTabView: View {
                 .padding(.top, 40)
             }
         }
-        // No background paint here. Painting any colour at the TabView
-        // root has compressed Settings's Form rows into "dark text on
-        // dark substrate" no matter what value we tried (pure black,
-        // surfaceElevated). The proper fix for the inter-tab flash
-        // belongs at a layer below the SwiftUI hierarchy
-        // (UIWindow.backgroundColor) — to be tackled in a follow-up.
+        // Pin a dark substrate at the TabView root. We use surface
+        // (#141414, +6 % white from black) rather than pure black
+        // for two reasons:
+        //   - Live / Films / Séries already paint their own pure
+        //     black at split-view level, so they end up identical
+        //     either way.
+        //   - Settings's List, Favoris, and Recherche inherit this
+        //     substrate. Pure black turned the system Form colours
+        //     (especially Section headers using Color.secondary) too
+        //     dim to read; #141414 still mutes the inter-tab flash
+        //     versus the default tvOS grey, but leaves enough
+        //     contrast for the system labels to be readable.
+        .background(DS.Colour.surface.ignoresSafeArea())
     }
 }
 
