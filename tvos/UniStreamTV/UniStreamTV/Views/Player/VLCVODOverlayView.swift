@@ -188,11 +188,21 @@ struct VLCVODOverlayView: View {
 
             Spacer()
 
-            transportButton(id: .audio, icon: "speaker.wave.2.fill", label: "Audio") {
-                model.onShowAudioPicker()
+            // Audio button only when there's actually a choice to make
+            // (≥2 audio tracks). Single-track assets don't need a
+            // picker — the drawer reads cleaner without the dead
+            // button.
+            if model.hasMultipleAudioTracks {
+                transportButton(id: .audio, icon: "speaker.wave.2.fill", label: "Audio") {
+                    model.onShowAudioPicker()
+                }
             }
-            transportButton(id: .subtitles, icon: "captions.bubble", label: "Sous-titres") {
-                model.onShowSubtitlePicker()
+            // Subtitles button only when VLC found at least one
+            // subtitle track. Same rationale.
+            if model.hasSubtitleTracks {
+                transportButton(id: .subtitles, icon: "captions.bubble", label: "Sous-titres") {
+                    model.onShowSubtitlePicker()
+                }
             }
             transportButton(id: .aspect, icon: "aspectratio", label: model.aspectRatioLabel) {
                 model.onCycleAspect()

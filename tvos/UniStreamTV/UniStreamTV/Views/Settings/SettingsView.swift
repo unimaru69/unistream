@@ -137,8 +137,8 @@ struct SettingsView: View {
                 )) {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Lecteur VLC pour VOD & séries")
-                            Text("Activez uniquement si un film 4K ou une série ne joue que le son.")
+                            Text("Lecteur VLC pour films & séries")
+                            Text("Activé par défaut — VLC gère plus de formats que le lecteur Apple. Désactivez seulement si vous préférez l'interface native d'Apple TV.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

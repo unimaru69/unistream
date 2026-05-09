@@ -41,6 +41,14 @@ final class VLCVODPlayerModel {
     /// when it cycles through ratios.
     var aspectRatioLabel: String = "Auto"
 
+    /// Whether VLC has detected ≥1 subtitle track on the current
+    /// media. Hides the "Sous-titres" drawer button when false so the
+    /// row reads cleaner on assets that don't carry subs.
+    var hasSubtitleTracks: Bool = false
+    /// Whether VLC has detected ≥2 audio tracks. Hides the "Audio"
+    /// drawer button when only one track exists (no choice to offer).
+    var hasMultipleAudioTracks: Bool = false
+
     // MARK: - Actions wired by UIKit
 
     var onPlayPause: () -> Void = {}

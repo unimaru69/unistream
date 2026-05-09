@@ -539,6 +539,11 @@ final class VLCPlayerViewController: UIViewController {
 
     private func startOverlayAutoHide() {
         overlayTimer?.invalidate()
+        // Don't auto-hide while paused — Apple TV+'s convention. The
+        // user explicitly pressed pause; leaving the drawer up means
+        // they can read the title / progress / pick a subtitle track
+        // without having to nudge the remote first.
+        guard mediaPlayer.isPlaying else { return }
         overlayTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.hideOverlay()
@@ -569,6 +574,13 @@ final class VLCPlayerViewController: UIViewController {
         if mediaPlayer.isPlaying {
             overlayModel.isBuffering = false
         }
+
+        // Track availability — hides the Audio / Sous-titres drawer
+        // buttons when there's nothing to choose from.
+        let subCount = Int(mediaPlayer.numberOfSubtitlesTracks)
+        let audCount = Int(mediaPlayer.numberOfAudioTracks)
+        overlayModel.hasSubtitleTracks = subCount > 0
+        overlayModel.hasMultipleAudioTracks = audCount > 1
     }
 }
 
@@ -587,8 +599,17 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 overlayModel.isBuffering = true
             case .playing:
                 overlayModel.isBuffering = false
+                // Resuming from pause re-arms the auto-hide timer if
+                // the drawer is currently visible — without this it'd
+                // stay up forever after un-pausing.
+                if overlayModel.isDrawerVisible {
+                    startOverlayAutoHide()
+                }
             case .paused, .stopped:
                 overlayModel.isBuffering = false
+                // Cancel any pending auto-hide so the drawer stays up
+                // for as long as the user keeps the player paused.
+                overlayTimer?.invalidate()
             case .error:
                 // One automatic retry with software decoding before giving up.
                 if !softwareDecodeRetryDone {
