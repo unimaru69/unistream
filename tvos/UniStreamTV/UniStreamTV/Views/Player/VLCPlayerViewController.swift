@@ -31,10 +31,6 @@ final class VLCPlayerViewController: UIViewController {
     private var softwareDecodeRetryDone = false
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
-    /// Set after we've successfully applied the resume seek so we don't
-    /// re-apply it on every `.playing` state notification (VLC fires
-    /// state-changed multiple times during normal playback).
-    private var didApplyResumeSeek = false
 
     // UI
     private let videoView = UIView()
@@ -69,11 +65,10 @@ final class VLCPlayerViewController: UIViewController {
         super.viewDidAppear(animated)
         mediaPlayer.play()
 
-        // Resume from position is now applied inside the
-        // `mediaPlayerStateChanged` delegate when VLC reports state
-        // `.playing` — far more reliable than the previous 1-second
-        // asyncAfter, which silently dropped the seek when buffering
-        // took longer than 1 s on slow links. See `didApplyResumeSeek`.
+        // Resume position is wired through libvlc's native
+        // `:start-time` media option in `buildMedia`, so playback
+        // starts at the requested second from the very first frame.
+        // No post-play seek needed.
 
         startOverlayAutoHide()
         startProgressTracking()
@@ -190,7 +185,8 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     private func setupPlayer() {
-        mediaPlayer.media = buildMedia(softwareDecode: false)
+        let startSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
+        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: startSec)
         mediaPlayer.drawable = videoView
         mediaPlayer.delegate = self
     }
@@ -199,8 +195,18 @@ final class VLCPlayerViewController: UIViewController {
     /// - softwareDecode: if true, disables VideoToolbox (used as a fallback when
     ///   hardware decoding fails — typical for some 1080i50 H.264 High-profile
     ///   streams served by Xtream catch-up where VideoToolbox refuses the SPS/PPS).
-    private func buildMedia(softwareDecode: Bool) -> VLCMedia {
+    /// - startTimeSec: seconds into the asset to start at — wired through to
+    ///   libvlc's native `:start-time` so the first decoded frame is already
+    ///   at that position. Far more reliable than a post-play `mediaPlayer.time = …`
+    ///   seek, which races demux readiness on slow links.
+    private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
         let media = VLCMedia(url: url)
+
+        // Resume position — apply BEFORE play so we don't have to chase
+        // a working moment for the post-play seek.
+        if startTimeSec > 0 {
+            media.addOption(":start-time=\(startTimeSec)")
+        }
 
         // Caching — HD catch-up over re-muxing Xtream servers is bursty.
         // Generous buffers drastically reduce "audio only / no video" glitches.
@@ -239,16 +245,13 @@ final class VLCPlayerViewController: UIViewController {
         guard !softwareDecodeRetryDone else { return }
         softwareDecodeRetryDone = true
 
-        let resumeMs = Int(mediaPlayer.time.intValue)
+        let resumeSec = Double(mediaPlayer.time.intValue) / 1000.0
         mediaPlayer.stop()
-        mediaPlayer.media = buildMedia(softwareDecode: true)
+        // Apply the captured position via :start-time so the software-
+        // decode path picks up exactly where the hardware path failed.
+        mediaPlayer.media = buildMedia(softwareDecode: true, startTimeSec: resumeSec)
         mediaPlayer.play()
-        if resumeMs > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                guard let self, self.mediaPlayer.isPlaying else { return }
-                self.mediaPlayer.time = VLCTime(int: Int32(resumeMs))
-            }
-        }
+
         // brief hint to the user — flash a subtitle on the drawer.
         overlayModel.subtitle = "Décodage logiciel…"
         showOverlay()
@@ -567,17 +570,6 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             switch mediaPlayer.state {
-            case .playing:
-                // Apply the resume seek the moment VLC actually starts
-                // decoding — `.playing` state is the reliable signal
-                // that the media is ready to receive a seek without
-                // dropping it. Guarded by `didApplyResumeSeek` because
-                // `.playing` fires multiple times during normal
-                // playback (e.g. after a buffer underrun).
-                if let ms = resumeFromMs, ms > 0, !didApplyResumeSeek {
-                    didApplyResumeSeek = true
-                    mediaPlayer.time = VLCTime(int: Int32(ms))
-                }
             case .error:
                 // One automatic retry with software decoding before giving up.
                 if !softwareDecodeRetryDone {
