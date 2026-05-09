@@ -86,6 +86,17 @@ struct HomeTabView: View {
                 .padding(.top, 40)
             }
         }
+        // Pin a black canvas behind the TabView itself. Each tab
+        // already paints its own background internally (splitBackdrop
+        // for Films / Séries, gradient for Live, etc.) — but those
+        // are applied INSIDE the NavigationStack, not at the
+        // TabView's root. During the cross-dissolve transition
+        // between two tabs, SwiftUI fades the old view out and the
+        // new one in; for a few frames neither has full opacity, and
+        // the TabView's own substrate (default tvOS system grey)
+        // bleeds through. That's the flash the user reported. Black
+        // here covers it without competing with anything.
+        .background(DS.Colour.background.ignoresSafeArea())
     }
 }
 
