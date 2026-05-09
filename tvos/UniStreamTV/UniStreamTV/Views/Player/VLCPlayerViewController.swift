@@ -31,6 +31,10 @@ final class VLCPlayerViewController: UIViewController {
     private var softwareDecodeRetryDone = false
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
+    /// Set after we've successfully applied the resume seek so we don't
+    /// re-apply it on every `.playing` state notification (VLC fires
+    /// state-changed multiple times during normal playback).
+    private var didApplyResumeSeek = false
 
     // UI
     private let videoView = UIView()
@@ -65,13 +69,11 @@ final class VLCPlayerViewController: UIViewController {
         super.viewDidAppear(animated)
         mediaPlayer.play()
 
-        // Resume from position
-        if let ms = resumeFromMs, ms > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                guard let self, self.mediaPlayer.isPlaying else { return }
-                self.mediaPlayer.time = VLCTime(int: Int32(ms))
-            }
-        }
+        // Resume from position is now applied inside the
+        // `mediaPlayerStateChanged` delegate when VLC reports state
+        // `.playing` — far more reliable than the previous 1-second
+        // asyncAfter, which silently dropped the seek when buffering
+        // took longer than 1 s on slow links. See `didApplyResumeSeek`.
 
         startOverlayAutoHide()
         startProgressTracking()
@@ -549,6 +551,17 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             switch mediaPlayer.state {
+            case .playing:
+                // Apply the resume seek the moment VLC actually starts
+                // decoding — `.playing` state is the reliable signal
+                // that the media is ready to receive a seek without
+                // dropping it. Guarded by `didApplyResumeSeek` because
+                // `.playing` fires multiple times during normal
+                // playback (e.g. after a buffer underrun).
+                if let ms = resumeFromMs, ms > 0, !didApplyResumeSeek {
+                    didApplyResumeSeek = true
+                    mediaPlayer.time = VLCTime(int: Int32(ms))
+                }
             case .error:
                 // One automatic retry with software decoding before giving up.
                 if !softwareDecodeRetryDone {

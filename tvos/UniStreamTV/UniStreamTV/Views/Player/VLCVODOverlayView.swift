@@ -50,6 +50,11 @@ struct VLCVODOverlayView: View {
         .onChange(of: focused) { _, _ in
             model.onUserActivity()
         }
+        // Belt-and-braces: per-button `.focusEffectDisabled()` proved
+        // insufficient inside a UIHostingController on tvOS — the
+        // system halo still rendered behind transport buttons. Apply
+        // at the body root for the whole drawer.
+        .focusEffectDisabled()
     }
 
     // MARK: - Drawer

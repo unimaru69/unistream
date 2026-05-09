@@ -208,16 +208,18 @@ enum PlayerPresenter {
         objc_setAssociatedObject(playerVC, "fallbackHandler", fallbackHandler, .OBJC_ASSOCIATION_RETAIN)
 
         rootVC.present(playerVC, animated: true) {
-            // Seek before play so we never flash a frame at t=0. Use the
-            // completion handler so playback only starts once the seek
-            // has actually committed; without it AVPlayer can race the
-            // play() call against the not-yet-loaded asset and start at 0.
             if let ms = resumeFromMs, ms > 0 {
-                let time = CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600)
-                player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                // Wait until the player item reports `.readyToPlay` before
+                // seeking. AVPlayer queues seeks issued before that point,
+                // but on tvOS HLS streams those queued seeks have been
+                // observed to land at t=0 instead of the requested time —
+                // hence "Reprendre" silently restarting from the start.
+                let helper = ResumeSeekHelper(player: player, resumeMs: ms, onReady: {
                     player.play()
                     playerVC.progressTracker?.start()
-                }
+                })
+                helper.start()
+                objc_setAssociatedObject(playerVC, "resumeSeekHelper", helper, .OBJC_ASSOCIATION_RETAIN)
             } else {
                 player.play()
                 playerVC.progressTracker?.start()
@@ -1211,6 +1213,75 @@ extension AVPlayerViewController {
         case .resizeAspectFill: return "Remplir"
         case .resize: return "Étirer"
         default: return "Adapter"
+        }
+    }
+}
+
+// MARK: - Resume Seek Helper (AVPlayer)
+
+/// Defers an AVPlayer resume seek until the current item reports
+/// `.readyToPlay`, then seeks (with tight tolerance) and only then
+/// starts playback via the supplied callback.
+///
+/// Why this exists: AVPlayer.seek() issued before the current item has
+/// resolved its duration is documented to "queue" the seek and apply
+/// it once ready, but on tvOS HLS streams the queued seek frequently
+/// lands at t=0 instead of the requested time — the user picks
+/// "Reprendre at 4:16" and the film starts from the beginning. KVO-ing
+/// the item's status until `.readyToPlay` and only THEN seeking is the
+/// reliable pattern.
+@MainActor
+final class ResumeSeekHelper: NSObject {
+    private let player: AVPlayer
+    private let resumeMs: Int
+    private let onReady: () -> Void
+    private var observation: NSKeyValueObservation?
+    private var didSeek = false
+
+    init(player: AVPlayer, resumeMs: Int, onReady: @escaping () -> Void) {
+        self.player = player
+        self.resumeMs = resumeMs
+        self.onReady = onReady
+    }
+
+    func start() {
+        guard let item = player.currentItem else {
+            // No item yet — fall back to the on-best-effort seek.
+            performSeekAndPlay()
+            return
+        }
+        // `.initial` triggers immediately if the status is already ready.
+        observation = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+            guard let self else { return }
+            switch item.status {
+            case .readyToPlay:
+                Task { @MainActor [weak self] in self?.performSeekAndPlay() }
+            case .failed:
+                // Item failed before we could seek — start playback anyway
+                // so the existing fallback chain (VODFallbackHandler) gets
+                // a chance to swap in an alternate URL or VLC.
+                Task { @MainActor [weak self] in self?.performSeekAndPlay() }
+            default:
+                break
+            }
+        }
+    }
+
+    private func performSeekAndPlay() {
+        guard !didSeek else { return }
+        didSeek = true
+        observation?.invalidate()
+        observation = nil
+        let time = CMTime(seconds: Double(resumeMs) / 1000.0, preferredTimescale: 600)
+        // Going through `self` inside an explicit MainActor task keeps
+        // the Swift 6 sendability checker happy — the seek completion
+        // handler runs on an arbitrary queue, but we hop back to main
+        // before touching `onReady` (which captures non-Sendable
+        // AVPlayer / AVPlayerViewController references).
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.onReady()
+            }
         }
     }
 }

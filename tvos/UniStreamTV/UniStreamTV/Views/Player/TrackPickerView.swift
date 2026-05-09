@@ -83,6 +83,13 @@ struct TrackPickerView: View {
             )
         }
         .defaultFocus($focused, selectedId)
+        // See ResumeConfirmView for the rationale on these two:
+        // root-level focusEffectDisabled because per-Button alone
+        // isn't enough inside a UIHostingController, and onExitCommand
+        // because Menu would otherwise propagate up to the player VC
+        // and dismiss the entire film.
+        .focusEffectDisabled()
+        .onExitCommand { onDismiss() }
     }
 
     @ViewBuilder

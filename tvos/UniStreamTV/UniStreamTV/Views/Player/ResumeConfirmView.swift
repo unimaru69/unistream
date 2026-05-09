@@ -110,6 +110,15 @@ struct ResumeConfirmView: View {
             .padding(DS.Padding.screenHorizontal)
         }
         .defaultFocus($focused, .resume)
+        // Belt-and-braces against the tvOS system focus halo: the
+        // per-Button `.focusEffectDisabled()` modifiers below proved
+        // insufficient inside a UIHostingController, so apply it at
+        // the body root for the entire dialog tree.
+        .focusEffectDisabled()
+        // Menu/Back must close just the dialog, not the whole player
+        // underneath. Without this, the press propagates up to the
+        // presenting VC and dismisses it too.
+        .onExitCommand { onCancel() }
     }
 
     @ViewBuilder
