@@ -19,11 +19,22 @@ struct VLCVODOverlayView: View {
     /// instead of always snapping back to play/pause. Initialised
     /// to play/pause for the very first appearance.
     @State private var lastFocused: ButtonId = .playPause
+    /// Timestamp of the most recent focus arrival on any button.
+    /// Used to filter out the phantom taps some non-Siri remotes
+    /// fire immediately after a focus traversal (the "avance et
+    /// recule en même temps" bug). A genuine Select press lands
+    /// at least ~250 ms after focus settles.
+    @State private var lastFocusArrivedAt: Date = .distantPast
 
     enum ButtonId: Hashable {
         case skipBack, playPause, skipForward
         case audio, subtitles, aspect, more
     }
+
+    /// Minimum delay between a focus arrival and an accepted tap.
+    /// Smaller than the average human "settle then click" reaction
+    /// time, but big enough to absorb the phantom taps.
+    private static let phantomTapWindow: TimeInterval = 0.25
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -54,11 +65,13 @@ struct VLCVODOverlayView: View {
         // this the drawer would vanish 5 s after appearance even while
         // the user is busy navigating buttons.
         // Also snapshots the latest focused button into `lastFocused`
-        // so the drawer's next appearance can restore it.
+        // so the drawer's next appearance can restore it, and stamps
+        // the time-of-arrival used by the phantom-tap filter below.
         .onChange(of: focused) { _, newValue in
             model.onUserActivity()
             if let id = newValue {
                 lastFocused = id
+                lastFocusArrivedAt = Date()
             }
         }
         // Belt-and-braces: per-button `.focusEffectDisabled()` proved
@@ -200,61 +213,62 @@ struct VLCVODOverlayView: View {
     ) -> some View {
         let isFocused = focused == id
 
-        // Back to SwiftUI Button: the focusable + onTapGesture pattern
-        // we tried to avoid the simulator-only focus halo had a worse
-        // side-effect on hardware — the tap gesture occasionally
-        // fired during focus traversal with non-Siri remotes,
-        // seeking the video every time the user moved between
-        // buttons ("ça avance et recule en même temps"). Button uses
-        // SwiftUI's own press handling which strictly requires a
-        // Select press to invoke the action. The halo we feared is
-        // hardware-confirmed absent on real Apple TV.
-        // Focused button gets the accent fill regardless of size so
-        // the focus position is unambiguous; unfocused secondary
-        // buttons stay subtle white-tinted, the big play/pause keeps
-        // its accent fill at all times (it's the primary action).
+        // focusable + onTapGesture (no system halo) — the previous
+        // round chose SwiftUI Button to dodge a focus-traversal-fires-
+        // tap bug we hit with `.onTapGesture`, but Button itself
+        // brought back the wide white system halo the user explicitly
+        // doesn't want. Compromise: keep focusable + onTapGesture,
+        // and filter phantom taps with a `lastFocusArrivedAt` window
+        // (see `phantomTapWindow` on the parent struct).
+        //
+        // Focused button takes the accent fill regardless of size so
+        // the focus position is unambiguous; the big play/pause keeps
+        // accent at all times.
         let fill: Color = {
             if isFocused { return DS.Colour.accent }
             return big ? DS.Colour.accent : Color.white.opacity(0.12)
         }()
 
-        Button(action: action) {
-            VStack(spacing: DS.Spacing.xs) {
-                ZStack {
-                    Circle()
-                        .fill(fill)
-                        .frame(width: big ? 76 : 56, height: big ? 76 : 56)
-                    // White ring on focus — reads clearly on the accent
-                    // fill underneath. Combined with the bumped scale
-                    // (1.15), the focused button is now unambiguous.
-                    Circle()
-                        .strokeBorder(Color.white, lineWidth: 3)
-                        .frame(width: big ? 76 : 56, height: big ? 76 : 56)
-                        .opacity(isFocused ? 0.9 : 0)
-                    // Show a spinner over the play/pause button when VLC
-                    // is buffering (initial load, mid-stream stall, seek
-                    // re-buffer). Without this the icon stays static
-                    // through long buffers and the player feels frozen.
-                    if id == .playPause && model.isBuffering {
-                        ProgressView()
-                            .tint(.white)
-                            .scaleEffect(1.6)
-                    } else {
-                        Image(systemName: icon)
-                            .font(.system(size: big ? 30 : 22, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
+        VStack(spacing: DS.Spacing.xs) {
+            ZStack {
+                Circle()
+                    .fill(fill)
+                    .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                // White ring on focus — reads clearly on the accent
+                // fill underneath. Combined with scale 1.15, the
+                // focused button is unambiguous.
+                Circle()
+                    .strokeBorder(Color.white, lineWidth: 3)
+                    .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                    .opacity(isFocused ? 0.9 : 0)
+                if id == .playPause && model.isBuffering {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.6)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: big ? 30 : 22, weight: .semibold))
+                        .foregroundColor(.white)
                 }
-                Text(label)
-                    .font(DS.Typography.caption)
-                    .fontWeight(isFocused ? .semibold : .regular)
-                    .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
             }
+            Text(label)
+                .font(DS.Typography.caption)
+                .fontWeight(isFocused ? .semibold : .regular)
+                .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
         }
-        .buttonStyle(.plain)
+        .focusable()
         .focused($focused, equals: id)
         .scaleEffect(isFocused ? 1.15 : 1.0)
         .animation(DS.Focus.animation, value: isFocused)
+        .onTapGesture {
+            // Phantom-tap filter: ignore taps that fire too soon after
+            // a focus arrival — that's the IR-remote glitch where a
+            // single directional press fires both a focus traversal
+            // and a synthetic Select on the destination button.
+            let elapsed = Date().timeIntervalSince(lastFocusArrivedAt)
+            guard elapsed > Self.phantomTapWindow else { return }
+            action()
+        }
     }
 
     // MARK: - Helpers

@@ -32,6 +32,9 @@ struct TrackPickerView: View {
     let onDismiss: () -> Void
 
     @FocusState private var focused: Int32?
+    /// Phantom-tap filter — see VLCVODOverlayView.
+    @State private var lastFocusArrivedAt: Date = .distantPast
+    private static let phantomTapWindow: TimeInterval = 0.25
 
     /// Effective option list with synthetic "Désactivés" prepended when
     /// `allowOff` is true.
@@ -54,13 +57,16 @@ struct TrackPickerView: View {
                         .font(DS.Typography.title2)
                         .foregroundColor(DS.Colour.textPrimary)
                     Spacer()
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(focused == Int32.max ? .white : DS.Colour.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .focused($focused, equals: Int32.max)
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(focused == Int32.max ? .white : DS.Colour.textTertiary)
+                        .focusable()
+                        .focused($focused, equals: Int32.max)
+                        .onTapGesture {
+                            let elapsed = Date().timeIntervalSince(lastFocusArrivedAt)
+                            guard elapsed > Self.phantomTapWindow else { return }
+                            onDismiss()
+                        }
                 }
                 .padding(.bottom, DS.Spacing.sm)
 
@@ -82,12 +88,16 @@ struct TrackPickerView: View {
             )
         }
         .defaultFocus($focused, selectedId)
-        // See ResumeConfirmView for the rationale on these two:
-        // root-level focusEffectDisabled because per-Button alone
-        // isn't enough inside a UIHostingController, and onExitCommand
-        // because Menu would otherwise propagate up to the player VC
-        // and dismiss the entire film.
-        .focusEffectDisabled()
+        // Stamp focus arrivals so the phantom-tap filter on each row
+        // can distinguish a genuine Select press from a synthetic
+        // tap fired during focus traversal on certain remotes.
+        .onChange(of: focused) { _, newValue in
+            if newValue != nil {
+                lastFocusArrivedAt = Date()
+            }
+        }
+        // Menu / Back closes just the picker, not the underlying
+        // player.
         .onExitCommand { onDismiss() }
     }
 
@@ -96,48 +106,49 @@ struct TrackPickerView: View {
         let isSelected = option.id == selectedId
         let isFocused = focused == option.id
 
-        // SwiftUI Button — see ResumeConfirmView / VLCVODOverlayView
-        // for why we reverted from focusable + onTapGesture.
-        Button {
-            onSelect(option.id)
-        } label: {
-            HStack(spacing: DS.Spacing.md) {
-                ZStack {
+        // focusable + onTapGesture (no system halo) with phantom-tap
+        // filter — see VLCVODOverlayView for the rationale.
+        HStack(spacing: DS.Spacing.md) {
+            ZStack {
+                Circle()
+                    .stroke(DS.Colour.textTertiary, lineWidth: 2)
+                    .frame(width: 22, height: 22)
+                if isSelected {
                     Circle()
-                        .stroke(DS.Colour.textTertiary, lineWidth: 2)
-                        .frame(width: 22, height: 22)
-                    if isSelected {
-                        Circle()
-                            .fill(DS.Colour.accent)
-                            .frame(width: 12, height: 12)
-                    }
-                }
-                Text(option.label)
-                    .font(DS.Typography.body)
-                    .foregroundColor(.white)
-                Spacer()
-                if let detail = option.detail, !detail.isEmpty {
-                    Text(detail)
-                        .font(DS.Typography.caption)
-                        .foregroundColor(DS.Colour.textSecondary)
+                        .fill(DS.Colour.accent)
+                        .frame(width: 12, height: 12)
                 }
             }
-            .padding(.vertical, DS.Spacing.sm)
-            .padding(.horizontal, DS.Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .fill(isFocused ? DS.Colour.surfaceElevated : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .strokeBorder(
-                        DS.Colour.accent.opacity(isFocused ? 0.7 : 0),
-                        lineWidth: DS.Focus.ringWidth
-                    )
-            )
+            Text(option.label)
+                .font(DS.Typography.body)
+                .foregroundColor(.white)
+            Spacer()
+            if let detail = option.detail, !detail.isEmpty {
+                Text(detail)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Colour.textSecondary)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, DS.Spacing.sm)
+        .padding(.horizontal, DS.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .fill(isFocused ? DS.Colour.surfaceElevated : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(
+                    DS.Colour.accent.opacity(isFocused ? 0.7 : 0),
+                    lineWidth: DS.Focus.ringWidth
+                )
+        )
+        .focusable()
         .focused($focused, equals: option.id)
+        .onTapGesture {
+            let elapsed = Date().timeIntervalSince(lastFocusArrivedAt)
+            guard elapsed > Self.phantomTapWindow else { return }
+            onSelect(option.id)
+        }
     }
 }
 

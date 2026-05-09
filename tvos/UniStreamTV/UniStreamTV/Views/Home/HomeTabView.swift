@@ -86,16 +86,12 @@ struct HomeTabView: View {
                 .padding(.top, 40)
             }
         }
-        // Pin a darker substrate behind the whole TabView. The
-        // previous attempt with pure black broke Settings / Favoris
-        // (their Form / List rows turned invisible against #000); the
-        // round before that left tvOS's default light grey showing
-        // through during the inter-tab cross-dissolve, hence the
-        // flash. surfaceElevated (#1C1C1E, +12 % white) splits the
-        // difference: dark enough to mute the flash significantly
-        // versus the system grey, light enough that Form rows on top
-        // still have readable contrast.
-        .background(DS.Colour.surfaceElevated.ignoresSafeArea())
+        // No background paint here. Painting any colour at the TabView
+        // root has compressed Settings's Form rows into "dark text on
+        // dark substrate" no matter what value we tried (pure black,
+        // surfaceElevated). The proper fix for the inter-tab flash
+        // belongs at a layer below the SwiftUI hierarchy
+        // (UIWindow.backgroundColor) — to be tackled in a follow-up.
     }
 }
 

@@ -15,8 +15,12 @@ struct ResumeConfirmView: View {
     let onCancel: () -> Void
 
     @FocusState private var focused: Action?
+    /// Phantom-tap filter — see VLCVODOverlayView for the rationale.
+    @State private var lastFocusArrivedAt: Date = .distantPast
 
     enum Action: Hashable { case resume, restart, cancel }
+
+    private static let phantomTapWindow: TimeInterval = 0.25
 
     private var formattedPosition: String {
         Self.formatHMS(seconds: positionMs / 1000)
@@ -86,18 +90,21 @@ struct ResumeConfirmView: View {
                     )
                 }
 
-                Button(action: onCancel) {
-                    Text("Annuler")
-                        .font(DS.Typography.body)
-                        .foregroundColor(focused == .cancel ? DS.Colour.textPrimary : DS.Colour.textSecondary)
-                        .padding(.vertical, DS.Spacing.sm)
-                        .padding(.horizontal, DS.Spacing.lg)
-                        .background(
-                            Capsule().fill(focused == .cancel ? Color.white.opacity(0.15) : Color.clear)
-                        )
-                }
-                .buttonStyle(.plain)
-                .focused($focused, equals: .cancel)
+                Text("Annuler")
+                    .font(DS.Typography.body)
+                    .foregroundColor(focused == .cancel ? DS.Colour.textPrimary : DS.Colour.textSecondary)
+                    .padding(.vertical, DS.Spacing.sm)
+                    .padding(.horizontal, DS.Spacing.lg)
+                    .background(
+                        Capsule().fill(focused == .cancel ? Color.white.opacity(0.15) : Color.clear)
+                    )
+                    .focusable()
+                    .focused($focused, equals: .cancel)
+                    .onTapGesture {
+                        let elapsed = Date().timeIntervalSince(lastFocusArrivedAt)
+                        guard elapsed > Self.phantomTapWindow else { return }
+                        onCancel()
+                    }
             }
             .padding(DS.Spacing.huge)
             .frame(maxWidth: 1100)
@@ -109,6 +116,13 @@ struct ResumeConfirmView: View {
             .padding(DS.Padding.screenHorizontal)
         }
         .defaultFocus($focused, .resume)
+        // Stamp focus arrivals so the phantom-tap filter on each
+        // focusable card knows when the most recent traversal landed.
+        .onChange(of: focused) { _, newValue in
+            if newValue != nil {
+                lastFocusArrivedAt = Date()
+            }
+        }
         // Belt-and-braces against the tvOS system focus halo: the
         // per-Button `.focusEffectDisabled()` modifiers below proved
         // insufficient inside a UIHostingController, so apply it at
@@ -129,30 +143,31 @@ struct ResumeConfirmView: View {
         accent: Bool,
         onTap: @escaping () -> Void
     ) -> some View {
-        // SwiftUI Button: the focusable + onTapGesture trick we used
-        // to dodge the simulator-only focus halo proved unsafe with
-        // non-Siri remotes (taps fired on focus traversal). Hardware
-        // testing confirmed Button has no halo issue, so we revert.
-        Button(action: onTap) {
-            VStack(spacing: DS.Spacing.sm) {
-                Image(systemName: icon)
-                    .font(.system(size: 44, weight: .semibold))
-                Text(title)
-                    .font(DS.Typography.title2)
-                Text(subtitle)
-                    .font(DS.Typography.caption)
-                    .foregroundColor(DS.Colour.textSecondary)
-            }
-            .frame(width: 320, height: 220)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .fill(accent ? DS.Colour.accent : DS.Colour.surfaceElevated)
-            )
-            .foregroundColor(.white)
+        // focusable + onTapGesture (no system focus halo) with the
+        // phantom-tap filter — see VLCVODOverlayView for the rationale.
+        VStack(spacing: DS.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 44, weight: .semibold))
+            Text(title)
+                .font(DS.Typography.title2)
+            Text(subtitle)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Colour.textSecondary)
         }
-        .buttonStyle(.plain)
+        .frame(width: 320, height: 220)
+        .background(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .fill(accent ? DS.Colour.accent : DS.Colour.surfaceElevated)
+        )
+        .foregroundColor(.white)
+        .focusable()
         .focused($focused, equals: action)
         .focusCardEffect(isFocused: focused == action)
+        .onTapGesture {
+            let elapsed = Date().timeIntervalSince(lastFocusArrivedAt)
+            guard elapsed > Self.phantomTapWindow else { return }
+            onTap()
+        }
     }
 
     /// Format an integer number of seconds as `H:MM:SS` (≥1h) or `M:SS`.
