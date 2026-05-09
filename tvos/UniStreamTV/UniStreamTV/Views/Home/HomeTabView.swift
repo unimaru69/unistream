@@ -7,25 +7,26 @@ struct HomeTabView: View {
     @State private var hasLoadedLive = false
 
     var body: some View {
-        // Disable the system focus halo on every non-Settings tab.
-        // Every focusable surface in those tabs (cards, hero CTAs,
-        // chips, sidebar rows, …) already paints its own focus state
-        // via scaleEffect / accent fill / ring, so the system halo
-        // just reads as a dirty pale-grey backdrop on top of our
-        // styling. The Settings tab is intentionally left at the
-        // default — its Form / Toggle rows are system-styled and the
-        // halo IS the focus indication there.
+        // The previous round added `.focusEffectDisabled()` on every
+        // non-Settings tab to silence a pale-grey focus halo we'd
+        // observed in the iOS simulator. Hardware testing on real
+        // Apple TV showed the halo never actually rendered there —
+        // it was a simulator-only artefact. Meanwhile the per-tab
+        // modifier inserted an extra environment-mutating wrapper
+        // between each tab's content and its `.tabItem`, which
+        // correlated with the tab-switch flash the user observed
+        // (system tab transition animating against an unstable
+        // tree). Removing the modifiers entirely: visually identical
+        // on hardware, hopefully fixes the flash.
         TabView(selection: $selectedTab) {
             // Home (Continue Watching + quick access)
             HomeContentView()
-                .focusEffectDisabled()
                 .tabItem { Label("Accueil", systemImage: "house") }
                 .tag(0)
 
             // Live TV (sidebar + grid split view)
             if let liveVM = appState.liveVM {
                 LiveSplitView(viewModel: liveVM)
-                    .focusEffectDisabled()
                     .tabItem { Label("Live", systemImage: "tv") }
                     .tag(1)
             }
@@ -33,7 +34,6 @@ struct HomeTabView: View {
             // Films (sidebar + grid split view)
             if let vodVM = appState.vodVM {
                 VODSplitView(viewModel: vodVM, api: appState.api)
-                    .focusEffectDisabled()
                     .tabItem { Label("Films", systemImage: "film") }
                     .tag(2)
             }
@@ -41,20 +41,17 @@ struct HomeTabView: View {
             // Séries (sidebar + grid split view)
             if let seriesVM = appState.seriesVM {
                 SeriesSplitView(viewModel: seriesVM, api: appState.api)
-                    .focusEffectDisabled()
                     .tabItem { Label("Séries", systemImage: "tv.inset.filled") }
                     .tag(3)
             }
 
             // Favorites
             FavoritesView()
-                .focusEffectDisabled()
                 .tabItem { Label("Favoris", systemImage: "heart.fill") }
                 .tag(4)
 
             // Search
             SearchView()
-                .focusEffectDisabled()
                 .tabItem { Label("Recherche", systemImage: "magnifyingglass") }
                 .tag(5)
 
