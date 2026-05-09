@@ -200,40 +200,44 @@ struct VLCVODOverlayView: View {
     ) -> some View {
         let isFocused = focused == id
 
-        // SwiftUI Button on tvOS still draws the system focus halo even
-        // with `.focusEffectDisabled()` when hosted inside a
-        // UIHostingController — verified with multiple modifier orders.
-        // Switching to a focusable view + onTapGesture sidesteps that
-        // entirely; we already provide a clean focus indication via
-        // accent fill + scaleEffect.
-        VStack(spacing: DS.Spacing.xxs) {
-            ZStack {
-                Circle()
-                    .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
-                    .frame(width: big ? 76 : 56, height: big ? 76 : 56)
-                // Show a spinner over the play/pause button when VLC
-                // is buffering (initial load, mid-stream stall, seek
-                // re-buffer). Without this the icon stays static
-                // through long buffers and the player feels frozen.
-                if id == .playPause && model.isBuffering {
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(1.6)
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: big ? 30 : 22, weight: .semibold))
-                        .foregroundColor(.white)
+        // Back to SwiftUI Button: the focusable + onTapGesture pattern
+        // we tried to avoid the simulator-only focus halo had a worse
+        // side-effect on hardware — the tap gesture occasionally
+        // fired during focus traversal with non-Siri remotes,
+        // seeking the video every time the user moved between
+        // buttons ("ça avance et recule en même temps"). Button uses
+        // SwiftUI's own press handling which strictly requires a
+        // Select press to invoke the action. The halo we feared is
+        // hardware-confirmed absent on real Apple TV.
+        Button(action: action) {
+            VStack(spacing: DS.Spacing.xxs) {
+                ZStack {
+                    Circle()
+                        .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
+                        .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                    // Show a spinner over the play/pause button when VLC
+                    // is buffering (initial load, mid-stream stall, seek
+                    // re-buffer). Without this the icon stays static
+                    // through long buffers and the player feels frozen.
+                    if id == .playPause && model.isBuffering {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(1.6)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: big ? 30 : 22, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
                 }
+                Text(label)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
             }
-            Text(label)
-                .font(DS.Typography.caption)
-                .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
         }
-        .focusable()
+        .buttonStyle(.plain)
         .focused($focused, equals: id)
         .scaleEffect(isFocused ? 1.10 : 1.0)
         .animation(DS.Focus.animation, value: isFocused)
-        .onTapGesture { action() }
     }
 
     // MARK: - Helpers

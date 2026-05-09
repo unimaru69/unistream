@@ -137,6 +137,11 @@ struct LiveSplitView: View {
                 }
             }
         }
+        // Outer opaque canvas — kills the cross-dissolve flash when
+        // tabbing between Live / Films / Séries (system grey would
+        // otherwise bleed through during the brief moment when
+        // neither old-tab nor new-tab content has full opacity).
+        .background(DS.Colour.background.ignoresSafeArea())
     }
 
     // MARK: - Sidebar

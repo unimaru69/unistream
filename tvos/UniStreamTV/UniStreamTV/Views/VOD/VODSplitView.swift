@@ -93,6 +93,9 @@ struct VODSplitView: View {
             // VODDetailView.
             .toolbar(.visible, for: .tabBar)
         }
+        // Outer opaque canvas — see LiveSplitView for the rationale
+        // (kills the inter-tab cross-dissolve flash).
+        .background(DS.Colour.background.ignoresSafeArea())
     }
 
     // MARK: - Sidebar

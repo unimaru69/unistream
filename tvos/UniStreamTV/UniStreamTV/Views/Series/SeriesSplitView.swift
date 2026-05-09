@@ -98,6 +98,9 @@ struct SeriesSplitView: View {
             // the push/pop boundary regardless of where focus lands.
             .toolbar(.visible, for: .tabBar)
         }
+        // Outer opaque canvas — see LiveSplitView for the rationale
+        // (kills the inter-tab cross-dissolve flash).
+        .background(DS.Colour.background.ignoresSafeArea())
     }
 
     private var sidebar: some View {

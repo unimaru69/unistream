@@ -560,6 +560,15 @@ final class VLCPlayerViewController: UIViewController {
         overlayModel.positionSeconds = Double(posMs) / 1000.0
         overlayModel.durationSeconds = Double(durMs) / 1000.0
         overlayModel.isPlaying = mediaPlayer.isPlaying
+
+        // Belt-and-braces: clear the buffering flag whenever VLC is
+        // actually playing. The mediaPlayerStateChanged delegate
+        // doesn't always fire `.playing` reliably for short streams
+        // or quick state transitions, leaving the spinner stuck on
+        // the play/pause button forever.
+        if mediaPlayer.isPlaying {
+            overlayModel.isBuffering = false
+        }
     }
 }
 

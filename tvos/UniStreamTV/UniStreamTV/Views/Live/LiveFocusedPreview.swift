@@ -58,8 +58,8 @@ struct LiveFocusedPreview: View {
             LinearGradient(
                 colors: [
                     DS.Colour.background.opacity(0.0),
-                    DS.Colour.background.opacity(0.75),
-                    DS.Colour.background.opacity(0.95),
+                    DS.Colour.background.opacity(0.90),
+                    DS.Colour.background.opacity(1.0),
                 ],
                 startPoint: .top,
                 endPoint: .bottom

@@ -54,12 +54,13 @@ struct TrackPickerView: View {
                         .font(DS.Typography.title2)
                         .foregroundColor(DS.Colour.textPrimary)
                     Spacer()
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(focused == Int32.max ? .white : DS.Colour.textTertiary)
-                        .focusable()
-                        .focused($focused, equals: Int32.max)
-                        .onTapGesture { onDismiss() }
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(focused == Int32.max ? .white : DS.Colour.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .focused($focused, equals: Int32.max)
                 }
                 .padding(.bottom, DS.Spacing.sm)
 
@@ -95,47 +96,48 @@ struct TrackPickerView: View {
         let isSelected = option.id == selectedId
         let isFocused = focused == option.id
 
-        // See ResumeConfirmView for the rationale: SwiftUI Button on
-        // tvOS keeps the system focus halo even with .focusEffectDisabled()
-        // when hosted inside a UIHostingController. focusable() +
-        // onTapGesture sidesteps that entirely.
-        HStack(spacing: DS.Spacing.md) {
-            ZStack {
-                Circle()
-                    .stroke(DS.Colour.textTertiary, lineWidth: 2)
-                    .frame(width: 22, height: 22)
-                if isSelected {
+        // SwiftUI Button — see ResumeConfirmView / VLCVODOverlayView
+        // for why we reverted from focusable + onTapGesture.
+        Button {
+            onSelect(option.id)
+        } label: {
+            HStack(spacing: DS.Spacing.md) {
+                ZStack {
                     Circle()
-                        .fill(DS.Colour.accent)
-                        .frame(width: 12, height: 12)
+                        .stroke(DS.Colour.textTertiary, lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    if isSelected {
+                        Circle()
+                            .fill(DS.Colour.accent)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                Text(option.label)
+                    .font(DS.Typography.body)
+                    .foregroundColor(.white)
+                Spacer()
+                if let detail = option.detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
             }
-            Text(option.label)
-                .font(DS.Typography.body)
-                .foregroundColor(.white)
-            Spacer()
-            if let detail = option.detail, !detail.isEmpty {
-                Text(detail)
-                    .font(DS.Typography.caption)
-                    .foregroundColor(DS.Colour.textSecondary)
-            }
+            .padding(.vertical, DS.Spacing.sm)
+            .padding(.horizontal, DS.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .fill(isFocused ? DS.Colour.surfaceElevated : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .strokeBorder(
+                        DS.Colour.accent.opacity(isFocused ? 0.7 : 0),
+                        lineWidth: DS.Focus.ringWidth
+                    )
+            )
         }
-        .padding(.vertical, DS.Spacing.sm)
-        .padding(.horizontal, DS.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                .fill(isFocused ? DS.Colour.surfaceElevated : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                .strokeBorder(
-                    DS.Colour.accent.opacity(isFocused ? 0.7 : 0),
-                    lineWidth: DS.Focus.ringWidth
-                )
-        )
-        .focusable()
+        .buttonStyle(.plain)
         .focused($focused, equals: option.id)
-        .onTapGesture { onSelect(option.id) }
     }
 }
 
