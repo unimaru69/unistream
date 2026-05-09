@@ -80,11 +80,13 @@ struct LiveSplitView: View {
                     .focusSection()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Force the canvas black like Films / Séries split views.
-            // Without this, tvOS shades the area in a default light grey
-            // when nothing else paints behind — visibly inconsistent
-            // with the other tabs.
-            .background(DS.Colour.background.ignoresSafeArea())
+            // No explicit canvas colour: the LiveFocusedPreview at the
+            // bottom uses a fade-to-DS.Colour.background gradient that
+            // becomes invisible on a pure-black canvas (loses the
+            // contrast separating it from the channel grid). Letting
+            // the system grey through gives the bottom panel the lift
+            // it needs. Proper fix later: add a focus-driven backdrop
+            // to Live (matching the Films / Séries pattern).
             // Focus-driven preview — when the user moves the focus
             // engine across sidebar entries, the right-hand grid
             // updates immediately, no tap required. Tap then just

@@ -142,11 +142,15 @@ struct SeriesGridView: View {
             }
             .animation(DS.Motion.standard, value: focusedSeries?.seriesId)
             .onAppear {
+                // Only scroll to top — no auto-focus on the first
+                // item. Pulling focus here used to steal it from the
+                // sidebar every time the user merely *previewed* a
+                // new category by pressing ↓ (the gridContent block
+                // re-appears in the if/else tree once the items
+                // load, which re-fires this onAppear). The user
+                // explicitly enters the grid via → / Select.
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(120))
-                    if let first = displayedItems.first?.seriesId {
-                        focusedSeriesId = first
-                    }
                     withAnimation { proxy.scrollTo("__top__", anchor: .top) }
                 }
             }

@@ -146,11 +146,10 @@ struct VODGridView: View {
             }
             .animation(DS.Motion.standard, value: focusedVod?.streamId)
             .onAppear {
+                // No auto-focus on the first item — see SeriesGridView
+                // for the rationale. Only scroll to top.
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(120))
-                    if let first = displayedItems.first?.streamId {
-                        focusedVodId = first
-                    }
                     withAnimation { proxy.scrollTo("__top__", anchor: .top) }
                 }
             }
