@@ -45,7 +45,14 @@ struct LiveFocusedPreview: View {
             artwork
         }
         .padding(.horizontal, DS.Padding.screenHorizontal)
-        .padding(.vertical, DS.Spacing.md)
+        // Asymmetric vertical padding: a tall top lead-in (64 pt)
+        // gives the dark fade plenty of vertical room to bloom up
+        // from behind the text — the panel reads as a generous
+        // "rise from the screen bottom" instead of a tight strip.
+        // The bottom padding stays modest so the channel info still
+        // sits comfortably near the bottom edge.
+        .padding(.top, DS.Spacing.xxxl)
+        .padding(.bottom, DS.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .trailing)
         .background(
             LinearGradient(
