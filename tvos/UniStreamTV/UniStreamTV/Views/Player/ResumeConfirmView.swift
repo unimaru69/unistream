@@ -86,19 +86,17 @@ struct ResumeConfirmView: View {
                     )
                 }
 
-                Button(action: onCancel) {
-                    Text("Annuler")
-                        .font(DS.Typography.body)
-                        .foregroundColor(focused == .cancel ? DS.Colour.textPrimary : DS.Colour.textSecondary)
-                        .padding(.vertical, DS.Spacing.sm)
-                        .padding(.horizontal, DS.Spacing.lg)
-                        .background(
-                            Capsule().fill(focused == .cancel ? Color.white.opacity(0.15) : Color.clear)
-                        )
-                }
-                .buttonStyle(.plain)
-                .focused($focused, equals: .cancel)
-                .focusEffectDisabled()
+                Text("Annuler")
+                    .font(DS.Typography.body)
+                    .foregroundColor(focused == .cancel ? DS.Colour.textPrimary : DS.Colour.textSecondary)
+                    .padding(.vertical, DS.Spacing.sm)
+                    .padding(.horizontal, DS.Spacing.lg)
+                    .background(
+                        Capsule().fill(focused == .cancel ? Color.white.opacity(0.15) : Color.clear)
+                    )
+                    .focusable()
+                    .focused($focused, equals: .cancel)
+                    .onTapGesture { onCancel() }
             }
             .padding(DS.Spacing.huge)
             .frame(maxWidth: 1100)
@@ -130,27 +128,32 @@ struct ResumeConfirmView: View {
         accent: Bool,
         onTap: @escaping () -> Void
     ) -> some View {
-        Button(action: onTap) {
-            VStack(spacing: DS.Spacing.sm) {
-                Image(systemName: icon)
-                    .font(.system(size: 44, weight: .semibold))
-                Text(title)
-                    .font(DS.Typography.title2)
-                Text(subtitle)
-                    .font(DS.Typography.caption)
-                    .foregroundColor(DS.Colour.textSecondary)
-            }
-            .frame(width: 320, height: 220)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .fill(accent ? DS.Colour.accent : DS.Colour.surfaceElevated)
-            )
-            .foregroundColor(.white)
+        // We deliberately drop SwiftUI `Button` here — on tvOS, even
+        // `.buttonStyle(.plain)` keeps drawing the system focus halo
+        // and `.focusEffectDisabled()` is consistently ignored once we
+        // host the dialog inside a UIHostingController. A focusable
+        // view + onTapGesture has no system halo to start with, so our
+        // own scaleEffect / accent fill / ring carry the focus state
+        // cleanly.
+        VStack(spacing: DS.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 44, weight: .semibold))
+            Text(title)
+                .font(DS.Typography.title2)
+            Text(subtitle)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Colour.textSecondary)
         }
-        .buttonStyle(.plain)
+        .frame(width: 320, height: 220)
+        .background(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .fill(accent ? DS.Colour.accent : DS.Colour.surfaceElevated)
+        )
+        .foregroundColor(.white)
+        .focusable()
         .focused($focused, equals: action)
-        .focusEffectDisabled()
         .focusCardEffect(isFocused: focused == action)
+        .onTapGesture { onTap() }
     }
 
     /// Format an integer number of seconds as `H:MM:SS` (≥1h) or `M:SS`.

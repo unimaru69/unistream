@@ -288,6 +288,17 @@ final class VLCPlayerViewController: UIViewController {
     // `press.key` branch at the end.
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        // When a modal is presented over us (TrackPickerView, options
+        // alert, …) we must NOT swallow the Menu press here. The modal
+        // dismisses itself via the system / its own onExitCommand, and
+        // any extra `dismiss(animated:)` we'd queue up would race that
+        // and end up dismissing the player itself once the modal is
+        // gone — that's the "menu sort du film" symptom.
+        if presentedViewController != nil {
+            super.pressesBegan(presses, with: event)
+            return
+        }
+
         // When the SwiftUI drawer is visible, hand all input over to the
         // SwiftUI focus engine so ←/→ traverses the transport buttons
         // (skip / play / audio / sub …) and Select invokes the focused
@@ -339,6 +350,11 @@ final class VLCPlayerViewController: UIViewController {
     }
 
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        // Same guard as pressesBegan — let modals dismiss themselves.
+        if presentedViewController != nil {
+            super.pressesEnded(presses, with: event)
+            return
+        }
         for press in presses {
             if press.type == .menu {
                 handleMenu()

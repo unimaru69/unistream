@@ -305,6 +305,14 @@ final class VLCLivePlayerViewController: UIViewController {
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        // Modals (track picker, options alert) dismiss themselves —
+        // intercepting Menu here would race their dismissal and
+        // dismiss the player itself. See VLCPlayerViewController for
+        // the same guard.
+        if presentedViewController != nil {
+            super.pressesBegan(presses, with: event)
+            return
+        }
         var handled = false
         let now = Date().timeIntervalSince1970
         for press in presses {
@@ -349,6 +357,10 @@ final class VLCLivePlayerViewController: UIViewController {
     }
 
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if presentedViewController != nil {
+            super.pressesEnded(presses, with: event)
+            return
+        }
         var handled = false
         let now = Date().timeIntervalSince1970
         for press in presses {

@@ -189,30 +189,30 @@ struct VLCVODOverlayView: View {
     ) -> some View {
         let isFocused = focused == id
 
-        Button(action: action) {
-            VStack(spacing: DS.Spacing.xxs) {
-                ZStack {
-                    Circle()
-                        .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
-                        .frame(width: big ? 76 : 56, height: big ? 76 : 56)
-                    Image(systemName: icon)
-                        .font(.system(size: big ? 30 : 22, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                Text(label)
-                    .font(DS.Typography.caption)
-                    .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
+        // SwiftUI Button on tvOS still draws the system focus halo even
+        // with `.focusEffectDisabled()` when hosted inside a
+        // UIHostingController — verified with multiple modifier orders.
+        // Switching to a focusable view + onTapGesture sidesteps that
+        // entirely; we already provide a clean focus indication via
+        // accent fill + scaleEffect.
+        VStack(spacing: DS.Spacing.xxs) {
+            ZStack {
+                Circle()
+                    .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
+                    .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                Image(systemName: icon)
+                    .font(.system(size: big ? 30 : 22, weight: .semibold))
+                    .foregroundColor(.white)
             }
+            Text(label)
+                .font(DS.Typography.caption)
+                .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
         }
-        .buttonStyle(.plain)
+        .focusable()
         .focused($focused, equals: id)
-        // Suppress the system focus halo (the wide pale-grey rounded
-        // backdrop tvOS draws around any focused Button by default) —
-        // we already paint our own focus state via accent fill +
-        // scaleEffect, so the halo just looked dirty around them.
-        .focusEffectDisabled()
         .scaleEffect(isFocused ? 1.10 : 1.0)
         .animation(DS.Focus.animation, value: isFocused)
+        .onTapGesture { action() }
     }
 
     // MARK: - Helpers
