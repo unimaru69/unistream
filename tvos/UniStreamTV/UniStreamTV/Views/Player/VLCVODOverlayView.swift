@@ -209,12 +209,28 @@ struct VLCVODOverlayView: View {
         // SwiftUI's own press handling which strictly requires a
         // Select press to invoke the action. The halo we feared is
         // hardware-confirmed absent on real Apple TV.
+        // Focused button gets the accent fill regardless of size so
+        // the focus position is unambiguous; unfocused secondary
+        // buttons stay subtle white-tinted, the big play/pause keeps
+        // its accent fill at all times (it's the primary action).
+        let fill: Color = {
+            if isFocused { return DS.Colour.accent }
+            return big ? DS.Colour.accent : Color.white.opacity(0.12)
+        }()
+
         Button(action: action) {
-            VStack(spacing: DS.Spacing.xxs) {
+            VStack(spacing: DS.Spacing.xs) {
                 ZStack {
                     Circle()
-                        .fill(big ? DS.Colour.accent : Color.white.opacity(isFocused ? 0.18 : 0.10))
+                        .fill(fill)
                         .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                    // White ring on focus — reads clearly on the accent
+                    // fill underneath. Combined with the bumped scale
+                    // (1.15), the focused button is now unambiguous.
+                    Circle()
+                        .strokeBorder(Color.white, lineWidth: 3)
+                        .frame(width: big ? 76 : 56, height: big ? 76 : 56)
+                        .opacity(isFocused ? 0.9 : 0)
                     // Show a spinner over the play/pause button when VLC
                     // is buffering (initial load, mid-stream stall, seek
                     // re-buffer). Without this the icon stays static
@@ -231,12 +247,13 @@ struct VLCVODOverlayView: View {
                 }
                 Text(label)
                     .font(DS.Typography.caption)
+                    .fontWeight(isFocused ? .semibold : .regular)
                     .foregroundColor(isFocused ? DS.Colour.textPrimary : DS.Colour.textSecondary)
             }
         }
         .buttonStyle(.plain)
         .focused($focused, equals: id)
-        .scaleEffect(isFocused ? 1.10 : 1.0)
+        .scaleEffect(isFocused ? 1.15 : 1.0)
         .animation(DS.Focus.animation, value: isFocused)
     }
 

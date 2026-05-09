@@ -21,6 +21,11 @@ struct FocusableCardLabel: View {
     var channelNumber: Int? = nil
     var isFavorite: Bool = false
     var isLive: Bool = false
+    /// Optional 0-1 progress value for the channel's current
+    /// programme — when supplied, a thin orange bar appears between
+    /// the channel name and the programme name so the user can tell
+    /// at a glance where the show is.
+    var programmeProgress: Double? = nil
 
     @Environment(\.isFocused) private var isFocused
 
@@ -54,6 +59,26 @@ struct FocusableCardLabel: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(height: titleHeight, alignment: .top)
+
+                // Programme progress bar — sits between the channel
+                // name and the programme name so it visually belongs
+                // to "this channel right now". Hidden when no progress
+                // value is supplied (e.g. VOD cards, channels without
+                // EPG).
+                if let progress = programmeProgress {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.18))
+                            Capsule()
+                                .fill(DS.Colour.accentWarm)
+                                .frame(width: geo.size.width * CGFloat(min(1, max(0, progress))))
+                        }
+                    }
+                    .frame(height: 3)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                }
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle.strippingProviderTag)

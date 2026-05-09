@@ -46,6 +46,11 @@ final class VLCLivePlayerViewController: UIViewController {
     /// EPG cache has nothing for the current channel.
     private let programmeTitleLabel = UILabel()
     private let programmeTimeLabel = UILabel()
+    /// Programme progress bar — mirrors what LiveFocusedPreview shows
+    /// in the channel grid, but here it sits in the player overlay so
+    /// the user can tell at a glance where they are inside the live
+    /// programme without leaving the channel.
+    private let programmeProgressBar = UIProgressView(progressViewStyle: .default)
     private let nextProgrammeLabel = UILabel()
     private let playPauseIcon = UIImageView()
 
@@ -197,6 +202,14 @@ final class VLCLivePlayerViewController: UIViewController {
         programmeTimeLabel.isHidden = true
         overlayView.addSubview(programmeTimeLabel)
 
+        // Programme progress bar — orange-tinted to match the EN DIRECT
+        // accent already used elsewhere in the live UI.
+        programmeProgressBar.progressTintColor = UIColor(red: 1.0, green: 0.42, blue: 0.36, alpha: 1) // accentWarm
+        programmeProgressBar.trackTintColor = .white.withAlphaComponent(0.2)
+        programmeProgressBar.translatesAutoresizingMaskIntoConstraints = false
+        programmeProgressBar.isHidden = true
+        overlayView.addSubview(programmeProgressBar)
+
         // Next programme — small grey "Suite : …" line below.
         nextProgrammeLabel.font = .systemFont(ofSize: 15, weight: .regular)
         nextProgrammeLabel.textColor = .white.withAlphaComponent(0.55)
@@ -240,7 +253,12 @@ final class VLCLivePlayerViewController: UIViewController {
             programmeTimeLabel.topAnchor.constraint(equalTo: programmeTitleLabel.bottomAnchor, constant: 4),
             programmeTimeLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
 
-            nextProgrammeLabel.topAnchor.constraint(equalTo: programmeTimeLabel.bottomAnchor, constant: 6),
+            programmeProgressBar.topAnchor.constraint(equalTo: programmeTimeLabel.bottomAnchor, constant: 8),
+            programmeProgressBar.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
+            programmeProgressBar.widthAnchor.constraint(equalToConstant: 360),
+            programmeProgressBar.heightAnchor.constraint(equalToConstant: 4),
+
+            nextProgrammeLabel.topAnchor.constraint(equalTo: programmeProgressBar.bottomAnchor, constant: 8),
             nextProgrammeLabel.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor, constant: 60),
             nextProgrammeLabel.trailingAnchor.constraint(lessThanOrEqualTo: clockLabel.leadingAnchor, constant: -30),
 
@@ -637,6 +655,7 @@ final class VLCLivePlayerViewController: UIViewController {
         // Reset visible state — never carry the old programme over.
         programmeTitleLabel.isHidden = true
         programmeTimeLabel.isHidden = true
+        programmeProgressBar.isHidden = true
         nextProgrammeLabel.isHidden = true
         UIView.animate(withDuration: 0.25) {
             self.backdropImageView.alpha = 0
@@ -657,6 +676,9 @@ final class VLCLivePlayerViewController: UIViewController {
             programmeTimeLabel.text = formatProgrammeTime(start: current.start, end: current.end)
             programmeTitleLabel.isHidden = false
             programmeTimeLabel.isHidden = false
+            // Visualise where we are inside the live programme.
+            programmeProgressBar.setProgress(Float(current.progress), animated: false)
+            programmeProgressBar.isHidden = false
 
             // TMDB backdrop — best-effort, async. We use `.tv` because
             // most live programmes that match TMDB are series/shows
@@ -808,5 +830,19 @@ final class VLCLivePlayerViewController: UIViewController {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         clockLabel.text = formatter.string(from: Date())
+
+        // Roll the programme progress bar forward as time advances —
+        // the EpgProgram.progress is computed on read, so we just
+        // re-query the cache and push the new value.
+        guard !programmeProgressBar.isHidden,
+              let cache = PlayerPresenter.epgCache else { return }
+        let channel = channels[currentIndex]
+        guard let programmes = cache.programs(for: channel.streamId, day: Date()) else { return }
+        let now = Date()
+        if let current = programmes.first(where: {
+            ($0.start ?? .distantFuture) <= now && ($0.end ?? .distantPast) > now
+        }) {
+            programmeProgressBar.setProgress(Float(current.progress), animated: true)
+        }
     }
 }

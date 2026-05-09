@@ -136,14 +136,16 @@ struct ChannelGridView: View {
         Button {
             playChannel(channel)
         } label: {
+            let current = viewModel.currentProgram(for: channel.streamId)
             FocusableCardLabel(
                 title: channel.name,
                 imageUrl: channel.displayIcon,
                 hasBadge: channel.hasCatchup,
-                subtitle: viewModel.currentProgram(for: channel.streamId)?.title,
+                subtitle: current?.title,
                 channelNumber: channel.num,
                 isFavorite: appState.syncService.isFavorite(channel.streamId),
-                isLive: viewModel.currentProgram(for: channel.streamId) != nil
+                isLive: current != nil,
+                programmeProgress: current?.progress
             )
         }
         .buttonStyle(.tvCard)
