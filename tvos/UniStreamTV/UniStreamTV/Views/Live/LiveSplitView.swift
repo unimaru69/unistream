@@ -80,13 +80,26 @@ struct LiveSplitView: View {
                     .focusSection()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // No explicit canvas colour: the LiveFocusedPreview at the
-            // bottom uses a fade-to-DS.Colour.background gradient that
-            // becomes invisible on a pure-black canvas (loses the
-            // contrast separating it from the channel grid). Letting
-            // the system grey through gives the bottom panel the lift
-            // it needs. Proper fix later: add a focus-driven backdrop
-            // to Live (matching the Films / Séries pattern).
+            // Canvas: vertical gradient from pure black at the top
+            // (where channel logos sit — they pop on full black) down
+            // to DS.Colour.surface (+6% white) in the bottom third
+            // where LiveFocusedPreview lives. Without that lift at
+            // the bottom, the panel's own fade-to-black gradient
+            // blends into a black canvas and the whole info strip
+            // reads as one indistinguishable dark mass. Pure black
+            // top half preserves consistency with Films / Séries.
+            .background(
+                LinearGradient(
+                    stops: [
+                        .init(color: DS.Colour.background, location: 0.0),
+                        .init(color: DS.Colour.background, location: 0.55),
+                        .init(color: DS.Colour.surface, location: 1.0),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
             // Focus-driven preview — when the user moves the focus
             // engine across sidebar entries, the right-hand grid
             // updates immediately, no tap required. Tap then just
