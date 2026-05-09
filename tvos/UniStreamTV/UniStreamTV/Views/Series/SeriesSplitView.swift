@@ -13,6 +13,13 @@ struct SeriesSplitView: View {
     /// (full-screen, including behind the sidebar and the floating tab
     /// bar). The grid pushes the currently-focused item up via Binding.
     @State private var focusedSeries: SeriesItem?
+    /// "Sticky" mirror of `focusedSeries` for the backdrop layer —
+    /// only ever updated to a NON-nil value, so we never flash to
+    /// black during the category-switch window when `focusedSeries`
+    /// transiently goes nil before the new grid lands focus on its
+    /// first card. Without this the user sees a 800 ms image →
+    /// black → image flicker on every category change.
+    @State private var stickyBackdropItem: SeriesItem?
     /// Debounces sidebar focus → selection updates. See LiveSplitView
     /// for the rationale.
     @State private var selectionDebounce: Task<Void, Never>?
@@ -56,15 +63,25 @@ struct SeriesSplitView: View {
             }
             // Focus-driven preview — moving the focus engine across
             // sidebar categories updates the right-hand grid live,
-            // no tap required. Debounced 250ms — see LiveSplitView
-            // for the rationale (Siri Remote trackpad jitter).
+            // no tap required. Debounced 350ms — see LiveSplitView
+            // for the rationale (Siri Remote trackpad jitter +
+            // category-switch flash absorption).
             .onChange(of: focusedCategory) { _, newValue in
                 selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
                 selectionDebounce = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    try? await Task.sleep(nanoseconds: 350_000_000)
                     guard !Task.isCancelled else { return }
                     selection = newValue
+                }
+            }
+            // Sticky backdrop: forward only non-nil focus events so the
+            // backdrop layer keeps the previous image visible during
+            // the brief category-switch window where `focusedSeries`
+            // is transiently nil.
+            .onChange(of: focusedSeries) { _, newValue in
+                if let newValue {
+                    stickyBackdropItem = newValue
                 }
             }
             .task {
@@ -137,9 +154,14 @@ struct SeriesSplitView: View {
     /// Full-screen backdrop layer — bleeds behind sidebar + floating tab
     /// bar so the focused poster fills the whole viewport, Apple TV+
     /// style. Crossfades between focused items.
+    ///
+    /// Driven by `stickyBackdropItem` rather than `focusedSeries`
+    /// directly so the layer doesn't flicker to black during the
+    /// brief window where the grid is rebuilding and `focusedSeries`
+    /// is transiently nil.
     @ViewBuilder
     private var splitBackdrop: some View {
-        if let item = focusedSeries {
+        if let item = stickyBackdropItem {
             PlexBackdrop(imageUrl: item.displayIcon)
                 .id(item.seriesId)
                 .ignoresSafeArea()

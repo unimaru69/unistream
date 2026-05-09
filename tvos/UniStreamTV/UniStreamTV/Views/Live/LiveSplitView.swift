@@ -100,7 +100,7 @@ struct LiveSplitView: View {
                 selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
                 selectionDebounce = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    try? await Task.sleep(nanoseconds: 350_000_000)
                     guard !Task.isCancelled else { return }
                     selection = newValue
                 }

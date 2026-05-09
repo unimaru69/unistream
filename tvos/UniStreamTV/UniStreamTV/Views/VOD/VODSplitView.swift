@@ -12,6 +12,10 @@ struct VODSplitView: View {
     /// Focused item lifted from the grid — see SeriesSplitView for the
     /// rationale (full-screen backdrop, behind sidebar + tab bar).
     @State private var focusedVod: VodItem?
+    /// Sticky mirror of `focusedVod` — see SeriesSplitView for the
+    /// rationale. Suppresses the image → black → image flash that
+    /// otherwise happens on every category change.
+    @State private var stickyBackdropItem: VodItem?
     /// Debounces sidebar focus → selection updates. See LiveSplitView
     /// for the rationale.
     @State private var selectionDebounce: Task<Void, Never>?
@@ -57,15 +61,23 @@ struct VODSplitView: View {
             }
             // Focus-driven preview — moving the focus engine across
             // sidebar categories updates the right-hand grid live,
-            // no tap required. Debounced 250ms — see LiveSplitView
-            // for the rationale (Siri Remote trackpad jitter).
+            // no tap required. Debounced 350ms — see LiveSplitView
+            // for the rationale.
             .onChange(of: focusedCategory) { _, newValue in
                 selectionDebounce?.cancel()
                 guard let newValue, newValue != selection else { return }
                 selectionDebounce = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    try? await Task.sleep(nanoseconds: 350_000_000)
                     guard !Task.isCancelled else { return }
                     selection = newValue
+                }
+            }
+            // Sticky backdrop — forward only non-nil so the backdrop
+            // doesn't flicker to black during the category-switch
+            // window. See SeriesSplitView for the rationale.
+            .onChange(of: focusedVod) { _, newValue in
+                if let newValue {
+                    stickyBackdropItem = newValue
                 }
             }
             .task {
@@ -135,7 +147,7 @@ struct VODSplitView: View {
 
     @ViewBuilder
     private var splitBackdrop: some View {
-        if let item = focusedVod {
+        if let item = stickyBackdropItem {
             PlexBackdrop(imageUrl: item.displayIcon)
                 .id(item.streamId)
                 .ignoresSafeArea()
