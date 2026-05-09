@@ -58,6 +58,15 @@ final class VLCLivePlayerViewController: UIViewController {
     /// fetch for channel A from clobbering the overlay after the user
     /// has zapped to channel B.
     private var currentEnrichmentTask: Task<Void, Never>?
+    /// Same idea for the EPG fetch — the player VC may be the first
+    /// place to need EPG for the channel (the global EPGCache is only
+    /// populated by EPGGridView and ChannelGridView's first 30 cards),
+    /// so we fall back to a direct API fetch.
+    private var currentEpgFetchTask: Task<Void, Never>?
+    /// Per-channel EPG snapshot we built ourselves when the global
+    /// cache had nothing. Avoids re-fetching when the user zaps back
+    /// and forth.
+    private var localEpgByStreamId: [String: [EpgProgram]] = [:]
 
     // Zap overlay (large, centered, auto-hiding)
     private let zapChannelLabel = UILabel()
@@ -642,15 +651,19 @@ final class VLCLivePlayerViewController: UIViewController {
         refreshProgrammeAndBackdrop(for: channel)
     }
 
-    /// Look up the current + next programme from `EPGCache`, update
-    /// the overlay labels, then kick off a TMDB enrichment in the
-    /// background to fetch a backdrop still. The latter is best-effort:
-    /// many EPG titles (newscasts, regional shows) won't map to TMDB
-    /// at all, in which case we simply leave the backdrop transparent.
+    /// Look up the current + next programme from `EPGCache`, falling
+    /// back to a direct API fetch if the cache is empty (which is the
+    /// usual state when the player is launched from a channel the
+    /// grid hadn't pre-loaded EPG for). Updates the overlay labels
+    /// and kicks off a TMDB enrichment in the background to fetch a
+    /// backdrop still — best-effort, news / regional shows won't
+    /// match TMDB.
     private func refreshProgrammeAndBackdrop(for channel: Channel) {
-        // Cancel a stale enrichment from the previous channel.
+        // Cancel stale tasks from the previous channel.
         currentEnrichmentTask?.cancel()
         currentEnrichmentTask = nil
+        currentEpgFetchTask?.cancel()
+        currentEpgFetchTask = nil
 
         // Reset visible state — never carry the old programme over.
         programmeTitleLabel.isHidden = true
@@ -663,12 +676,49 @@ final class VLCLivePlayerViewController: UIViewController {
         }
         backdropImageView.image = nil
 
-        guard let cache = PlayerPresenter.epgCache,
-              let programmes = cache.programs(for: channel.streamId, day: Date()),
-              !programmes.isEmpty else { return }
+        // 1) Global EPGCache (populated by EPGGridView / first 30 of
+        //    a category in ChannelGridView).
+        if let cache = PlayerPresenter.epgCache,
+           let programmes = cache.programs(for: channel.streamId, day: Date()),
+           !programmes.isEmpty {
+            applyProgrammes(programmes, channel: channel)
+            return
+        }
+        // 2) Local snapshot — already fetched ourselves earlier this
+        //    session (e.g. user zaps back to a channel they zapped
+        //    away from).
+        if let programmes = localEpgByStreamId[channel.streamId], !programmes.isEmpty {
+            applyProgrammes(programmes, channel: channel)
+            return
+        }
+        // 3) Direct API fetch — last resort, but the most common path
+        //    when the player launches a channel cold.
+        currentEpgFetchTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let programmes = try await self.api.getShortEpg(streamId: channel.streamId, limit: 8)
+                guard !Task.isCancelled else { return }
+                await MainActor.run { [weak self] in
+                    guard let self, !Task.isCancelled else { return }
+                    self.localEpgByStreamId[channel.streamId] = programmes
+                    if !programmes.isEmpty {
+                        self.applyProgrammes(programmes, channel: channel)
+                    }
+                }
+            } catch {
+                // Silent — channel just won't show programme info.
+            }
+        }
+    }
 
+    /// Push a freshly-resolved programme list into the overlay
+    /// labels + progress bar, and kick off the TMDB backdrop fetch
+    /// for the current programme.
+    private func applyProgrammes(_ programmes: [EpgProgram], channel: Channel) {
         let now = Date()
-        let current = programmes.first(where: { ($0.start ?? .distantFuture) <= now && ($0.end ?? .distantPast) > now })
+        let current = programmes.first(where: {
+            ($0.start ?? .distantFuture) <= now && ($0.end ?? .distantPast) > now
+        })
         let next = programmes.first(where: { ($0.start ?? .distantPast) > now })
 
         if let current {
@@ -676,13 +726,10 @@ final class VLCLivePlayerViewController: UIViewController {
             programmeTimeLabel.text = formatProgrammeTime(start: current.start, end: current.end)
             programmeTitleLabel.isHidden = false
             programmeTimeLabel.isHidden = false
-            // Visualise where we are inside the live programme.
             programmeProgressBar.setProgress(Float(current.progress), animated: false)
             programmeProgressBar.isHidden = false
 
-            // TMDB backdrop — best-effort, async. We use `.tv` because
-            // most live programmes that match TMDB are series/shows
-            // rather than films.
+            // TMDB backdrop fetch — best-effort.
             let title = current.title
             currentEnrichmentTask = Task { [weak self] in
                 guard let result = await TMDBService.shared.enrich(rawTitle: title, kind: .tv) else { return }
@@ -833,13 +880,21 @@ final class VLCLivePlayerViewController: UIViewController {
 
         // Roll the programme progress bar forward as time advances —
         // the EpgProgram.progress is computed on read, so we just
-        // re-query the cache and push the new value.
-        guard !programmeProgressBar.isHidden,
-              let cache = PlayerPresenter.epgCache else { return }
+        // re-query the cache and push the new value. Try the global
+        // EPGCache first, fall back to the local snapshot we built
+        // from a direct API fetch.
+        guard !programmeProgressBar.isHidden else { return }
         let channel = channels[currentIndex]
-        guard let programmes = cache.programs(for: channel.streamId, day: Date()) else { return }
         let now = Date()
-        if let current = programmes.first(where: {
+        let programmes: [EpgProgram]? = {
+            if let cache = PlayerPresenter.epgCache,
+               let cached = cache.programs(for: channel.streamId, day: Date()) {
+                return cached
+            }
+            return localEpgByStreamId[channel.streamId]
+        }()
+        if let programmes,
+           let current = programmes.first(where: {
             ($0.start ?? .distantFuture) <= now && ($0.end ?? .distantPast) > now
         }) {
             programmeProgressBar.setProgress(Float(current.progress), animated: true)
