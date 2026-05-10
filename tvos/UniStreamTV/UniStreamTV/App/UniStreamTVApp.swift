@@ -30,6 +30,15 @@ struct UniStreamTVApp: App {
                 }
             }
             .environment(appState)
+            // Force dark mode app-wide. Without this tvOS would mix
+            // dark-styled custom views with system-styled components
+            // (Form rows, Toggles, Pickers) auto-resolved against the
+            // user's system appearance — which on tvOS often defaults
+            // to "auto" / "light" and produced low-contrast text on
+            // our dark canvases. Pinning .dark guarantees every
+            // system component picks its dark-mode palette, which is
+            // calibrated to read on dark substrates.
+            .preferredColorScheme(.dark)
             .task { @MainActor in
                 await appState.checkExistingSession()
                 // If restored profile has a PIN, require verification
