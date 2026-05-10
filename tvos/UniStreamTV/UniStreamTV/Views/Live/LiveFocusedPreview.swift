@@ -55,11 +55,17 @@ struct LiveFocusedPreview: View {
         .padding(.bottom, DS.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .trailing)
         .background(
+            // 4-stop gradient: a short feather-in zone at the very
+            // top (0 → 0.45 over the first 12 % of the panel) makes
+            // the upper edge dissolve into the video instead of
+            // reading as a hard line. The rest of the panel stays
+            // dark enough to mask the channel cards underneath.
             LinearGradient(
-                colors: [
-                    DS.Colour.background.opacity(0.45),
-                    DS.Colour.background.opacity(0.92),
-                    DS.Colour.background.opacity(1.0),
+                stops: [
+                    .init(color: DS.Colour.background.opacity(0.0),  location: 0.0),
+                    .init(color: DS.Colour.background.opacity(0.45), location: 0.12),
+                    .init(color: DS.Colour.background.opacity(0.92), location: 0.55),
+                    .init(color: DS.Colour.background.opacity(1.0),  location: 1.0),
                 ],
                 startPoint: .top,
                 endPoint: .bottom

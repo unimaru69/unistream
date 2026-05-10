@@ -116,7 +116,12 @@ struct SeriesGridView: View {
                             )
                         }
                         .padding(.horizontal, 40)
-                        .focusSection()
+                        // No .focusSection() on the chips — making
+                        // them their own section put them on equal
+                        // footing with the sidebar in tvOS's focus
+                        // search from the tab bar above, so ↓
+                        // sometimes landed here. ←/→ between the
+                        // chips still works via SwiftUI's HStack.
 
                         if displayedItems.isEmpty {
                             emptySearchResult

@@ -116,7 +116,10 @@ struct VODGridView: View {
                             )
                         }
                         .padding(.horizontal, 40)
-                        .focusSection()
+                        // See SeriesGridView for the rationale on
+                        // dropping the chips' .focusSection() (they
+                        // were competing with the sidebar from the
+                        // tab bar's perspective).
 
                         if displayedItems.isEmpty {
                             emptySearchResult

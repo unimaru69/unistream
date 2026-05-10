@@ -65,7 +65,10 @@ struct LiveSplitView: View {
     }
 
     private var canUseEPG: Bool {
-        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
+        // Gate disabled while we test the EPG flow end-to-end on
+        // hardware. Will be reinstated (or replaced entirely) when
+        // we land the new monetisation tiers.
+        true
     }
 
     var body: some View {

@@ -246,6 +246,11 @@ struct SettingsView: View {
         // unreadable. Plain renders rows directly on the canvas with
         // crisp contrast against #141414.
         .listStyle(.plain)
+        // Force the row content (Label icons + text) into our DS
+        // primary text colour. Without this, tvOS Plain-list rows
+        // render NavigationLink labels in a dimmed grey by default,
+        // which crushes against the dark canvas.
+        .foregroundStyle(DS.Colour.textPrimary)
         .navigationTitle("Réglages")
         .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
