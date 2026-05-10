@@ -20,17 +20,28 @@ struct SettingsView: View {
             // Active profile
             if let profile = appState.profileManager.activeProfile {
                 Section("Profil actif") {
-                    HStack(spacing: 12) {
-                        Text(profile.avatar)
-                            .font(.title2)
-                        VStack(alignment: .leading) {
-                            Text(profile.name)
-                                .font(.headline)
-                            Text(profile.serverUrl)
-                                .font(.caption)
-                                .foregroundColor(DS.Colour.textSecondary)
+                    // Wrapped in a no-op Button so the row is
+                    // focusable. Without it, the topmost focusable
+                    // in the List is "S'abonner" — pressing ↑ there
+                    // had nowhere to go, leaving the user stuck and
+                    // forcing a Menu press to escape back to the tab
+                    // bar. With this row focusable, ↑ from S'abonner
+                    // lands here, then ↑ again escapes naturally to
+                    // the tab bar.
+                    Button {} label: {
+                        HStack(spacing: 12) {
+                            Text(profile.avatar)
+                                .font(.title2)
+                            VStack(alignment: .leading) {
+                                Text(profile.name)
+                                    .font(.headline)
+                                Text(profile.serverUrl)
+                                    .font(.caption)
+                                    .foregroundColor(DS.Colour.textSecondary)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
 
