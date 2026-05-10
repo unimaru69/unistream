@@ -113,7 +113,9 @@ struct ChannelGridView: View {
                     Color.clear.frame(height: 200)
                 }
             }
-            .focusSection()
+            // No .focusSection() on the ScrollView — see SeriesGridView
+            // for the rationale (chips competed with sidebar from the
+            // top tab bar's perspective).
 
             // Focused-channel preview — slides in/out as the focus
             // engine moves. TMDB-enriched programme image when one

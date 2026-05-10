@@ -96,7 +96,7 @@ struct SearchContentView: View {
                             .font(.system(size: 40))
                             .foregroundColor(.white.opacity(0.3))
                         Text("Recherchez parmi les chaînes, films et séries")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DS.Colour.textSecondary)
                     }
                     Spacer()
                 }
@@ -107,7 +107,7 @@ struct SearchContentView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.white.opacity(0.3))
                     Text("Aucun résultat pour « \(viewModel.query) »")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
                 Spacer()
             } else {
@@ -191,13 +191,13 @@ struct SearchContentView: View {
                 } label: {
                     HStack {
                         Image(systemName: "clock.arrow.circlepath")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DS.Colour.textSecondary)
                         Text(item)
                             .foregroundColor(.white)
                         Spacer()
                         Image(systemName: "arrow.up.left")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DS.Colour.textSecondary)
                     }
                 }
             }

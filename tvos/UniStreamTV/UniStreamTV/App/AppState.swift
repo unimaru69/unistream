@@ -132,6 +132,11 @@ final class AppState {
         pvm.syncService = syncService
         playerVM = pvm
         catalogIndex.configure(api: api)
+        // Expose api + liveVM to PlayerPresenter so playLive(url:)
+        // calls from Home / Favoris can route to the channel-aware
+        // VLCLivePlayerViewController instead of the generic VOD VC.
+        PlayerPresenter.api = api
+        PlayerPresenter.liveViewModel = liveVM
         logger.info("ViewModels created")
     }
 

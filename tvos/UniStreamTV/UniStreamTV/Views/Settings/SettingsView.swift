@@ -28,7 +28,7 @@ struct SettingsView: View {
                                 .font(.headline)
                             Text(profile.serverUrl)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Colour.textSecondary)
                         }
                     }
                 }
@@ -64,7 +64,7 @@ struct SettingsView: View {
                             Spacer()
                             Text("\(appState.collectionsService.collections.count)")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Colour.textSecondary)
                         }
                     }
                 } else {
@@ -97,7 +97,7 @@ struct SettingsView: View {
                             Spacer()
                             Text("\(appState.profileManager.profiles.count)")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Colour.textSecondary)
                         }
                     }
                 } else {
@@ -109,7 +109,7 @@ struct SettingsView: View {
             Section("Compte") {
                 if let email = appState.authService.currentUser?.email {
                     Label(email, systemImage: "envelope")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
             }
 
@@ -124,7 +124,7 @@ struct SettingsView: View {
                             Text("Lecteur VLC pour les directs")
                             Text("Recommandé pour HD/FHD. Désactivez pour utiliser le lecteur Apple natif.")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Colour.textSecondary)
                         }
                     } icon: {
                         Image(systemName: "play.tv")
@@ -138,9 +138,9 @@ struct SettingsView: View {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lecteur VLC pour films & séries")
-                            Text("Activé par défaut — VLC gère plus de formats que le lecteur Apple. Désactivez seulement si vous préférez l'interface native d'Apple TV.")
+                            Text("VLC gère plus de formats que le lecteur Apple. Désactivez seulement si vous préférez l'interface native d'Apple TV.")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Colour.textSecondary)
                         }
                     } icon: {
                         Image(systemName: "film.stack")
@@ -159,14 +159,14 @@ struct SettingsView: View {
                     Label("Cache images", systemImage: "photo.stack")
                     Spacer()
                     Text(imageCacheSize)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
 
                 HStack {
                     Label("Cache API", systemImage: "arrow.triangle.2.circlepath")
                     Spacer()
                     Text("\(appState.api.cacheEntryCount) entrées")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
 
                 Button {
@@ -212,7 +212,7 @@ struct SettingsView: View {
                 if !debugPlanRaw.isEmpty {
                     Text("Override actif : \(debugPlanRaw). Les fonctionnalités sont débloquées immédiatement.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Colour.textSecondary)
                 }
             }
             #endif
@@ -296,7 +296,7 @@ struct SettingsView: View {
                     if let expires = info.subscriptionExpiresAt {
                         Text("Expire \(expires, style: .date)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DS.Colour.textSecondary)
                     }
                 }
             } else if info.isTrialExpired {
@@ -304,11 +304,11 @@ struct SettingsView: View {
                     .foregroundColor(.red)
             } else {
                 Label("Aucun abonnement", systemImage: "xmark.circle")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DS.Colour.textSecondary)
             }
         } else {
             Label("Chargement…", systemImage: "hourglass")
-                .foregroundColor(.secondary)
+                .foregroundColor(DS.Colour.textSecondary)
         }
     }
 

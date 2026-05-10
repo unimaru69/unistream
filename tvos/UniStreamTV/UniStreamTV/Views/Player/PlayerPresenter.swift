@@ -16,6 +16,14 @@ enum PlayerPresenter {
     /// having to round-trip to the API for every channel zap.
     static weak var epgCache: EPGCache?
 
+    /// Shared API + live view-model references — set from AppState.
+    /// Lets `playLive(url:…)` look up the full `Channel` by its
+    /// streamId so we can route the playback to the channel-aware
+    /// live VC (with the EN DIRECT badge / programme overlay) rather
+    /// than the generic VLC VOD drawer.
+    static weak var api: XtreamAPIService?
+    static weak var liveViewModel: LiveViewModel?
+
     /// Whether to use VLC (true) or AVPlayer (false) for live streams.
     /// VLC supports HEVC in MPEG-TS, MPEG-1 audio, and many broadcast-style
     /// streams that AVPlayer refuses (audio-only / black screen).
@@ -43,6 +51,32 @@ enum PlayerPresenter {
     /// Present a live channel stream.
     static func playLive(url: URL, title: String? = nil, contentKey: String? = nil, coverUrl: String? = nil) {
         if useVlcForLive {
+            // Try to use the channel-aware live VC: when we can look
+            // up the full `Channel` by streamId, the user gets the
+            // proper live overlay (EN DIRECT badge, programme title,
+            // progress bar, TMDB backdrop) instead of the generic
+            // VOD-style drawer that the no-context VC would show.
+            // Falls back to the generic VLC VC if anything's missing
+            // (no api / no liveViewModel / streamId not in catalog).
+            if let key = contentKey, key.hasPrefix("live_"),
+               let lvm = liveViewModel,
+               let api = api {
+                let sid = String(key.dropFirst("live_".count))
+                if let channel = lvm.allChannels.first(where: { $0.streamId == sid })
+                    ?? lvm.channels.first(where: { $0.streamId == sid }) {
+                    let vlc = VLCLivePlayerViewController(
+                        channels: [channel],
+                        startIndex: 0,
+                        api: api,
+                        timeshiftAllowed: false
+                    )
+                    if let title { syncService?.registerPlayback(contentKey: key, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
+                    guard let rootVC = rootViewController else { return }
+                    rootVC.present(vlc, animated: true)
+                    return
+                }
+            }
+
             let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: nil, contentKey: contentKey)
             if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
             guard let rootVC = rootViewController else { return }

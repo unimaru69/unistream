@@ -113,7 +113,7 @@ struct FavoritesView: View {
                     .foregroundColor(.white)
                 Text("\(count)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DS.Colour.textSecondary)
             }
             body()
         }

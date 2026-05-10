@@ -127,7 +127,13 @@ struct SeriesGridView: View {
                         Color.clear.frame(height: 180)
                     }
                 }
-                .focusSection()
+                // No .focusSection() on the ScrollView itself — the
+                // outer detail's .focusSection() (in SeriesSplitView)
+                // already groups everything in here. Adding a second
+                // section here used to make the chips compete with
+                // the sidebar as a "first choice" target when
+                // descending from the floating tab bar — focus would
+                // land on the chips instead of the sidebar.
 
                 if let focused = focusedSeries {
                     FocusedItemPreview(

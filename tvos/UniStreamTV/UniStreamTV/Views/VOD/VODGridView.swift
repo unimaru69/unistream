@@ -129,7 +129,10 @@ struct VODGridView: View {
                         Color.clear.frame(height: 180)
                     }
                 }
-                .focusSection()
+                // No .focusSection() on the ScrollView — see
+                // SeriesGridView for the rationale (extra section
+                // here made the chips compete with the sidebar from
+                // the top tab bar's perspective).
 
                 // Mini-preview overlay — only visible when an item
                 // is focused. Slides in/out smoothly.
