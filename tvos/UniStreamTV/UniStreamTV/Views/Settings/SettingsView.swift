@@ -240,17 +240,16 @@ struct SettingsView: View {
                 .disabled(isDeleting)
             }
         }
-        // Plain style drops the grouped rounded substrate that
-        // otherwise tints every row a translucent grey on top of our
-        // dark canvas — that compounded compression made the text
-        // unreadable. Plain renders rows directly on the canvas with
-        // crisp contrast against #141414.
-        .listStyle(.plain)
-        // Force the row content (Label icons + text) into our DS
-        // primary text colour. Without this, tvOS Plain-list rows
-        // render NavigationLink labels in a dimmed grey by default,
-        // which crushes against the dark canvas.
-        .foregroundStyle(DS.Colour.textPrimary)
+        // No `.listStyle(...)` and no `.foregroundStyle(...)` overrides.
+        // Both compounded into a worse problem: the foregroundStyle
+        // override forced row labels to stay white even when the row
+        // inverted to a white-background focus state, producing
+        // white-on-white text. Plain style had been compressing
+        // unfocused rows to a dim grey on top. The default tvOS list
+        // styling already handles dark-mode contrast properly — we
+        // only override the *headers* (via `settingsHeader`) since
+        // those use a `Color.secondary` that compresses against our
+        // dark TabView substrate.
         .navigationTitle("Réglages")
         .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
