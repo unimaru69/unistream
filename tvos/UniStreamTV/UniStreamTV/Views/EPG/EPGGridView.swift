@@ -317,7 +317,7 @@ struct EPGGridView: View {
                     // Snap to "now" on first apparition for today; first
                     // future programme on past/future days.
                     let target: EpgProgram? = isToday
-                        ? (progs.first(where: { $0.isCurrent }) ?? progs.first(where: { !$0.isPast }))
+                        ? (progs.first(where: { isCurrent($0) }) ?? progs.first(where: { isUpcoming($0) }))
                         : progs.first
                     if let target {
                         proxy.scrollTo(target.id, anchor: .leading)
@@ -355,15 +355,24 @@ struct EPGGridView: View {
             guard let s = program.start else { return false }
             return appState.reminderService.hasReminder(streamId: channel.streamId, startUtc: s)
         }()
-        let cellState: EPGCellButtonStyle.CellState = {
-            if program.isCurrent { return .current(progress: program.progress) }
-            if program.isPast { return .past }
-            return .upcoming
-        }()
+        let runtime = runtimeState(of: program)
+        let cellState: EPGCellButtonStyle.CellState
+        let isCurrentNow: Bool
+        switch runtime {
+        case .current(let p):
+            cellState = .current(progress: p)
+            isCurrentNow = true
+        case .past:
+            cellState = .past
+            isCurrentNow = false
+        case .upcoming:
+            cellState = .upcoming
+            isCurrentNow = false
+        }
         return Button {
             handleTap(channel: channel, program: program)
         } label: {
-            ProgramCellLabel(program: program, isCurrent: program.isCurrent, hasReminder: hasReminder)
+            ProgramCellLabel(program: program, isCurrent: isCurrentNow, hasReminder: hasReminder)
                 .frame(width: width, height: rowHeight - 8)
         }
         .buttonStyle(EPGCellButtonStyle(state: cellState))
@@ -505,19 +514,20 @@ struct EPGGridView: View {
 
     @ViewBuilder
     private func stateTag(_ program: EpgProgram) -> some View {
-        if program.isCurrent {
+        switch runtimeState(of: program) {
+        case .current:
             Text("EN COURS")
                 .font(.system(size: 10, weight: .heavy))
                 .foregroundColor(.white)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(DS.Colour.accentWarm, in: Capsule())
-        } else if program.isPast {
+        case .past:
             Text("PASSÉ")
                 .font(.system(size: 10, weight: .heavy))
                 .foregroundColor(DS.Colour.textTertiary)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Color.white.opacity(0.06), in: Capsule())
-        } else {
+        case .upcoming:
             Text("À VENIR")
                 .font(.system(size: 10, weight: .heavy))
                 .foregroundColor(DS.Colour.textSecondary)
@@ -528,25 +538,56 @@ struct EPGGridView: View {
 
     // MARK: - Tap routing
 
+    /// Lifecycle state derived from the programme's `start`.
+    ///
+    /// We deliberately don't trust `EpgProgram.isPast` (which keys off
+    /// `end`) because some Xtream providers serve corrupted
+    /// `stop_timestamp` values (zero / 1970 epoch). That flipped `isPast`
+    /// to true on perfectly future programmes — tapping a "demain matin"
+    /// cell tried to launch a replay instead of offering a reminder.
+    /// Anchoring on `start` makes the routing immune to bad `end`.
+    private enum ProgramRuntimeState {
+        case past
+        case current(progress: Double)
+        case upcoming
+    }
+
+    private func runtimeState(of program: EpgProgram) -> ProgramRuntimeState {
+        let now = Date()
+        let start = program.start ?? .distantFuture
+        let end = program.end ?? .distantFuture
+        if start > now { return .upcoming }
+        if end > now { return .current(progress: program.progress) }
+        return .past
+    }
+
+    private func isCurrent(_ p: EpgProgram) -> Bool {
+        if case .current = runtimeState(of: p) { return true }
+        return false
+    }
+
+    private func isUpcoming(_ p: EpgProgram) -> Bool {
+        if case .upcoming = runtimeState(of: p) { return true }
+        return false
+    }
+
     private func handleTap(channel: Channel, program: EpgProgram) {
-        if program.isCurrent {
+        switch runtimeState(of: program) {
+        case .current:
             playLive(for: channel)
-            return
-        }
-        if program.isPast {
+        case .past:
             playReplayOrFail(channel: channel, program: program)
-            return
-        }
-        // Future — toggle reminder + toast.
-        let added = appState.reminderService.toggle(
-            streamId: channel.streamId,
-            channelName: channel.name.strippingProviderTag,
-            program: program
-        )
-        withAnimation(DS.Motion.standard) {
-            transientToast = added
-                ? "🔔 Rappel posé pour « \(program.title) »"
-                : "Rappel retiré"
+        case .upcoming:
+            let added = appState.reminderService.toggle(
+                streamId: channel.streamId,
+                channelName: channel.name.strippingProviderTag,
+                program: program
+            )
+            withAnimation(DS.Motion.standard) {
+                transientToast = added
+                    ? "🔔 Rappel posé pour « \(program.title) »"
+                    : "Rappel retiré"
+            }
         }
     }
 
@@ -628,8 +669,8 @@ struct EPGGridView: View {
         guard focusedCell == nil else { return }
         guard let firstChannel = visibleChannels.first else { return }
         let progs = epgCache.byDay[dayKey]?[firstChannel.streamId] ?? []
-        let target = progs.first(where: { $0.isCurrent })
-            ?? progs.first(where: { !$0.isPast })
+        let target = progs.first(where: { isCurrent($0) })
+            ?? progs.first(where: { isUpcoming($0) })
             ?? progs.first
         guard let target else { return }
         focusedCell = .program(channelId: firstChannel.streamId, programId: target.id)
