@@ -23,6 +23,11 @@ enum PlayerPresenter {
     /// than the generic VLC VOD drawer.
     static weak var api: XtreamAPIService?
     static weak var liveViewModel: LiveViewModel?
+    /// Auth service reference — needed for the timeshift feature
+    /// gate so single-channel-mode launches (from Home / Favoris /
+    /// deep links) honour the same Premium check the channel grid
+    /// already uses.
+    static weak var authService: AuthService?
 
     /// Whether to use VLC (true) or AVPlayer (false) for live streams.
     /// VLC supports HEVC in MPEG-TS, MPEG-1 audio, and many broadcast-style
@@ -82,7 +87,7 @@ enum PlayerPresenter {
                     channels: [channel],
                     startIndex: 0,
                     api: api,
-                    timeshiftAllowed: false
+                    timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: authService?.cachedAccountInfo)
                 )
                 if let title { syncService?.registerPlayback(contentKey: key, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
                 guard let rootVC = rootViewController else { return }
