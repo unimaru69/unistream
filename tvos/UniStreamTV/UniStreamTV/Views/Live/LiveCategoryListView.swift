@@ -14,10 +14,6 @@ struct LiveCategoryListView: View {
         categoryId: "__favorites__",
         categoryName: "Favoris"
     )
-    private static let epgCategory = Category(
-        categoryId: "__epg__",
-        categoryName: "Guide des programmes"
-    )
 
     private let columns = [
         GridItem(.adaptive(minimum: 340, maximum: 460), spacing: 30)
@@ -69,24 +65,6 @@ struct LiveCategoryListView: View {
                             }
                             .buttonStyle(.tvCard)
 
-                            if canUseEPG {
-                                NavigationLink(value: Self.epgCategory) {
-                                    specialCard(
-                                        name: "Guide des programmes",
-                                        icon: "calendar.badge.clock",
-                                        color: .cyan,
-                                        count: nil
-                                    )
-                                }
-                                .buttonStyle(.tvCard)
-                            } else {
-                                premiumCard(
-                                    name: "Guide des programmes",
-                                    icon: "calendar.badge.clock",
-                                    color: .cyan
-                                )
-                            }
-
                             if favoriteCount > 0 {
                                 NavigationLink(value: Self.favoritesCategory) {
                                     specialCard(
@@ -113,14 +91,7 @@ struct LiveCategoryListView: View {
             }
             // Titre inline dans le ScrollView (évite le grand titre persistant)
             .navigationDestination(for: Category.self) { category in
-                if category.categoryId == "__epg__" {
-                    let catNames = Dictionary(
-                        uniqueKeysWithValues: viewModel.categories.map {
-                            ($0.categoryId, $0.categoryName)
-                        }
-                    )
-                    EPGView(channels: viewModel.allChannels, categoryNames: catNames)
-                } else if category.categoryId == "__favorites__" {
+                if category.categoryId == "__favorites__" {
                     ChannelGridView(
                         category: category,
                         viewModel: viewModel,
@@ -142,9 +113,6 @@ struct LiveCategoryListView: View {
             .task {
                 await viewModel.loadCategories()
                 await viewModel.loadAllChannels()
-            }
-            .fullScreenCover(isPresented: $showPaywall) {
-                SubscriptionView()
             }
         }
     }
@@ -238,63 +206,6 @@ struct LiveCategoryListView: View {
             .frame(height: 60)
         }
         .frame(height: 170)
-    }
-
-    // MARK: - Premium Gating
-
-    private var canUseEPG: Bool {
-        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
-    }
-
-    @State private var showPaywall = false
-
-    @ViewBuilder
-    private func premiumCard(name: String, icon: String, color: Color) -> some View {
-        Button {
-            showPaywall = true
-        } label: {
-            VStack(spacing: 0) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.3), color.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-
-                    VStack(spacing: 8) {
-                        Image(systemName: icon)
-                            .font(.system(size: 30))
-                            .foregroundColor(color.opacity(0.5))
-                        HStack(spacing: 4) {
-                            Image(systemName: "crown.fill")
-                                .font(.caption2)
-                            Text("Premium")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                        }
-                        .foregroundColor(.yellow)
-                    }
-                }
-                .frame(height: 110)
-
-                HStack {
-                    Text(name)
-                        .font(.body)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.5))
-                        .lineLimit(2)
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .frame(height: 60)
-            }
-            .frame(height: 170)
-        }
-        .buttonStyle(.tvCard)
     }
 
     // MARK: - Helpers

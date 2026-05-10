@@ -1,102 +1,94 @@
 import SwiftUI
 import Kingfisher
 
-/// True 2-axis EPG grid — channels on Y, time on X. The header lets
-/// the user switch category and day without leaving the view, and
-/// the underlying data is cached on `AppState.epgCache` so re-
-/// entering the screen doesn't re-fetch what's already there.
+/// Guide TV — option B layout: one row per channel, programmes laid out in
+/// a horizontal `LazyHStack` of focus-friendly cards. Each row scrolls
+/// independently; the global vertical scroll moves between channels. The
+/// focus engine handles `LazyHStack`/`LazyVStack` natively, so D-pad
+/// navigation is robust without per-cell pixel-time positioning.
+///
+/// Loading is opportunistic: on day/category change we kick off the first
+/// 30 channels, and each row's `.onAppear` requests its own EPG when it
+/// scrolls into view. `EPGCache` deduplicates concurrent fetches.
 struct EPGGridView: View {
     @Bindable var liveViewModel: LiveViewModel
-    /// Direct binding to the cache — passing the reference explicitly
-    /// (rather than reaching for `appState.epgCache` from inside the
-    /// body) makes the SwiftUI Observation framework track byDay
-    /// changes on this exact instance. The previous version's
-    /// nested `appState.epgCache.programs(...)` access didn't
-    /// trigger re-renders reliably when the cache mutated, which is
-    /// why the grid stayed empty even though the loader logged
-    /// "cached for 51 channels".
     @Bindable var epgCache: EPGCache
-    /// Optional dismiss callback — wired from `LiveSplitView` so the
-    /// "← Catégories" button has somewhere to go. Optional so the
-    /// view stays usable in a preview / standalone test context.
     var onBackToCategories: (() -> Void)? = nil
 
     @Environment(AppState.self) private var appState
 
-    @FocusState private var focusedCell: EPGCellId?
-    @State private var selectedProgram: ProgramSelection?
-    @State private var unavailableAlertVisible = false
-    @State private var unavailableAlertMessage = ""
+    // MARK: - State
 
-    /// Selected category id. `nil` = "Toutes les chaînes". Special
-    /// value `__favorites__` filters by live favourites.
-    @State private var selectedCategoryId: String? = "__favorites__"
-    /// Day offset relative to today: -3 → 3 days ago, 0 → today,
-    /// 2 → in 2 days. The strip allows -3 … +2.
+    enum CategoryFilter: Hashable {
+        case favorites
+        case all
+        case category(id: String)
+    }
+
     @State private var dayOffset: Int = 0
+    @State private var categoryFilter: CategoryFilter = .favorites
+    @State private var searchText: String = ""
+    @State private var isSearchActive: Bool = false
+    @State private var transientToast: String?
 
-    private let pixelsPerMinute: CGFloat = 5
-    private let rowHeight: CGFloat = 80
-    private let channelColumnWidth: CGFloat = 200
-    private let headerHeight: CGFloat = 44
-    private let maxChannelsPerView: Int = 50
+    @FocusState private var focusedCell: CellID?
 
-    // MARK: - Derived state
+    enum CellID: Hashable {
+        case program(channelId: String, programId: UUID)
+        case search(programId: UUID)
+    }
+
+    // MARK: - Tunables
+
+    /// Banner to the left of every row (logo + name + badges).
+    private let bannerWidth: CGFloat = 280
+    private let rowHeight: CGFloat = 96
+    /// `width = clamp(durationMin × 4, 320, 800)`. Loose pixel-time mapping —
+    /// preserves a sense of "this show is shorter than that one" without
+    /// making 5-min interludes unreadable.
+    private let pxPerMinute: CGFloat = 4
+    private let cellMinWidth: CGFloat = 320
+    private let cellMaxWidth: CGFloat = 800
+    private let initialBatch: Int = 30
+
+    // MARK: - Derived
 
     private var selectedDay: Date {
         Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
     }
+    private var dayKey: String { EPGCache.dayKey(for: selectedDay) }
     private var isToday: Bool { dayOffset == 0 }
+    private var isLoading: Bool { epgCache.loadingDays.contains(dayKey) }
+    private var loadProgress: (Int, Int)? { epgCache.loadProgress[dayKey] }
 
-    /// Channels visible in the grid for the current category +
-    /// favourites slicing. Capped at `maxChannelsPerView` so the
-    /// load is bounded.
     private var visibleChannels: [Channel] {
-        let pool: [Channel]
-        switch selectedCategoryId {
-        case "__favorites__":
+        switch categoryFilter {
+        case .favorites:
             let favIds = Set(appState.syncService.favorites.values
                 .filter { $0.isLive }
                 .compactMap { $0.resolvedStreamId })
-            pool = liveViewModel.allChannels.filter { favIds.contains($0.streamId) }
-        case let cat? where !cat.isEmpty:
-            pool = liveViewModel.allChannels.filter { $0.categoryId == cat }
-        default:
-            pool = liveViewModel.allChannels
-        }
-        return Array(pool.prefix(maxChannelsPerView))
-    }
-
-    /// Anchor for "today": now floored to the previous hour, minus
-    /// 1 h. Going further back used to make the grid look empty on
-    /// first paint — `getShortEpg` only returns programmes from
-    /// roughly "now" forward, so a wide backward window meant the
-    /// initial scroll position (gridStart, leftmost) showed only
-    /// empty cells before the programmes appeared on the right
-    /// edge. Deeper catch-up is reachable via the day picker.
-    private var gridStart: Date {
-        let cal = Calendar.current
-        if isToday {
-            let now = Date()
-            let flooredHour = cal.dateInterval(of: .hour, for: now)?.start ?? now
-            return cal.date(byAdding: .hour, value: -1, to: flooredHour) ?? flooredHour
-        } else {
-            return cal.startOfDay(for: selectedDay)
+            return liveViewModel.allChannels.filter { favIds.contains($0.streamId) }
+        case .all:
+            return liveViewModel.allChannels
+        case .category(let id):
+            return liveViewModel.allChannels.filter { $0.categoryId == id }
         }
     }
-    private var gridEnd: Date {
-        Calendar.current.date(byAdding: .hour, value: isToday ? 12 : 24, to: gridStart) ?? gridStart
-    }
-    private var totalMinutes: CGFloat {
-        CGFloat(gridEnd.timeIntervalSince(gridStart) / 60)
-    }
-    private var totalGridWidth: CGFloat {
-        totalMinutes * pixelsPerMinute
-    }
 
-    private var dayKey: String { EPGCache.dayKey(for: selectedDay) }
-    private var isLoading: Bool { epgCache.loadingDays.contains(dayKey) }
-    private var loadProgress: (Int, Int)? { epgCache.loadProgress[dayKey] }
+    /// Stable composite key. Re-evaluates the `.task` only on real filter
+    /// changes — not on every `allChannels.count` jitter.
+    private var filterKey: String {
+        switch categoryFilter {
+        case .favorites: return "fav"
+        case .all: return "all"
+        case .category(let id): return "cat:\(id)"
+        }
+    }
+    private var cacheKey: String { "\(dayKey)|\(filterKey)" }
+
+    private var timeshiftAllowed: Bool {
+        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
+    }
 
     // MARK: - Body
 
@@ -104,41 +96,32 @@ struct EPGGridView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             filterBar
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    timeMarkers
-                        .frame(width: channelColumnWidth + totalGridWidth, height: headerHeight)
 
-                    if visibleChannels.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(visibleChannels) { channel in
-                            channelRow(channel)
-                                .frame(width: channelColumnWidth + totalGridWidth, height: rowHeight)
-                        }
-                    }
+            Group {
+                if isSearchActive && !searchText.isEmpty {
+                    searchResults
+                } else {
+                    grid
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.Colour.background)
-        .task(id: cacheKey) { await loadIfNeeded() }
-        .fullScreenCover(item: $selectedProgram) { sel in
-            ChannelDetailView(channel: sel.channel, allChannels: visibleChannels)
+        .task(id: cacheKey) {
+            await primeFiltersIfNeeded()
+            await preloadInitialBatch()
+            try? await Task.sleep(for: .milliseconds(120))
+            placeInitialFocusIfNeeded()
         }
-        .alert("Replay non disponible", isPresented: $unavailableAlertVisible) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(unavailableAlertMessage)
+        .onChange(of: transientToast) { _, newValue in
+            guard newValue != nil else { return }
+            Task {
+                try? await Task.sleep(for: .seconds(2.4))
+                withAnimation(DS.Motion.standard) { transientToast = nil }
+            }
         }
-    }
-
-    /// Combined key so the .task fires when *either* day or category
-    /// changes — and only then. Stable on view re-creation, which
-    /// is what gives us the cache hit.
-    private var cacheKey: String {
-        "\(dayKey)|\(selectedCategoryId ?? "__all__")|\(visibleChannels.count)"
+        .overlay(alignment: .bottom) { toastOverlay }
     }
 
     // MARK: - Header
@@ -148,8 +131,7 @@ struct EPGGridView: View {
             if let onBack = onBackToCategories {
                 Button(action: onBack) {
                     HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
-                            .font(.caption)
+                        Image(systemName: "chevron.left").font(.caption)
                         Text("Catégories")
                     }
                 }
@@ -167,148 +149,118 @@ struct EPGGridView: View {
                         .font(DS.Typography.caption)
                         .foregroundColor(DS.Colour.textTertiary)
                 }
+                .transition(.opacity)
             }
+
             Spacer()
-            Text(rangeFmt.string(from: gridStart) + " — " + rangeFmt.string(from: gridEnd))
-                .font(DS.Typography.caption)
-                .foregroundColor(DS.Colour.textTertiary)
+
+            if isSearchActive {
+                TextField("Titre, chaîne…", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(DS.Typography.body)
+                    .foregroundColor(DS.Colour.textPrimary)
+                    .padding(.horizontal, DS.Spacing.md)
+                    .padding(.vertical, DS.Spacing.xs)
+                    .frame(width: 360)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+                    .submitLabel(.search)
+            }
+
+            Button {
+                withAnimation(DS.Motion.standard) {
+                    isSearchActive.toggle()
+                    if !isSearchActive { searchText = "" }
+                }
+            } label: {
+                Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
+            }
+            .buttonStyle(EPGHeaderButtonStyle())
         }
-        .padding(.horizontal, DS.Padding.screenHorizontal)
+        .padding(.horizontal, DS.Padding.detailHorizontal)
         .padding(.top, DS.Spacing.lg)
-        .padding(.bottom, DS.Spacing.sm)
+        .padding(.bottom, DS.Spacing.xs)
     }
 
-    // MARK: - Filter bar (day + category in a single row)
+    // MARK: - Filter bar (two rows: days + categories)
 
-    /// Single horizontal row combining day chips on the left and
-    /// category chips on the right, separated by a thin divider.
-    /// Stacked rows (the previous design) trapped the tvOS focus
-    /// engine: pressing ↑ from a category chip didn't escape back to
-    /// the day row. With one row, ↑↓ only ever hops between the
-    /// filter bar and the grid below — much simpler for the engine.
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DS.Spacing.sm) {
-                // Day chips
-                ForEach(-3...2, id: \.self) { offset in
-                    Button {
-                        dayOffset = offset
-                    } label: {
-                        Text(dayLabelInline(for: offset))
+        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.xs) {
+                    ForEach(-7...7, id: \.self) { offset in
+                        Button { dayOffset = offset } label: {
+                            Text(dayLabel(for: offset))
+                        }
+                        .buttonStyle(EPGChipButtonStyle(isSelected: dayOffset == offset))
                     }
-                    .buttonStyle(EPGChipButtonStyle(isSelected: dayOffset == offset))
                 }
-
-                // Visual separator between day filters and category
-                // filters — keeps the eye oriented while scrolling.
-                Rectangle()
-                    .fill(Color.white.opacity(0.15))
-                    .frame(width: 1, height: 24)
-                    .padding(.horizontal, DS.Spacing.xs)
-
-                // Category chips
-                Button {
-                    selectedCategoryId = "__favorites__"
-                } label: {
-                    Label("Favoris", systemImage: "heart.fill")
-                }
-                .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == "__favorites__"))
-
-                Button {
-                    selectedCategoryId = nil
-                } label: {
-                    Label("Toutes", systemImage: "tv.fill")
-                }
-                .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == nil))
-
-                ForEach(liveViewModel.categories, id: \.categoryId) { cat in
-                    Button {
-                        selectedCategoryId = cat.categoryId
-                    } label: {
-                        Text(cat.categoryName)
-                    }
-                    .buttonStyle(EPGChipButtonStyle(isSelected: selectedCategoryId == cat.categoryId))
-                }
+                .padding(.horizontal, DS.Padding.detailHorizontal)
             }
-            .padding(.horizontal, DS.Padding.screenHorizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.xs) {
+                    Button { categoryFilter = .favorites } label: {
+                        Label("Favoris", systemImage: "heart.fill")
+                    }
+                    .buttonStyle(EPGChipButtonStyle(isSelected: categoryFilter == .favorites))
+
+                    Button { categoryFilter = .all } label: {
+                        Label("Toutes", systemImage: "tv.fill")
+                    }
+                    .buttonStyle(EPGChipButtonStyle(isSelected: categoryFilter == .all))
+
+                    ForEach(liveViewModel.categories, id: \.categoryId) { cat in
+                        Button { categoryFilter = .category(id: cat.categoryId) } label: {
+                            Text(cat.categoryName)
+                        }
+                        .buttonStyle(EPGChipButtonStyle(isSelected: categoryFilter == .category(id: cat.categoryId)))
+                    }
+                }
+                .padding(.horizontal, DS.Padding.detailHorizontal)
+            }
         }
         .padding(.bottom, DS.Spacing.sm)
     }
 
-    /// Single-line day label combining relative term + date —
-    /// "Aujourd'hui · 8 mai" / "Hier · 7 mai" / "ven · 9 mai".
-    private func dayLabelInline(for offset: Int) -> String {
+    private func dayLabel(for offset: Int) -> String {
         let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
-        let dateStr = shortDateFmt.string(from: date)
         switch offset {
-        case 0: return "Aujourd'hui · \(dateStr)"
-        case 1: return "Demain · \(dateStr)"
-        case -1: return "Hier · \(dateStr)"
-        default:
-            let weekday = weekdayFmt.string(from: date).capitalized
-            return "\(weekday) · \(dateStr)"
+        case 0: return "Aujourd'hui"
+        case 1: return "Demain"
+        case -1: return "Hier"
+        default: return Self.weekdayDateFmt.string(from: date).capitalized
         }
     }
 
-    // MARK: - Time markers row
-
-    private var timeMarkers: some View {
-        ZStack(alignment: .topLeading) {
-            HStack(spacing: 0) {
-                Rectangle().fill(Color.clear).frame(width: channelColumnWidth)
-                Rectangle().fill(Color.white.opacity(0.04)).frame(width: totalGridWidth)
-            }
-            ForEach(timeTicks, id: \.self) { date in
-                Text(timeFmt.string(from: date))
-                    .font(DS.Typography.caption)
-                    .foregroundColor(DS.Colour.textTertiary)
-                    .frame(width: 60, alignment: .leading)
-                    .offset(
-                        x: channelColumnWidth + position(for: date),
-                        y: headerHeight / 2 - 8
-                    )
-            }
-            // Now indicator only when we're showing today.
-            if isToday {
-                let nowX = position(for: Date())
-                if nowX >= 0 && nowX <= totalGridWidth {
-                    Image(systemName: "arrowtriangle.down.fill")
-                        .font(.caption2)
-                        .foregroundColor(DS.Colour.accentWarm)
-                        .offset(x: channelColumnWidth + nowX - 6, y: headerHeight - 16)
-                }
-            }
-        }
-    }
-
-    private var timeTicks: [Date] {
-        var result: [Date] = []
-        var t = gridStart
-        let cal = Calendar.current
-        while t < gridEnd {
-            result.append(t)
-            t = cal.date(byAdding: .minute, value: 30, to: t) ?? t
-        }
-        return result
-    }
-
-    // MARK: - Channel row
+    // MARK: - Grid
 
     @ViewBuilder
-    private func channelRow(_ channel: Channel) -> some View {
-        ZStack(alignment: .leading) {
-            VStack(spacing: 0) {
-                Spacer()
-                Rectangle().fill(Color.white.opacity(0.04)).frame(height: 1)
-            }
-            HStack(spacing: 0) {
-                channelCell(channel).frame(width: channelColumnWidth, height: rowHeight)
-                programGrid(channel).frame(width: totalGridWidth, height: rowHeight)
+    private var grid: some View {
+        if visibleChannels.isEmpty {
+            emptyState
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                    ForEach(visibleChannels, id: \.streamId) { channel in
+                        channelRow(channel)
+                            .onAppear { triggerLoadIfNeeded(channel: channel) }
+                    }
+                }
+                .padding(.horizontal, DS.Padding.detailHorizontal)
+                .padding(.vertical, DS.Spacing.sm)
             }
         }
     }
 
-    private func channelCell(_ channel: Channel) -> some View {
+    private func channelRow(_ channel: Channel) -> some View {
+        HStack(spacing: DS.Spacing.sm) {
+            channelBanner(channel)
+            programLane(for: channel)
+        }
+        .frame(height: rowHeight)
+    }
+
+    private func channelBanner(_ channel: Channel) -> some View {
         HStack(spacing: DS.Spacing.sm) {
             KFImage(URL(string: channel.displayIcon))
                 .resizable()
@@ -316,140 +268,112 @@ struct EPGGridView: View {
                     Image(systemName: "tv").foregroundColor(DS.Colour.textTertiary)
                 }
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 50, height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.tag))
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(channel.name.strippingProviderTag)
-                    .font(DS.Typography.caption)
-                    .fontWeight(.semibold)
+                    .font(DS.Typography.bodyEmphasised)
                     .foregroundColor(DS.Colour.textPrimary)
                     .lineLimit(2)
-                if let num = channel.num {
-                    Text("\(num)")
-                        .font(.system(size: 10))
-                        .foregroundColor(DS.Colour.textTertiary)
+                HStack(spacing: 6) {
+                    if let n = channel.num {
+                        Text("\(n)")
+                            .font(.system(size: 11))
+                            .foregroundColor(DS.Colour.textTertiary)
+                    }
+                    if channel.hasCatchup {
+                        Text("REPLAY")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(DS.Colour.accentWarm.opacity(0.9), in: Capsule())
+                    }
                 }
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DS.Spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.02))
+        .frame(width: bannerWidth, height: rowHeight, alignment: .leading)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card))
     }
 
     @ViewBuilder
-    private func programGrid(_ channel: Channel) -> some View {
-        // Pull cache state at the top so the byDay observation
-        // registers on this view's render scope (debugging
-        // demonstrated the access has to happen in the body, not
-        // inside a method, for SwiftUI to track it through the
-        // ForEach across channels).
-        let dayMap = epgCache.byDay[EPGCache.dayKey(for: selectedDay)] ?? [:]
-        let progs = dayMap[channel.streamId] ?? []
-
-        ZStack(alignment: .topLeading) {
-            // Anchor the ZStack's bounds to the full grid width and
-            // height. Without this, the ZStack sized itself to the
-            // bounding box of its children (small) and the outer
-            // `.frame(width: totalGridWidth)` padded around the
-            // centred ZStack — so children's `.offset(x: ...)` was
-            // measured from the *centred* leading edge, not the
-            // actual leading edge of the row. Cells ended up off-
-            // screen.
-            Color.clear
-                .frame(width: totalGridWidth, height: rowHeight)
-
-            ForEach(timeTicks.dropFirst(), id: \.self) { date in
-                Rectangle()
-                    .fill(Color.white.opacity(0.03))
-                    .frame(width: 1, height: rowHeight)
-                    .offset(x: position(for: date))
-            }
-            if isToday {
-                let nowX = position(for: Date())
-                if nowX >= 0 && nowX <= totalGridWidth {
-                    Rectangle()
-                        .fill(DS.Colour.accentWarm)
-                        .frame(width: 2, height: rowHeight)
-                        .offset(x: nowX)
+    private func programLane(for channel: Channel) -> some View {
+        let progs = epgCache.byDay[dayKey]?[channel.streamId]
+        if let progs, !progs.isEmpty {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: DS.Spacing.xs) {
+                        ForEach(progs) { prog in
+                            programCell(channel: channel, program: prog)
+                                .id(prog.id)
+                        }
+                    }
+                    .padding(.horizontal, DS.Spacing.xs)
+                }
+                .onAppear {
+                    // Snap to "now" on first apparition for today; first
+                    // future programme on past/future days.
+                    let target: EpgProgram? = isToday
+                        ? (progs.first(where: { $0.isCurrent }) ?? progs.first(where: { !$0.isPast }))
+                        : progs.first
+                    if let target {
+                        proxy.scrollTo(target.id, anchor: .leading)
+                    }
                 }
             }
-
-            ForEach(progs) { prog in
-                if let cell = layoutCell(for: prog) {
-                    programCell(prog, channel: channel, layout: cell)
-                        .frame(width: cell.width, height: rowHeight - 4)
-                        .offset(x: cell.x, y: 2)
-                }
-            }
+        } else if progs != nil {
+            // Loaded but empty — provider returned nothing for this day.
+            Text("Pas de programme")
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Colour.textTertiary)
+                .padding(.horizontal, DS.Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            skeletonLane
         }
-        .frame(width: totalGridWidth, height: rowHeight)
     }
 
-    private struct CellLayout {
-        let x: CGFloat
-        let width: CGFloat
-    }
-    private func layoutCell(for prog: EpgProgram) -> CellLayout? {
-        guard let start = prog.start, let end = prog.end else { return nil }
-        if end <= gridStart || start >= gridEnd { return nil }
-        let clippedStart = max(start, gridStart)
-        let clippedEnd = min(end, gridEnd)
-        let x = position(for: clippedStart)
-        let width = max(40, position(for: clippedEnd) - x)
-        return CellLayout(x: x, width: width)
+    private var skeletonLane: some View {
+        HStack(spacing: DS.Spacing.xs) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .frame(width: 360, height: rowHeight - 8)
+            }
+            Spacer(minLength: 0)
+        }
+        .redacted(reason: .placeholder)
     }
 
-    @ViewBuilder
-    private func programCell(_ prog: EpgProgram, channel: Channel, layout: CellLayout) -> some View {
-        let id = EPGCellId(channelId: channel.streamId, programId: prog.id)
-        Button {
-            handleProgramTap(prog: prog, channel: channel)
+    private func programCell(channel: Channel, program: EpgProgram) -> some View {
+        let id = CellID.program(channelId: channel.streamId, programId: program.id)
+        let width = cellWidth(for: program)
+        let hasReminder: Bool = {
+            guard let s = program.start else { return false }
+            return appState.reminderService.hasReminder(streamId: channel.streamId, startUtc: s)
+        }()
+        let cellState: EPGCellButtonStyle.CellState = {
+            if program.isCurrent { return .current(progress: program.progress) }
+            if program.isPast { return .past }
+            return .upcoming
+        }()
+        return Button {
+            handleTap(channel: channel, program: program)
         } label: {
-            ProgramCellLabel(program: prog)
+            ProgramCellLabel(program: program, isCurrent: program.isCurrent, hasReminder: hasReminder)
+                .frame(width: width, height: rowHeight - 8)
         }
-        .buttonStyle(EPGCellButtonStyle(state: state(for: prog)))
+        .buttonStyle(EPGCellButtonStyle(state: cellState))
         .focused($focusedCell, equals: id)
     }
 
-    private func state(for prog: EpgProgram) -> EPGCellButtonStyle.State {
-        if prog.isCurrent { return .current }
-        if prog.isPast { return .past }
-        return .upcoming
-    }
-
-    /// Smart tap action for EPG cells. Behaviour by programme state:
-    ///   - **Past + channel has catch-up** → launch the timeshift
-    ///     replay directly. The user picked a specific past show; no
-    ///     point detouring through the channel page.
-    ///   - **Currently airing** → open the channel detail (Watch live
-    ///     button + replay shelf). Could be improved later to launch
-    ///     the live stream directly.
-    ///   - **Past without catch-up** → friendly alert, no detour.
-    ///   - **Future** → channel detail so the user can set a reminder
-    ///     via the existing reminders flow.
-    private func handleProgramTap(prog: EpgProgram, channel: Channel) {
-        if prog.isPast {
-            if channel.hasCatchup,
-               let url = appState.api.timeshiftUrlFromLocal(
-                   streamId: channel.streamId,
-                   serverLocalStart: prog.serverLocalStart,
-                   durationMinutes: prog.durationMinutes
-               ) {
-                PlayerPresenter.playLive(
-                    url: url,
-                    title: "\(channel.name) — \(prog.title)",
-                    contentKey: "live_\(channel.streamId)",
-                    coverUrl: channel.displayIcon
-                )
-                return
-            }
-            unavailableAlertMessage = "Le replay de ce programme n'est pas disponible chez votre fournisseur."
-            unavailableAlertVisible = true
-            return
-        }
-        // Current or future — open the channel detail page.
-        selectedProgram = ProgramSelection(channel: channel, program: prog)
+    private func cellWidth(for program: EpgProgram) -> CGFloat {
+        let mins = max(15, program.durationMinutes)
+        let raw = CGFloat(mins) * pxPerMinute
+        return min(cellMaxWidth, max(cellMinWidth, raw))
     }
 
     // MARK: - Empty state
@@ -461,7 +385,7 @@ struct EPGGridView: View {
                 Image(systemName: "tv.slash")
                     .font(.system(size: 36))
                     .foregroundColor(DS.Colour.textTertiary)
-                Text(emptyStateMessage)
+                Text(emptyMessage)
                     .font(DS.Typography.body)
                     .foregroundColor(DS.Colour.textSecondary)
             }
@@ -470,81 +394,309 @@ struct EPGGridView: View {
         .padding(.top, DS.Spacing.huge)
     }
 
-    private var emptyStateMessage: String {
-        switch selectedCategoryId {
-        case "__favorites__": return "Aucune chaîne dans vos favoris"
-        case nil: return "Aucune chaîne disponible"
-        default: return "Aucune chaîne dans cette catégorie"
+    private var emptyMessage: String {
+        switch categoryFilter {
+        case .favorites: return "Aucune chaîne dans vos favoris"
+        case .all: return "Aucune chaîne disponible"
+        case .category: return "Aucune chaîne dans cette catégorie"
         }
     }
 
-    // MARK: - Loaders
+    // MARK: - Search
 
-    private func loadIfNeeded() async {
+    private struct SearchMatch: Identifiable {
+        let channel: Channel
+        let program: EpgProgram
+        var id: UUID { program.id }
+    }
+
+    @ViewBuilder
+    private var searchResults: some View {
+        let matches = computeSearchMatches()
+        ScrollView {
+            LazyVStack(spacing: DS.Spacing.xs) {
+                if matches.isEmpty {
+                    Text(searchText.isEmpty ? "Tapez pour rechercher" : "Aucun résultat")
+                        .font(DS.Typography.body)
+                        .foregroundColor(DS.Colour.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, DS.Spacing.huge)
+                } else {
+                    ForEach(matches) { match in
+                        searchRow(match)
+                    }
+                }
+            }
+            .padding(.horizontal, DS.Padding.detailHorizontal)
+            .padding(.vertical, DS.Spacing.sm)
+        }
+    }
+
+    private func computeSearchMatches() -> [SearchMatch] {
+        let q = searchText
+            .lowercased()
+            .folding(options: .diacriticInsensitive, locale: .current)
+        guard !q.isEmpty else { return [] }
+        let dayMap = epgCache.byDay[dayKey] ?? [:]
+        var out: [SearchMatch] = []
+        for ch in visibleChannels {
+            let chName = ch.name.strippingProviderTag
+                .lowercased()
+                .folding(options: .diacriticInsensitive, locale: .current)
+            let chMatch = chName.contains(q)
+            guard let progs = dayMap[ch.streamId] else { continue }
+            for p in progs {
+                let title = p.title
+                    .lowercased()
+                    .folding(options: .diacriticInsensitive, locale: .current)
+                if chMatch || title.contains(q) {
+                    out.append(SearchMatch(channel: ch, program: p))
+                }
+            }
+        }
+        return out.sorted { ($0.program.start ?? .distantPast) < ($1.program.start ?? .distantPast) }
+    }
+
+    private func searchRow(_ match: SearchMatch) -> some View {
+        let id = CellID.search(programId: match.program.id)
+        return Button {
+            handleTap(channel: match.channel, program: match.program)
+        } label: {
+            HStack(spacing: DS.Spacing.md) {
+                KFImage(URL(string: match.channel.displayIcon))
+                    .resizable()
+                    .placeholder {
+                        Image(systemName: "tv").foregroundColor(DS.Colour.textTertiary)
+                    }
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.tag))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(match.program.title)
+                        .font(DS.Typography.bodyEmphasised)
+                        .foregroundColor(DS.Colour.textPrimary)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        if let s = match.program.start {
+                            Text(Self.timeFmt.string(from: s))
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Colour.textTertiary)
+                        }
+                        Text("·")
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Colour.textTertiary)
+                        Text(match.channel.name.strippingProviderTag)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Colour.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                stateTag(match.program)
+            }
+            .padding(.horizontal, DS.Spacing.md)
+            .padding(.vertical, DS.Spacing.sm)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(EPGSearchRowButtonStyle())
+        .focused($focusedCell, equals: id)
+    }
+
+    @ViewBuilder
+    private func stateTag(_ program: EpgProgram) -> some View {
+        if program.isCurrent {
+            Text("EN COURS")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundColor(.white)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(DS.Colour.accentWarm, in: Capsule())
+        } else if program.isPast {
+            Text("PASSÉ")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundColor(DS.Colour.textTertiary)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.white.opacity(0.06), in: Capsule())
+        } else {
+            Text("À VENIR")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundColor(DS.Colour.textSecondary)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.white.opacity(0.06), in: Capsule())
+        }
+    }
+
+    // MARK: - Tap routing
+
+    private func handleTap(channel: Channel, program: EpgProgram) {
+        if program.isCurrent {
+            playLive(for: channel)
+            return
+        }
+        if program.isPast {
+            playReplayOrFail(channel: channel, program: program)
+            return
+        }
+        // Future — toggle reminder + toast.
+        let added = appState.reminderService.toggle(
+            streamId: channel.streamId,
+            channelName: channel.name.strippingProviderTag,
+            program: program
+        )
+        withAnimation(DS.Motion.standard) {
+            transientToast = added
+                ? "🔔 Rappel posé pour « \(program.title) »"
+                : "Rappel retiré"
+        }
+    }
+
+    private func playLive(for channel: Channel) {
+        let chans = visibleChannels
+        let idx = chans.firstIndex(where: { $0.streamId == channel.streamId }) ?? 0
+        PlayerPresenter.playLiveWithZapping(
+            channels: chans,
+            startIndex: idx,
+            api: appState.api,
+            timeshiftAllowed: timeshiftAllowed
+        )
+    }
+
+    private func playReplayOrFail(channel: Channel, program: EpgProgram) {
+        guard channel.hasCatchup,
+              let url = appState.api.timeshiftUrlFromLocal(
+                  streamId: channel.streamId,
+                  serverLocalStart: program.serverLocalStart,
+                  durationMinutes: program.durationMinutes
+              )
+        else {
+            withAnimation(DS.Motion.standard) {
+                transientToast = "Replay non disponible chez votre fournisseur."
+            }
+            return
+        }
+        PlayerPresenter.playCatchUp(
+            url: url,
+            title: "\(channel.name.strippingProviderTag) — \(program.title)"
+        )
+    }
+
+    // MARK: - Toast
+
+    @ViewBuilder
+    private var toastOverlay: some View {
+        if let msg = transientToast {
+            Text(msg)
+                .font(DS.Typography.body)
+                .foregroundColor(DS.Colour.textPrimary)
+                .padding(.horizontal, DS.Spacing.lg)
+                .padding(.vertical, DS.Spacing.sm)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.bottom, DS.Spacing.xl)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    // MARK: - Loading
+
+    private func primeFiltersIfNeeded() async {
         if liveViewModel.allChannels.isEmpty {
             await liveViewModel.loadAllChannels()
         }
-        let channels = visibleChannels
-        guard !channels.isEmpty else { return }
-        await epgCache.loadDay(selectedDay, channels: channels, api: appState.api)
+        if liveViewModel.categories.isEmpty {
+            await liveViewModel.loadCategories()
+        }
     }
 
-    // MARK: - Math helpers
+    private func preloadInitialBatch() async {
+        let initial = Array(visibleChannels.prefix(initialBatch))
+        guard !initial.isEmpty else { return }
+        await epgCache.loadDay(selectedDay, channels: initial, api: appState.api)
+    }
 
-    private func position(for date: Date) -> CGFloat {
-        let mins = CGFloat(date.timeIntervalSince(gridStart) / 60)
-        return mins * pixelsPerMinute
+    /// Called from each row's `.onAppear` — `EPGCache.loadDay` no-ops on
+    /// already-cached / in-flight channels, so calling it per row is safe
+    /// even if it's not the most efficient batching strategy.
+    private func triggerLoadIfNeeded(channel: Channel) {
+        guard epgCache.byDay[dayKey]?[channel.streamId] == nil else { return }
+        let day = selectedDay
+        Task {
+            await epgCache.loadDay(day, channels: [channel], api: appState.api)
+        }
+    }
+
+    private func placeInitialFocusIfNeeded() {
+        guard focusedCell == nil else { return }
+        guard let firstChannel = visibleChannels.first else { return }
+        let progs = epgCache.byDay[dayKey]?[firstChannel.streamId] ?? []
+        let target = progs.first(where: { $0.isCurrent })
+            ?? progs.first(where: { !$0.isPast })
+            ?? progs.first
+        guard let target else { return }
+        focusedCell = .program(channelId: firstChannel.streamId, programId: target.id)
     }
 
     // MARK: - Formatters
 
-    private let timeFmt: DateFormatter = {
+    private static let timeFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
         return f
     }()
-    private let rangeFmt: DateFormatter = {
+    private static let weekdayDateFmt: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "EEE HH:mm"
-        return f
-    }()
-    private let weekdayFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f
-    }()
-    private let shortDateFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "d MMM"
+        f.locale = Locale(identifier: "fr_FR")
+        f.dateFormat = "EEE d MMM"
         return f
     }()
 }
 
-// MARK: - Program cell
+// MARK: - Cell label
 
 private struct ProgramCellLabel: View {
     let program: EpgProgram
+    let isCurrent: Bool
+    let hasReminder: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                if let s = program.start {
+                    Text(Self.timeFmt.string(from: s))
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Colour.textTertiary)
+                }
+                if program.durationMinutes > 0 {
+                    Text("· \(program.durationMinutes) min")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Colour.textTertiary)
+                }
+                if isCurrent {
+                    Text("EN COURS")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(DS.Colour.accentWarm, in: Capsule())
+                }
+                if hasReminder {
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(DS.Colour.warning)
+                }
+                Spacer(minLength: 0)
+            }
             Text(program.title)
-                .font(DS.Typography.caption)
-                .fontWeight(.semibold)
+                .font(DS.Typography.bodyEmphasised)
                 .foregroundColor(DS.Colour.textPrimary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
-            if let s = program.start {
-                Text(timeFmt.string(from: s))
-                    .font(.system(size: 10))
-                    .foregroundColor(DS.Colour.textTertiary)
-            }
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
+        .padding(.horizontal, DS.Spacing.sm)
+        .padding(.vertical, DS.Spacing.xs)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private let timeFmt: DateFormatter = {
+    private static let timeFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
         return f
@@ -606,23 +758,45 @@ private struct EPGChipButtonStyle: ButtonStyle {
 }
 
 private struct EPGCellButtonStyle: ButtonStyle {
-    enum State { case past, current, upcoming }
-    let state: State
+    enum CellState {
+        case past
+        case current(progress: Double)
+        case upcoming
+    }
+    let state: CellState
     @Environment(\.isFocused) private var isFocused
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(alignment: .bottomLeading) { progressBar }
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                     .strokeBorder(
-                        isFocused ? Color.white : Color.white.opacity(0.10),
+                        isFocused ? DS.Colour.accent : Color.white.opacity(0.08),
                         lineWidth: isFocused ? 2 : 1
                     )
             )
-            .scaleEffect(configuration.isPressed ? 0.99 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? 1.04 : 1.0))
             .animation(DS.Focus.animation, value: isFocused)
+    }
+
+    @ViewBuilder
+    private var progressBar: some View {
+        if case .current(let p) = state {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.10))
+                        .frame(height: 3)
+                    Rectangle()
+                        .fill(DS.Colour.accentWarm)
+                        .frame(width: max(0, geo.size.width * CGFloat(min(1, max(0, p)))), height: 3)
+                }
+            }
+            .frame(height: 3)
+        }
     }
 
     @ViewBuilder
@@ -631,22 +805,29 @@ private struct EPGCellButtonStyle: ButtonStyle {
         case .current:
             DS.Colour.accent.opacity(isFocused ? 0.55 : 0.30)
         case .past:
-            DS.Colour.surface.opacity(isFocused ? 0.85 : 0.55)
+            Color.white.opacity(isFocused ? 0.12 : 0.04)
         case .upcoming:
-            DS.Colour.surface.opacity(isFocused ? 0.95 : 0.70)
+            DS.Colour.surface.opacity(isFocused ? 1.0 : 0.75)
         }
     }
 }
 
-// MARK: - Identifiers
-
-struct EPGCellId: Hashable {
-    let channelId: String
-    let programId: UUID
-}
-
-private struct ProgramSelection: Identifiable {
-    let channel: Channel
-    let program: EpgProgram
-    var id: UUID { program.id }
+private struct EPGSearchRowButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                isFocused ? DS.Colour.accent.opacity(0.30) : Color.white.opacity(0.04)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .strokeBorder(
+                        isFocused ? DS.Colour.accent : Color.white.opacity(0.08),
+                        lineWidth: isFocused ? 2 : 1
+                    )
+            )
+            .scaleEffect(configuration.isPressed ? 0.99 : (isFocused ? 1.02 : 1.0))
+            .animation(DS.Focus.animation, value: isFocused)
+    }
 }

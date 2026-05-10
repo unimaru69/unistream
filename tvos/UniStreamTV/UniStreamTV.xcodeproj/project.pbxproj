@@ -55,7 +55,6 @@
 		6A1C8A0DE2124CF2B4D75205 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F8C32DD3D1D784098988B7 /* PlayerView.swift */; };
 		6A9FA16BEC126790811F010A /* TMDBViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B145C105C58D8FFCEFADE90 /* TMDBViewModel.swift */; };
 		6B64AA45CE7FD55F9BDE8F62 /* VODSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF9A66BE8205446C706338D2 /* VODSplitView.swift */; };
-		7258D547473FF8BE255E5094 /* EPGViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148D80D248EDA292FAE9CAE3 /* EPGViewModel.swift */; };
 		75612E02929A2A249A0C1421 /* SeriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C006B441E8DDFCDE018925AE /* SeriesViewModel.swift */; };
 		75E0AFB6F392CB5CD9707557 /* Episode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F96A79587CCA902C7E2147 /* Episode.swift */; };
 		766A8CED8069F344D526E6D6 /* XtreamAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */; };
@@ -96,7 +95,6 @@
 		BF42FE71DEA8202F818441A4 /* CollectionsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C775B1B4C494C9799EC3BEF /* CollectionsServiceTests.swift */; };
 		BF43E13D0A1765289BCC79CA /* VLCVODPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362DDC9DF7CFB4041B7C26F9 /* VLCVODPlayerModel.swift */; };
 		C52E46A20E74C414B1256AF4 /* CatalogIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 166596C0ADA2855458AB4DE0 /* CatalogIndex.swift */; };
-		C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5385194B16C126435316CB1E /* EPGView.swift */; };
 		C6D621F02EFC3DA0A0286195 /* TMDBCastRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3320E0DD405110FEA53178DB /* TMDBCastRow.swift */; };
 		C82C010F2D848E02CC23F059 /* TMDBConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB8ED7306046750AD9B0EF1 /* TMDBConfig.swift */; };
 		C86F1ACFC2F6D05CD5C56012 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EF8476CB018EE8AC5952FE /* AppState.swift */; };
@@ -159,7 +157,6 @@
 		0EAE9833DA4851D7E831842E /* CatchUpRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchUpRow.swift; sourceTree = "<group>"; };
 		0F9B41B3186FB8546EEE4897 /* Feature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feature.swift; sourceTree = "<group>"; };
 		128BA5E87066CEE16997BC1C /* FocusableCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusableCard.swift; sourceTree = "<group>"; };
-		148D80D248EDA292FAE9CAE3 /* EPGViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGViewModel.swift; sourceTree = "<group>"; };
 		166596C0ADA2855458AB4DE0 /* CatalogIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogIndex.swift; sourceTree = "<group>"; };
 		16D21F07D4BC065934406A66 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		18BED9531A21C40518012159 /* PlexBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexBackdrop.swift; sourceTree = "<group>"; };
@@ -187,7 +184,6 @@
 		517B9C4B9B525DF85EB03F04 /* TVButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVButtonStyle.swift; sourceTree = "<group>"; };
 		51A0B3E88E682FA7B2316BB1 /* VODCategoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VODCategoryListView.swift; sourceTree = "<group>"; };
 		53329EA9B5B6D7266B3C446D /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
-		5385194B16C126435316CB1E /* EPGView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGView.swift; sourceTree = "<group>"; };
 		53EA502B4CF22F4EF0CC2577 /* AccountInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountInfo.swift; sourceTree = "<group>"; };
 		55096A5D6EE9B3F8E34B424F /* SeriesDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesDetailView.swift; sourceTree = "<group>"; };
 		566F9A1DCF37AA901E7809F0 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
@@ -504,7 +500,6 @@
 			children = (
 				CF5F50D4F0C4ACFB57A7A951 /* ChannelDetailView.swift */,
 				83EC71FAE38D5CF1CDA263F9 /* EPGGridView.swift */,
-				5385194B16C126435316CB1E /* EPGView.swift */,
 			);
 			path = EPG;
 			sourceTree = "<group>";
@@ -599,7 +594,6 @@
 		FCC9D1CE96BDF77E0E95E93E /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				148D80D248EDA292FAE9CAE3 /* EPGViewModel.swift */,
 				7F5BE0D61457892FECE75109 /* LiveViewModel.swift */,
 				42645D01D68032F66F7A1F6A /* PlayerViewModel.swift */,
 				796A67AAB68879A062FD3BD9 /* SearchViewModel.swift */,
@@ -782,8 +776,6 @@
 				BF3E2D8D9FB733911AF76B20 /* EPGCache.swift in Sources */,
 				0747D767D5226D36558DAA76 /* EPGGridView.swift in Sources */,
 				7F72E6424C41D1A9956BD2C6 /* EPGReminderService.swift in Sources */,
-				C5BF5FEE9B14DE7813EF994A /* EPGView.swift in Sources */,
-				7258D547473FF8BE255E5094 /* EPGViewModel.swift in Sources */,
 				5F016C5698EE1056971817FF /* EmptyStateView.swift in Sources */,
 				12B2122A46AC67B80069DE0B /* EpgProgram.swift in Sources */,
 				75E0AFB6F392CB5CD9707557 /* Episode.swift in Sources */,
