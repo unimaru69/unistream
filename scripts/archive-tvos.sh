@@ -88,26 +88,20 @@ echo "→ Archiving (this can take a few minutes)…"
 [[ -d "$ARCHIVE_PATH" ]] || { echo "✗ archive missing — fix the build error and retry"; exit 1; }
 
 # ── Export .ipa ───────────────────────────────────────────────────────
-# Use the ASC API key for App-Store-Connect auth instead of relying on
-# the Xcode keychain (which loses its Username / Token periodically and
-# breaks the export with "No Accounts / No signing certificate iOS
-# Distribution"). Same key as the altool upload below.
-ASC_API_KEY_PATH="${HOME}/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
-[[ -f "$ASC_API_KEY_PATH" ]] || {
-    echo "✗ missing ASC API key at $ASC_API_KEY_PATH"
-    echo "  Drop your AuthKey_<ID>.p8 in ~/.appstoreconnect/private_keys/"
-    exit 1
-}
-
+# Export uses the Xcode keychain account (signingStyle: automatic in
+# ExportOptions.plist + allowProvisioningUpdates). Earlier we tried to
+# pass the ASC API key here as well to avoid keychain freshness issues,
+# but the cloud-signing path requires the key to have App Manager /
+# Admin role on the team — Developer-role keys hit "Cloud signing
+# permission error". Keychain path is universal regardless of role; if
+# you see "No Accounts / No signing certificate", just re-sign into
+# Xcode → Settings → Accounts.
 echo "→ Exporting .ipa"
 (cd "$TVOS_DIR" && xcodebuild -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
     -exportPath "$EXPORT_DIR" \
     -exportOptionsPlist ExportOptions.plist \
     -allowProvisioningUpdates \
-    -authenticationKeyPath "$ASC_API_KEY_PATH" \
-    -authenticationKeyID "$ASC_API_KEY_ID" \
-    -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
     | xcbeautify --quieter 2>/dev/null || true)
 
 IPA_PATH=$(find "$EXPORT_DIR" -name '*.ipa' | head -1 || true)
