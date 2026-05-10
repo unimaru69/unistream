@@ -9,12 +9,6 @@ struct SeriesSplitView: View {
 
     @State private var selection: Category?
     @FocusState private var focusedCategory: Category?
-    /// Namespace used by `.prefersDefaultFocus(...)` to mark the
-    /// sidebar as the preferred entry point when focus arrives from
-    /// outside the split view (e.g. ↓ from the floating tab bar).
-    /// Without this hint the engine kept landing on the sort chips
-    /// in the detail pane, which were vertically closer to the bar.
-    @Namespace private var splitFocus
     /// Lifted from the grid so the backdrop renders at split-view level
     /// (full-screen, including behind the sidebar and the floating tab
     /// bar). The grid pushes the currently-focused item up via Binding.
@@ -54,7 +48,6 @@ struct SeriesSplitView: View {
                         sidebar
                             .frame(width: 520)
                             .focusSection()
-                            .prefersDefaultFocus(in: splitFocus)
 
                         Rectangle()
                             .fill(Color.white.opacity(0.08))
@@ -64,7 +57,11 @@ struct SeriesSplitView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .focusSection()
                     }
-                    .focusScope(splitFocus)
+                    // See LiveSplitView for why we landed on .defaultFocus
+                    // instead of .prefersDefaultFocus + .focusScope.
+                    // Value resolves to nil while categories load
+                    // (no-op then), takes effect once they do.
+                    .defaultFocus($focusedCategory, filteredCategories.first)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(splitBackdrop)
                 }

@@ -11,10 +11,6 @@ struct LiveSplitView: View {
     @State private var selection: CategoryEntry = .all
     @State private var didInitSelection = false
     @FocusState private var focusedEntry: CategoryEntry?
-    /// See SeriesSplitView for the rationale on this Namespace +
-    /// .prefersDefaultFocus pair (sidebar is the preferred entry
-    /// point when focus arrives from outside, e.g. ↓ from tab bar).
-    @Namespace private var splitFocus
     /// Debounces sidebar focus → selection updates so a quick scroll
     /// doesn't constantly re-render the grid. Without this the grid
     /// flickers under a fast-moving focus and the engine occasionally
@@ -77,7 +73,6 @@ struct LiveSplitView: View {
                 sidebar
                     .frame(width: 520)
                     .focusSection()
-                    .prefersDefaultFocus(in: splitFocus)
 
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
@@ -87,7 +82,14 @@ struct LiveSplitView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .focusSection()
             }
-            .focusScope(splitFocus)
+            // .defaultFocus is the actual API for "where focus
+            // should land when the scope is first entered" — for us
+            // that's when ↓ from the floating tab bar enters this
+            // split view. .prefersDefaultFocus(in:) we tried before
+            // is a softer hint that loses against any geometrically-
+            // attractive sibling (chips just below the tab bar) and
+            // didn't actually move focus to the sidebar.
+            .defaultFocus($focusedEntry, .all)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Canvas: vertical gradient from pure black at the top
             // (where channel logos sit — they pop on full black) down

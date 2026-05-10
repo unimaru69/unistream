@@ -9,9 +9,6 @@ struct VODSplitView: View {
 
     @State private var selection: Category?
     @FocusState private var focusedCategory: Category?
-    /// See SeriesSplitView for the rationale on this Namespace +
-    /// .prefersDefaultFocus pair.
-    @Namespace private var splitFocus
     /// Focused item lifted from the grid — see SeriesSplitView for the
     /// rationale (full-screen backdrop, behind sidebar + tab bar).
     @State private var focusedVod: VodItem?
@@ -49,7 +46,6 @@ struct VODSplitView: View {
                         sidebar
                             .frame(width: 520)
                             .focusSection()
-                            .prefersDefaultFocus(in: splitFocus)
 
                         Rectangle()
                             .fill(Color.white.opacity(0.08))
@@ -59,7 +55,8 @@ struct VODSplitView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .focusSection()
                     }
-                    .focusScope(splitFocus)
+                    // See LiveSplitView for the rationale.
+                    .defaultFocus($focusedCategory, filteredCategories.first)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(splitBackdrop)
                 }
