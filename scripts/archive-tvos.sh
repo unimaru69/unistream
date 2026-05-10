@@ -14,6 +14,9 @@
 #   ./scripts/archive-tvos.sh                # auto-bump + upload
 #   ./scripts/archive-tvos.sh --no-upload    # archive + export only, skip altool
 #   ./scripts/archive-tvos.sh --no-commit    # don't auto-commit the bump
+#   ./scripts/archive-tvos.sh --no-bump      # re-archive at the current version
+#                                            #   (use after a failed export to avoid
+#                                            #    burning the next build number)
 #
 # Requirements:
 #   - xcodegen on PATH
@@ -28,10 +31,12 @@ set -euo pipefail
 
 UPLOAD=true
 COMMIT=true
+BUMP=true
 for arg in "$@"; do
     case $arg in
         --no-upload) UPLOAD=false ;;
         --no-commit) COMMIT=false ;;
+        --no-bump)   BUMP=false ;;
         *) echo "unknown flag: $arg"; exit 2 ;;
     esac
 done
@@ -50,12 +55,17 @@ EXPORT_OPTIONS="$TVOS_DIR/ExportOptions.plist"
 CURRENT=$(grep -E '^[[:space:]]+CURRENT_PROJECT_VERSION:' "$PROJECT_YML" \
     | head -1 | sed -E 's/.*"([0-9]+)".*/\1/')
 [[ -n "$CURRENT" ]] || { echo "couldn't parse CURRENT_PROJECT_VERSION"; exit 1; }
-NEW=$((CURRENT + 1))
-echo "→ tvOS build $CURRENT → $NEW"
 
-# Both targets share the same build number — replace every occurrence.
-sed -i.bak "s/CURRENT_PROJECT_VERSION: \"$CURRENT\"/CURRENT_PROJECT_VERSION: \"$NEW\"/g" "$PROJECT_YML"
-rm -f "$PROJECT_YML.bak"
+if $BUMP; then
+    NEW=$((CURRENT + 1))
+    echo "→ tvOS build $CURRENT → $NEW"
+    # Both targets share the same build number — replace every occurrence.
+    sed -i.bak "s/CURRENT_PROJECT_VERSION: \"$CURRENT\"/CURRENT_PROJECT_VERSION: \"$NEW\"/g" "$PROJECT_YML"
+    rm -f "$PROJECT_YML.bak"
+else
+    NEW=$CURRENT
+    echo "→ tvOS build $NEW (--no-bump)"
+fi
 
 # ── Regenerate Xcode project ──────────────────────────────────────────
 echo "→ xcodegen"
@@ -78,12 +88,26 @@ echo "→ Archiving (this can take a few minutes)…"
 [[ -d "$ARCHIVE_PATH" ]] || { echo "✗ archive missing — fix the build error and retry"; exit 1; }
 
 # ── Export .ipa ───────────────────────────────────────────────────────
+# Use the ASC API key for App-Store-Connect auth instead of relying on
+# the Xcode keychain (which loses its Username / Token periodically and
+# breaks the export with "No Accounts / No signing certificate iOS
+# Distribution"). Same key as the altool upload below.
+ASC_API_KEY_PATH="${HOME}/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
+[[ -f "$ASC_API_KEY_PATH" ]] || {
+    echo "✗ missing ASC API key at $ASC_API_KEY_PATH"
+    echo "  Drop your AuthKey_<ID>.p8 in ~/.appstoreconnect/private_keys/"
+    exit 1
+}
+
 echo "→ Exporting .ipa"
 (cd "$TVOS_DIR" && xcodebuild -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
     -exportPath "$EXPORT_DIR" \
     -exportOptionsPlist ExportOptions.plist \
     -allowProvisioningUpdates \
+    -authenticationKeyPath "$ASC_API_KEY_PATH" \
+    -authenticationKeyID "$ASC_API_KEY_ID" \
+    -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
     | xcbeautify --quieter 2>/dev/null || true)
 
 IPA_PATH=$(find "$EXPORT_DIR" -name '*.ipa' | head -1 || true)
@@ -105,7 +129,7 @@ else
 fi
 
 # ── Commit the version bump ───────────────────────────────────────────
-if $COMMIT; then
+if $COMMIT && $BUMP; then
     cd "$ROOT"
     if git diff --quiet "$PROJECT_YML"; then
         :  # nothing changed (race / re-run)
