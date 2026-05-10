@@ -51,30 +51,43 @@ enum PlayerPresenter {
     /// Present a live channel stream.
     static func playLive(url: URL, title: String? = nil, contentKey: String? = nil, coverUrl: String? = nil) {
         if useVlcForLive {
-            // Try to use the channel-aware live VC: when we can look
-            // up the full `Channel` by streamId, the user gets the
-            // proper live overlay (EN DIRECT badge, programme title,
-            // progress bar, TMDB backdrop) instead of the generic
-            // VOD-style drawer that the no-context VC would show.
-            // Falls back to the generic VLC VC if anything's missing
-            // (no api / no liveViewModel / streamId not in catalog).
-            if let key = contentKey, key.hasPrefix("live_"),
-               let lvm = liveViewModel,
-               let api = api {
+            // Channel-aware live VC: gives the user the proper live
+            // overlay (EN DIRECT badge, programme info, progress bar,
+            // TMDB backdrop) regardless of where playback was launched
+            // from. Two lookup tiers:
+            //   1) the in-memory LiveViewModel (full channel data with
+            //      catchup duration, num, etc.) — populated only after
+            //      the user visits the Live tab.
+            //   2) a synthetic stub Channel built from streamId + title
+            //      — used when the user launches from Home favourites /
+            //      Continue Watching / a deep link before the Live VM
+            //      has loaded its catalogue. Catchup features won't
+            //      work in stub mode (no archiveDays), but the live
+            //      overlay does.
+            if let key = contentKey, key.hasPrefix("live_"), let api = api {
                 let sid = String(key.dropFirst("live_".count))
-                if let channel = lvm.allChannels.first(where: { $0.streamId == sid })
-                    ?? lvm.channels.first(where: { $0.streamId == sid }) {
-                    let vlc = VLCLivePlayerViewController(
-                        channels: [channel],
-                        startIndex: 0,
-                        api: api,
-                        timeshiftAllowed: false
-                    )
-                    if let title { syncService?.registerPlayback(contentKey: key, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
-                    guard let rootVC = rootViewController else { return }
-                    rootVC.present(vlc, animated: true)
-                    return
-                }
+                let channel: Channel = {
+                    if let lvm = liveViewModel,
+                       let real = lvm.allChannels.first(where: { $0.streamId == sid })
+                                ?? lvm.channels.first(where: { $0.streamId == sid }) {
+                        return real
+                    }
+                    return Channel(json: [
+                        "stream_id": sid,
+                        "name": title ?? "",
+                        "stream_icon": coverUrl ?? "",
+                    ])
+                }()
+                let vlc = VLCLivePlayerViewController(
+                    channels: [channel],
+                    startIndex: 0,
+                    api: api,
+                    timeshiftAllowed: false
+                )
+                if let title { syncService?.registerPlayback(contentKey: key, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
+                guard let rootVC = rootViewController else { return }
+                rootVC.present(vlc, animated: true)
+                return
             }
 
             let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: nil, contentKey: contentKey)

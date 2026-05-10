@@ -19,7 +19,7 @@ struct SettingsView: View {
         List {
             // Active profile
             if let profile = appState.profileManager.activeProfile {
-                Section("Profil actif") {
+                Section {
                     // Wrapped in a no-op Button so the row is
                     // focusable. Without it, the topmost focusable
                     // in the List is "S'abonner" — pressing ↑ there
@@ -42,11 +42,11 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                }
+                } header: { settingsHeader("Profil actif") }
             }
 
             // Subscription
-            Section("Abonnement") {
+            Section {
                 subscriptionRow
 
                 Button {
@@ -60,10 +60,10 @@ struct SettingsView: View {
                     )
                 }
                 .tint(Color(hex: 0x1B6B8A))
-            }
+            } header: { settingsHeader("Abonnement") }
 
             // Content management
-            Section("Contenus") {
+            Section {
                 NavigationLink(value: "history") {
                     Label("Historique de lecture", systemImage: "clock.arrow.circlepath")
                 }
@@ -97,10 +97,10 @@ struct SettingsView: View {
                 } else {
                     premiumLockedRow(label: "Contrôle parental", icon: "lock.shield.fill", feature: .parentalControls)
                 }
-            }
+            } header: { settingsHeader("Contenus") }
 
             // Profiles
-            Section("Profils") {
+            Section {
                 if canUse(.multipleProfiles) {
                     NavigationLink(value: "profiles") {
                         HStack {
@@ -114,15 +114,15 @@ struct SettingsView: View {
                 } else {
                     premiumLockedRow(label: "Multi-profils", icon: "person.2.fill", feature: .multipleProfiles)
                 }
-            }
+            } header: { settingsHeader("Profils") }
 
             // Account
-            Section("Compte") {
+            Section {
                 if let email = appState.authService.currentUser?.email {
                     Label(email, systemImage: "envelope")
                         .foregroundColor(DS.Colour.textSecondary)
                 }
-            }
+            } header: { settingsHeader("Compte") }
 
             // Playback
             Section {
@@ -157,15 +157,13 @@ struct SettingsView: View {
                         Image(systemName: "film.stack")
                     }
                 }
-            } header: {
-                Text("Lecture")
-            }
+            } header: { settingsHeader("Lecture") }
 
             // TMDB metadata enrichment
             TMDBSettingsSection()
 
             // Cache management
-            Section("Cache") {
+            Section {
                 HStack {
                     Label("Cache images", systemImage: "photo.stack")
                     Spacer()
@@ -186,7 +184,7 @@ struct SettingsView: View {
                     Label("Vider tous les caches", systemImage: "trash.circle")
                 }
                 .tint(.orange)
-            }
+            } header: { settingsHeader("Cache") }
 
             // Actions
             Section {
@@ -208,7 +206,7 @@ struct SettingsView: View {
 
             // Debug — visible uniquement en Debug build
             #if DEBUG
-            Section("Debug") {
+            Section {
                 Picker(selection: Binding(
                     get: { debugPlanMode },
                     set: { debugPlanRaw = $0 == "auto" ? "" : $0 }
@@ -225,7 +223,7 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(DS.Colour.textSecondary)
                 }
-            }
+            } header: { settingsHeader("Debug") }
             #endif
 
             // Danger zone
@@ -242,6 +240,12 @@ struct SettingsView: View {
                 .disabled(isDeleting)
             }
         }
+        // Plain style drops the grouped rounded substrate that
+        // otherwise tints every row a translucent grey on top of our
+        // dark canvas — that compounded compression made the text
+        // unreadable. Plain renders rows directly on the canvas with
+        // crisp contrast against #141414.
+        .listStyle(.plain)
         .navigationTitle("Réglages")
         .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
@@ -266,6 +270,17 @@ struct SettingsView: View {
 
     private func canUse(_ feature: Feature) -> Bool {
         FeatureAccess.canUse(feature, account: appState.authService.cachedAccountInfo)
+    }
+
+    /// Section header that's actually visible on our dark canvas —
+    /// the default Section(_:) header uses Color.secondary, which
+    /// rendered as low-contrast grey on `DS.Colour.surface`.
+    @ViewBuilder
+    private func settingsHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(DS.Colour.textPrimary)
+            .padding(.top, 8)
     }
 
     @ViewBuilder
