@@ -404,15 +404,45 @@ class _NextProgrammeLine extends StatelessWidget {
   }
 }
 
-class _Cover extends StatelessWidget {
+class _Cover extends ConsumerWidget {
   const _Cover({required this.item, required this.mode});
 
   final dynamic item;
   final ContentMode mode;
 
   @override
-  Widget build(BuildContext context) {
-    final url = getStreamIcon(item);
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Live: prefer a TMDB backdrop of the *current programme* over
+    // the channel logo when the EPG resolves. Mirror of tvOS
+    // `LiveFocusedPreview.artURL` (TMDB tv lookup, w780, fallback to
+    // channel icon). For sports / broadcast-only channels TMDB
+    // misses → we keep showing the channel logo so the panel is
+    // never blank.
+    String url = getStreamIcon(item);
+    BoxFit fit = mode == ContentMode.live ? BoxFit.contain : BoxFit.cover;
+    if (mode == ContentMode.live && item is Channel) {
+      final ch = item as Channel;
+      final epg = ref
+              .watch(liveEpgPreviewProvider(ch.id))
+              .valueOrNull ??
+          const LiveEpgSnapshot();
+      final progTitle = epg.now?.title;
+      final cfg = ref.watch(tmdbConfigProvider);
+      if (cfg.isActive && progTitle != null && progTitle.isNotEmpty) {
+        final tmdb = ref.watch(tmdbLookupProvider(TmdbLookup(
+          rawTitle: progTitle,
+          kind: TmdbKind.tv,
+        )));
+        final backdrop =
+            TmdbService.image(tmdb.valueOrNull?.backdropPath, size: 'w780');
+        if (backdrop != null && backdrop.isNotEmpty) {
+          url = backdrop;
+          // Programme artwork is a real 16:9 still — `cover` fills
+          // the 160×90 slot crisply. Channel logos stay `contain`.
+          fit = BoxFit.cover;
+        }
+      }
+    }
     // Live shows a wider 16:9-ish art (channel logo / backdrop). VOD
     // / Series uses a portrait 2:3 mini-poster.
     final size = mode == ContentMode.live
@@ -427,9 +457,7 @@ class _Cover extends StatelessWidget {
             ? CachedNetworkImage(
                 imageUrl: url,
                 cacheManager: AppCacheManager.instance,
-                fit: mode == ContentMode.live
-                    ? BoxFit.contain
-                    : BoxFit.cover,
+                fit: fit,
                 placeholder: (_, __) =>
                     Container(color: AppColors.darkSurface),
                 errorWidget: (_, __, ___) => Container(
