@@ -1,6 +1,12 @@
 import '../models/account_info.dart';
 
 /// Features that can be gated by subscription tier.
+///
+/// Kept around so a future monetisation refactor (single paid tier + 7-day
+/// trial — cf. auto-memory `project_business_model.md`) can re-introduce
+/// per-feature checks without rebuilding the whole list of gated
+/// surfaces. Today every value below is unlocked unconditionally — see
+/// [FeatureAccess.canUse].
 enum Feature {
   collections,
   multipleProfiles,
@@ -11,49 +17,27 @@ enum Feature {
   advancedSubtitles,
 }
 
-/// Centralized feature-gating logic.
+/// Centralised feature-gating logic.
 ///
-/// All tier checks go through this class so gating rules live in one place.
+/// **All gates are currently suspended** pending the monetisation
+/// rework: every feature is unlocked for every account, including
+/// signed-out / trial-expired states. Downstream call-sites
+/// ([`PremiumGate`](../widgets/premium_gate.dart), `checkPremiumAccess`,
+/// `showPremiumRequiredDialog`) flow through this entry-point so a
+/// single revert here re-enables tier checks once the new model lands.
+///
+/// **When re-enabling**: restore the per-feature `switch` and the
+/// `account.hasAccess` / `account.isTrialActive` short-circuits in
+/// [`canUse`] (see git history for the previous shape), then audit
+/// [`maxProfiles`] for the same.
 class FeatureAccess {
   FeatureAccess._();
 
-  /// Whether [feature] is available for the given [account].
-  ///
-  /// Rules:
-  /// - `null` account → no access.
-  /// - Active trial → full Premium access (essai = Premium complet).
-  /// - Expired trial with no subscription → no access.
-  /// - Basic → basic features only.
-  /// - Premium → all features.
-  ///
-  /// (The full monetization model is being simplified to a single paid
-  /// tier with a 7-day trial in a follow-up refactor; for now this helper
-  /// just unlocks Premium during the active trial so cloud sync — and
-  /// every other gated feature — works in TestFlight without requiring
-  /// a Sandbox subscription.)
-  static bool canUse(Feature feature, AccountInfo? account) {
-    if (account == null) return false;
-    if (!account.hasAccess) return false;
+  /// Currently a permanent `true` — see class docs.
+  // ignore: avoid_unused_constructor_parameters
+  static bool canUse(Feature feature, AccountInfo? account) => true;
 
-    // Active trial gets the full Premium feature set.
-    if (account.isTrialActive) return true;
-
-    switch (feature) {
-      case Feature.collections:
-      case Feature.multipleProfiles:
-      case Feature.parentalControls:
-      case Feature.catchupReplay:
-      case Feature.miniPlayer:
-      case Feature.advancedSubtitles:
-      case Feature.cloudSync:
-        return account.isPremium;
-    }
-  }
-
-  /// Maximum number of IPTV profiles allowed for [account].
-  static int maxProfiles(AccountInfo? account) {
-    if (account == null || !account.hasAccess) return 1;
-    if (account.isTrialActive || account.isPremium) return 10;
-    return 1;
-  }
+  /// Currently a permanent generous cap — see class docs.
+  // ignore: avoid_unused_constructor_parameters
+  static int maxProfiles(AccountInfo? account) => 10;
 }
