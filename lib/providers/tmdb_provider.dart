@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,13 +135,31 @@ final tmdbSeasonProvider =
 /// unreachable / feature disabled. Result is cached on-device for 30 days.
 ///
 /// `autoDispose` so each lookup is freed from RAM when no tile / hero /
-/// preview is watching it. The 30-day disk cache (see body) catches the
-/// next re-watch without a network round-trip, so the user-visible cost
-/// of re-decoding the cached JSON is sub-millisecond. Before this, the
-/// in-memory map grew linearly with the user's scroll until session end,
-/// holding TMDB result objects for items long since off-screen.
+/// preview is watching it — BUT with a 5-minute keep-alive grace period
+/// so cross-screen navigation (Live → Films → back) re-uses the in-RAM
+/// result instead of re-reading from the SharedPreferences disk cache
+/// (which adds ~100 ms of latency to every hero backdrop on tab switch).
+/// Memory hygiene is preserved: after 5 min of no consumer the cache
+/// entry is dropped.
 final tmdbLookupProvider =
     FutureProvider.autoDispose.family<TmdbResult?, TmdbLookup>((ref, lookup) async {
+  // Pin in RAM until the grace timer fires after the last consumer
+  // unsubscribes. `ref.onCancel` fires on EACH transition-to-zero;
+  // `ref.onResume` cancels the pending dispose when a consumer
+  // re-subscribes (typical case: user comes back to the hero
+  // before the 5 min are up).
+  final link = ref.keepAlive();
+  Timer? graceTimer;
+  ref.onCancel(() {
+    graceTimer?.cancel();
+    graceTimer = Timer(const Duration(minutes: 5), () => link.close());
+  });
+  ref.onResume(() {
+    graceTimer?.cancel();
+    graceTimer = null;
+  });
+  ref.onDispose(() => graceTimer?.cancel());
+
   final cfg = ref.watch(tmdbConfigProvider);
   if (!cfg.isActive) return null;
 

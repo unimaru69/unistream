@@ -71,13 +71,22 @@ class _HomeHeroState extends ConsumerState<HomeHero> {
   void initState() {
     super.initState();
     _featured = _pickFeatured(widget.items);
-    // **No** initial emit from initState — the parent can read
-    // `featured.first` itself as a wallpaper fallback. Emitting
-    // synchronously (or via post-frame) from initState tripped the
-    // framework's element-lifecycle assertion at startup
-    // (`element._lifecycleState == _ElementLifecycle.active`) because
-    // the parent's setState landed while ancestors were still
-    // settling their first build.
+    // Initial emit, deferred to the next frame. The hero's first
+    // item is `_pickFeatured(widget.items)[0]` — re-ranked by score
+    // — whereas the parent's `widget.featured.first` fallback uses
+    // the raw input order. Without this emit, the AmbientWallpaper
+    // showed the raw-first item (often a low-scored film) until the
+    // first auto-rotation tick at ~8 s, producing a visible
+    // "wrong backdrop on launch" flash.
+    //
+    // Deferred via `addPostFrameCallback` to dodge the element-
+    // lifecycle assertion that synchronous-emit-in-initState used to
+    // trip (parent setState while ancestors were still settling
+    // their first build).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _emitCurrent();
+    });
     HardwareKeyboard.instance.addHandler(_onKey);
     _startTimer();
   }
