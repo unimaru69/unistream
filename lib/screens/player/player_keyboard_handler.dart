@@ -70,7 +70,11 @@ bool handlePlayerKeyEvent(
         callbacks.onTimeshiftSeek != null &&
         (key == LogicalKeyboardKey.arrowLeft ||
             key == LogicalKeyboardKey.arrowRight)) {
-      final step = shiftHeld() ? 300 : 30;
+      // Aligned with tvOS VLCLivePlayerViewController: 10 s short
+      // step, 60 s long step (Shift = long on Flutter desktop, vs
+      // press-duration ≥ 0.6 s on tvOS). 300 s was too aggressive
+      // for a single tap — finer steps match user expectations.
+      final step = shiftHeld() ? 60 : 10;
       final delta = key == LogicalKeyboardKey.arrowLeft ? step : -step;
       callbacks.onTimeshiftSeek!(delta);
       return true;

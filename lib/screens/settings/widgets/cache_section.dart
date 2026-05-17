@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../../../core/cache_config.dart';
 import '../../../core/logger.dart';
 import '../../../core/theme_colors.dart';
@@ -18,11 +22,13 @@ class CacheSection extends ConsumerStatefulWidget {
 
 class _CacheSectionState extends ConsumerState<CacheSection> {
   int _persistedEpgEntries = 0;
+  int? _imageCacheBytes;
 
   @override
   void initState() {
     super.initState();
     _countPersistedEpg();
+    _measureImageCache();
   }
 
   Future<void> _countPersistedEpg() async {
@@ -33,6 +39,48 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
     } catch (e, st) {
       AppLogger.warning('settings', 'Failed to count persisted EPG entries', error: e, stackTrace: st);
     }
+  }
+
+  /// Walks `flutter_cache_manager`'s temp directory and sums up
+  /// every file's length so the Settings row can show a live
+  /// estimate of the image-cache footprint. Mirror of tvOS
+  /// `SettingsView.swift:166-187`. Async + best-effort — a failure
+  /// just hides the row instead of crashing settings.
+  Future<void> _measureImageCache() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final cacheDir = Directory('${tempDir.path}/${AppCacheManager.key}');
+      if (!await cacheDir.exists()) {
+        if (mounted) setState(() => _imageCacheBytes = 0);
+        return;
+      }
+      var total = 0;
+      await for (final entity in cacheDir.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is File) {
+          try {
+            total += await entity.length();
+          } catch (_) {
+            // Skip files we can't stat (race with cache eviction).
+          }
+        }
+      }
+      if (mounted) setState(() => _imageCacheBytes = total);
+    } catch (e, st) {
+      AppLogger.warning('settings', 'Failed to measure image cache',
+          error: e, stackTrace: st);
+    }
+  }
+
+  /// "12.4 Mo" / "843 Ko" / "612 o" — three-tier humaniser, FR units.
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes o';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
   }
 
   @override
@@ -75,6 +123,20 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
               child: Text('$_persistedEpgEntries ${_persistedEpgEntries == 1 ? 'entr\u00e9e' : 'entr\u00e9es'} EPG sur disque',
                   style: TextStyle(fontSize: 13, color: tc.textSecondary))),
         ]),
+        // Image cache disk size \u2014 mirror of tvOS Settings row.
+        // Hidden while we don't have a measurement yet so the row
+        // doesn't flash "0 o" then jump to the real value.
+        if (_imageCacheBytes != null) ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            ExcludeSemantics(child: Icon(Icons.photo_library_outlined, size: 20, color: tc.textTertiary)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Text(
+                    'Cache images : ${_formatBytes(_imageCacheBytes!)}',
+                    style: TextStyle(fontSize: 13, color: tc.textSecondary))),
+          ]),
+        ],
         const SizedBox(height: 12),
         Row(children: [
           Expanded(
@@ -120,6 +182,9 @@ class _CacheSectionState extends ConsumerState<CacheSection> {
               child: OutlinedButton.icon(
             onPressed: () async {
               await AppCacheManager.instance.emptyCache();
+              // Re-measure so the row drops back to a few KB (the
+              // CacheManager keeps its sqlite metadata file).
+              await _measureImageCache();
               if (context.mounted) {
                 showAppSnackBar(context, l10n.cacheImagesVide);
               }

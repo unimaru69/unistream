@@ -63,6 +63,10 @@ dependencies:
   window_manager: ^0.4.3
   flutter_secure_storage: ^9.2.4
   flutter_cache_manager: ^3.4.1
+  # Needed to resolve the on-disk path where flutter_cache_manager
+  # stores its files, so the Settings → Cache row can show a live
+  # estimate of the image-cache size (mirror of tvOS Settings line).
+  path_provider: ^2.1.5
 
   # State management
   flutter_riverpod: ^2.6.1
