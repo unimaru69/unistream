@@ -87,6 +87,29 @@ Future<http.Response> httpGet(
 enum ApiErrorKey { network, timeout, client, format, auth, generic }
 
 // ── EPG Cache ──
+/// Slim EPG program entry returned by [XtreamApi.getCachedEpgPair].
+/// Carries just what the Live focused-preview panel needs: title +
+/// start + end (the panel computes progress + "EN DIRECT" itself).
+class EpgPreviewEntry {
+  const EpgPreviewEntry({
+    required this.title,
+    required this.start,
+    required this.end,
+  });
+
+  final String title;
+  final DateTime start;
+  final DateTime end;
+
+  /// 0..1 ratio of the program elapsed, clamped.
+  double get progress {
+    final total = end.difference(start).inSeconds;
+    if (total <= 0) return 0;
+    final elapsed = DateTime.now().difference(start).inSeconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
+}
+
 class EpgCacheEntry {
   final Map<String, dynamic> data;
   final DateTime timestamp;
@@ -381,6 +404,68 @@ class XtreamApi {
     if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
     _scheduleEpgSave();
     return data;
+  }
+
+  /// Live preview EPG snapshot — current + next programme parsed
+  /// from whichever short / full EPG variant is cached for [streamId].
+  /// Returns `(null, null)` when nothing is cached (caller should
+  /// kick a `getShortEpg` then re-query).
+  static ({EpgPreviewEntry? now, EpgPreviewEntry? next})
+      getCachedEpgPair(String streamId) {
+    for (final limit in [2, 8, 30]) {
+      final key = 'short_epg_${streamId}_$limit';
+      final cached = _epgCache[key];
+      if (cached != null &&
+          DateTime.now().difference(cached.timestamp) < _epgCacheTtl) {
+        final pair = _findCurrentAndNext(cached.data);
+        if (pair.now != null) return pair;
+      }
+    }
+    final fullKey = 'full_epg_$streamId';
+    final fullCached = _epgCache[fullKey];
+    if (fullCached != null &&
+        DateTime.now().difference(fullCached.timestamp) < _epgCacheTtl) {
+      return _findCurrentAndNext(fullCached.data);
+    }
+    return (now: null, next: null);
+  }
+
+  static ({EpgPreviewEntry? now, EpgPreviewEntry? next})
+      _findCurrentAndNext(Map<String, dynamic> epgData) {
+    final listings = epgData['epg_listings'] as List<dynamic>?;
+    if (listings == null || listings.isEmpty) {
+      return (now: null, next: null);
+    }
+    final now = DateTime.now();
+    EpgPreviewEntry? current;
+    EpgPreviewEntry? upcoming;
+    for (final raw in listings) {
+      final item = raw as Map<String, dynamic>;
+      final startStr = item['start'] as String?;
+      final endStr = item['end'] as String?;
+      if (startStr == null || endStr == null) continue;
+      DateTime start;
+      DateTime end;
+      try {
+        start = DateTime.parse(startStr);
+        end = DateTime.parse(endStr);
+      } catch (_) {
+        continue;
+      }
+      final rawTitle = item['title'] as String? ?? '';
+      String title = rawTitle;
+      try {
+        title = utf8.decode(base64Decode(rawTitle));
+      } catch (_) {/* not base64 */}
+      if (title.isEmpty) continue;
+      if (current == null && now.isAfter(start) && now.isBefore(end)) {
+        current = EpgPreviewEntry(title: title, start: start, end: end);
+      } else if (current != null && upcoming == null && start.isAfter(now)) {
+        upcoming = EpgPreviewEntry(title: title, start: start, end: end);
+        break;
+      }
+    }
+    return (now: current, next: upcoming);
   }
 
   /// Returns the current EPG program title from cache, or null if not cached.
