@@ -425,7 +425,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 SeriesSearchResult s => s.seriesId.toString(),
                 _ => '',
               };
-              final prog = (item is! LiveSearchResult && id.isNotEmpty) ? progress[id] : null;
+              // Progress is keyed by the prefixed `ContentKey` (vod_X
+              // / ep_X) in `watchProgressProvider`, not by the bare
+              // id. VOD: direct key. Series: no aggregate exists
+              // (progress lives on individual episodes), so we leave
+              // the bar off.
+              final progKey = item is VodSearchResult
+                  ? ContentKey.make(ContentKey.movie, id)
+                  : null;
+              final prog = progKey != null ? progress[progKey] : null;
               return ListTile(
                 leading: iconUrl.isNotEmpty
                     ? ClipRRect(borderRadius: BorderRadius.circular(4),
