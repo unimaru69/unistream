@@ -57,7 +57,10 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
 
   Future<void> _verifyCode() async {
     final code = _codeCtrl.text.trim();
-    if (code.length != 6) return;
+    // Supabase OTP length is project-configurable (default 6, can be
+    // 6 to 10). Don't hard-cap on the client — accept anything 6-10
+    // digits and let Supabase verify return the real error.
+    if (code.length < 6) return;
     ref.read(authProvider.notifier).clearError();
     final ok = await ref.read(authProvider.notifier).verifyMagicLinkCode(
           email: _emailCtrl.text.trim(),
@@ -116,7 +119,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                             const SizedBox(height: 8),
                             Text(
                               _sent
-                                  ? 'Entrez le code à 6 chiffres reçu par email.'
+                                  ? 'Entrez le code reçu par email.'
                                   : 'Recevez un code par email pour vous connecter sans mot de passe.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
@@ -147,24 +150,30 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
 
                             if (_sent) ...[
                               const SizedBox(height: 16),
-                              // 6-digit code
+                              // OTP code — accept 6-10 digits.
+                              // Supabase OTP length is project-
+                              // configurable. We don't know it
+                              // client-side, so allow up to 10
+                              // and let Supabase verify reject
+                              // wrong-length tokens with a real
+                              // error message.
                               TextField(
                                 controller: _codeCtrl,
                                 focusNode: _codeFocus,
                                 keyboardType: TextInputType.number,
-                                maxLength: 6,
+                                maxLength: 10,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                 ],
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
-                                  letterSpacing: 8,
+                                  letterSpacing: 6,
                                   fontFeatures: [FontFeature.tabularFigures()],
                                 ),
                                 textAlign: TextAlign.center,
                                 decoration: _input(
-                                  'Code à 6 chiffres',
+                                  'Code reçu par email',
                                   Icons.password_outlined,
                                 ).copyWith(counterText: ''),
                                 onSubmitted: (_) => _verifyCode(),
