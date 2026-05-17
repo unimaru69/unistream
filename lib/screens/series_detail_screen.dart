@@ -8,6 +8,7 @@ import 'package:unistream/core/design_tokens.dart';
 import 'package:unistream/core/typography.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
+import '../models/content_mode.dart';
 import '../models/episode.dart';
 import '../models/favorite_item.dart';
 import '../models/next_episode_info.dart';
@@ -22,6 +23,7 @@ import '../utils/snackbar_helper.dart';
 import '../utils/title_formatting.dart';
 import '../widgets/hero_buttons.dart';
 import '../widgets/plex_backdrop.dart';
+import 'home/widgets/collection_dialogs.dart';
 import '../widgets/skeleton_list.dart';
 import '../widgets/tmdb_badge.dart';
 import '../widgets/tmdb_cast_row.dart';
@@ -456,6 +458,12 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       onToggleWl: () => ref
                           .read(watchlistProvider.notifier)
                           .toggle(_favKey, _favItem()),
+                      onAddToCollection: () => addToCollectionFlow(
+                        context,
+                        ref,
+                        mode: ContentMode.series,
+                        item: _favItem(),
+                      ),
                     ),
                   ),
                 ),
@@ -675,6 +683,7 @@ class _Hero extends StatelessWidget {
     required this.isWl,
     required this.onToggleFav,
     required this.onToggleWl,
+    required this.onAddToCollection,
   });
 
   final String title;
@@ -689,6 +698,7 @@ class _Hero extends StatelessWidget {
   final bool isWl;
   final VoidCallback onToggleFav;
   final VoidCallback onToggleWl;
+  final VoidCallback onAddToCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -786,6 +796,17 @@ class _Hero extends StatelessWidget {
               activeTint: AppColors.primaryBlue,
               isActive: isWl,
               onPressed: onToggleWl,
+            ),
+            // Add-to-collection CTA — mirror of tvOS
+            // `SeriesDetailView` secondary `Menu { ForEach
+            // collections }`. Routes through the shared
+            // `addToCollectionFlow` helper so the picker behaviour
+            // (premium gate, create-if-empty, snackbar feedback)
+            // stays in sync with VOD detail + home stream-tile.
+            GhostHeroButton(
+              label: l10n.ajouterCollection,
+              icon: Icons.folder_outlined,
+              onPressed: onAddToCollection,
             ),
           ],
         ),

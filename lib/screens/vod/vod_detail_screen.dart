@@ -15,8 +15,10 @@ import '../../services/tmdb_service.dart';
 import '../../utils/content_key.dart';
 import '../../utils/routes.dart';
 import '../../utils/title_formatting.dart';
+import '../../models/content_mode.dart';
 import '../../widgets/hero_buttons.dart';
 import '../../widgets/plex_backdrop.dart';
+import '../home/widgets/collection_dialogs.dart';
 import '../../widgets/tmdb_badge.dart';
 import '../../widgets/tmdb_cast_row.dart';
 import '../../widgets/tmdb_trailer_button.dart';
@@ -264,6 +266,12 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
                           .read(watchlistProvider.notifier)
                           .toggle(_favKey, _favItem()),
                       onToggleWatched: _toggleWatched,
+                      onAddToCollection: () => addToCollectionFlow(
+                        context,
+                        ref,
+                        mode: ContentMode.vod,
+                        item: _favItem(),
+                      ),
                       formatPosition: _fmtDuration,
                       providerRating: vod.rating,
                     ),
@@ -308,6 +316,7 @@ class _Hero extends StatelessWidget {
     required this.onToggleFav,
     required this.onToggleWl,
     required this.onToggleWatched,
+    required this.onAddToCollection,
     required this.formatPosition,
     required this.providerRating,
   });
@@ -327,6 +336,7 @@ class _Hero extends StatelessWidget {
   final VoidCallback onToggleFav;
   final VoidCallback onToggleWl;
   final VoidCallback onToggleWatched;
+  final VoidCallback onAddToCollection;
   final String Function(Duration) formatPosition;
   final String? providerRating;
 
@@ -477,7 +487,10 @@ class _Hero extends StatelessWidget {
 
         SizedBox(height: DS.space.sm),
 
-        // Secondary CTA — marquer vu / non vu.
+        // Secondary CTAs — marquer vu / non vu + ajouter à une
+        // collection. Mirror of tvOS `VODDetailView` secondary row
+        // (`Menu { ForEach collections }`); on Flutter we route to a
+        // SimpleDialog picker via `addToCollectionFlow`.
         Wrap(
           spacing: DS.space.md,
           runSpacing: DS.space.sm,
@@ -486,6 +499,11 @@ class _Hero extends StatelessWidget {
               label: isWatched ? l10n.marquerNonVu : l10n.marquerVu,
               icon: isWatched ? Icons.cancel_outlined : Icons.check_circle_outline,
               onPressed: onToggleWatched,
+            ),
+            GhostHeroButton(
+              label: l10n.ajouterCollection,
+              icon: Icons.folder_outlined,
+              onPressed: onAddToCollection,
             ),
           ],
         ),

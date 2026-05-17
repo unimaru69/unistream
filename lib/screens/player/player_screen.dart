@@ -162,6 +162,10 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   DateTime? _epgNowEnd;
   List<Map<String, String>> _epgListings = [];
   bool _catchupSupported = false;
+  // 30 s tick that recomputes the current programme + triggers a
+  // rebuild so the live-overlay progress bar advances with the
+  // wall-clock. Mirror of `_IOSPlayerScreenState._epgTickTimer`.
+  Timer? _epgTickTimer;
   BuildContext? _videoCtx;
   List<AudioTrack>    _audioTracks    = [];
   List<SubtitleTrack> _subtitleTracks = [];
@@ -343,7 +347,16 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       }
     });
 
-    if (widget.streamId != null) _loadEpg();
+    if (widget.streamId != null) {
+      _loadEpg();
+      // Refresh the EPG progress bar + advance to the next programme
+      // when the current one rolls past its end. Cheap setState
+      // scoped to the live overlay; doesn't touch the video pipeline.
+      _epgTickTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (!mounted || !_isLiveMode || _epgListings.isEmpty) return;
+        setState(() => _advanceLiveEpgCurrent());
+      });
+    }
     if (widget.existingPlayer != null) {
       _startSaveTimer();
     } else if (widget.resumeKey != null) {
@@ -756,6 +769,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     _zapOsdTimer?.cancel();
     _volumeOsdTimer?.cancel();
     _timeshiftFlashTimer?.cancel();
+    _epgTickTimer?.cancel();
     _zapping.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     if (!_minimized) {
@@ -903,6 +917,42 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
         }
       });
     } catch (e, st) { AppLogger.warning(LogModule.player, 'Failed to load EPG data', error: e, stackTrace: st); }
+  }
+
+  /// Re-derive `_epgNow`/`_epgNext`/`_epgNowStart`/`_epgNowEnd`
+  /// from the cached `_epgListings` against the wall-clock. Called
+  /// from `_epgTickTimer` so the live overlay advances to the next
+  /// programme without a fresh network round-trip when the current
+  /// one rolls past its end. Mirror of
+  /// `_IOSPlayerScreenState._refreshEpgCurrent`.
+  void _advanceLiveEpgCurrent() {
+    if (_epgListings.isEmpty) return;
+    final now = DateTime.now();
+    int currentIdx = -1;
+    for (var i = 0; i < _epgListings.length; i++) {
+      final startTs = int.tryParse(_epgListings[i]['start_ts'] ?? '');
+      final endTs = int.tryParse(_epgListings[i]['end_ts'] ?? '');
+      if (startTs != null && endTs != null) {
+        final s = DateTime.fromMillisecondsSinceEpoch(startTs);
+        final e = DateTime.fromMillisecondsSinceEpoch(endTs);
+        if (now.isAfter(s) && now.isBefore(e)) {
+          currentIdx = i;
+          break;
+        }
+      }
+    }
+    if (currentIdx >= 0) {
+      _epgNow = _epgListings[currentIdx]['title'];
+      _epgNext = currentIdx + 1 < _epgListings.length
+          ? _epgListings[currentIdx + 1]['title']
+          : null;
+      final startTs = int.tryParse(_epgListings[currentIdx]['start_ts'] ?? '');
+      final endTs = int.tryParse(_epgListings[currentIdx]['end_ts'] ?? '');
+      _epgNowStart =
+          startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs) : null;
+      _epgNowEnd =
+          endTs != null ? DateTime.fromMillisecondsSinceEpoch(endTs) : null;
+    }
   }
 
   String _fmt(Duration d) {
@@ -1129,6 +1179,33 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   /// aspect / more). The slimmed-down [PlayerAppBar] at the top now
   /// only carries channel-context badges + zap shortcuts.
   Widget _buildVideoControls(VideoState state) {
+    // Live overlay payload — mirror of iOS / tvOS top-left dense
+    // block. All four fields are optional and gracefully degrade if
+    // EPG hasn't loaded yet (channel name + LIVE pill still show).
+    String? channelLabel;
+    if (widget.channelList != null && widget.channelIndex != null) {
+      channelLabel =
+          'Chaîne ${widget.channelIndex! + 1} / ${widget.channelList!.length}';
+    }
+    String? epgTimeRange;
+    if (_isLiveMode && _epgNowStart != null && _epgNowEnd != null) {
+      String hm(DateTime dt) =>
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      epgTimeRange = '${hm(_epgNowStart!)} → ${hm(_epgNowEnd!)}';
+    }
+    double? liveEpgProgress;
+    if (_isLiveMode && _epgNowStart != null && _epgNowEnd != null) {
+      final total = _epgNowEnd!.difference(_epgNowStart!).inSeconds;
+      if (total > 0) {
+        liveEpgProgress = DateTime.now()
+            .difference(_epgNowStart!)
+            .inSeconds
+            .clamp(0, total)
+            .toDouble() /
+            total;
+      }
+    }
+
     return Builder(builder: (ctx) {
       _videoCtx = ctx;
       return CinematicControls(
@@ -1138,6 +1215,11 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
         hasMultipleAudioTracks: _audioTracks.length >= 2,
         hasSubtitleTracks: _subtitleTracks.isNotEmpty,
         aspectRatioLabel: _aspectRatioLabel,
+        epgNowTitle: _isLiveMode ? _epgNow : null,
+        epgNext: _isLiveMode ? _epgNext : null,
+        epgTimeRange: epgTimeRange,
+        epgProgress: liveEpgProgress,
+        channelLabel: _isLiveMode ? channelLabel : null,
         onShowAudioPicker: _audioTracks.length >= 2
             ? () => showTrackPicker(
                   context,

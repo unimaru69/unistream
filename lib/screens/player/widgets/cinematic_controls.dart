@@ -41,6 +41,11 @@ class CinematicControls extends StatefulWidget {
     this.onCycleAspect,
     this.onMore,
     this.autoHideAfter = const Duration(seconds: 3),
+    this.epgNowTitle,
+    this.epgNext,
+    this.epgTimeRange,
+    this.epgProgress,
+    this.channelLabel,
   });
 
   final Player player;
@@ -55,6 +60,23 @@ class CinematicControls extends StatefulWidget {
   final VoidCallback? onCycleAspect;
   final VoidCallback? onMore;
   final Duration autoHideAfter;
+
+  // ── Live overlay (top-left dense info block, tvOS-style) ─────────
+  // Optional EPG strip rendered above the drawer when [isLiveMode] is
+  // true AND the drawer is visible. Mirrors the iOS
+  // `IOSPlayerScreen._buildLiveControls` block so the two platforms
+  // feel identical. All four fields are independent — partial data
+  // gracefully degrades (e.g. no progress when [epgProgress] is null).
+  final String? epgNowTitle;
+  final String? epgNext;
+  /// Already-formatted "HH:mm → HH:mm" range. Caller does the parse
+  /// so we keep this widget free of date-time logic.
+  final String? epgTimeRange;
+  /// 0..1 of the current programme's wall-clock progress.
+  final double? epgProgress;
+  /// "Chaîne X / Y" — caller-formatted (the channel list lives in
+  /// the parent state, not here).
+  final String? channelLabel;
 
   @override
   State<CinematicControls> createState() => _CinematicControlsState();
@@ -148,6 +170,34 @@ class _CinematicControlsState extends State<CinematicControls> {
               onTap: _togglePlay,
             ),
           ),
+
+          // ── Live overlay (top-left) ──
+          // Mirror of tvOS VLCLivePlayerViewController's left dense
+          // block, ported from iOS player. Shows only when we're in
+          // live mode AND the drawer is visible (same visibility as
+          // the rest of the chrome — they share the auto-hide).
+          if (widget.isLiveMode)
+            AnimatedPositioned(
+              duration: DS.motion.standard,
+              curve: DS.motion.curve,
+              left: _drawerVisible ? 24 : -360,
+              top: 24,
+              child: AnimatedOpacity(
+                duration: DS.motion.standard,
+                curve: DS.motion.curve,
+                opacity: _drawerVisible ? 1.0 : 0.0,
+                child: IgnorePointer(
+                  child: _LiveOverlay(
+                    title: widget.title,
+                    channelLabel: widget.channelLabel,
+                    epgNowTitle: widget.epgNowTitle,
+                    epgNext: widget.epgNext,
+                    epgTimeRange: widget.epgTimeRange,
+                    epgProgress: widget.epgProgress,
+                  ),
+                ),
+              ),
+            ),
 
           AnimatedPositioned(
             duration: DS.motion.standard,
@@ -735,6 +785,155 @@ class _RoundButtonState extends State<_RoundButton> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// Live-mode top-left overlay block. Mirror of the iOS
+/// `IOSPlayerScreen._buildLiveControls` block and the tvOS
+/// `VLCLivePlayerViewController` left dense info strip:
+///   * `EN DIRECT` red pill
+///   * Channel name (26 pt bold)
+///   * `Chaîne X / Y` (when caller passes it)
+///   * Programme title (18 pt semibold)
+///   * `HH:mm → HH:mm` range
+///   * Warm-orange progress bar (4 pt, 280 pt wide)
+///   * `Suite : <next>` line
+///
+/// All EPG fields are optional — partial data degrades gracefully so
+/// channels without an EPG still get the badge + channel name.
+class _LiveOverlay extends StatelessWidget {
+  const _LiveOverlay({
+    required this.title,
+    this.channelLabel,
+    this.epgNowTitle,
+    this.epgNext,
+    this.epgTimeRange,
+    this.epgProgress,
+  });
+
+  final String title;
+  final String? channelLabel;
+  final String? epgNowTitle;
+  final String? epgNext;
+  final String? epgTimeRange;
+  final double? epgProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 380),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // EN DIRECT pill — matches tvOS liveBadge tint.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD92626),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'EN DIRECT',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
+              shadows: <Shadow>[
+                Shadow(color: Colors.black87, blurRadius: 12),
+              ],
+            ),
+          ),
+          if (channelLabel != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                channelLabel!,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          if (epgNowTitle != null) ...<Widget>[
+            const SizedBox(height: 14),
+            Text(
+              epgNowTitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                shadows: <Shadow>[
+                  Shadow(color: Colors.black87, blurRadius: 10),
+                ],
+              ),
+            ),
+            if (epgTimeRange != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  epgTimeRange!,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 13,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures()
+                    ],
+                  ),
+                ),
+              ),
+            if (epgProgress != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  width: 280,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: epgProgress,
+                      backgroundColor: Colors.white.withValues(alpha: 0.18),
+                      // accentWarm — same orange as tvOS programmeProgressBar.
+                      color: const Color(0xFFFF6B5B),
+                      minHeight: 4,
+                    ),
+                  ),
+                ),
+              ),
+            if (epgNext != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Suite : $epgNext',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }
