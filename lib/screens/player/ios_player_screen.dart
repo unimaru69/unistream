@@ -13,6 +13,7 @@ import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
 import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
+import 'widgets/timeshift_osd.dart';
 
 /// iOS / iPadOS video player backed by `flutter_vlc_player` (libVLC).
 ///
@@ -65,8 +66,21 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   Timer? _progressSaveTimer;
   Timer? _connectTimeoutTimer;
   Timer? _epgTickTimer;
+  Timer? _timeshiftFlashTimer;
   Duration _lastPos = Duration.zero;
   Duration _lastDur = Duration.zero;
+
+  // ── Live timeshift state (mirror of cross-platform `PlayerScreen`)
+  // offsetSec == 0 → playing the live HLS URL.
+  // offsetSec  > 0 → playing an Xtream timeshift TS URL N seconds
+  // behind live. Short-tap on the ⏪/⏩ buttons = 10 s step; long
+  // press = 60 s step (tvOS VLCLivePlayerViewController
+  // shortSeekStep / longSeekStep).
+  int _timeshiftOffsetSec = 0;
+  String? _timeshiftFlashMessage;
+  bool _timeshiftFlashIsLive = true;
+  static const _timeshiftShortStep = 10;
+  static const _timeshiftLongStep = 60;
   static const _connectTimeout = Duration(seconds: 25);
 
   // ── EPG state (live mode only) ─────────────────────────────────────
@@ -281,6 +295,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     _progressSaveTimer?.cancel();
     _connectTimeoutTimer?.cancel();
     _epgTickTimer?.cancel();
+    _timeshiftFlashTimer?.cancel();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onPlayerTick);
@@ -340,6 +355,19 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
 
           if (_showControls && c != null && !_hasError && _hasStartedPlaying)
             _buildControls(c),
+
+          // Timeshift OSD flash — center-screen, fades in/out. Drawn
+          // on top of `_buildControls` so it stays visible while the
+          // user keeps tapping ⏪/⏩ even when the rest of the
+          // chrome has auto-hidden.
+          if (_timeshiftFlashMessage != null)
+            IgnorePointer(
+              child: TimeshiftOsd(
+                key: ValueKey<String>(_timeshiftFlashMessage!),
+                message: _timeshiftFlashMessage!,
+                isLive: _timeshiftFlashIsLive,
+              ),
+            ),
         ],
       ),
     );
@@ -601,17 +629,40 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
 
         const Spacer(),
 
-        // ── Center: play/pause only ──
+        // ── Center: timeshift ⏪/⏩ + play/pause ──
+        // Short tap = 10 s step, long press = 60 s step. Same values
+        // as tvOS VLCLivePlayerViewController. Positive delta steps
+        // back in time (further from live), negative pulls toward
+        // live. Buttons only exposed when the channel actually
+        // declares catchup support — `_timeshiftSeek` still guards
+        // server-side but the visual state matches the capability.
         Center(
-          child: IconButton(
-            iconSize: 72,
-            icon: Icon(
-              v.isPlaying
-                  ? Icons.pause_circle_filled
-                  : Icons.play_circle_filled,
-              color: Colors.white,
-            ),
-            onPressed: _togglePlay,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TimeshiftButton(
+                icon: Icons.fast_rewind,
+                onShort: () => _timeshiftSeek(_timeshiftShortStep),
+                onLong: () => _timeshiftSeek(_timeshiftLongStep),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                iconSize: 72,
+                icon: Icon(
+                  v.isPlaying
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
+                  color: Colors.white,
+                ),
+                onPressed: _togglePlay,
+              ),
+              const SizedBox(width: 16),
+              _TimeshiftButton(
+                icon: Icons.fast_forward,
+                onShort: () => _timeshiftSeek(-_timeshiftShortStep),
+                onLong: () => _timeshiftSeek(-_timeshiftLongStep),
+              ),
+            ],
           ),
         ),
 
@@ -859,6 +910,98 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     return (elapsed / total).clamp(0.0, 1.0);
   }
 
+  // ── Live timeshift ──────────────────────────────────────────────
+  // Mirror of cross-platform `PlayerScreen._timeshiftSeek`. Lives in
+  // the iOS player so the iPad live overlay has the same ⏪/⏩
+  // affordance as tvOS. VLC reloads via `setMediaFromNetwork` (the
+  // platform-view-friendly equivalent of media_kit's `player.open`).
+
+  Channel? _currentLiveChannel() {
+    final list = widget.channelList;
+    final idx = widget.channelIndex;
+    if (list == null || idx == null || idx < 0 || idx >= list.length) {
+      return null;
+    }
+    return list[idx];
+  }
+
+  /// Positive [delta] → step backward in time (further from live).
+  /// Negative → step toward live. When offset hits 0 we reload the
+  /// live HLS URL; otherwise we reload the Xtream timeshift TS URL
+  /// anchored at `now - newOffset`.
+  Future<void> _timeshiftSeek(int delta) async {
+    if (!mounted || !_isLiveMode) return;
+    final channel = _currentLiveChannel();
+    final c = _controller;
+    if (channel == null || widget.streamId == null || c == null) {
+      _flashTimeshiftMessage('Replay indisponible', isLive: true);
+      return;
+    }
+    if (!channel.hasCatchup || channel.archiveDays <= 0) {
+      _flashTimeshiftMessage(
+        'Replay indisponible sur cette chaîne',
+        isLive: true,
+      );
+      return;
+    }
+    final maxOffsetSec = channel.archiveDays * 24 * 60 * 60;
+    final newOffset =
+        (_timeshiftOffsetSec + delta).clamp(0, maxOffsetSec);
+    if (newOffset == _timeshiftOffsetSec) {
+      _flashTimeshiftMessage(
+        newOffset == 0
+            ? '● Vous êtes en direct'
+            : 'Limite du replay atteinte',
+        isLive: newOffset == 0,
+      );
+      return;
+    }
+
+    setState(() => _timeshiftOffsetSec = newOffset);
+    final repo = ref.read(contentRepositoryProvider);
+
+    if (newOffset == 0) {
+      await c.setMediaFromNetwork(repo.getLiveStreamUrl(widget.streamId!));
+      _flashTimeshiftMessage('● EN DIRECT', isLive: true);
+      return;
+    }
+    final startUtc =
+        DateTime.now().toUtc().subtract(Duration(seconds: newOffset));
+    final bufferMin = (newOffset ~/ 60) + 30;
+    final maxMin = (channel.archiveDays * 24 * 60).clamp(60, 1 << 31);
+    final durationMin = bufferMin.clamp(30, maxMin);
+    final url = repo.getTimeshiftUrl(widget.streamId!, startUtc, durationMin);
+    await c.setMediaFromNetwork(url);
+    _flashTimeshiftMessage(
+      '↩ ${_formatTimeshiftOffset(newOffset)}',
+      isLive: false,
+    );
+  }
+
+  void _flashTimeshiftMessage(String msg, {required bool isLive}) {
+    if (!mounted) return;
+    _timeshiftFlashTimer?.cancel();
+    setState(() {
+      _timeshiftFlashMessage = msg;
+      _timeshiftFlashIsLive = isLive;
+    });
+    _timeshiftFlashTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) return;
+      setState(() => _timeshiftFlashMessage = null);
+    });
+  }
+
+  static String _formatTimeshiftOffset(int sec) {
+    if (sec < 60) return '-${sec}s';
+    final m = sec ~/ 60;
+    final h = m ~/ 60;
+    final mm = m % 60;
+    if (h > 0) return '-${h}h${mm.toString().padLeft(2, '0')}';
+    return '-${m}min';
+  }
+
   Future<void> _openOptionsSheet(VlcPlayerController c) async {
     _hideControlsTimer?.cancel();
     Map<int, String> audioTracks = const {};
@@ -976,5 +1119,38 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
       },
     );
     if (mounted) _scheduleHideControls();
+  }
+}
+
+/// Tappable timeshift chevron with distinct short / long-press
+/// behaviour. Tap = small step (10 s), long-press = bigger step
+/// (60 s). Flutter's `GestureDetector` handles the disambiguation —
+/// `onLongPress` firing automatically cancels the trailing `onTap`.
+///
+/// Visual: 40 pt chevron icon, no fill background — sits flat
+/// alongside the central play/pause button so the user perceives
+/// the three as one transport row.
+class _TimeshiftButton extends StatelessWidget {
+  const _TimeshiftButton({
+    required this.icon,
+    required this.onShort,
+    required this.onLong,
+  });
+
+  final IconData icon;
+  final VoidCallback onShort;
+  final VoidCallback onLong;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onShort,
+      onLongPress: onLong,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Icon(icon, color: Colors.white, size: 40),
+      ),
+    );
   }
 }
