@@ -103,8 +103,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ? ContentMode.vod
       : (kDemoMode && kDemoScreen == 'series' ? ContentMode.series : ContentMode.live);
 
-  // Connectivity: track previous status for offline->online transitions
-  ConnectivityStatus? _prevConnectivity;
+  // (Removed: connectivity offline→online tracking now lives in
+  // `ref.listenManual(connectivityProvider, ...)` set up in
+  // initState, not in build().)
 
   // Recently added (VOD/Series) — populated per-mode for the legacy
   // grid header (Films, Séries). [_accueilFeatured] below is the
@@ -158,6 +159,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _loadSidebarWidth();
     _loadGridView();
     _loadSortMode();
+    // Connectivity offline→online: snackbar + retry. Previously
+    // hooked inside `build()` (mutating `_prevConnectivity` mid-
+    // render + scheduling a post-frame setState). Moved here so
+    // build is side-effect free.
+    ref.listenManual<AsyncValue<ConnectivityStatus>>(connectivityProvider,
+        (prev, next) {
+      final p = prev?.valueOrNull;
+      final n = next.valueOrNull;
+      if (p == ConnectivityStatus.offline && n == ConnectivityStatus.online) {
+        if (mounted) {
+          showAppSnackBar(
+              context, AppLocalizations.of(context)!.connexionRetablie);
+          _retryConnection();
+        }
+      }
+    });
   }
 
   @override
@@ -1089,35 +1106,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // optional "now playing" subtitle) instead of an austere list.
     final showGrid = _gridView;
 
-    // Watch connectivity — default to online so the app always attempts connection.
-    // On Linux, connectivity_plus may report 'none' if NetworkManager is absent.
-    final connectivityAsync = ref.watch(connectivityProvider);
-    final connectivityStatus = connectivityAsync.valueOrNull ?? ConnectivityStatus.online;
+    // Watch only the resolved status (not the AsyncValue wrapper) so
+    // ConnectivityProvider's internal state ticks don't rebuild the
+    // entire Home on every reconnection probe. The offline→online
+    // snackbar + retry side-effect lives in `ref.listenManual` set up
+    // in initState, not here.
+    final connectivityStatus = ref.watch(connectivityProvider
+        .select((async) => async.valueOrNull ?? ConnectivityStatus.online));
     final isOffline = connectivityStatus == ConnectivityStatus.offline && _streams.isEmpty;
 
-    // Handle offline -> online transitions: auto-retry + snackbar
-    if (_prevConnectivity == ConnectivityStatus.offline &&
-        connectivityStatus == ConnectivityStatus.online) {
-      // Schedule after build to avoid setState-during-build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          showAppSnackBar(context, AppLocalizations.of(context)!.connexionRetablie);
-          _retryConnection();
-        }
-      });
-    }
-    _prevConnectivity = connectivityStatus;
-
-    // Watch providers
-    final favState = ref.watch(favoritesProvider);
-    final favKeys = favState.keys;
-    final favItems = favState.items;
-    final wlState = ref.watch(watchlistProvider);
-    final wlKeys = wlState.keys;
-    final wlItems = wlState.items;
-    final progress = ref.watch(watchProgressProvider).valueOrNull ?? {};
-    final continueItems = ref.watch(continueWatchingProvider).valueOrNull ?? [];
+    // Watch providers — use `.select` on the heavy ones so an
+    // unchanged sub-state (same Set of fav keys, same Map of
+    // progress) skips the Home rebuild. Riverpod compares with `==`,
+    // so a re-emit of an equivalent Set / Map is a no-op.
+    final favKeys = ref.watch(favoritesProvider.select((s) => s.keys));
+    final wlKeys = ref.watch(watchlistProvider.select((s) => s.keys));
+    final progress = ref.watch(
+            watchProgressProvider.select((async) => async.valueOrNull)) ??
+        const <String, double>{};
+    final continueItems = ref.watch(
+            continueWatchingProvider.select((async) => async.valueOrNull)) ??
+        const [];
     final collections = ref.watch(collectionsProvider);
+    // Items lists are only needed for the special category sync
+    // below — read (not watch) since that block is already guarded
+    // by `_selectedCategory == '__favorites__'` / `__watchlist__`.
+    final favItems = ref.read(favoritesProvider).items;
+    final wlItems = ref.read(watchlistProvider).items;
 
     // Keep `_streams` in sync with the favourites/watchlist state when
     // the user is viewing a virtual category. The original
@@ -1168,10 +1183,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
-    // Parental controls: filter categories and streams when locked
-    final parental = ref.watch(parentalProvider);
-    final parentalActive = parental.isEnabled && !parental.isUnlocked;
-    final blockedIds = parental.blockedCategoryIds;
+    // Parental controls: filter categories and streams when locked.
+    // Use `.select` on a tuple of (active, blockedIds) so Home only
+    // rebuilds when one of those actually changes — not on every
+    // unrelated parental notifier internal update.
+    final parentalActive = ref.watch(parentalProvider
+        .select((p) => p.isEnabled && !p.isUnlocked));
+    final blockedIds = ref.watch(parentalProvider
+        .select((p) => p.blockedCategoryIds));
     final filteredCategories = parentalActive
         ? _categories.where((c) => !blockedIds.contains(c.categoryId)).toList()
         : _categories;
