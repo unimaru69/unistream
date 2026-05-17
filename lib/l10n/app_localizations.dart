@@ -770,6 +770,12 @@ abstract class AppLocalizations {
   /// **'Récemment ajoutés'**
   String get recemmentAjoutes;
 
+  /// No description provided for @badgeNouveau.
+  ///
+  /// In fr, this message translates to:
+  /// **'NOUVEAU'**
+  String get badgeNouveau;
+
   /// No description provided for @raccourciQuitter.
   ///
   /// In fr, this message translates to:
@@ -2215,6 +2221,234 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Utilisez votre abonnement Premium sur toutes les plateformes'**
   String get abonnementLicenceCrossDesc;
+
+  /// No description provided for @accueilTab.
+  ///
+  /// In fr, this message translates to:
+  /// **'Accueil'**
+  String get accueilTab;
+
+  /// No description provided for @categoriesHeader.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catégories'**
+  String get categoriesHeader;
+
+  /// No description provided for @chainesFavorites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chaînes favorites'**
+  String get chainesFavorites;
+
+  /// No description provided for @filmsFavoris.
+  ///
+  /// In fr, this message translates to:
+  /// **'Films favoris'**
+  String get filmsFavoris;
+
+  /// No description provided for @seriesFavorites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séries favorites'**
+  String get seriesFavorites;
+
+  /// No description provided for @aLaUne.
+  ///
+  /// In fr, this message translates to:
+  /// **'À LA UNE'**
+  String get aLaUne;
+
+  /// No description provided for @labelFilm.
+  ///
+  /// In fr, this message translates to:
+  /// **'FILM'**
+  String get labelFilm;
+
+  /// No description provided for @labelSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'SÉRIE'**
+  String get labelSerie;
+
+  /// No description provided for @labelToutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toutes'**
+  String get labelToutes;
+
+  /// No description provided for @regarder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Regarder'**
+  String get regarder;
+
+  /// No description provided for @voirLaSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir la série'**
+  String get voirLaSerie;
+
+  /// No description provided for @lectureEp.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture E{num}'**
+  String lectureEp(int num);
+
+  /// No description provided for @reprendreEp.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reprendre E{num}'**
+  String reprendreEp(int num);
+
+  /// No description provided for @demarrerSE.
+  ///
+  /// In fr, this message translates to:
+  /// **'Démarrer S{s}E{e}'**
+  String demarrerSE(String s, int e);
+
+  /// No description provided for @aucunEpisode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun épisode'**
+  String get aucunEpisode;
+
+  /// No description provided for @toutMarquerVu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout marquer vu'**
+  String get toutMarquerVu;
+
+  /// No description provided for @toutMarquerNonVu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout marquer non vu'**
+  String get toutMarquerNonVu;
+
+  /// No description provided for @clicDroitMarquerSaison.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clic droit / appui long : marquer la saison'**
+  String get clicDroitMarquerSaison;
+
+  /// No description provided for @distribution.
+  ///
+  /// In fr, this message translates to:
+  /// **'Distribution'**
+  String get distribution;
+
+  /// No description provided for @retirer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer'**
+  String get retirer;
+
+  /// No description provided for @dejaVu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déjà vu'**
+  String get dejaVu;
+
+  /// No description provided for @statePasse.
+  ///
+  /// In fr, this message translates to:
+  /// **'PASSÉ'**
+  String get statePasse;
+
+  /// No description provided for @stateAVenir.
+  ///
+  /// In fr, this message translates to:
+  /// **'À VENIR'**
+  String get stateAVenir;
+
+  /// No description provided for @pasDeProgramme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas de programme'**
+  String get pasDeProgramme;
+
+  /// No description provided for @tapezPourRechercher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tapez pour rechercher'**
+  String get tapezPourRechercher;
+
+  /// No description provided for @replayNonDisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Replay non disponible chez votre fournisseur.'**
+  String get replayNonDisponible;
+
+  /// No description provided for @rappelPose.
+  ///
+  /// In fr, this message translates to:
+  /// **'🔔 Rappel posé pour « {title} »'**
+  String rappelPose(String title);
+
+  /// No description provided for @rappelRetire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappel retiré'**
+  String get rappelRetire;
+
+  /// No description provided for @titreChaine.
+  ///
+  /// In fr, this message translates to:
+  /// **'Titre, chaîne…'**
+  String get titreChaine;
+
+  /// No description provided for @aucuneChaineFavorite.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune chaîne dans vos favoris'**
+  String get aucuneChaineFavorite;
+
+  /// No description provided for @aucuneChaineDisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune chaîne disponible'**
+  String get aucuneChaineDisponible;
+
+  /// No description provided for @aucuneChaineCategorie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune chaîne dans cette catégorie'**
+  String get aucuneChaineCategorie;
+
+  /// No description provided for @recommencer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Recommencer'**
+  String get recommencer;
+
+  /// No description provided for @depuisLeDebut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Depuis le début'**
+  String get depuisLeDebut;
+
+  /// No description provided for @reprendreSimple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reprendre'**
+  String get reprendreSimple;
+
+  /// No description provided for @pasDansVotreCatalogue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas dans votre catalogue'**
+  String get pasDansVotreCatalogue;
+
+  /// No description provided for @titreIndisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce titre n\'est pas disponible chez votre fournisseur.'**
+  String get titreIndisponible;
+
+  /// No description provided for @indexationCatalogue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indexation du catalogue…'**
+  String get indexationCatalogue;
 }
 
 class _AppLocalizationsDelegate

@@ -205,6 +205,10 @@ void main() async {
     FlutterError.onError = (details) {
       AppLogger.error(LogModule.ui, 'Flutter framework error',
           error: details.exception, stackTrace: details.stack);
+      // Also dump to console with the full framework diagnostics — gives the
+      // widget-tree context that AppLogger truncates. Critical for hunting
+      // GlobalKey reparenting bugs (`_elements.contains` assert).
+      FlutterError.dumpErrorToConsole(details);
     };
     runApp(const ProviderScope(child: UniStreamApp()));
   }

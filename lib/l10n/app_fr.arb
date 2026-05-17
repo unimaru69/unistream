@@ -132,6 +132,7 @@
   "rechercheGlobale": "Recherche globale",
   "modeHorsLigne": "Mode hors-ligne — Serveur indisponible",
   "recemmentAjoutes": "Récemment ajoutés",
+  "badgeNouveau": "NOUVEAU",
 
   "raccourciQuitter": "Quitter",
   "raccourciReglages": "Réglages",
@@ -638,5 +639,59 @@
   "abonnementBasic": "Basic",
   "abonnementPremium": "Premium",
   "abonnementLicenceCross": "Licence cross-plateforme",
-  "abonnementLicenceCrossDesc": "Utilisez votre abonnement Premium sur toutes les plateformes"
+  "abonnementLicenceCrossDesc": "Utilisez votre abonnement Premium sur toutes les plateformes",
+
+  "accueilTab": "Accueil",
+  "categoriesHeader": "Catégories",
+  "chainesFavorites": "Chaînes favorites",
+  "filmsFavoris": "Films favoris",
+  "seriesFavorites": "Séries favorites",
+  "aLaUne": "À LA UNE",
+  "labelFilm": "FILM",
+  "labelSerie": "SÉRIE",
+  "labelToutes": "Toutes",
+  "regarder": "Regarder",
+  "voirLaSerie": "Voir la série",
+  "lectureEp": "Lecture E{num}",
+  "@lectureEp": {
+    "placeholders": { "num": { "type": "int" } }
+  },
+  "reprendreEp": "Reprendre E{num}",
+  "@reprendreEp": {
+    "placeholders": { "num": { "type": "int" } }
+  },
+  "demarrerSE": "Démarrer S{s}E{e}",
+  "@demarrerSE": {
+    "placeholders": {
+      "s": { "type": "String" },
+      "e": { "type": "int" }
+    }
+  },
+  "aucunEpisode": "Aucun épisode",
+  "toutMarquerVu": "Tout marquer vu",
+  "toutMarquerNonVu": "Tout marquer non vu",
+  "clicDroitMarquerSaison": "Clic droit / appui long : marquer la saison",
+  "distribution": "Distribution",
+  "retirer": "Retirer",
+  "dejaVu": "Déjà vu",
+  "statePasse": "PASSÉ",
+  "stateAVenir": "À VENIR",
+  "pasDeProgramme": "Pas de programme",
+  "tapezPourRechercher": "Tapez pour rechercher",
+  "replayNonDisponible": "Replay non disponible chez votre fournisseur.",
+  "rappelPose": "🔔 Rappel posé pour « {title} »",
+  "@rappelPose": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "rappelRetire": "Rappel retiré",
+  "titreChaine": "Titre, chaîne…",
+  "aucuneChaineFavorite": "Aucune chaîne dans vos favoris",
+  "aucuneChaineDisponible": "Aucune chaîne disponible",
+  "aucuneChaineCategorie": "Aucune chaîne dans cette catégorie",
+  "recommencer": "Recommencer",
+  "depuisLeDebut": "Depuis le début",
+  "reprendreSimple": "Reprendre",
+  "pasDansVotreCatalogue": "Pas dans votre catalogue",
+  "titreIndisponible": "Ce titre n'est pas disponible chez votre fournisseur.",
+  "indexationCatalogue": "Indexation du catalogue…"
 }

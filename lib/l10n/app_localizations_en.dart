@@ -349,6 +349,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recemmentAjoutes => 'Recently added';
 
   @override
+  String get badgeNouveau => 'NEW';
+
+  @override
   String get raccourciQuitter => 'Quit';
 
   @override
@@ -1196,4 +1199,127 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get abonnementLicenceCrossDesc =>
       'Use your Premium subscription on all platforms';
+
+  @override
+  String get accueilTab => 'Home';
+
+  @override
+  String get categoriesHeader => 'Categories';
+
+  @override
+  String get chainesFavorites => 'Favourite channels';
+
+  @override
+  String get filmsFavoris => 'Favourite films';
+
+  @override
+  String get seriesFavorites => 'Favourite series';
+
+  @override
+  String get aLaUne => 'FEATURED';
+
+  @override
+  String get labelFilm => 'FILM';
+
+  @override
+  String get labelSerie => 'SERIES';
+
+  @override
+  String get labelToutes => 'All';
+
+  @override
+  String get regarder => 'Watch';
+
+  @override
+  String get voirLaSerie => 'View series';
+
+  @override
+  String lectureEp(int num) {
+    return 'Play E$num';
+  }
+
+  @override
+  String reprendreEp(int num) {
+    return 'Resume E$num';
+  }
+
+  @override
+  String demarrerSE(String s, int e) {
+    return 'Start S${s}E$e';
+  }
+
+  @override
+  String get aucunEpisode => 'No episode';
+
+  @override
+  String get toutMarquerVu => 'Mark all watched';
+
+  @override
+  String get toutMarquerNonVu => 'Mark all unwatched';
+
+  @override
+  String get clicDroitMarquerSaison => 'Right-click / long-press: mark season';
+
+  @override
+  String get distribution => 'Cast';
+
+  @override
+  String get retirer => 'Remove';
+
+  @override
+  String get dejaVu => 'Already watched';
+
+  @override
+  String get statePasse => 'PAST';
+
+  @override
+  String get stateAVenir => 'UPCOMING';
+
+  @override
+  String get pasDeProgramme => 'No program';
+
+  @override
+  String get tapezPourRechercher => 'Type to search';
+
+  @override
+  String get replayNonDisponible => 'Replay not available from your provider.';
+
+  @override
+  String rappelPose(String title) {
+    return '🔔 Reminder set for \"$title\"';
+  }
+
+  @override
+  String get rappelRetire => 'Reminder removed';
+
+  @override
+  String get titreChaine => 'Title, channel…';
+
+  @override
+  String get aucuneChaineFavorite => 'No channel in your favourites';
+
+  @override
+  String get aucuneChaineDisponible => 'No channel available';
+
+  @override
+  String get aucuneChaineCategorie => 'No channel in this category';
+
+  @override
+  String get recommencer => 'Restart';
+
+  @override
+  String get depuisLeDebut => 'From the beginning';
+
+  @override
+  String get reprendreSimple => 'Resume';
+
+  @override
+  String get pasDansVotreCatalogue => 'Not in your catalogue';
+
+  @override
+  String get titreIndisponible =>
+      'This title isn\'t available from your provider.';
+
+  @override
+  String get indexationCatalogue => 'Indexing catalogue…';
 }

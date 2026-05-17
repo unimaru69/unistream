@@ -94,6 +94,38 @@ class TmdbLookup {
   int get hashCode => Object.hash(rawTitle, kind);
 }
 
+/// Identifies a season meta request: TMDB id + season number.
+class TmdbSeasonKey {
+  final int tmdbId;
+  final int seasonNumber;
+  const TmdbSeasonKey({required this.tmdbId, required this.seasonNumber});
+
+  @override
+  bool operator ==(Object other) =>
+      other is TmdbSeasonKey &&
+      other.tmdbId == tmdbId &&
+      other.seasonNumber == seasonNumber;
+
+  @override
+  int get hashCode => Object.hash(tmdbId, seasonNumber);
+}
+
+/// Per-episode TMDB metadata for a season — name, overview, still
+/// image. Cached in-memory only (Riverpod's FutureProvider caches the
+/// async value across rebuilds inside the same session). Failure /
+/// disabled / unreachable → empty map.
+final tmdbSeasonProvider =
+    FutureProvider.family<Map<int, EpisodeMeta>, TmdbSeasonKey>(
+        (ref, key) async {
+  final cfg = ref.watch(tmdbConfigProvider);
+  if (!cfg.isActive) return const <int, EpisodeMeta>{};
+  final svc = ref.read(tmdbServiceProvider);
+  return svc.fetchSeason(
+    tmdbId: key.tmdbId,
+    seasonNumber: key.seasonNumber,
+  );
+});
+
 /// Returns TMDB enrichment for a given raw title, or null if unavailable /
 /// unreachable / feature disabled. Result is cached on-device for 30 days.
 final tmdbLookupProvider =

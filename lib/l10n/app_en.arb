@@ -127,6 +127,7 @@
   "rechercheGlobale": "Global search",
   "modeHorsLigne": "Offline mode — Server unavailable",
   "recemmentAjoutes": "Recently added",
+  "badgeNouveau": "NEW",
 
   "raccourciQuitter": "Quit",
   "raccourciReglages": "Settings",
@@ -471,5 +472,59 @@
   "abonnementBasic": "Basic",
   "abonnementPremium": "Premium",
   "abonnementLicenceCross": "Cross-platform license",
-  "abonnementLicenceCrossDesc": "Use your Premium subscription on all platforms"
+  "abonnementLicenceCrossDesc": "Use your Premium subscription on all platforms",
+
+  "accueilTab": "Home",
+  "categoriesHeader": "Categories",
+  "chainesFavorites": "Favourite channels",
+  "filmsFavoris": "Favourite films",
+  "seriesFavorites": "Favourite series",
+  "aLaUne": "FEATURED",
+  "labelFilm": "FILM",
+  "labelSerie": "SERIES",
+  "labelToutes": "All",
+  "regarder": "Watch",
+  "voirLaSerie": "View series",
+  "lectureEp": "Play E{num}",
+  "@lectureEp": {
+    "placeholders": { "num": { "type": "int" } }
+  },
+  "reprendreEp": "Resume E{num}",
+  "@reprendreEp": {
+    "placeholders": { "num": { "type": "int" } }
+  },
+  "demarrerSE": "Start S{s}E{e}",
+  "@demarrerSE": {
+    "placeholders": {
+      "s": { "type": "String" },
+      "e": { "type": "int" }
+    }
+  },
+  "aucunEpisode": "No episode",
+  "toutMarquerVu": "Mark all watched",
+  "toutMarquerNonVu": "Mark all unwatched",
+  "clicDroitMarquerSaison": "Right-click / long-press: mark season",
+  "distribution": "Cast",
+  "retirer": "Remove",
+  "dejaVu": "Already watched",
+  "statePasse": "PAST",
+  "stateAVenir": "UPCOMING",
+  "pasDeProgramme": "No program",
+  "tapezPourRechercher": "Type to search",
+  "replayNonDisponible": "Replay not available from your provider.",
+  "rappelPose": "🔔 Reminder set for \"{title}\"",
+  "@rappelPose": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "rappelRetire": "Reminder removed",
+  "titreChaine": "Title, channel…",
+  "aucuneChaineFavorite": "No channel in your favourites",
+  "aucuneChaineDisponible": "No channel available",
+  "aucuneChaineCategorie": "No channel in this category",
+  "recommencer": "Restart",
+  "depuisLeDebut": "From the beginning",
+  "reprendreSimple": "Resume",
+  "pasDansVotreCatalogue": "Not in your catalogue",
+  "titreIndisponible": "This title isn't available from your provider.",
+  "indexationCatalogue": "Indexing catalogue…"
 }

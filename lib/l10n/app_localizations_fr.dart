@@ -352,6 +352,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get recemmentAjoutes => 'Récemment ajoutés';
 
   @override
+  String get badgeNouveau => 'NOUVEAU';
+
+  @override
   String get raccourciQuitter => 'Quitter';
 
   @override
@@ -1205,4 +1208,129 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get abonnementLicenceCrossDesc =>
       'Utilisez votre abonnement Premium sur toutes les plateformes';
+
+  @override
+  String get accueilTab => 'Accueil';
+
+  @override
+  String get categoriesHeader => 'Catégories';
+
+  @override
+  String get chainesFavorites => 'Chaînes favorites';
+
+  @override
+  String get filmsFavoris => 'Films favoris';
+
+  @override
+  String get seriesFavorites => 'Séries favorites';
+
+  @override
+  String get aLaUne => 'À LA UNE';
+
+  @override
+  String get labelFilm => 'FILM';
+
+  @override
+  String get labelSerie => 'SÉRIE';
+
+  @override
+  String get labelToutes => 'Toutes';
+
+  @override
+  String get regarder => 'Regarder';
+
+  @override
+  String get voirLaSerie => 'Voir la série';
+
+  @override
+  String lectureEp(int num) {
+    return 'Lecture E$num';
+  }
+
+  @override
+  String reprendreEp(int num) {
+    return 'Reprendre E$num';
+  }
+
+  @override
+  String demarrerSE(String s, int e) {
+    return 'Démarrer S${s}E$e';
+  }
+
+  @override
+  String get aucunEpisode => 'Aucun épisode';
+
+  @override
+  String get toutMarquerVu => 'Tout marquer vu';
+
+  @override
+  String get toutMarquerNonVu => 'Tout marquer non vu';
+
+  @override
+  String get clicDroitMarquerSaison =>
+      'Clic droit / appui long : marquer la saison';
+
+  @override
+  String get distribution => 'Distribution';
+
+  @override
+  String get retirer => 'Retirer';
+
+  @override
+  String get dejaVu => 'Déjà vu';
+
+  @override
+  String get statePasse => 'PASSÉ';
+
+  @override
+  String get stateAVenir => 'À VENIR';
+
+  @override
+  String get pasDeProgramme => 'Pas de programme';
+
+  @override
+  String get tapezPourRechercher => 'Tapez pour rechercher';
+
+  @override
+  String get replayNonDisponible =>
+      'Replay non disponible chez votre fournisseur.';
+
+  @override
+  String rappelPose(String title) {
+    return '🔔 Rappel posé pour « $title »';
+  }
+
+  @override
+  String get rappelRetire => 'Rappel retiré';
+
+  @override
+  String get titreChaine => 'Titre, chaîne…';
+
+  @override
+  String get aucuneChaineFavorite => 'Aucune chaîne dans vos favoris';
+
+  @override
+  String get aucuneChaineDisponible => 'Aucune chaîne disponible';
+
+  @override
+  String get aucuneChaineCategorie => 'Aucune chaîne dans cette catégorie';
+
+  @override
+  String get recommencer => 'Recommencer';
+
+  @override
+  String get depuisLeDebut => 'Depuis le début';
+
+  @override
+  String get reprendreSimple => 'Reprendre';
+
+  @override
+  String get pasDansVotreCatalogue => 'Pas dans votre catalogue';
+
+  @override
+  String get titreIndisponible =>
+      'Ce titre n\'est pas disponible chez votre fournisseur.';
+
+  @override
+  String get indexationCatalogue => 'Indexation du catalogue…';
 }
