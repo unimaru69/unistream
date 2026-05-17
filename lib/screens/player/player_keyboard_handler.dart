@@ -14,6 +14,11 @@ class PlayerKeyCallbacks {
   final void Function(int digit)? onDigitInput;
   final void Function()? onDigitConfirm;
 
+  /// Live-only: shift inside the broadcast. Positive delta = back in
+  /// time (further from live), negative = closer. The host handles
+  /// the actual media reload + clamp + OSD feedback.
+  final void Function(int seconds)? onTimeshiftSeek;
+
   const PlayerKeyCallbacks({
     required this.playPause,
     required this.seek,
@@ -26,6 +31,7 @@ class PlayerKeyCallbacks {
     this.toggleChannelList,
     this.onDigitInput,
     this.onDigitConfirm,
+    this.onTimeshiftSeek,
   });
 }
 
@@ -53,8 +59,22 @@ bool handlePlayerKeyEvent(
     return false;
   }
 
+  // Modifier state is looked up lazily — reading
+  // `HardwareKeyboard.instance` requires the services binding which
+  // the unit tests around this pure function don't initialise.
+  bool shiftHeld() => HardwareKeyboard.instance.isShiftPressed;
+
   // ── Repeat events (held keys) ──
   if (event is KeyRepeatEvent) {
+    if (isLiveMode &&
+        callbacks.onTimeshiftSeek != null &&
+        (key == LogicalKeyboardKey.arrowLeft ||
+            key == LogicalKeyboardKey.arrowRight)) {
+      final step = shiftHeld() ? 300 : 30;
+      final delta = key == LogicalKeyboardKey.arrowLeft ? step : -step;
+      callbacks.onTimeshiftSeek!(delta);
+      return true;
+    }
     if (!isLiveMode && key == LogicalKeyboardKey.arrowLeft) {
       callbacks.seek(const Duration(seconds: -10));
       return true;
@@ -87,6 +107,15 @@ bool handlePlayerKeyEvent(
   // ── Single press events ──
   if (key == LogicalKeyboardKey.space) {
     callbacks.playPause();
+    return true;
+  }
+  if (isLiveMode &&
+      callbacks.onTimeshiftSeek != null &&
+      (key == LogicalKeyboardKey.arrowLeft ||
+          key == LogicalKeyboardKey.arrowRight)) {
+    final step = shiftHeld() ? 300 : 30;
+    final delta = key == LogicalKeyboardKey.arrowLeft ? step : -step;
+    callbacks.onTimeshiftSeek!(delta);
     return true;
   }
   if (!isLiveMode && key == LogicalKeyboardKey.arrowLeft) {

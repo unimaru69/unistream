@@ -22,11 +22,16 @@ import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverl
 import '../../services/auth_service.dart';
 import '../../utils/feature_access.dart';
 import '../../widgets/premium_gate.dart';
+import 'widgets/cinematic_controls.dart';
 import 'widgets/next_episode_overlay.dart';
+import 'widgets/player_controls.dart';
+import 'widgets/sleep_timer_dialog.dart';
 import 'widgets/subtitle_settings.dart';
+import 'widgets/track_selector.dart';
 import 'widgets/volume_osd.dart';
 import 'widgets/channel_list_overlay.dart';
 import 'widgets/channel_number_osd.dart';
+import 'widgets/timeshift_osd.dart';
 import 'widgets/player_app_bar.dart';
 import 'widgets/quality_selector.dart';
 import 'channel_zapping_controller.dart';
@@ -215,6 +220,16 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   StreamSubscription<ConnectivityStatus>? _connectivitySubscription;
   ConnectivityStatus _connectivityStatus = ConnectivityStatus.online;
   bool _showConnectivityBanner = false;
+
+  // Live timeshift ──
+  // offsetSec == 0 → playing the HLS live URL.
+  // offsetSec  > 0 → playing an Xtream timeshift TS URL N seconds
+  // behind live. Mirror of tvOS `VLCLivePlayerViewController`.
+  // Step sizes (seconds) used by `handlePlayerKeyEvent` when the user
+  // presses ←/→ in live mode — short = single tap, long = Shift held.
+  int _timeshiftOffsetSec = 0;
+  String? _timeshiftFlashMessage;
+  Timer? _timeshiftFlashTimer;
 
   @override
   void initState() {
@@ -528,6 +543,30 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     }
   }
 
+  /// Tap-to-cycle aspect — wired to the drawer's aspect button so the
+  /// user can step through ratios without opening a sheet (matches the
+  /// tvOS `onCycleAspect` pattern).
+  static const _aspectCycle = <String>['auto', '16:9', '4:3', '2.35:1', 'stretch'];
+  void _cycleAspectRatio() {
+    final i = _aspectCycle.indexOf(_aspectRatio);
+    final next = _aspectCycle[(i + 1) % _aspectCycle.length];
+    _setAspectRatio(next);
+  }
+
+  /// Short, button-friendly label for the current aspect ratio.
+  String get _aspectRatioLabel {
+    switch (_aspectRatio) {
+      case 'auto':
+        return 'Auto';
+      case 'stretch':
+        return 'Étirer';
+      case '2.35:1':
+        return '2.35';
+      default:
+        return _aspectRatio;
+    }
+  }
+
   // ── Deinterlace ──
   void _toggleDeinterlace() {
     setState(() => _deinterlace = !_deinterlace);
@@ -716,6 +755,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     _qualityTimer?.cancel();
     _zapOsdTimer?.cancel();
     _volumeOsdTimer?.cancel();
+    _timeshiftFlashTimer?.cancel();
     _zapping.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     if (!_minimized) {
@@ -738,6 +778,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
 
   // ── Keyboard shortcuts ──
   bool _onKey(KeyEvent event) {
+    if (!mounted) return false;
     final route = ModalRoute.of(context);
     if (route == null) return false;
 
@@ -765,6 +806,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
         toggleChannelList: _zapping.toggleChannelList,
         onDigitInput: _zapping.onDigitInput,
         onDigitConfirm: () => _zapping.tuneToBufferedChannel(context),
+        onTimeshiftSeek: _timeshiftSeek,
       ),
       isLiveMode: _isLiveMode,
       hasZapping: _zapping.hasZapping,
@@ -890,11 +932,233 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     )));
   }
 
-  /// Controls builder
+  // \u2500\u2500 Timeshift live \u2500\u2500
+
+  /// Channel currently playing \u2014 looked up from `widget.channelList`
+  /// + `widget.channelIndex`. Returns `null` when the player wasn't
+  /// launched with a channel context (no zapping \u2192 no timeshift
+  /// either).
+  Channel? _currentChannel() {
+    final list = widget.channelList;
+    final idx = widget.channelIndex;
+    if (list == null || idx == null || idx < 0 || idx >= list.length) {
+      return null;
+    }
+    return list[idx];
+  }
+
+  /// Positive [delta] \u2192 step backward in time (further from live).
+  /// Negative \u2192 step toward live. When the new offset reaches 0 we
+  /// reload the live HLS URL; otherwise we reload the Xtream
+  /// timeshift TS URL anchored at `now - newOffset`. Mirror of
+  /// `VLCLivePlayerViewController.timeshiftSeek`.
+  void _timeshiftSeek(int delta) {
+    if (!mounted || !_isLiveMode) return;
+    final channel = _currentChannel();
+    if (channel == null || widget.streamId == null) {
+      _flashTimeshiftMessage('Replay indisponible', isLive: true);
+      return;
+    }
+    if (!channel.hasCatchup || channel.archiveDays <= 0) {
+      _flashTimeshiftMessage('Replay indisponible sur cette cha\u00eene',
+          isLive: true);
+      return;
+    }
+    final maxOffsetSec = channel.archiveDays * 24 * 60 * 60;
+    final newOffset =
+        (_timeshiftOffsetSec + delta).clamp(0, maxOffsetSec);
+    if (newOffset == _timeshiftOffsetSec) {
+      _flashTimeshiftMessage(
+        newOffset == 0
+            ? '\u25cf Vous \u00eates en direct'
+            : 'Limite du replay atteinte',
+        isLive: newOffset == 0,
+      );
+      return;
+    }
+
+    setState(() => _timeshiftOffsetSec = newOffset);
+
+    if (newOffset == 0) {
+      _player.open(Media(_repo.getLiveStreamUrl(widget.streamId!)));
+      _flashTimeshiftMessage('\u25cf EN DIRECT', isLive: true);
+      return;
+    }
+    final startUtc =
+        DateTime.now().toUtc().subtract(Duration(seconds: newOffset));
+    // Cover enough forward window so the stream keeps playing toward
+    // live without chained reloads. Cap at archive length.
+    final bufferMin = (newOffset ~/ 60) + 30;
+    final maxMin = (channel.archiveDays * 24 * 60).clamp(60, 1 << 31);
+    final durationMin = bufferMin.clamp(30, maxMin);
+    final url = _repo.getTimeshiftUrl(
+      widget.streamId!,
+      startUtc,
+      durationMin,
+    );
+    _player.open(Media(url));
+    _flashTimeshiftMessage('\u21a9 ${_formatOffset(newOffset)}', isLive: false);
+  }
+
+  void _flashTimeshiftMessage(String msg, {required bool isLive}) {
+    if (!mounted) return;
+    _timeshiftFlashTimer?.cancel();
+    setState(() => _timeshiftFlashMessage = msg);
+    _timeshiftFlashTimer = Timer(const Duration(milliseconds: 1500), () {
+      // Same guard pattern as the MouseRegion hover handlers across
+      // the app — `mounted` alone is not enough because the State is
+      // still mounted during the pop animation, but the element is
+      // already being deactivated. `route.isCurrent == false` is the
+      // canonical signal that we should not call setState.
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) return;
+      setState(() => _timeshiftFlashMessage = null);
+    });
+  }
+
+  static String _formatOffset(int sec) {
+    if (sec < 60) return '-${sec}s';
+    final m = sec ~/ 60;
+    final h = m ~/ 60;
+    final mm = m % 60;
+    if (h > 0) return '-${h}h${mm.toString().padLeft(2, '0')}';
+    return '-${m}min';
+  }
+
+  /// Show the "More" sheet — secondary playback options that don't
+  /// warrant their own button in the drawer's main row (speed, sleep
+  /// timer, deinterlace, subtitle style, mini-player). Mirror of the
+  /// `onShowMore` action on the tvOS drawer.
+  void _showMoreSheet() {
+    final tc = AppThemeColors.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tc.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        // Pop the More sheet, then defer the secondary action to the
+        // next frame so the dismiss animation has time to run before
+        // we push another modal. Without that gap, the second sheet
+        // occasionally never appears (raced with the More pop) — the
+        // subtitle-style picker was the canary case.
+        void runAfterDismiss(VoidCallback action) {
+          Navigator.pop(ctx);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            action();
+          });
+        }
+
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.speed),
+                title: Text(l10n.vitesseLecture),
+                subtitle: Text('$_speed×'),
+                onTap: () => runAfterDismiss(() {
+                  showSpeedPicker(
+                    context,
+                    currentSpeed: _speed,
+                    onSpeedChanged: (v) {
+                      _player.setRate(v);
+                      setState(() => _speed = v);
+                    },
+                  );
+                }),
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.timer,
+                  color: _sleepRemaining != null ? Colors.amber : null,
+                ),
+                title: Text(_sleepRemaining != null
+                    ? l10n.veilleActive(_sleepRemaining!.inMinutes)
+                    : l10n.minuterieVeille),
+                onTap: () => runAfterDismiss(() {
+                  showSleepTimerPicker(
+                    context,
+                    sleepRemaining: _sleepRemaining,
+                    onCancel: _cancelSleepTimer,
+                    onStart: _startSleepTimer,
+                  );
+                }),
+              ),
+              SwitchListTile(
+                secondary: Icon(
+                  Icons.deblur,
+                  color: _deinterlace ? AppColors.primaryBlue : null,
+                ),
+                title: Text(l10n.desentrelacement),
+                value: _deinterlace,
+                activeThumbColor: AppColors.primaryBlue,
+                onChanged: (_) {
+                  _toggleDeinterlace();
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.subtitles),
+                title: Text(l10n.styleSousTitres),
+                onTap: () => runAfterDismiss(_onSubtitleStylePicker),
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_in_picture_alt),
+                title: Text(l10n.miniPlayer),
+                onTap: () => runAfterDismiss(_minimize),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Controls builder — Apple-TV+-style drawer (cf.
+  /// [`CinematicControls`](widgets/cinematic_controls.dart)).
+  ///
+  /// `MaterialVideoControlsTheme` further down still wraps the [Video]
+  /// widget defensively, but [CinematicControls] is what's actually
+  /// rendered: gradient drawer, monospace time readout, capsule scrub
+  /// bar, round transport buttons, secondary cluster (audio / subs /
+  /// aspect / more). The slimmed-down [PlayerAppBar] at the top now
+  /// only carries channel-context badges + zap shortcuts.
   Widget _buildVideoControls(VideoState state) {
     return Builder(builder: (ctx) {
       _videoCtx = ctx;
-      return MaterialVideoControls(state);
+      return CinematicControls(
+        player: _player,
+        title: widget.title,
+        isLiveMode: _isLiveMode,
+        hasMultipleAudioTracks: _audioTracks.length >= 2,
+        hasSubtitleTracks: _subtitleTracks.isNotEmpty,
+        aspectRatioLabel: _aspectRatioLabel,
+        onShowAudioPicker: _audioTracks.length >= 2
+            ? () => showTrackPicker(
+                  context,
+                  player: _player,
+                  audioTracks: _audioTracks,
+                  subtitleTracks: _subtitleTracks,
+                  initialTab: 0,
+                )
+            : null,
+        onShowSubtitlePicker: _subtitleTracks.isNotEmpty
+            ? () => showTrackPicker(
+                  context,
+                  player: _player,
+                  audioTracks: _audioTracks,
+                  subtitleTracks: _subtitleTracks,
+                  initialTab: 1,
+                )
+            : null,
+        onCycleAspect: _cycleAspectRatio,
+        onMore: _showMoreSheet,
+      );
     });
   }
 
@@ -925,25 +1189,8 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
         bitrate: _bitrate,
         epgListings: _epgListings,
         catchupSupported: _catchupSupported,
-        audioTracks: _audioTracks,
-        subtitleTracks: _subtitleTracks,
-        player: _player,
-        aspectRatio: _aspectRatio,
-        deinterlace: _deinterlace,
-        speed: _speed,
-        sleepRemaining: _sleepRemaining,
         onReturnToLive: _returnToLive,
         onZapChannel: _zapChannel,
-        onSubtitleStylePicker: _onSubtitleStylePicker,
-        onSetAspectRatio: _setAspectRatio,
-        onToggleDeinterlace: _toggleDeinterlace,
-        onSpeedChanged: (v) {
-          _player.setRate(v);
-          setState(() => _speed = v);
-        },
-        onStartSleepTimer: _startSleepTimer,
-        onCancelSleepTimer: _cancelSleepTimer,
-        onMinimize: _minimize,
         hlsVariants: _hlsVariants,
         activeVariantUrl: _activeVariantUrl,
         onVariantSelected: _selectVariant,
@@ -977,6 +1224,27 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
               controls: _buildVideoControls,
               fit: BoxFit.contain,
               fill: Colors.black,
+              // Subtitles are rendered by media_kit as a Flutter widget,
+              // not by libmpv — so the historical `np.setProperty('sub-*')`
+              // calls in `_applySubtitleSettings` are silently no-ops.
+              // The user-controlled style flows through here instead, and
+              // a `setState` rebuild propagates updates live.
+              subtitleViewConfiguration: SubtitleViewConfiguration(
+                style: TextStyle(
+                  fontSize: _subtitleFontSize,
+                  color: _subtitleColor,
+                  backgroundColor: Colors.black
+                      .withValues(alpha: _subtitleBgOpacity),
+                  fontWeight: FontWeight.w600,
+                  shadows: const <Shadow>[
+                    Shadow(
+                      offset: Offset(1, 1),
+                      blurRadius: 3,
+                      color: Colors.black87,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1054,6 +1322,12 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
         // Volume OSD
         if (_showVolumeOsd)
           VolumeOsd(volume: _player.state.volume),
+        // Timeshift OSD (live ←/→)
+        if (_timeshiftFlashMessage != null)
+          TimeshiftOsd(
+            message: _timeshiftFlashMessage!,
+            isLive: _timeshiftOffsetSec == 0,
+          ),
         // Channel number OSD
         if (_zapping.digitBuffer.isNotEmpty)
           ChannelNumberOsd(digits: _zapping.digitBuffer),

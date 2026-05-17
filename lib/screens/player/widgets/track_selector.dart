@@ -41,6 +41,7 @@ void showTrackPicker(BuildContext context, {
   required Player player,
   required List<AudioTrack> audioTracks,
   required List<SubtitleTrack> subtitleTracks,
+  int initialTab = 0,
 }) {
   final tc = AppThemeColors.of(context);
   showModalBottomSheet(
@@ -49,7 +50,10 @@ void showTrackPicker(BuildContext context, {
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => _TrackPickerSheet(
-        player: player, audioTracks: audioTracks, subtitleTracks: subtitleTracks),
+        player: player,
+        audioTracks: audioTracks,
+        subtitleTracks: subtitleTracks,
+        initialTab: initialTab),
   );
 }
 
@@ -57,7 +61,13 @@ class _TrackPickerSheet extends StatefulWidget {
   final Player player;
   final List<AudioTrack>    audioTracks;
   final List<SubtitleTrack> subtitleTracks;
-  const _TrackPickerSheet({required this.player, required this.audioTracks, required this.subtitleTracks});
+  final int initialTab;
+  const _TrackPickerSheet({
+    required this.player,
+    required this.audioTracks,
+    required this.subtitleTracks,
+    this.initialTab = 0,
+  });
   @override
   State<_TrackPickerSheet> createState() => _TrackPickerSheetState();
 }
@@ -77,6 +87,7 @@ class _TrackPickerSheetState extends State<_TrackPickerSheet> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTab.clamp(0, 1),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         TabBar(
           tabs: [Tab(text: AppLocalizations.of(context)!.audioTab), Tab(text: AppLocalizations.of(context)!.sousTitresTab)],
