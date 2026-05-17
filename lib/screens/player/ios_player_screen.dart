@@ -421,7 +421,6 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   }
 
   Widget _buildControls(VlcPlayerController c) {
-    final v = c.value;
     // Tap on the controls' background (anywhere not on a button) hides
     // them — same affordance as tapping the video itself when controls
     // are off. IconButton children still receive their own taps.
@@ -429,150 +428,257 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
       behavior: HitTestBehavior.opaque,
       onTap: _toggleControls,
       child: Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.6),
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.7),
-          ],
-          stops: const [0.0, 0.4, 1.0],
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.65),
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.55),
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: _isLiveMode ? _buildLiveControls(c) : _buildVodControls(c),
         ),
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Row(children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-              Expanded(
-                // Live mode with EPG: stack channel name + current
-                // programme as a two-line title. Mirror of the
-                // cross-platform `PlayerAppBar` (which uses a
-                // similar Column for the title widget when `epgNow`
-                // is non-null).
-                child: _epgNow != null
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            _epgNow!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        widget.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600),
-                      ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.tune, color: Colors.white),
-                tooltip: 'Options',
-                onPressed: () => _openOptionsSheet(c),
-              ),
-            ]),
-            // Thin EPG progress bar just under the top row — sits
-            // where the VOD slider would be, but for live it tracks
-            // the current programme's wall-clock progress instead.
-            if (_isLiveMode && _epgProgress != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SizedBox(
-                  height: 3,
-                  child: LinearProgressIndicator(
-                    value: _epgProgress,
-                    backgroundColor: Colors.white12,
-                    color: AppColors.primaryBlue,
-                    minHeight: 3,
-                  ),
-                ),
-              ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  iconSize: 40,
-                  icon: const Icon(Icons.replay_10, color: Colors.white),
-                  onPressed: () => _seekRelative(const Duration(seconds: -10)),
-                ),
-                const SizedBox(width: 24),
-                IconButton(
-                  iconSize: 64,
-                  icon: Icon(
-                    v.isPlaying
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                    color: Colors.white,
-                  ),
-                  onPressed: _togglePlay,
-                ),
-                const SizedBox(width: 24),
-                IconButton(
-                  iconSize: 40,
-                  icon: const Icon(Icons.forward_30, color: Colors.white),
-                  onPressed: () => _seekRelative(const Duration(seconds: 30)),
-                ),
-              ],
+    );
+  }
+
+  /// Live overlay — port of tvOS `VLCLivePlayerViewController`:
+  ///   * top: back arrow + EN DIRECT pill + clock + options
+  ///   * left dense block: channel name (big) + "Chaîne X / Y" +
+  ///     programme title + HH:mm → HH:mm + accent-warm progress
+  ///     bar + "Suite : `<next>`"
+  ///   * center: play/pause only (no ±10/±30 — replay/forward make
+  ///     no sense on a live HLS without timeshift, and VLC reports a
+  ///     bogus `v.duration` for HLS which would surface a misleading
+  ///     VOD slider at the bottom — that was the user-reported bug)
+  Widget _buildLiveControls(VlcPlayerController c) {
+    final v = c.value;
+    final now = DateTime.now();
+    final clock =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Top row ──
+        Row(children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 4),
+          // EN DIRECT pill — accent red, matches tvOS liveBadge.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD92626),
+              borderRadius: BorderRadius.circular(4),
             ),
-            const Spacer(),
-            // Live mode footer: "Suivant: X · HH:mm → HH:mm" hint
-            // when we have both current + next EPG data. Sits where
-            // the VOD slider would be — they're mutually exclusive
-            // because live has no `v.duration`.
-            if (_isLiveMode &&
-                v.duration <= Duration.zero &&
-                (_epgNow != null || _epgNext != null))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-                child: Row(
-                  children: [
-                    if (_epgNowStart != null && _epgNowEnd != null) ...[
-                      Text(
-                        '${_fmtHm(_epgNowStart!)} → ${_fmtHm(_epgNowEnd!)}',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 11),
+            child: const Text(
+              'EN DIRECT',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const Spacer(),
+          // Clock (top-right) — monospaced so the colon doesn't dance
+          // each tick. Refreshed via _epgTickTimer (30 s).
+          Text(
+            clock,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            tooltip: 'Options',
+            onPressed: () => _openOptionsSheet(c),
+          ),
+        ]),
+
+        // ── Programme block (left-aligned dense info) ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Channel name — big and bold, mirror of tvOS 38 pt /
+              // scaled down for iPhone. iPad sees the same 28 pt.
+              Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              if (widget.channelList != null && widget.channelIndex != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Chaîne ${widget.channelIndex! + 1} / ${widget.channelList!.length}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              if (_epgNow != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  _epgNow!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_epgNowStart != null && _epgNowEnd != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${_fmtHm(_epgNowStart!)} → ${_fmtHm(_epgNowEnd!)}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 13,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
-                      const SizedBox(width: 12),
-                    ],
-                    if (_epgNext != null)
-                      Expanded(
-                        child: Text(
-                          'Suivant : $_epgNext',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 11),
+                    ),
+                  ),
+                if (_epgProgress != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                      width: 280,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: _epgProgress,
+                          backgroundColor: Colors.white.withValues(alpha: 0.18),
+                          // accentWarm — same orange as the tvOS bar.
+                          color: const Color(0xFFFF6B5B),
+                          minHeight: 4,
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                if (_epgNext != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Suite : $_epgNext',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+
+        const Spacer(),
+
+        // ── Center: play/pause only ──
+        Center(
+          child: IconButton(
+            iconSize: 72,
+            icon: Icon(
+              v.isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled,
+              color: Colors.white,
+            ),
+            onPressed: _togglePlay,
+          ),
+        ),
+
+        const Spacer(flex: 2),
+      ],
+    );
+  }
+
+  /// VOD / replay overlay — original Flutter design with ±10 / ±30
+  /// scrubbers and a bottom slider. Unchanged from the pre-iOS-EPG
+  /// version because films + catch-up actually have a real duration.
+  Widget _buildVodControls(VlcPlayerController c) {
+    final v = c.value;
+    return Column(
+      children: [
+        Row(children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            tooltip: 'Options',
+            onPressed: () => _openOptionsSheet(c),
+          ),
+        ]),
+        const Spacer(),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              iconSize: 40,
+              icon: const Icon(Icons.replay_10, color: Colors.white),
+              onPressed: () => _seekRelative(const Duration(seconds: -10)),
+            ),
+            const SizedBox(width: 24),
+            IconButton(
+              iconSize: 64,
+              icon: Icon(
+                v.isPlaying
+                    ? Icons.pause_circle_filled
+                    : Icons.play_circle_filled,
+                color: Colors.white,
               ),
-            if (v.duration > Duration.zero) ...[
+              onPressed: _togglePlay,
+            ),
+            const SizedBox(width: 24),
+            IconButton(
+              iconSize: 40,
+              icon: const Icon(Icons.forward_30, color: Colors.white),
+              onPressed: () => _seekRelative(const Duration(seconds: 30)),
+            ),
+          ],
+        ),
+        const Spacer(),
+        if (v.duration > Duration.zero) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SliderTheme(
@@ -613,10 +719,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
-    ),
+      ],
     );
   }
 
