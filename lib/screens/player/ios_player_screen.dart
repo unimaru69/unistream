@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 import '../../core/colors.dart';
 import '../../core/logger.dart';
 import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
+import '../../repositories/content_repository.dart';
 import '../../services/watch_progress.dart';
 
 /// iOS / iPadOS video player backed by `flutter_vlc_player` (libVLC).
@@ -19,7 +22,7 @@ import '../../services/watch_progress.dart';
 ///
 /// API mirrors the cross-platform `PlayerScreen` so call sites don't change:
 /// the wrapping facade picks the right impl at build time.
-class IOSPlayerScreen extends StatefulWidget {
+class IOSPlayerScreen extends ConsumerStatefulWidget {
   final String url;
   final String title;
   final String? streamId;
@@ -44,10 +47,10 @@ class IOSPlayerScreen extends StatefulWidget {
   });
 
   @override
-  State<IOSPlayerScreen> createState() => _IOSPlayerScreenState();
+  ConsumerState<IOSPlayerScreen> createState() => _IOSPlayerScreenState();
 }
 
-class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
+class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   VlcPlayerController? _controller;
   bool _showControls = true;
   bool _hasError = false;
@@ -61,9 +64,22 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
   Timer? _hideControlsTimer;
   Timer? _progressSaveTimer;
   Timer? _connectTimeoutTimer;
+  Timer? _epgTickTimer;
   Duration _lastPos = Duration.zero;
   Duration _lastDur = Duration.zero;
   static const _connectTimeout = Duration(seconds: 25);
+
+  // ── EPG state (live mode only) ─────────────────────────────────────
+  // Mirrors the cross-platform `PlayerScreen` so the iOS overlay shows
+  // the same channel context: current programme title, next programme,
+  // and a thin progress bar of the current programme.
+  String? _epgNow;
+  String? _epgNext;
+  DateTime? _epgNowStart;
+  DateTime? _epgNowEnd;
+  List<Map<String, String>> _epgListings = const [];
+
+  bool get _isLiveMode => widget.streamId != null && !widget.isCatchup;
 
   // Diagnostics surfaced in the loading overlay so we can see exactly where
   // VLC is stuck on real devices (no easy way to read flutter logs there).
@@ -80,6 +96,17 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
       DeviceOrientation.portraitUp,
     ]);
     _initPlayer();
+    if (_isLiveMode) {
+      _loadEpg();
+      // Re-tick every 30 s — recomputes the progress bar (which is
+      // derived from DateTime.now()) and advances to the next
+      // programme once the current one ends. Cheap rebuild scoped to
+      // the overlay; the platform view doesn't repaint.
+      _epgTickTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (!mounted) return;
+        _advanceEpgIfNeeded();
+      });
+    }
   }
 
   void _initPlayer() {
@@ -253,6 +280,7 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
     _hideControlsTimer?.cancel();
     _progressSaveTimer?.cancel();
     _connectTimeoutTimer?.cancel();
+    _epgTickTimer?.cancel();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onPlayerTick);
@@ -422,15 +450,44 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
               Expanded(
-                child: Text(
-                  widget.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600),
-                ),
+                // Live mode with EPG: stack channel name + current
+                // programme as a two-line title. Mirror of the
+                // cross-platform `PlayerAppBar` (which uses a
+                // similar Column for the title widget when `epgNow`
+                // is non-null).
+                child: _epgNow != null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            _epgNow!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600),
+                      ),
               ),
               IconButton(
                 icon: const Icon(Icons.tune, color: Colors.white),
@@ -438,6 +495,22 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
                 onPressed: () => _openOptionsSheet(c),
               ),
             ]),
+            // Thin EPG progress bar just under the top row — sits
+            // where the VOD slider would be, but for live it tracks
+            // the current programme's wall-clock progress instead.
+            if (_isLiveMode && _epgProgress != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 3,
+                  child: LinearProgressIndicator(
+                    value: _epgProgress,
+                    backgroundColor: Colors.white12,
+                    color: AppColors.primaryBlue,
+                    minHeight: 3,
+                  ),
+                ),
+              ),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -467,6 +540,38 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
               ],
             ),
             const Spacer(),
+            // Live mode footer: "Suivant: X · HH:mm → HH:mm" hint
+            // when we have both current + next EPG data. Sits where
+            // the VOD slider would be — they're mutually exclusive
+            // because live has no `v.duration`.
+            if (_isLiveMode &&
+                v.duration <= Duration.zero &&
+                (_epgNow != null || _epgNext != null))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                child: Row(
+                  children: [
+                    if (_epgNowStart != null && _epgNowEnd != null) ...[
+                      Text(
+                        '${_fmtHm(_epgNowStart!)} → ${_fmtHm(_epgNowEnd!)}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    if (_epgNext != null)
+                      Expanded(
+                        child: Text(
+                          'Suivant : $_epgNext',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             if (v.duration > Duration.zero) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -520,6 +625,135 @@ class _IOSPlayerScreenState extends State<IOSPlayerScreen> {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  String _fmtHm(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  // ── EPG ──────────────────────────────────────────────────────────────
+  // Mirror of `PlayerScreen._loadEpg` (cross-platform). We pull the
+  // full-day EPG for the current channel, fall back to the short EPG
+  // (limit: 30) if the full-day endpoint errors, decode base64 titles
+  // and figure out which programme is "now" by wall-clock comparison.
+  // The progress bar is computed each frame in `_buildControls` from
+  // `_epgNowStart` / `_epgNowEnd`; `_epgTickTimer` (set in initState)
+  // forces a 30 s rebuild and advances to the next programme.
+  Future<void> _loadEpg() async {
+    if (widget.streamId == null) return;
+    try {
+      final repo = ref.read(contentRepositoryProvider);
+      Map<String, dynamic> data;
+      try {
+        data = await repo.getFullDayEpg(widget.streamId!);
+      } catch (e, st) {
+        AppLogger.warning(
+          LogModule.epg,
+          'iOS: full-day EPG failed, falling back to short EPG',
+          error: e,
+          stackTrace: st,
+        );
+        data = await repo.getShortEpg(widget.streamId!, limit: 30);
+      }
+      final listings = data['epg_listings'] as List?;
+      if (listings == null || listings.isEmpty) return;
+
+      String dec(String s) {
+        if (s.isEmpty) return s;
+        try {
+          return utf8.decode(base64.decode(s));
+        } catch (_) {
+          return s;
+        }
+      }
+
+      DateTime? parseTs(dynamic v) {
+        if (v == null) return null;
+        final n = int.tryParse(v.toString());
+        if (n != null) return DateTime.fromMillisecondsSinceEpoch(n * 1000);
+        return null;
+      }
+
+      final allProgs = listings.map<Map<String, String>>((e) {
+        final start = parseTs(e['start_timestamp'] ?? e['start']);
+        final end = parseTs(e['stop_timestamp'] ?? e['stop']);
+        return {
+          'title': dec((e['title'] ?? '').toString()),
+          'start_ts': start?.millisecondsSinceEpoch.toString() ?? '',
+          'end_ts': end?.millisecondsSinceEpoch.toString() ?? '',
+        };
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _epgListings = allProgs;
+        _refreshEpgCurrent();
+      });
+    } catch (e, st) {
+      AppLogger.warning(
+        LogModule.player,
+        'iOS: failed to load EPG data',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Re-evaluate which programme is "now" based on wall-clock + the
+  /// cached `_epgListings`. No-op if the listings haven't loaded yet.
+  void _refreshEpgCurrent() {
+    if (_epgListings.isEmpty) return;
+    final now = DateTime.now();
+    int currentIdx = -1;
+    for (var i = 0; i < _epgListings.length; i++) {
+      final startTs = int.tryParse(_epgListings[i]['start_ts'] ?? '');
+      final endTs = int.tryParse(_epgListings[i]['end_ts'] ?? '');
+      if (startTs != null && endTs != null) {
+        final s = DateTime.fromMillisecondsSinceEpoch(startTs);
+        final e = DateTime.fromMillisecondsSinceEpoch(endTs);
+        if (now.isAfter(s) && now.isBefore(e)) {
+          currentIdx = i;
+          break;
+        }
+      }
+    }
+    if (currentIdx >= 0) {
+      _epgNow = _epgListings[currentIdx]['title'];
+      _epgNext = currentIdx + 1 < _epgListings.length
+          ? _epgListings[currentIdx + 1]['title']
+          : null;
+      final startTs = int.tryParse(_epgListings[currentIdx]['start_ts'] ?? '');
+      final endTs = int.tryParse(_epgListings[currentIdx]['end_ts'] ?? '');
+      _epgNowStart =
+          startTs != null ? DateTime.fromMillisecondsSinceEpoch(startTs) : null;
+      _epgNowEnd =
+          endTs != null ? DateTime.fromMillisecondsSinceEpoch(endTs) : null;
+    } else {
+      _epgNow = null;
+      _epgNext = null;
+      _epgNowStart = null;
+      _epgNowEnd = null;
+    }
+  }
+
+  /// Called by the 30 s tick timer. Re-derives the current programme
+  /// + triggers a rebuild so the progress bar advances. When the
+  /// current programme has rolled past its end, the next one slides
+  /// into "now" automatically without another network round-trip.
+  void _advanceEpgIfNeeded() {
+    if (_epgListings.isEmpty) return;
+    setState(() => _refreshEpgCurrent());
+  }
+
+  /// EPG progress \[0..1\] of the current programme, or null when we
+  /// don't have a current programme bounds.
+  double? get _epgProgress {
+    final s = _epgNowStart;
+    final e = _epgNowEnd;
+    if (s == null || e == null) return null;
+    final total = e.difference(s).inSeconds;
+    if (total <= 0) return null;
+    final elapsed = DateTime.now().difference(s).inSeconds;
+    return (elapsed / total).clamp(0.0, 1.0);
   }
 
   Future<void> _openOptionsSheet(VlcPlayerController c) async {
