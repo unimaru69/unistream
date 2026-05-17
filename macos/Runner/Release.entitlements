@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS Release entitlements (Developer ID off-store distribution).
+
+  `com.apple.developer.applesignin` was REMOVED here because it's a
+  "restricted" entitlement that requires an embedded macOS
+  provisioning profile (`Contents/embedded.provisionprofile`) listing
+  it. App Store / TestFlight builds get the profile injected
+  automatically by Xcode; off-store Developer ID builds don't, and
+  AMFI rejects the binary at launch with
+    "Unsatisfied Entitlements: com.apple.developer.applesignin"
+  → "impossible d'ouvrir l'application unistream" in Finder.
+
+  Side-effect: the "Sign in with Apple" button in login_page /
+  signup_page will surface an error if tapped on a macOS DMG build.
+  Email-password and other providers still work. The debug build
+  (`flutter run -d macos`) uses DebugProfile.entitlements which
+  still includes applesignin, so dev iteration is unaffected. iOS
+  TestFlight uses ios/Runner/Runner.entitlements — also unaffected.
+
+  To re-enable on macOS Developer ID: create a macOS provisioning
+  profile in Apple Developer portal that declares the
+  `com.apple.developer.applesignin` capability for the bundle id
+  `fr.unimaru.unistream`, download it as `embedded.provisionprofile`,
+  drop it inside `unistream.app/Contents/`, and add the entitlement
+  back here.
+-->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
@@ -8,9 +34,6 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
-	<key>com.apple.developer.applesignin</key>
-	<array>
-		<string>Default</string>
-	</array>
 </dict>
 </plist>
+
