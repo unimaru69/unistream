@@ -109,7 +109,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     if (!AppConfig.isConfigured) {
-      _navigateTo(const OnboardingScreen());
+      // No profile yet — land the user on the ProfileSelector empty
+      // state ("Bienvenue, créez un profil") instead of jumping
+      // straight into the server-config form. The selector's "+"
+      // tile pushes the OnboardingScreen when tapped, so the
+      // server-config UX is still reachable in one click but the
+      // user sees the concept of "profile" first.
+      final result = await Navigator.push<ProfileSelectorResult>(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileSelectorScreen(
+          profiles: [],
+          activeProfileId: null,
+          allowCreate: true,
+        )),
+      );
+      if (!mounted) return;
+      if (result is ProfileCreateRequested) {
+        _navigateTo(const OnboardingScreen());
+      } else if (result is ProfileSelectedResult) {
+        // Edge case: result came from somewhere (sync race?). Bounce
+        // through onboarding anyway — without a configured server
+        // we can't go further.
+        _navigateTo(const OnboardingScreen());
+      } else {
+        // User backed out via Esc / system back. Re-show the picker
+        // by restarting the splash sequence so they don't get
+        // stranded on a black screen.
+        _startLoadingSequence();
+      }
       return;
     }
 
@@ -140,17 +167,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
 
-      final selected = await Navigator.push<Profile>(
+      final result = await Navigator.push<ProfileSelectorResult>(
         context,
         MaterialPageRoute(builder: (_) => ProfileSelectorScreen(
           profiles: AppConfig.profiles,
           activeProfileId: AppConfig.activeProfileId,
+          // Multi-profile case: also offer "+ Nouveau profil" so
+          // the user can add another from the same picker.
+          allowCreate: true,
         )),
       );
       if (!mounted) return;
-      if (selected != null && selected.id != AppConfig.activeProfileId) {
-        await AppConfig.switchProfile(selected.id);
-        if (mounted) invalidateProfileScopedProviders(ref.invalidate);
+      if (result is ProfileSelectedResult) {
+        final selected = result.profile;
+        if (selected.id != AppConfig.activeProfileId) {
+          await AppConfig.switchProfile(selected.id);
+          if (mounted) invalidateProfileScopedProviders(ref.invalidate);
+        }
+      } else if (result is ProfileCreateRequested) {
+        _navigateTo(const OnboardingScreen());
+        return;
       }
     } else if (AppConfig.profiles.length == 1 && AppConfig.profiles.first.hasPin) {
       // Single profile with PIN — verify before granting access
