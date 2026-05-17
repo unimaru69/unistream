@@ -52,7 +52,12 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isCompact;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize {
+    // In compact mode the segmented control lives in `AppBar.bottom`
+    // (full-width row below the top action bar) instead of fighting
+    // the search / fav / ⋮ icons for room. Reserve 48 px for it.
+    return Size.fromHeight(kToolbarHeight + (isCompact ? 48.0 : 0.0));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +92,33 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required Color backgroundColor,
     required double elevation,
   }) {
+    final segmentToggle = ToggleButtons(
+      isSelected: <bool>[
+        segment == HomeSegment.home,
+        segment == HomeSegment.live,
+        segment == HomeSegment.vod,
+        segment == HomeSegment.series,
+      ],
+      onPressed: (i) => onSegmentChanged(HomeSegment.values[i]),
+      borderRadius: BorderRadius.circular(8),
+      selectedColor: tc.textPrimary,
+      fillColor: AppColors.primaryBlue,
+      children: <Widget>[
+        Padding(
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16),
+            child: Text(l10n.accueilTab)),
+        Padding(
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16),
+            child: Text(l10n.live)),
+        Padding(
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16),
+            child: Text(l10n.vod)),
+        Padding(
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16),
+            child: Text(l10n.series)),
+      ],
+    );
+
     return AppBar(
       title: isCompact ? null : const Text('UniStream',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
@@ -94,6 +126,23 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: elevation,
       leading: leadingMenuButton,
       automaticallyImplyLeading: false,
+      // Compact mode: segmented control sits on its own row below the
+      // top action bar so it doesn't fight search/fav/⋮ for room on
+      // iPhone portrait (4 segments × ~50 pt + 3 icons × ~48 pt ≈
+      // 350 pt didn't fit a 390 pt screen and "Accueil" got clipped
+      // by the left edge).
+      bottom: isCompact
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Container(
+                width: double.infinity,
+                color: backgroundColor,
+                padding: const EdgeInsets.only(bottom: 6),
+                alignment: Alignment.center,
+                child: segmentToggle,
+              ),
+            )
+          : null,
       actions: [
         if (!isCompact && AppConfig.profiles.length > 1)
           PopupMenuButton<String>(
@@ -124,33 +173,12 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ))
                 .toList(),
           ),
-        ToggleButtons(
-          isSelected: <bool>[
-            segment == HomeSegment.home,
-            segment == HomeSegment.live,
-            segment == HomeSegment.vod,
-            segment == HomeSegment.series,
-          ],
-          onPressed: (i) => onSegmentChanged(HomeSegment.values[i]),
-          borderRadius: BorderRadius.circular(8),
-          selectedColor: tc.textPrimary,
-          fillColor: AppColors.primaryBlue,
-          children: <Widget>[
-            Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
-                child: Text(l10n.accueilTab)),
-            Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
-                child: Text(l10n.live)),
-            Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
-                child: Text(l10n.vod)),
-            Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
-                child: Text(l10n.series)),
-          ],
-        ),
-        const SizedBox(width: 4),
+        // Segmented control inline ONLY on non-compact. On compact
+        // it lives in `AppBar.bottom` (see above).
+        if (!isCompact) ...[
+          segmentToggle,
+          const SizedBox(width: 4),
+        ],
         // Grid + sort make no sense on Accueil — every section has its
         // own intrinsic ordering and there's no flat list to toggle.
         if (!isCompact && segment != HomeSegment.home)
