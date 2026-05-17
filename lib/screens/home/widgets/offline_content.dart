@@ -71,6 +71,7 @@ class OfflineContent extends ConsumerWidget {
                             child: Stack(fit: StackFit.expand, children: [
                               cover.isNotEmpty
                                   ? CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
+                                      memCacheWidth: (90 * MediaQuery.devicePixelRatioOf(context)).round(),
                                       fadeInDuration: const Duration(milliseconds: 200),
                                       placeholder: (_, __) => ColoredBox(color: tc.inputFill),
                                       errorWidget: (_, __, ___) => Container(color: tc.inputFill,

@@ -146,6 +146,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     leading: item.cover.isNotEmpty
                         ? ClipRRect(borderRadius: BorderRadius.circular(4),
                             child: CachedNetworkImage(imageUrl: item.cover, cacheManager: AppCacheManager.instance, width: 40, height: 40, fit: BoxFit.cover,
+                              memCacheWidth: (40 * MediaQuery.devicePixelRatioOf(context)).round(),
+                              memCacheHeight: (40 * MediaQuery.devicePixelRatioOf(context)).round(),
                               fadeInDuration: const Duration(milliseconds: 200),
                               placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: tc.inputFill)),
                               errorWidget: (_, __, ___) => Icon(Icons.play_circle, color: tc.borderColor)))

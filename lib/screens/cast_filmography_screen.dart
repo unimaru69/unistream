@@ -261,6 +261,10 @@ class _Portrait extends StatelessWidget {
                 imageUrl: url!,
                 cacheManager: AppCacheManager.instance,
                 fit: BoxFit.cover,
+                memCacheWidth:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                memCacheHeight:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
                 placeholder: (_, __) => placeholder(),
                 errorWidget: (_, __, ___) => placeholder(),
               )
@@ -442,15 +446,23 @@ class _CreditCardState extends State<_CreditCard> {
                       fit: StackFit.expand,
                       children: <Widget>[
                         if (url != null)
-                          CachedNetworkImage(
-                            imageUrl: url,
-                            cacheManager: AppCacheManager.instance,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) =>
-                                Container(color: AppColors.darkSurface),
-                            errorWidget: (_, __, ___) => _PosterPlaceholder(
-                                kind: widget.credit.mediaType),
-                          )
+                          LayoutBuilder(builder: (ctx, constraints) {
+                            final dpr = MediaQuery.devicePixelRatioOf(ctx);
+                            final w = (constraints.maxWidth.isFinite
+                                    ? constraints.maxWidth
+                                    : 140) *
+                                dpr;
+                            return CachedNetworkImage(
+                              imageUrl: url,
+                              cacheManager: AppCacheManager.instance,
+                              fit: BoxFit.cover,
+                              memCacheWidth: w.round(),
+                              placeholder: (_, __) =>
+                                  Container(color: AppColors.darkSurface),
+                              errorWidget: (_, __, ___) => _PosterPlaceholder(
+                                  kind: widget.credit.mediaType),
+                            );
+                          })
                         else
                           _PosterPlaceholder(kind: widget.credit.mediaType),
                         if (!isAvailable) ...<Widget>[

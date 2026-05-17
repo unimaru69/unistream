@@ -39,23 +39,34 @@ class PlexBackdrop extends StatelessWidget {
         ColoredBox(color: AppColors.darkBackground),
 
         // 2 + 3) Image + blur.
+        // memCacheWidth capped at 1280 — the image is blurred to
+        // mush anyway, no point decoding TMDB `original` (often
+        // 1920+). Cuts ~3-4× RAM on full-screen backdrop drawers.
         if (imageUrl.isNotEmpty)
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-            child: Transform.scale(
-              scale: 1.15,
-              child: Opacity(
-                opacity: 0.85,
-                child: CachedNetworkImage(
-                  cacheManager: AppCacheManager.instance,
-                  imageUrl: imageUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+          Builder(builder: (ctx) {
+            final mq = MediaQuery.of(ctx);
+            final memW = (mq.size.width * mq.devicePixelRatio)
+                .clamp(720, 1280)
+                .round();
+            return ImageFiltered(
+              imageFilter:
+                  ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+              child: Transform.scale(
+                scale: 1.15,
+                child: Opacity(
+                  opacity: 0.85,
+                  child: CachedNetworkImage(
+                    cacheManager: AppCacheManager.instance,
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: memW,
+                    placeholder: (_, __) => const SizedBox.shrink(),
+                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
 
         // 4) Leading → trailing darken.
         DecoratedBox(

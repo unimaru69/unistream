@@ -359,7 +359,9 @@ class _HeroBackdrop extends StatelessWidget {
             )))
           : const AsyncValue<TmdbResult?>.data(null);
       final backdropUrl =
-          TmdbService.image(tmdb.valueOrNull?.backdropPath, size: 'original') ??
+          // Use `w1280` — `original` is often 1920×1080+, wasteful for
+          // a hero that maxes out at viewport width.
+          TmdbService.image(tmdb.valueOrNull?.backdropPath, size: 'w1280') ??
               getStreamIcon(item);
 
       return Stack(
@@ -377,13 +379,23 @@ class _HeroBackdrop extends StatelessWidget {
             scale: 1.06,
             child: Opacity(
               opacity: 0.95,
-              child: CachedNetworkImage(
-                imageUrl: backdropUrl,
-                cacheManager: AppCacheManager.instance,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => const SizedBox.shrink(),
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
-              ),
+              child: Builder(builder: (ctx) {
+                final mq = MediaQuery.of(ctx);
+                // Hero takes ~full viewport width — cap mem cache at
+                // 1280 to avoid decoding TMDB `original` (often
+                // 1920×1080+) for a backdrop that will never display
+                // wider than the window.
+                final memW =
+                    (mq.size.width * mq.devicePixelRatio).clamp(720, 1280).round();
+                return CachedNetworkImage(
+                  imageUrl: backdropUrl,
+                  cacheManager: AppCacheManager.instance,
+                  fit: BoxFit.cover,
+                  memCacheWidth: memW,
+                  placeholder: (_, __) => const SizedBox.shrink(),
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                );
+              }),
             ),
           ),
         // No darken gradient. Title legibility comes from the

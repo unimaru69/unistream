@@ -44,8 +44,11 @@ class AmbientWallpaper extends StatelessWidget {
               kind: item is SeriesItem ? TmdbKind.tv : TmdbKind.movie,
             )))
           : const AsyncValue<TmdbResult?>.data(null);
+      // `w780` (≈ 780×439) — backdrop is a soft full-screen ambient
+      // wash, no need for `original` (1920+) and the smaller decode
+      // is one of the biggest RAM wins on iPad.
       final backdropUrl =
-          TmdbService.image(tmdb.valueOrNull?.backdropPath, size: 'original') ??
+          TmdbService.image(tmdb.valueOrNull?.backdropPath, size: 'w780') ??
               '';
 
       // Extension getters don't resolve on dynamic-typed references at

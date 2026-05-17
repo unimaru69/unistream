@@ -87,6 +87,12 @@ class _CastTileState extends State<_CastTile> {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
+                          memCacheWidth: (80 *
+                                  MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                          memCacheHeight: (80 *
+                                  MediaQuery.devicePixelRatioOf(context))
+                              .round(),
                           placeholder: (_, __) => Container(
                             width: 80,
                             height: 80,

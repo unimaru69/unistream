@@ -379,22 +379,36 @@ class _FavoriteCardState extends State<_FavoriteCard> {
                           ? const EdgeInsets.all(8)
                           : EdgeInsets.zero,
                       child: cover.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: cover,
-                              cacheManager: AppCacheManager.instance,
-                              fit: widget.fav.mode == 'live'
-                                  ? BoxFit.contain
-                                  : BoxFit.cover,
-                              placeholder: (_, __) =>
-                                  Container(color: AppColors.darkSurface),
-                              errorWidget: (_, __, ___) => Container(
-                                color: AppColors.darkSurface,
-                                child: Icon(
-                                  _iconFor(widget.fav.mode),
-                                  color: DS.colour.textTertiary,
+                          ? LayoutBuilder(builder: (ctx, constraints) {
+                              final dpr =
+                                  MediaQuery.devicePixelRatioOf(ctx);
+                              // Favorites grid tiles are sized by the
+                              // GridView delegate — use the actual
+                              // constraint width × dpr so we don't
+                              // decode a 500×750 poster for a 100 px
+                              // tile.
+                              final memW = (constraints.maxWidth.isFinite
+                                      ? constraints.maxWidth
+                                      : 160) *
+                                  dpr;
+                              return CachedNetworkImage(
+                                imageUrl: cover,
+                                cacheManager: AppCacheManager.instance,
+                                fit: widget.fav.mode == 'live'
+                                    ? BoxFit.contain
+                                    : BoxFit.cover,
+                                memCacheWidth: memW.round(),
+                                placeholder: (_, __) =>
+                                    Container(color: AppColors.darkSurface),
+                                errorWidget: (_, __, ___) => Container(
+                                  color: AppColors.darkSurface,
+                                  child: Icon(
+                                    _iconFor(widget.fav.mode),
+                                    color: DS.colour.textTertiary,
+                                  ),
                                 ),
-                              ),
-                            )
+                              );
+                            })
                           : Container(
                               color: AppColors.darkSurface,
                               child: Icon(

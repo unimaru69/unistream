@@ -161,8 +161,16 @@ class ContinueWatchingRow extends StatelessWidget {
                   Expanded(child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Stack(fit: StackFit.expand, children: [
+                      // Tile is 90 wide — `memCacheWidth: 90*dpr`
+                      // resizes the TMDB poster down at decode time
+                      // (file on disk stays original). Critical for
+                      // long carousels — a 30-item Continue Watching
+                      // row previously held ~70 MB of bitmap RAM,
+                      // now ~3 MB.
                       item.cover.isNotEmpty
                           ? CachedNetworkImage(imageUrl: item.cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
+                              memCacheWidth:
+                                  (90 * MediaQuery.devicePixelRatioOf(context)).round(),
                               fadeInDuration: const Duration(milliseconds: 200),
                               placeholder: (_, __) => ColoredBox(color: tc.inputFill),
                               errorWidget: (_, __, ___) =>
@@ -416,6 +424,8 @@ class RecentlyAddedRow extends StatelessWidget {
                       child: Stack(fit: StackFit.expand, children: [
                         if (cover.isNotEmpty)
                           CachedNetworkImage(imageUrl: cover, cacheManager: AppCacheManager.instance, fit: BoxFit.cover,
+                              memCacheWidth:
+                                  (90 * MediaQuery.devicePixelRatioOf(context)).round(),
                               fadeInDuration: const Duration(milliseconds: 200),
                               placeholder: (_, __) => ColoredBox(color: tc.inputFill),
                               errorWidget: (_, __, ___) => Container(color: tc.inputFill,

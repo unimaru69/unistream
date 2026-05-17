@@ -162,6 +162,10 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
                       imageUrl: ch.displayIcon,
                       cacheManager: AppCacheManager.instance,
                       fit: BoxFit.cover,
+                      // Backdrop wash at 15 % opacity — a 512 px
+                      // decode is more than enough behind the
+                      // gradient and centered sharp logo.
+                      memCacheWidth: 512,
                       errorWidget: (_, __, ___) => const SizedBox.shrink(),
                     ),
                   )),
@@ -194,6 +198,8 @@ class _ChannelDetailScreenState extends ConsumerState<ChannelDetailScreen> {
                             imageUrl: ch.displayIcon,
                             cacheManager: AppCacheManager.instance,
                             fit: BoxFit.contain,
+                            memCacheWidth: (88 * MediaQuery.devicePixelRatioOf(context)).round(),
+                            memCacheHeight: (88 * MediaQuery.devicePixelRatioOf(context)).round(),
                             errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 40),
                           )
                         : const Icon(Icons.tv, size: 40),

@@ -14,6 +14,14 @@ import '../../../models/series_item.dart';
 ///
 /// For live channel logos ([mode] == [ContentMode.live]) a dark background is
 /// used regardless of theme, because IPTV logos are typically white/transparent.
+///
+/// **Image RAM footprint**: when [width] is set we force a `memCacheWidth`
+/// equal to `width × devicePixelRatio`. Without this, every tile decodes its
+/// poster / logo at TMDB's source resolution (≈500 × 750 for w500, 1280 ×
+/// 720 for backdrops) — multiplied by a 5–15k-channel Live grid that's
+/// hundreds of MB of bitmap held in memory, enough to OOM an iPad Mini.
+/// `flutter_cache_manager` keeps the original file on disk untouched, so we
+/// only resize at decode time.
 Widget networkImage(String url, {
   required BuildContext context,
   double? width,
@@ -25,10 +33,15 @@ Widget networkImage(String url, {
   final isLogo = mode == ContentMode.live;
   final bgColor = isLogo ? tc.logoBg : tc.inputFill;
   final placeholderFit = isLogo ? BoxFit.contain : fit;
+  final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+  final memW = width != null ? (width * dpr).round() : null;
+  final memH = height != null ? (height * dpr).round() : null;
   return CachedNetworkImage(
     imageUrl: url,
     cacheManager: AppCacheManager.instance,
     width: width, height: height, fit: placeholderFit,
+    memCacheWidth: memW,
+    memCacheHeight: memH,
     fadeInDuration: const Duration(milliseconds: 200),
     placeholder: (_, __) => SizedBox(
       width: width, height: height,

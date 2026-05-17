@@ -458,6 +458,9 @@ class _Cover extends ConsumerWidget {
                 imageUrl: url,
                 cacheManager: AppCacheManager.instance,
                 fit: fit,
+                memCacheWidth: (size.width *
+                        MediaQuery.devicePixelRatioOf(context))
+                    .round(),
                 placeholder: (_, __) =>
                     Container(color: AppColors.darkSurface),
                 errorWidget: (_, __, ___) => Container(

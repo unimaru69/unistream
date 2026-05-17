@@ -771,6 +771,8 @@ class _ChannelBanner extends StatelessWidget {
                       imageUrl: channel.displayIcon,
                       cacheManager: AppCacheManager.instance,
                       fit: BoxFit.contain,
+                      memCacheWidth: (48 * MediaQuery.devicePixelRatioOf(context)).round(),
+                      memCacheHeight: (48 * MediaQuery.devicePixelRatioOf(context)).round(),
                       placeholder: (_, __) =>
                           Container(color: AppColors.darkSurface),
                       errorWidget: (_, __, ___) => Container(

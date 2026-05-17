@@ -1223,6 +1223,7 @@ class _Thumbnail extends StatelessWidget {
       child: Icon(Icons.tv, size: 28, color: DS.colour.textTertiary),
     );
 
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     final body = cover.isNotEmpty
         ? CachedNetworkImage(
             cacheManager: AppCacheManager.instance,
@@ -1230,6 +1231,8 @@ class _Thumbnail extends StatelessWidget {
             width: size.width,
             height: size.height,
             fit: BoxFit.cover,
+            memCacheWidth: (size.width * dpr).round(),
+            memCacheHeight: (size.height * dpr).round(),
             placeholder: (_, __) => placeholder,
             errorWidget: (_, __, ___) => placeholder,
           )

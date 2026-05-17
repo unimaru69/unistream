@@ -441,6 +441,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                           color: item.mode == 'live' ? tc.logoBg : null,
                           child: CachedNetworkImage(imageUrl: iconUrl, cacheManager: AppCacheManager.instance,
                             width: 40, height: 40, fit: item.mode == 'live' ? BoxFit.contain : BoxFit.cover,
+                            memCacheWidth: (40 * MediaQuery.devicePixelRatioOf(context)).round(),
+                            memCacheHeight: (40 * MediaQuery.devicePixelRatioOf(context)).round(),
                             fadeInDuration: const Duration(milliseconds: 200),
                             placeholder: (_, __) => SizedBox(width: 40, height: 40, child: ColoredBox(color: item.mode == 'live' ? tc.logoBg : tc.inputFill)),
                             errorWidget: (_, __, ___) =>

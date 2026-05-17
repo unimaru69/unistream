@@ -399,6 +399,9 @@ class _FavoriteTileState extends State<_FavoriteTile> {
                               fit: widget.fav.mode == 'live'
                                   ? BoxFit.contain
                                   : BoxFit.cover,
+                              memCacheWidth: (widget.width *
+                                      MediaQuery.devicePixelRatioOf(context))
+                                  .round(),
                               placeholder: (_, __) =>
                                   Container(color: AppColors.darkSurface),
                               errorWidget: (_, __, ___) => Container(
