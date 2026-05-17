@@ -181,6 +181,45 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Magic Link (passwordless email OTP) ──
+
+  /// Requests Supabase to email a 6-digit code for [email].
+  /// Returns true when the send succeeded.
+  Future<bool> sendMagicLink(String email) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _auth.sendMagicLink(email);
+      if (!mounted) return false;
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(isLoading: false, error: _mapError(e));
+      return false;
+    }
+  }
+
+  /// Verifies the 6-digit code. On success the AuthState listener
+  /// emits `signedIn` which `AuthGate` picks up.
+  Future<bool> verifyMagicLinkCode({
+    required String email,
+    required String code,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _auth.verifyMagicLinkCode(email: email, code: code);
+      if (!mounted) return false;
+      // AuthState listener flips isAuthenticated → caller doesn't
+      // need to do anything else.
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(isLoading: false, error: _mapError(e));
+      return false;
+    }
+  }
+
   // ── Sign Out ──
 
   Future<void> signOut() async {

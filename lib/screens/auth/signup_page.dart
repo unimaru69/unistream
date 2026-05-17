@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
+import 'magic_link_page.dart';
 
 class SignupPage extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToLogin;
@@ -156,8 +158,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Apple Sign-In
-                if (Platform.isIOS || Platform.isMacOS) ...[
+                // Apple Sign-In (iOS + macOS Debug only — see
+                // login_page.dart for context). macOS Release falls
+                // back to the magic-link flow.
+                if (Platform.isIOS || (Platform.isMacOS && !kReleaseMode)) ...[
                   OutlinedButton.icon(
                     onPressed: auth.isLoading ? null : _appleSignIn,
                     icon: const Icon(Icons.apple, color: Colors.white),
@@ -167,6 +171,28 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       side: const BorderSide(color: Colors.white30),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ] else if (Platform.isMacOS) ...[
+                  OutlinedButton.icon(
+                    onPressed: auth.isLoading
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MagicLinkPage(),
+                              ),
+                            ),
+                    icon: const Icon(Icons.mail_lock_outlined,
+                        color: Colors.white),
+                    label: const Text('Recevoir un lien magique',
+                        style: TextStyle(color: Colors.white)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white30),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

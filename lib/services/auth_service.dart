@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/logger.dart';
@@ -70,8 +71,22 @@ class AuthService {
 
   // ── Apple Sign-In ──
 
-  /// Returns true if Apple Sign-In is available on this platform.
-  bool get isAppleSignInAvailable => Platform.isIOS || Platform.isMacOS;
+  /// Returns true if Apple Sign-In is available on this platform AND
+  /// runtime build.
+  ///
+  /// macOS Release: false. Sign in with Apple requires the
+  /// `com.apple.developer.applesignin` entitlement which in turn
+  /// requires an embedded provisioning profile only available to
+  /// App Store / TestFlight builds. Off-store Developer ID DMGs
+  /// drop the entitlement (see `macos/Runner/Release.entitlements`)
+  /// so AMFI doesn't refuse the binary. macOS Debug keeps the
+  /// entitlement (via DebugProfile.entitlements) for `flutter run`
+  /// iteration.
+  bool get isAppleSignInAvailable {
+    if (Platform.isIOS) return true;
+    if (Platform.isMacOS) return !kReleaseMode;
+    return false;
+  }
 
   Future<AuthResponse?> signInWithApple() async {
     try {
@@ -106,6 +121,54 @@ class AuthService {
       AppLogger.info(LogModule.sync, 'Password reset email sent to $email');
     } catch (e, st) {
       AppLogger.error(LogModule.sync, 'Password reset failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  // ── Magic Link (email OTP) ──
+  // Two-step passwordless sign-in: ask Supabase to email a 6-digit
+  // code (`signInWithOtp` with `shouldCreateUser: true` so a brand
+  // new user is provisioned on first try), then verify the code
+  // (`verifyOTP` with `OtpType.email`) which exchanges it for a
+  // full session. Used on macOS DMG builds where "Sign in with
+  // Apple" is not available (restricted entitlement, see
+  // macos/Runner/Release.entitlements) — gives the same one-click
+  // feel using only an email address.
+
+  Future<void> sendMagicLink(String email) async {
+    try {
+      await _client!.auth.signInWithOtp(
+        email: email,
+        // True so an Apple-only iOS account whose user re-arrives on
+        // Mac with the same email can still log in. False would
+        // refuse if the email isn't yet in Supabase, which is the
+        // wrong default for a magic-link flow.
+        shouldCreateUser: true,
+      );
+      AppLogger.info(LogModule.sync, 'Magic link OTP sent to $email');
+    } catch (e, st) {
+      AppLogger.error(LogModule.sync, 'Magic link send failed',
+          error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<AuthResponse?> verifyMagicLinkCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await _client!.auth.verifyOTP(
+        email: email,
+        token: code,
+        type: OtpType.email,
+      );
+      AppLogger.info(
+          LogModule.sync, 'Magic link verified for ${response.user?.email}');
+      return response;
+    } catch (e, st) {
+      AppLogger.error(LogModule.sync, 'Magic link verify failed',
+          error: e, stackTrace: st);
       rethrow;
     }
   }
