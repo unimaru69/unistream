@@ -114,8 +114,12 @@ class TmdbSeasonKey {
 /// image. Cached in-memory only (Riverpod's FutureProvider caches the
 /// async value across rebuilds inside the same session). Failure /
 /// disabled / unreachable → empty map.
+///
+/// `autoDispose` so the season cache is freed when the user leaves
+/// the series detail screen — otherwise every season picked into in
+/// the session would grow the in-memory map until app close.
 final tmdbSeasonProvider =
-    FutureProvider.family<Map<int, EpisodeMeta>, TmdbSeasonKey>(
+    FutureProvider.autoDispose.family<Map<int, EpisodeMeta>, TmdbSeasonKey>(
         (ref, key) async {
   final cfg = ref.watch(tmdbConfigProvider);
   if (!cfg.isActive) return const <int, EpisodeMeta>{};
@@ -128,8 +132,15 @@ final tmdbSeasonProvider =
 
 /// Returns TMDB enrichment for a given raw title, or null if unavailable /
 /// unreachable / feature disabled. Result is cached on-device for 30 days.
+///
+/// `autoDispose` so each lookup is freed from RAM when no tile / hero /
+/// preview is watching it. The 30-day disk cache (see body) catches the
+/// next re-watch without a network round-trip, so the user-visible cost
+/// of re-decoding the cached JSON is sub-millisecond. Before this, the
+/// in-memory map grew linearly with the user's scroll until session end,
+/// holding TMDB result objects for items long since off-screen.
 final tmdbLookupProvider =
-    FutureProvider.family<TmdbResult?, TmdbLookup>((ref, lookup) async {
+    FutureProvider.autoDispose.family<TmdbResult?, TmdbLookup>((ref, lookup) async {
   final cfg = ref.watch(tmdbConfigProvider);
   if (!cfg.isActive) return null;
 

@@ -16,8 +16,11 @@ final catalogIndexProvider = Provider<CatalogIndex>((ref) {
 });
 
 /// TMDB person details + filmography for a given TMDB person id.
+/// `autoDispose` — bundle holds full filmography lists (could be
+/// hundreds of credits per actor). Freed when the cast filmography
+/// screen pops.
 final tmdbPersonProvider =
-    FutureProvider.family<TmdbPersonBundle, int>((ref, personId) async {
+    FutureProvider.autoDispose.family<TmdbPersonBundle, int>((ref, personId) async {
   final cfg = ref.watch(tmdbConfigProvider);
   if (!cfg.isActive) {
     return const TmdbPersonBundle(

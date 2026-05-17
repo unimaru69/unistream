@@ -95,7 +95,14 @@ class PaginatedStreamsNotifier extends StateNotifier<PaginatedState> {
 }
 
 /// Global provider for paginated streams.
-final paginatedStreamsProvider =
-    StateNotifierProvider<PaginatedStreamsNotifier, PaginatedState>(
+///
+/// `autoDispose` so the visible-items list (which can hold the
+/// full N-page accumulator, easily 10–30k items on a large catalogue)
+/// is freed when the user leaves the home grid. Before this, the
+/// state lived until session end even after the user moved to
+/// Settings / a detail screen / another segment that doesn't use
+/// pagination.
+final paginatedStreamsProvider = StateNotifierProvider.autoDispose<
+    PaginatedStreamsNotifier, PaginatedState>(
   (ref) => PaginatedStreamsNotifier(),
 );
