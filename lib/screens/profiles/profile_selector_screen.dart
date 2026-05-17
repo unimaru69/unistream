@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
 import '../../models/profile.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/pin_dialog.dart';
 
 /// Result returned by [ProfileSelectorScreen] via `Navigator.pop`.
@@ -35,7 +37,7 @@ class ProfileCreateRequested extends ProfileSelectorResult {
 /// understood the concept of a profile.
 ///
 /// Returns a [ProfileSelectorResult] via `Navigator.pop`.
-class ProfileSelectorScreen extends StatelessWidget {
+class ProfileSelectorScreen extends ConsumerWidget {
   final List<Profile> profiles;
   final String? activeProfileId;
   final bool allowCreate;
@@ -48,7 +50,7 @@ class ProfileSelectorScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     // Empty-state headline differs from the "Qui regarde ?" Netflix-y
     // prompt — we're inviting the user to create their first profile.
@@ -98,6 +100,39 @@ class ProfileSelectorScreen extends StatelessWidget {
                         ),
                     ],
                   ),
+                  // "Switch account" affordance when the picker shows
+                  // up empty AFTER the user signed in. The local
+                  // profile list is per-device — a fresh DMG install
+                  // with a Supabase session cached from a previous
+                  // test won't show the iOS-side profiles until
+                  // Supabase sync pulls them. If the user wants to
+                  // sign in with a DIFFERENT account (e.g. the Apple
+                  // ID they used on iOS), this signs out → AuthGate
+                  // re-routes to AuthScreen.
+                  if (profiles.isEmpty && allowCreate) ...[
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () async {
+                        await ref.read(authProvider.notifier).signOut();
+                        if (!context.mounted) return;
+                        // Pop ProfileSelector + any route pushed on
+                        // top, back to AuthGate's root. AuthGate has
+                        // already rebuilt by now (the signOut update
+                        // its watched state) → root is AuthScreen.
+                        Navigator.of(context)
+                            .popUntil((route) => route.isFirst);
+                      },
+                      child: const Text(
+                        'Vous avez déjà un compte ? Connectez-vous',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white24,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 48),
                 ],
               ),
