@@ -15,6 +15,7 @@ import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
+import 'services/xtream_api.dart';
 import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
 import 'providers/favorites_provider.dart';
@@ -157,6 +158,13 @@ void main() async {
     await SupabaseConfig.initialize();
   }
   await AppConfig.load();
+
+  // Rehydrate the in-memory EPG cache from disk. Without this the
+  // first scroll on the Live grid fires hundreds of get_short_epg
+  // HTTP calls against the provider — the cache is rebuilt from
+  // scratch every cold start otherwise. Disk blob is keyed by
+  // active profile + TTL-guarded inside the loader.
+  unawaited(XtreamApi.loadEpgCacheFromDisk());
 
   // Window size/position persistence (macOS/Windows/Linux)
   if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {

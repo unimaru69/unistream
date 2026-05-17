@@ -167,6 +167,14 @@ class XtreamApi {
   static const Duration _epgCacheTtl = Duration(minutes: 30);
   static const int _epgCacheMaxSize = 500;
 
+  /// In-flight EPG fetches, keyed by the same cache key as
+  /// `_epgCache`. When `N` widgets call `getShortEpg(stream_42)` at
+  /// the same time (catchup row + focused preview + stream-list
+  /// subtitle), the first fetch is stored here and the others await
+  /// the same future instead of firing `N` HTTP requests against the
+  /// Xtream server. Pattern: single-flight / request coalescing.
+  static final Map<String, Future<Map<String, dynamic>>> _epgInflight = {};
+
   static int get epgCacheSize => _epgCache.length;
   static void clearEpgCache() => _epgCache.clear();
 
@@ -385,11 +393,25 @@ class XtreamApi {
     if (cached != null && DateTime.now().difference(cached.timestamp) < _epgCacheTtl) {
       return cached.data;
     }
-    final data = jsonDecode((await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body) as Map<String, dynamic>;
-    _epgCache[key] = EpgCacheEntry(data, DateTime.now());
-    if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
-    _scheduleEpgSave();
-    return data;
+    // Single-flight: if a fetch for this key is already in flight,
+    // return its future so concurrent callers (catchup row + focused
+    // preview + stream-list subtitle all asking the same streamId)
+    // share one HTTP round-trip instead of stampeding the server.
+    final inflight = _epgInflight[key];
+    if (inflight != null) return inflight;
+    final future = (() async {
+      try {
+        final data = jsonDecode((await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body) as Map<String, dynamic>;
+        _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+        if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
+        _scheduleEpgSave();
+        return data;
+      } finally {
+        _epgInflight.remove(key);
+      }
+    })();
+    _epgInflight[key] = future;
+    return future;
   }
 
   /// Full-day EPG (past + current + future) via get_simple_data_table
@@ -399,11 +421,22 @@ class XtreamApi {
     if (cached != null && DateTime.now().difference(cached.timestamp) < _epgCacheTtl) {
       return cached.data;
     }
-    final data = jsonDecode((await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body) as Map<String, dynamic>;
-    _epgCache[key] = EpgCacheEntry(data, DateTime.now());
-    if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
-    _scheduleEpgSave();
-    return data;
+    // Single-flight: see comment in `getShortEpg`.
+    final inflight = _epgInflight[key];
+    if (inflight != null) return inflight;
+    final future = (() async {
+      try {
+        final data = jsonDecode((await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body) as Map<String, dynamic>;
+        _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+        if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
+        _scheduleEpgSave();
+        return data;
+      } finally {
+        _epgInflight.remove(key);
+      }
+    })();
+    _epgInflight[key] = future;
+    return future;
   }
 
   /// Live preview EPG snapshot — current + next programme parsed
