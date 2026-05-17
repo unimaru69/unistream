@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
+import '../../core/design_tokens.dart';
 import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
 import '../channel_detail_screen.dart';
+import 'accueil_view.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/app_config.dart';
@@ -35,6 +37,7 @@ import '../series_detail_screen.dart';
 import '../player/player_screen.dart';
 import '../history_screen.dart';
 import '../epg/epg_grid_screen.dart';
+import '../favorites_screen.dart';
 import '../search_screen.dart';
 import 'widgets/category_sidebar.dart';
 import 'widgets/stream_list.dart';
@@ -46,7 +49,11 @@ import 'widgets/offline_content.dart';
 import '../vod/vod_detail_screen.dart';
 import '../../providers/tmdb_provider.dart';
 import '../../services/tmdb_service.dart';
-import '../../widgets/home_hero_banner.dart';
+import 'widgets/ambient_wallpaper.dart';
+import 'widgets/catalog_sort_chips.dart';
+import 'widgets/focused_item_preview.dart';
+import 'widgets/home_hero.dart';
+import 'widgets/inline_search_field.dart';
 import 'widgets/home_app_bar.dart';
 import 'widgets/home_keyboard_handler.dart';
 
@@ -65,6 +72,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loading        = true;
   bool _loadingStreams  = false;
   String? _error;
+  /// Ambient wallpaper target for the Films / Séries split view —
+  /// driven by the hero's rotation and (optionally) by hover on the
+  /// CW / Recently Added rows. Mirror of AccueilView's pattern, so
+  /// the whole app reads as one immersive surface.
+  dynamic _splitWallpaperItem;
+  dynamic _splitHoveredItem;
+
+  /// Currently hovered tile in the main grid — drives the bottom-of-
+  /// grid `FocusedItemPreview` panel (Apple TV+ focus-engine preview
+  /// on desktop). Distinct from `_splitHoveredItem` (which only
+  /// covers shelf cards in the header).
+  dynamic _gridHoveredItem;
+
+  /// Whether the user is on the cross-mode Accueil. Drives the
+  /// AppBar segment toggle, the sidebar visibility, and which body is
+  /// rendered. Defaults to [HomeSegment.home] except when a demo
+  /// override forces a specific content mode (TestFlight harness).
+  HomeSegment _segment = kDemoMode && kDemoScreen == 'vod'
+      ? HomeSegment.vod
+      : (kDemoMode && kDemoScreen == 'series'
+          ? HomeSegment.series
+          : HomeSegment.home);
+
+  /// Last-visited content mode. Independent of [_segment] so the user
+  /// can flip Home → Live → Home and the second Home → Live brings
+  /// them back to Live, not to the previously-selected category from
+  /// before they detoured through Home.
   ContentMode _mode = kDemoMode && kDemoScreen == 'vod'
       ? ContentMode.vod
       : (kDemoMode && kDemoScreen == 'series' ? ContentMode.series : ContentMode.live);
@@ -72,8 +106,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Connectivity: track previous status for offline->online transitions
   ConnectivityStatus? _prevConnectivity;
 
-  // Recently added (VOD/Series)
+  // Recently added (VOD/Series) — populated per-mode for the legacy
+  // grid header (Films, Séries). [_accueilFeatured] below is the
+  // cross-mode equivalent for the Accueil hero + recently-added.
   List<dynamic> _recentlyAdded = [];
+
+  // Cross-mode "Featured" list — VOD + Series merged, sorted by
+  // recency. Loaded once at init so the Accueil renders fast the
+  // first time it's selected.
+  List<dynamic> _accueilFeatured = const <dynamic>[];
 
   // Catch-up programs (Live mode only)
   List<CatchupProgram> _catchupPrograms = [];
@@ -99,8 +140,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const double _sidebarMin = 150;
   static const double _sidebarMax = 400;
 
-  // Scaffold key for drawer on narrow screens
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  // Drawer is opened via `Scaffold.of(ctx).openDrawer()` through a
+  // `Builder` (see `leadingMenuButton` below). Storing a
+  // `GlobalKey<ScaffoldState>` here would re-introduce the
+  // GlobalKey-reparenting class of bugs (the
+  // `_InactiveElements.remove → _elements.contains` assertion fires
+  // when a build that targets a route mid-pop triggers a retake).
 
   /// Scroll offset of the main grid/list — drives the app-bar backdrop fade
   /// so it becomes opaque as soon as tiles start scrolling behind it.
@@ -249,6 +294,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> get _sortedStreams {
     if (_sortMode == 'default') return _streams;
     final list = List<dynamic>.from(_streams);
+
+    int recencyKey(dynamic it) {
+      final added = (it is VodItem
+              ? it.added
+              : it is SeriesItem
+                  ? it.added
+                  : null)?.toString() ??
+          '0';
+      final lastMod = (it is VodItem
+              ? it.lastModified
+              : it is SeriesItem
+                  ? it.lastModified
+                  : null)?.toString() ??
+          '0';
+      final ta = int.tryParse(added) ?? 0;
+      final tm = int.tryParse(lastMod) ?? 0;
+      return ta > tm ? ta : tm;
+    }
+
+    String contentKeyForSort(dynamic it) {
+      // Match the keys persisted in watch_progress: `vod_<id>` for
+      // films, `series_<id>` for series. Live channels and Map
+      // entries fall back to a bare id (no progress will match,
+      // which is fine — those modes don't use unwatched / inProgress).
+      if (it is VodItem) return ContentKey.make(ContentKey.movie, it.id);
+      if (it is SeriesItem) {
+        return ContentKey.make(ContentKey.series, it.id);
+      }
+      return getStreamId(it);
+    }
+
     switch (_sortMode) {
       case 'alpha':
         list.sort((a, b) => getStreamName(a).toLowerCase()
@@ -271,6 +347,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               .compareTo(getStreamName(b).toLowerCase());
         });
         break;
+      case 'recent':
+        list.sort((a, b) => recencyKey(b).compareTo(recencyKey(a)));
+        break;
+      case 'unwatched':
+        // Keep items with no progress or just-touched progress
+        // (< 0.5 %). Stable sort by name for deterministic ordering.
+        final progress = ref.read(watchProgressProvider).valueOrNull ??
+            const <String, double>{};
+        final filtered = list.where((it) {
+          final r = progress[contentKeyForSort(it)];
+          return r == null || r < 0.005;
+        }).toList();
+        filtered.sort((a, b) => getStreamName(a).toLowerCase()
+            .compareTo(getStreamName(b).toLowerCase()));
+        return filtered;
+      case 'inProgress':
+        // Items currently being watched (0.5 % – 95 %). Sort most-
+        // recently-watched first via the saved ratio as a proxy
+        // (closer to 1 = more time invested).
+        final progress = ref.read(watchProgressProvider).valueOrNull ??
+            const <String, double>{};
+        final filtered = list.where((it) {
+          final r = progress[contentKeyForSort(it)];
+          return r != null && r > 0.005 && r < 0.95;
+        }).toList();
+        filtered.sort((a, b) {
+          final ra = progress[contentKeyForSort(a)] ?? 0;
+          final rb = progress[contentKeyForSort(b)] ?? 0;
+          return rb.compareTo(ra);
+        });
+        return filtered;
     }
     return list;
   }
@@ -316,6 +423,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] == 1) {
         _repo.loadServerTimezone();
+        // Kick off the cross-mode load in parallel with the per-mode
+        // categories so the Accueil hero is ready by the time the
+        // first frame settles (otherwise the hero stays empty until
+        // the user explicitly re-enters Accueil — see initial bug
+        // report on PR 8).
+        if (_accueilFeatured.isEmpty) {
+          // ignore: unawaited_futures
+          _loadAccueilFeatured();
+        }
         await _loadCategories();
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
@@ -345,12 +461,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       setState(() => _loading = false);
       _loadRecentlyAdded();
       _loadCatchupPrograms();
-      // Demo mode: auto-select the first category so the screen is populated.
-      if (kDemoMode && _selectedCategory == null && _categories.isNotEmpty) {
-        _loadStreams(_categories.first.categoryId);
+      // Fire-and-forget the cross-mode load so the Accueil hero is
+      // ready by the time the user lands on it. Cheap and runs in
+      // parallel with the legacy per-mode loaders above.
+      if (_accueilFeatured.isEmpty) _loadAccueilFeatured();
+      // Catch-up also feeds Accueil now — make sure it's loaded even
+      // when the user starts in a non-live segment.
+      if (_segment == HomeSegment.home && _catchupPrograms.isEmpty) {
+        _loadCatchupPrograms();
+      }
+      // Auto-select the first available category so the grid is never
+      // empty on entry. Mirrors the tvOS pattern — landing on Live /
+      // Films / Séries with a "Sélectionne une catégorie" placeholder
+      // is a worse first impression than just showing the first list
+      // (the user can still navigate to another via the sidebar). We
+      // skip when:
+      //   * a category is already selected (e.g. coming back from a
+      //     route push that preserved state),
+      //   * we're on the Home segment (Accueil owns its own surface),
+      //   * the categories list is empty (nothing to pick).
+      //
+      // Parental controls: skip categories blocked by the active PIN
+      // gate so a locked profile can't see a blocked list flash by.
+      if (_selectedCategory == null &&
+          _segment != HomeSegment.home &&
+          _categories.isNotEmpty) {
+        final parental = ref.read(parentalProvider);
+        final blocked = parental.isEnabled && !parental.isUnlocked
+            ? parental.blockedCategoryIds
+            : const <String>{};
+        final firstVisible = _categories.firstWhere(
+          (c) => !blocked.contains(c.categoryId),
+          orElse: () => _categories.first,
+        );
+        _loadStreams(firstVisible.categoryId);
       }
     } catch (e) {
       setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
+    }
+  }
+
+  /// Cross-mode "Featured" loader: VOD + Series merged and sorted by
+  /// recency. Feeds the Accueil hero rotation + Recently Added row.
+  /// Independent of [_loadRecentlyAdded] (which is per-mode and feeds
+  /// the legacy split-view headers).
+  Future<void> _loadAccueilFeatured() async {
+    AppLogger.debug(LogModule.ui, 'Loading Accueil featured items…');
+    try {
+      final results = await Future.wait<List<dynamic>>(<Future<List<dynamic>>>[
+        _repo.getVodStreams().then((v) => v.cast<dynamic>()),
+        _repo.getSeries().then((s) => s.cast<dynamic>()),
+      ]);
+      final vodCount = results[0].length;
+      final seriesCount = results[1].length;
+      final all = <dynamic>[...results[0], ...results[1]];
+      int recencyKey(dynamic it) {
+        final added = (it is VodItem
+                ? it.added
+                : it is SeriesItem
+                    ? it.added
+                    : null)?.toString() ??
+            '0';
+        final lastMod = (it is VodItem
+                ? it.lastModified
+                : it is SeriesItem
+                    ? it.lastModified
+                    : null)?.toString() ??
+            '0';
+        final ta = int.tryParse(added) ?? 0;
+        final tm = int.tryParse(lastMod) ?? 0;
+        return ta > tm ? ta : tm;
+      }
+      all.sort((a, b) => recencyKey(b).compareTo(recencyKey(a)));
+      if (!mounted) return;
+      setState(() => _accueilFeatured = all.take(30).toList());
+      AppLogger.debug(LogModule.ui,
+          'Accueil featured loaded: ${_accueilFeatured.length}/${all.length} items (vod=$vodCount, series=$seriesCount)');
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui,
+          'Failed to load Accueil featured items', error: e, stackTrace: st);
     }
   }
 
@@ -384,8 +573,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   /// Load recently-aired programs from catch-up enabled channels.
+  /// Runs for both the legacy Live split-view header AND the
+  /// Accueil cross-mode home — the user can land on catch-up content
+  /// from either surface.
   Future<void> _loadCatchupPrograms() async {
-    if (_mode != ContentMode.live) {
+    final wantsCatchup =
+        _mode == ContentMode.live || _segment == HomeSegment.home;
+    if (!wantsCatchup) {
       if (_catchupPrograms.isNotEmpty) setState(() => _catchupPrograms = []);
       return;
     }
@@ -498,6 +692,148 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(tmdbLookupProvider(TmdbLookup(rawTitle: name, kind: kind)));
   }
 
+  /// Hover handler for grid tiles — feeds the bottom-of-grid
+  /// `FocusedItemPreview`. Same route-current safety as the shelf
+  /// hover handlers to dodge the framework's `_elements.contains`
+  /// assertion when a tap-then-navigate races the MouseRegion exit.
+  void _onGridItemHover(dynamic item, bool isHovered) {
+    Future<void>.microtask(() {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
+      if (isHovered) {
+        if (identical(_gridHoveredItem, item)) return;
+        setState(() => _gridHoveredItem = item);
+      } else {
+        if (!identical(_gridHoveredItem, item)) return;
+        setState(() => _gridHoveredItem = null);
+      }
+    });
+  }
+
+  /// Hover handler for the Films / Séries split-view shelves (CW
+  /// and Recently Added). Mirror of AccueilView's pattern.
+  void _onSplitItemHover(dynamic source, bool isHovered) {
+    Future<void>.microtask(() {
+      if (!mounted) return;
+      // Same route-current guard as AccueilView — protects against
+      // `_elements.contains(element)` assertion when the microtask
+      // fires while we're sitting behind a detail / player screen.
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
+      if (isHovered) {
+        final target = toWallpaperTarget(source);
+        if (target == null) return;
+        if (identical(_splitHoveredItem, target)) return;
+        setState(() => _splitHoveredItem = target);
+      } else {
+        if (_splitHoveredItem == null) return;
+        setState(() => _splitHoveredItem = null);
+      }
+    });
+  }
+
+  /// Open a favourite from the Accueil shelves. Dispatches by
+  /// [FavoriteItem.mode] to the right destination — live channels
+  /// open the player straight away, films/series push their detail.
+  void _openFavorite(FavoriteItem fav) {
+    switch (fav.mode) {
+      case 'live':
+        final id = fav.streamId;
+        if (id == null || id.isEmpty) return;
+        final url = _repo.getLiveStreamUrl(id);
+        final contentKey = ContentKey.make(ContentKey.live, id);
+        ref.read(watchProgressActionsProvider).saveHistory(
+              contentKey,
+              fav.name,
+              fav.cover,
+              url,
+              'live',
+            );
+        Navigator.push(
+          context,
+          slideRoute(PlayerScreen(
+            url: url,
+            title: fav.name,
+            streamId: id,
+          )),
+        ).then((_) => _refreshProgress());
+        break;
+      case 'series':
+        final sid = fav.seriesId ?? fav.streamId ?? fav.key;
+        Navigator.push(
+          context,
+          slideRoute(SeriesDetailScreen(
+            seriesId: sid,
+            title: fav.name,
+            cover: fav.cover,
+            rating: fav.rating,
+          )),
+        ).then((_) => _refreshProgress());
+        break;
+      case 'vod':
+      default:
+        final vod = VodItem.fromJson(<String, dynamic>{
+          'stream_id': fav.streamId ?? fav.key,
+          'name': fav.name,
+          'cover': fav.cover,
+          'stream_icon': fav.streamIcon ?? fav.cover,
+          'category_id': fav.categoryId,
+          'container_extension': fav.containerExtension ?? 'mp4',
+          'rating': fav.rating,
+        });
+        Navigator.push(
+          context,
+          slideRoute(VodDetailScreen(vod: vod)),
+        ).then((_) => _refreshProgress());
+        break;
+    }
+  }
+
+  /// Open a Catch-up program from Accueil (mirrors the inline handler
+  /// the Live header previously used).
+  void _openCatchupProgram(CatchupProgram prog) {
+    if (!checkPremiumAccess(context, ref, Feature.catchupReplay)) return;
+    final url = prog.serverLocalStart.isNotEmpty
+        ? _repo.getTimeshiftUrlFromLocal(
+            prog.streamId, prog.serverLocalStart, prog.durationMin)
+        : _repo.getTimeshiftUrl(
+            prog.streamId, prog.startUtc, prog.durationMin);
+    Navigator.push(
+      context,
+      slideRoute(PlayerScreen(
+        url: url,
+        title:
+            '${prog.title} (${AppLocalizations.of(context)!.replay})',
+        streamId: prog.streamId,
+        isCatchup: true,
+      )),
+    );
+  }
+
+  /// Type-based router for Accueil items. Unlike [_playStream] (which
+  /// keys off [_mode]), Accueil mixes VOD + Series + (later) live
+  /// channels — so we dispatch on the runtime type and reuse the
+  /// existing detail-screen pushes.
+  void _openItemByType(dynamic item) {
+    if (item is SeriesItem) {
+      final saved = _mode;
+      _mode = ContentMode.series;
+      _playStream(item);
+      _mode = saved;
+      return;
+    }
+    if (item is VodItem) {
+      final saved = _mode;
+      _mode = ContentMode.vod;
+      _playStream(item);
+      _mode = saved;
+      return;
+    }
+    // Fallback — channels or raw maps go through the regular path.
+    _playStream(item);
+  }
+
   void _playStream(dynamic stream) {
     final name = getStreamName(stream);
     final displayName = name.isEmpty ? AppLocalizations.of(context)!.sansTitre : name;
@@ -575,9 +911,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ))).then((_) => _refreshProgress());
   }
 
+  /// Called from `.then(...)` callbacks of every push-and-pop screen
+  /// (player, favorites, search, history, …). Invalidates the
+  /// progress providers so the grid + Continue Watching rows refresh
+  /// with whatever the user did inside the popped route.
+  ///
+  /// **Why the post-frame defer matters.** `.then` fires *during* the
+  /// pop's last animation frame, while the popped route's internal
+  /// `_ModalScope` (Flutter's per-route `GlobalKey<_ModalScopeState>`)
+  /// is still being torn down. Invalidating providers synchronously
+  /// here marks `home_screen` dirty for that same frame; the next
+  /// `drawFrame` rebuilds the home subtree while the framework is
+  /// still mid-cleanup of the popped route, and the GlobalKey
+  /// reconciliation pass trips `_InactiveElements.remove` →
+  /// `_elements.contains(element)` (framework.dart:2168). Deferring
+  /// by one frame guarantees the cleanup is done before our rebuild
+  /// runs. This is the root-cause fix — not a `route.isCurrent` /
+  /// `_isDisposed` patch on a single call-site.
   void _refreshProgress() {
-    ref.invalidate(watchProgressProvider);
-    ref.invalidate(continueWatchingProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.invalidate(watchProgressProvider);
+      ref.invalidate(continueWatchingProvider);
+    });
   }
 
   String? _progressKey(dynamic stream) {
@@ -725,15 +1081,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // showing the now-stale list. Re-deriving here makes the grid
     // reactive — the next state change reaches the renderer through the
     // normal Riverpod rebuild path.
+    // Set-based diff so swapping one favourite for another (length
+    // unchanged) still triggers a refresh. Length-only comparison
+    // missed that case and left the grid showing a stale entry.
+    bool keySetChanged(List<Map<String, dynamic>> fresh) {
+      final freshKeys = fresh
+          .map((m) => m['key']?.toString() ?? '')
+          .where((k) => k.isNotEmpty)
+          .toSet();
+      final currentKeys = _streams
+          .map((m) => m is Map ? (m['key']?.toString() ?? '') : '')
+          .where((k) => k.isNotEmpty)
+          .toSet();
+      return freshKeys.length != currentKeys.length ||
+          !freshKeys.containsAll(currentKeys);
+    }
+
     if (_selectedCategory == '__favorites__') {
       final fresh = favItems
           .where((e) => e.mode == _mode.key)
           .map((e) => e.toJson())
           .toList();
-      // Avoid setState() during build — schedule a microtask if the list
-      // has actually changed. Length comparison is cheap and catches
-      // both add/remove cases for the user's scope (≤10 items).
-      if (fresh.length != _streams.length) {
+      if (keySetChanged(fresh)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _selectedCategory == '__favorites__') {
             setState(() => _streams = fresh);
@@ -745,7 +1114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .where((e) => e.mode == _mode.key)
           .map((e) => e.toJson())
           .toList();
-      if (fresh.length != _streams.length) {
+      if (keySetChanged(fresh)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _selectedCategory == '__watchlist__') {
             setState(() => _streams = fresh);
@@ -775,28 +1144,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       selectedCategory: _selectedCategory,
       isLiveMode: _mode == ContentMode.live,
       child: Scaffold(
-      key: _scaffoldKey,
       // Let the hero banner's blurred backdrop extend all the way to the top
       // of the window (under the transparent app bar) for a Plex-like feel.
       extendBodyBehindAppBar: true,
       drawer: _buildSidebarDrawer(collections, filteredCategories),
       appBar: HomeAppBar(
-        mode: _mode,
+        segment: _segment,
         showGrid: showGrid,
         sortMode: _sortMode,
         selectedCategory: _selectedCategory,
         isCompact: MediaQuery.of(context).size.width < 900,
         // Drives the app-bar opacity fade-in as the user scrolls.
         scrollOffset: _mainScrollOffset,
-        leadingMenuButton: MediaQuery.of(context).size.width < 900
-            ? IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              )
-            : null,
-        onModeChanged: (newMode) {
-          setState(() { _mode = newMode; _streams = []; _selectedCategory = null; _recentlyAdded = []; _catchupPrograms = []; _selectionMode = false; _selectedItems = {}; });
-          AppLogger.breadcrumb('navigation', 'Content mode changed', data: {'mode': newMode.key});
+        leadingMenuButton:
+            MediaQuery.of(context).size.width < 900 && _segment != HomeSegment.home
+                ? Builder(
+                    // `Scaffold.of(ctx)` needs a context below the Scaffold —
+                    // hence the Builder. Avoids the GlobalKey<ScaffoldState>
+                    // pattern, which is the canonical trigger of the
+                    // `_elements.contains(element)` framework assertion when
+                    // the home subtree rebuilds during a route pop.
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                    ),
+                  )
+                : null,
+        onSegmentChanged: (newSegment) {
+          if (newSegment == _segment) return;
+          if (newSegment == HomeSegment.home) {
+            setState(() => _segment = HomeSegment.home);
+            AppLogger.breadcrumb('navigation', 'Segment changed', data: {'segment': 'home'});
+            // Lazy-load the cross-mode featured list the first time we
+            // land on Accueil — `_init` may not have populated it yet
+            // on a fresh app start.
+            if (_accueilFeatured.isEmpty) _loadAccueilFeatured();
+            return;
+          }
+          final newMode = newSegment.mode!;
+          setState(() {
+            _segment = newSegment;
+            _mode = newMode;
+            _streams = [];
+            _selectedCategory = null;
+            _recentlyAdded = [];
+            _catchupPrograms = [];
+            _selectionMode = false;
+            _selectedItems = {};
+            // Reset the ambient target so the new mode's hero is
+            // free to push its own rotation item.
+            _splitWallpaperItem = null;
+            _splitHoveredItem = null;
+          });
+          AppLogger.breadcrumb('navigation', 'Segment changed', data: {'segment': newSegment.name});
           _loadGridView();
           _loadSortMode();
           _loadCategories();
@@ -809,6 +1209,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ))),
         onSearchPressed: () => Navigator.push(context,
             fadeRoute(const SearchScreen()))
+            .then((_) => _refreshProgress()),
+        onFavoritesPressed: () => Navigator.push(context,
+            fadeRoute(const FavoritesScreen()))
             .then((_) => _refreshProgress()),
         onSettingsPressed: _openSettings,
         onShortcutsPressed: _showShortcutsHelp,
@@ -841,6 +1244,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ]))
           : isOffline
           ? OfflineContent(onRetryConnection: _retryConnection)
+          : _segment == HomeSegment.home
+          ? AccueilView(
+              featured: _accueilFeatured,
+              catchupPrograms: _catchupPrograms,
+              topInset: kToolbarHeight + MediaQuery.paddingOf(context).top,
+              onPlayItem: _openItemByType,
+              onPlayFavorite: _openFavorite,
+              onPlayCatchup: _openCatchupProgram,
+              onPlayContinueItem: (item) {
+                // Item already carries url + resume key — go straight
+                // to the player and let it resume from the saved
+                // position (same flow the legacy split-view header
+                // used).
+                Navigator.push(
+                  context,
+                  slideRoute(PlayerScreen(
+                    url: item.url,
+                    title: item.name,
+                    resumeKey: item.id,
+                  )),
+                ).then((_) => _refreshProgress());
+              },
+            )
           : Builder(builder: (context) {
               // Header rows that used to sit above the Row(sidebar + grid)
               // stack — now moved INTO the grid's scroll view so they collapse
@@ -857,7 +1283,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_mode != ContentMode.live && _recentlyAdded.isNotEmpty)
-                    HomeHeroBanner(
+                    HomeHero(
                       topInset: topInset,
                       items: parentalActive
                           ? _recentlyAdded
@@ -865,8 +1291,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   !blockedIds.contains(getStreamCategoryId(item)))
                               .toList()
                           : _recentlyAdded,
-                      mode: _mode,
-                      onTap: _playStream,
+                      onPlayItem: _playStream,
+                      // Films / Séries menus now also paint a full-
+                      // screen ambient wallpaper behind the page (see
+                      // the Stack wrap below). Hero stays transparent
+                      // so the wallpaper image bleeds through into the
+                      // shelves with no visible "band" in between.
+                      transparentBackdrop: true,
+                      onCurrentItemChanged: (item) {
+                        if (!mounted) return;
+                        setState(() => _splitWallpaperItem = item);
+                      },
                     )
                   else
                     // Live mode shows no hero, so the first row would slide
@@ -875,14 +1310,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     SizedBox(height: topInset),
                   ContinueWatchingRow(
                     items: continueItems,
-                    onTap: (item) => Navigator.push(
-                      context,
-                      slideRoute(PlayerScreen(
-                        url: item.url,
-                        title: item.name,
-                        resumeKey: item.id,
-                      )),
-                    ).then((_) => _refreshProgress()),
+                    onTap: (item) {
+                      // Clear the hover override before we navigate so
+                      // the wallpaper doesn't dangle on a hovered item
+                      // while the user is inside the player.
+                      if (_splitHoveredItem != null) {
+                        setState(() => _splitHoveredItem = null);
+                      }
+                      Navigator.push(
+                        context,
+                        slideRoute(PlayerScreen(
+                          url: item.url,
+                          title: item.name,
+                          resumeKey: item.id,
+                        )),
+                      ).then((_) => _refreshProgress());
+                    },
+                    onItemHover: (item, isHovered) =>
+                        _onSplitItemHover(item, isHovered),
                   ),
                   if (_mode == ContentMode.live)
                     CatchupRow(
@@ -916,11 +1361,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             .toList()
                         : _recentlyAdded,
                     mode: _mode,
-                    onTap: _playStream,
+                    onTap: (item) {
+                      if (_splitHoveredItem != null) {
+                        setState(() => _splitHoveredItem = null);
+                      }
+                      _playStream(item);
+                    },
+                    onItemHover: (item, isHovered) =>
+                        _onSplitItemHover(item, isHovered),
                   ),
+                  // Sort chips + inline search — VOD / Séries only.
+                  // Live keeps its legacy AppBar sort menu (it relies
+                  // on the `number` mode which makes no sense for
+                  // films / series).
+                  if (_mode != ContentMode.live)
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        0,
+                        DS.space.md,
+                        DS.padding.screenHorizontal,
+                        DS.space.sm,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: CatalogSortChips(
+                              selection:
+                                  CatalogSortMode.fromId(_sortMode),
+                              onChanged: (m) {
+                                setState(() => _sortMode = m.id);
+                                _saveSortMode();
+                                _resetPaginationIfActive();
+                              },
+                            ),
+                          ),
+                          SizedBox(width: DS.space.sm),
+                          InlineSearchField(
+                            query: _searchQuery,
+                            onChanged: (v) => setState(
+                                () => _searchQuery = v.toLowerCase()),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               );
-              return Column(children: [
+              final wallpaperTarget =
+                  _splitHoveredItem ?? _splitWallpaperItem;
+              final body = Column(children: [
               Expanded(child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
@@ -970,9 +1458,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   }
                 },
               ),
-              // Stream content area
+              // Stream content area — Stack so we can pin the
+              // FocusedItemPreview panel at the bottom over the grid.
               Expanded(
-                child: Builder(builder: (context) {
+                child: Stack(
+                  children: <Widget>[
+                    Positioned.fill(
+                      child: Builder(builder: (context) {
                   final pagState = ref.watch(paginatedStreamsProvider);
                   // Use paginated visible items if pagination is active (totalCount > 0
                   // and streams match), otherwise fall back to full list for special
@@ -1002,6 +1494,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     searchCtrl: _searchCtrl,
                     onSearchChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
                     onClearSearch: () => setState(() { _searchQuery = ''; _searchCtrl.clear(); }),
+                    // VOD / Séries get the inline search field from
+                    // the header above (`InlineSearchField`) — hide
+                    // the internal one to avoid double bars.
+                    hideInternalSearch: _mode != ContentMode.live,
+                    onItemHover: _onGridItemHover,
                     progress: progress,
                     favKeys: favKeys,
                     wlKeys: wlKeys,
@@ -1056,11 +1553,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     headerChild: headerChild,
                   );
                 }),
+                    ),
+                    // Bottom-of-grid Apple-TV+-style preview panel.
+                    // `IgnorePointer` inside `FocusedItemPreview`
+                    // keeps clicks reaching the cards below.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: FocusedItemPreview(
+                        item: _gridHoveredItem,
+                        mode: _mode,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ]);
                 },
               )),
           ]);
+              // Wrap the split-view body in a full-screen Stack with
+              // the ambient wallpaper at the bottom (Films / Séries
+              // only — Live has no hero rotation to drive a target).
+              if (_mode != ContentMode.live) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    AmbientWallpaper(item: wallpaperTarget),
+                    body,
+                  ],
+                );
+              }
+              return body;
             }),
       ),
     ),

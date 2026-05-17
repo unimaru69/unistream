@@ -22,6 +22,16 @@ class StreamListView extends StatefulWidget {
   final TextEditingController searchCtrl;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
+
+  /// Hide the internal full-width search bar. Use when the host
+  /// screen already exposes an inline search field elsewhere (the
+  /// VOD / Séries split-view header) so we don't double up.
+  final bool hideInternalSearch;
+
+  /// Fires when a grid tile gains / loses hover (desktop). The host
+  /// uses this to drive the bottom-of-grid `FocusedItemPreview`
+  /// panel that mirrors the tvOS focus-engine preview.
+  final void Function(dynamic item, bool isHovered)? onItemHover;
   final Map<String, double> progress;
   final Set<String> favKeys;
   final Set<String> wlKeys;
@@ -97,6 +107,8 @@ class StreamListView extends StatefulWidget {
     this.isLoadingMore = false,
     this.onLoadMore,
     this.headerChild,
+    this.hideInternalSearch = false,
+    this.onItemHover,
   });
 
   @override
@@ -170,12 +182,13 @@ class _StreamListViewState extends State<StreamListView> {
         // The search bar + count indicator are now INSIDE the scroll view,
         // right after the hero, so they slide away with the rest of the
         // header instead of sitting fixed below the app bar.
-        final searchBarChild = widget.selectionMode
-            ? null
-            : Padding(
-                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-                child: _buildSearchBar(l10n),
-              );
+        final searchBarChild =
+            (widget.selectionMode || widget.hideInternalSearch)
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                    child: _buildSearchBar(l10n),
+                  );
         final countIndicator = (widget.totalCount > 0 &&
                 widget.sortedStreams.isNotEmpty)
             ? Padding(
@@ -458,7 +471,9 @@ class _StreamListViewState extends State<StreamListView> {
 
         // Wrapped in a TMDB-aware consumer: for films/series, replaces the
         // low-res IPTV poster with the TMDB w500 poster when available.
-        return TmdbAwareGridTile(
+        // MouseRegion surfaces hover on desktop so the host can drive
+        // a bottom-of-grid `FocusedItemPreview` panel.
+        final tile = TmdbAwareGridTile(
           key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
           stream: s,
           mode: widget.mode,
@@ -476,6 +491,12 @@ class _StreamListViewState extends State<StreamListView> {
           onRemoveFromCollection: () => widget.onRemoveFromCollection(s),
           onSecondaryTap: (_) => widget.onShowStreamInfo(s),
           subtitle: liveNow,
+        );
+        if (widget.onItemHover == null) return tile;
+        return MouseRegion(
+          onEnter: (_) => widget.onItemHover!(s, true),
+          onExit: (_) => widget.onItemHover!(s, false),
+          child: tile,
         );
       },
         ),

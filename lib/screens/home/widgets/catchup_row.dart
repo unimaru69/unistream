@@ -35,9 +35,11 @@ class CatchupProgram {
   });
 }
 
-/// Collapsible horizontal carousel of recently-aired catch-up programs.
-/// Header tap toggles the carousel open/closed with animation.
-class CatchupRow extends StatefulWidget {
+/// Always-visible horizontal carousel of recently-aired catch-up
+/// programs. Aligned with the tvOS pattern: shelves are never hidden
+/// behind a tap — they either show or aren't there at all (when
+/// `programs.isEmpty`).
+class CatchupRow extends StatelessWidget {
   final List<CatchupProgram> programs;
   final void Function(CatchupProgram program) onTap;
 
@@ -48,25 +50,15 @@ class CatchupRow extends StatefulWidget {
   });
 
   @override
-  State<CatchupRow> createState() => _CatchupRowState();
-}
-
-class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateMixin {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.programs.isEmpty) return const SizedBox.shrink();
+    if (programs.isEmpty) return const SizedBox.shrink();
     final tc = AppThemeColors.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Tappable header
+      // Section header — plain, no toggle.
       Semantics(
-        button: true,
-        label: '${l10n.programmesRecents} (${widget.programs.length})',
-        hint: _expanded ? 'Replier' : 'Déplier',
-        child: InkWell(
-        onTap: () => setState(() => _expanded = !_expanded),
+        header: true,
+        label: '${l10n.programmesRecents} (${programs.length})',
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: Row(children: [
@@ -76,34 +68,25 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
                     color: tc.textTertiary, letterSpacing: 0.8)),
             const SizedBox(width: 4),
-            Text('(${widget.programs.length})',
+            Text('(${programs.length})',
                 style: TextStyle(fontSize: 11, color: tc.textDisabled)),
-            const Spacer(),
-            AnimatedRotation(
-              turns: _expanded ? 0.5 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(Icons.expand_more, size: 18, color: tc.textDisabled),
-            ),
           ]),
         ),
-      )),
-      // Animated carousel
-      AnimatedCrossFade(
-        firstChild: const SizedBox.shrink(),
-        secondChild: SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: widget.programs.length,
-            itemBuilder: (_, i) {
-              final prog = widget.programs[i];
-              final ago = _timeAgo(prog.endUtc, l10n);
-              return Semantics(
-                button: true,
-                label: '${_decodeEpgTitle(prog.title)}, ${prog.channelName}, ${prog.durationMin} min, replay',
-                child: GestureDetector(
-                onTap: () => widget.onTap(prog),
+      ),
+      SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: programs.length,
+          itemBuilder: (_, i) {
+            final prog = programs[i];
+            final ago = _timeAgo(prog.endUtc, l10n);
+            return Semantics(
+              button: true,
+              label: '${_decodeEpgTitle(prog.title)}, ${prog.channelName}, ${prog.durationMin} min, replay',
+              child: GestureDetector(
+                onTap: () => onTap(prog),
                 child: Container(
                   width: 180,
                   margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -171,13 +154,9 @@ class _CatchupRowState extends State<CatchupRow> with SingleTickerProviderStateM
                   ),
                 ),
               ),
-              );
-            },
-          ),
+            );
+          },
         ),
-        crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-        duration: const Duration(milliseconds: 250),
-        sizeCurve: Curves.easeInOut,
       ),
       Divider(color: tc.divider, height: 1),
     ]);

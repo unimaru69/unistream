@@ -1,38 +1,26 @@
 import 'package:flutter/material.dart';
+
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/design_tokens.dart';
 import 'package:unistream/core/theme_colors.dart';
+import 'package:unistream/core/typography.dart';
 import 'package:unistream/l10n/app_localizations.dart';
-import '../../../models/content_mode.dart';
+
 import '../../../models/category.dart' as cat;
 import '../../../models/collection_data.dart';
+import '../../../models/content_mode.dart';
 import '../../../models/favorite_item.dart';
 
-/// Resizable category sidebar with favorites, watchlist, history, collections, and categories.
+/// Resizable category sidebar. Apple-TV+-styled rows: hover lifts the
+/// row with a translucent background and chipScale, selected rows wear
+/// a teal accent fill + bold title. Mirror of
+/// `tvos/.../CategoryRowLabel.swift` adapted for desktop (mouse hover
+/// instead of focus engine).
+///
+/// Public API is intentionally identical to the previous implementation
+/// — both the wide-layout split view and the narrow drawer in
+/// `home_screen.dart` instantiate this widget the same way.
 class CategorySidebar extends StatelessWidget {
-  final double width;
-  final double minWidth;
-  final double maxWidth;
-  final ValueChanged<double> onWidthChanged;
-  final VoidCallback onDragEnd;
-
-  final List<cat.Category> categories;
-  final List<CollectionData> collections;
-  final ContentMode mode;
-  final String? selectedCategory;
-  final Map<String, double> progress;
-
-  // Favorites / Watchlist data
-  final List<FavoriteItem> favItems;
-  final List<FavoriteItem> wlItems;
-
-  // Callbacks
-  final void Function(String categoryId) onCategorySelected;
-  final void Function(String specialCategory, List<Map<String, dynamic>> items) onSpecialCategorySelected;
-  final VoidCallback onHistoryTap;
-  final VoidCallback onCreateCollection;
-  final void Function(String collectionId) onCollectionSelected;
-  final void Function(String collectionId) onDeleteCollection;
-
   const CategorySidebar({
     super.key,
     required this.width,
@@ -55,34 +43,66 @@ class CategorySidebar extends StatelessWidget {
     required this.onDeleteCollection,
   });
 
+  final double width;
+  final double minWidth;
+  final double maxWidth;
+  final ValueChanged<double> onWidthChanged;
+  final VoidCallback onDragEnd;
+
+  final List<cat.Category> categories;
+  final List<CollectionData> collections;
+  final ContentMode mode;
+  final String? selectedCategory;
+  final Map<String, double> progress;
+
+  final List<FavoriteItem> favItems;
+  final List<FavoriteItem> wlItems;
+
+  final void Function(String categoryId) onCategorySelected;
+  final void Function(
+    String specialCategory,
+    List<Map<String, dynamic>> items,
+  ) onSpecialCategorySelected;
+  final VoidCallback onHistoryTap;
+  final VoidCallback onCreateCollection;
+  final void Function(String collectionId) onCollectionSelected;
+  final void Function(String collectionId) onDeleteCollection;
+
   @override
   Widget build(BuildContext context) {
     final tc = AppThemeColors.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         SizedBox(
           width: width,
-          child: _buildSidebarList(context),
+          child: _SidebarList(
+            categories: categories,
+            collections: collections,
+            mode: mode,
+            selectedCategory: selectedCategory,
+            progress: progress,
+            favItems: favItems,
+            wlItems: wlItems,
+            onCategorySelected: onCategorySelected,
+            onSpecialCategorySelected: onSpecialCategorySelected,
+            onHistoryTap: onHistoryTap,
+            onCreateCollection: onCreateCollection,
+            onCollectionSelected: onCollectionSelected,
+            onDeleteCollection: onDeleteCollection,
+          ),
         ),
-        // Resize handle. Wrapped in a RepaintBoundary so a setState in the
-        // parent (every category click rebuilds the home screen and
-        // therefore this Row) doesn't force a full repaint of the divider
-        // line; without it Skia re-renders the 1-px line every frame and
-        // its subpixel antialiasing produces a visible flicker that the
-        // user sees as a "dashed" vertical line.
-        // The divider itself is a plain Container, not a VerticalDivider.
-        // Flutter's VerticalDivider with width=1 has documented rendering
-        // quirks on EGL (the inspector showed it as h=800, w=1, with 2-px
-        // padding on each side) that interact badly with high-DPI scaling
-        // and produce the pointillé effect.
+        // Resize handle. RepaintBoundary stops a setState in the parent
+        // (every category click rebuilds home_screen) from forcing a
+        // full repaint of the divider; without it the 1-px line's
+        // subpixel AA produces a visible flicker. Plain Container
+        // instead of VerticalDivider — the latter has documented
+        // rendering quirks at 1 px on EGL / high-DPI.
         RepaintBoundary(
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeColumn,
             child: GestureDetector(
-              onHorizontalDragUpdate: (d) {
-                onWidthChanged(d.delta.dx);
-              },
+              onHorizontalDragUpdate: (d) => onWidthChanged(d.delta.dx),
               onHorizontalDragEnd: (_) => onDragEnd(),
               child: SizedBox(
                 width: 5,
@@ -100,220 +120,410 @@ class CategorySidebar extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _buildSidebarList(BuildContext context) {
-    final tc = AppThemeColors.of(context);
+class _SidebarList extends StatelessWidget {
+  const _SidebarList({
+    required this.categories,
+    required this.collections,
+    required this.mode,
+    required this.selectedCategory,
+    required this.progress,
+    required this.favItems,
+    required this.wlItems,
+    required this.onCategorySelected,
+    required this.onSpecialCategorySelected,
+    required this.onHistoryTap,
+    required this.onCreateCollection,
+    required this.onCollectionSelected,
+    required this.onDeleteCollection,
+  });
+
+  final List<cat.Category> categories;
+  final List<CollectionData> collections;
+  final ContentMode mode;
+  final String? selectedCategory;
+  final Map<String, double> progress;
+  final List<FavoriteItem> favItems;
+  final List<FavoriteItem> wlItems;
+  final void Function(String) onCategorySelected;
+  final void Function(String, List<Map<String, dynamic>>) onSpecialCategorySelected;
+  final VoidCallback onHistoryTap;
+  final VoidCallback onCreateCollection;
+  final void Function(String) onCollectionSelected;
+  final void Function(String) onDeleteCollection;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final modeCollections = collections.where((c) =>
-        c.mode == null || c.mode == mode.key).toList();
+    final tc = AppThemeColors.of(context);
 
-    return ListView.builder(
-      // Top padding reserves room for the translucent app bar above (the
-      // Scaffold now has extendBodyBehindAppBar: true), so sidebar items
-      // don't appear under the "UniStream" title.
-      padding: EdgeInsets.fromLTRB(
-        8,
-        kToolbarHeight + MediaQuery.paddingOf(context).top + 8,
-        8,
-        8,
+    final modeCollections = collections
+        .where((c) => c.mode == null || c.mode == mode.key)
+        .toList();
+    final modeWl = wlItems.where((e) => e.mode == mode.key).toList();
+    final unwatchedCount = modeWl.where((e) {
+      final id = mode == ContentMode.series ? e.seriesId : e.streamId;
+      if (id == null) return true;
+      final p = progress[id];
+      return p == null || p <= 0.95;
+    }).length;
+    final wlCount = modeWl.length;
+    final wlSuffix = wlCount > 0
+        ? (unwatchedCount < wlCount
+            ? ' ($unwatchedCount/$wlCount)'
+            : ' ($wlCount)')
+        : '';
+
+    final children = <Widget>[
+      // Top padding lifts the first row below the translucent app bar
+      // (Scaffold.extendBodyBehindAppBar = true on home).
+      SizedBox(
+        height: kToolbarHeight + MediaQuery.paddingOf(context).top + DS.space.xs,
       ),
-      itemCount: () {
-        return categories.length + 3 + modeCollections.length + (modeCollections.isNotEmpty ? 1 : 0);
-      }(),
-      itemBuilder: (_, i) {
-        final modeColList = modeCollections;
 
-        // Favorites row
-        if (i == 0) {
-          final sel = selectedCategory == '__favorites__';
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: ListTile(
-              dense: true,
-              leading: Icon(Icons.star, size: 16,
-                  color: sel ? Colors.amber : Colors.amber.withValues(alpha: 0.5)),
-              title: Text(l10n.favoris, style: TextStyle(fontSize: 13,
-                  color: sel ? tc.textPrimary : tc.textSecondary,
-                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-              selected: sel,
-              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              onTap: () {
-                final modeFavs = favItems.where((e) => e.mode == mode.key).toList();
-                onSpecialCategorySelected('__favorites__', modeFavs.map((e) => e.toJson()).toList());
-              },
-            ),
+      _SidebarRow(
+        icon: Icons.favorite,
+        iconActiveColor: AppColors.accentWarm,
+        title: l10n.favoris,
+        selected: selectedCategory == '__favorites__',
+        onTap: () {
+          final modeFavs =
+              favItems.where((e) => e.mode == mode.key).toList();
+          onSpecialCategorySelected(
+            '__favorites__',
+            modeFavs.map((e) => e.toJson()).toList(),
           );
-        }
+        },
+      ),
 
-        // Watchlist row
-        if (i == 1) {
-          final sel = selectedCategory == '__watchlist__';
-          final wlModeItems = wlItems.where((e) => e.mode == mode.key).toList();
-          final wlCount = wlModeItems.length;
-          final unwatchedCount = wlModeItems.where((e) {
-            final id = mode == ContentMode.series ? e.seriesId : e.streamId;
-            if (id == null) return true;
-            final p = progress[id];
-            return p == null || p <= 0.95;
-          }).length;
-          final countLabel = wlCount > 0
-              ? (unwatchedCount < wlCount ? ' ($unwatchedCount/$wlCount)' : ' ($wlCount)')
-              : '';
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: ListTile(
-              dense: true,
-              leading: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(Icons.bookmark, size: 16,
-                      color: sel ? Colors.tealAccent : Colors.tealAccent.withValues(alpha: 0.5)),
-                  if (unwatchedCount > 0)
-                    Positioned(top: -4, right: -6,
-                      child: Container(
-                        width: 8, height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryBlue,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              title: Text('${l10n.aRegarder}$countLabel', style: TextStyle(fontSize: 13,
-                  color: sel ? tc.textPrimary : tc.textSecondary,
-                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-              selected: sel,
-              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              onTap: () {
-                final modeWl = wlItems.where((e) => e.mode == mode.key).toList();
-                onSpecialCategorySelected('__watchlist__', modeWl.map((e) => e.toJson()).toList());
-              },
-            ),
+      _SidebarRow(
+        icon: Icons.bookmark,
+        iconActiveColor: AppColors.primaryBlue,
+        title: '${l10n.aRegarder}$wlSuffix',
+        selected: selectedCategory == '__watchlist__',
+        unreadDot: unwatchedCount > 0,
+        onTap: () {
+          onSpecialCategorySelected(
+            '__watchlist__',
+            modeWl.map((e) => e.toJson()).toList(),
           );
-        }
+        },
+      ),
 
-        // History row
-        if (i == 2) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: ListTile(
-              dense: true,
-              leading: Icon(Icons.history, size: 16, color: tc.textTertiary),
-              title: Text(l10n.historique, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              onTap: onHistoryTap,
-            ),
-          );
-        }
+      _SidebarRow(
+        icon: Icons.history,
+        title: l10n.historique,
+        selected: false,
+        onTap: onHistoryTap,
+      ),
 
-        // Collections section
-        final colHeaderIdx = 3;
-        final colStartIdx = modeColList.isNotEmpty ? colHeaderIdx + 1 : colHeaderIdx;
-        final colEndIdx = colStartIdx + modeColList.length;
-        final catStartIdx = colEndIdx;
+      if (modeCollections.isNotEmpty)
+        _SidebarSectionHeader(
+          label: l10n.collectionsSection,
+          trailing: IconButton(
+            padding: EdgeInsets.zero,
+            iconSize: 16,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            icon: Icon(Icons.add, color: DS.colour.textTertiary),
+            tooltip: l10n.nouvelleCollection,
+            onPressed: onCreateCollection,
+          ),
+        ),
 
-        if (modeColList.isNotEmpty && i == colHeaderIdx) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 2, left: 8, right: 4),
-            child: Row(children: [
-              Text(l10n.collectionsSection, style: TextStyle(fontSize: 10,
-                  fontWeight: FontWeight.bold, color: tc.textDisabled, letterSpacing: 0.8)),
-              const Spacer(),
-              SizedBox(
-                width: 24, height: 24,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 16,
-                  icon: Icon(Icons.add, color: tc.textDisabled),
-                  tooltip: l10n.nouvelleCollection,
-                  onPressed: onCreateCollection,
-                ),
-              ),
-            ]),
-          );
-        }
-
-        if (i >= colStartIdx && i < colEndIdx) {
-          final col = modeColList[i - colStartIdx];
-          final colId = '__col_${col.id}__';
-          final sel = selectedCategory == colId;
-          final items = col.items;
-          final count = col.mode != null
-              ? items.length
-              : items.where((e) => e.mode == mode.key).length;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: ListTile(
-              dense: true,
-              leading: Icon(Icons.folder_outlined, size: 16,
-                  color: sel ? AppColors.primaryBlue : tc.textDisabled),
-              title: Text('${col.name} ($count)', style: TextStyle(fontSize: 13,
-                  color: sel ? tc.textPrimary : tc.textSecondary,
-                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
-              selected: sel,
-              selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              onTap: () => onCollectionSelected(col.id),
-              trailing: SizedBox(
-                width: 24, height: 24,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 16,
-                  icon: Icon(Icons.delete_outline, size: 16, color: tc.borderColor),
-                  tooltip: l10n.supprimer,
-                  onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: tc.surface,
-                        title: Text(l10n.confirmerSupprimerCollection,
-                            style: const TextStyle(fontSize: 16)),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: Text(l10n.annuler),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: Text(l10n.supprimer,
-                                style: const TextStyle(color: Colors.redAccent)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      onDeleteCollection(col.id);
-                    }
-                  },
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Regular categories
-        final category = categories[i - catStartIdx];
-        final id  = category.categoryId;
-        final sel = selectedCategory == id;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: ListTile(
-            dense: true,
-            title: Text(category.categoryName,
-                style: TextStyle(fontSize: 13,
-                    color: sel ? tc.textPrimary : tc.textSecondary,
-                    fontWeight: sel ? FontWeight.bold : FontWeight.normal),
-                overflow: TextOverflow.ellipsis),
-            selected: sel,
-            selectedTileColor: AppColors.primaryBlue.withValues(alpha: 0.3),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            onTap: () => onCategorySelected(id),
+      ...modeCollections.map((col) {
+        final colId = '__col_${col.id}__';
+        final selected = selectedCategory == colId;
+        final items = col.items;
+        final count = col.mode != null
+            ? items.length
+            : items.where((e) => e.mode == mode.key).length;
+        return _SidebarRow(
+          icon: Icons.folder_outlined,
+          iconActiveColor: AppColors.primaryBlue,
+          title: '${col.name} ($count)',
+          selected: selected,
+          onTap: () => onCollectionSelected(col.id),
+          trailing: _DeleteCollectionButton(
+            onConfirmed: () => onDeleteCollection(col.id),
+            backgroundColor: tc.surface,
           ),
         );
-      },
+      }),
+
+      if (categories.isNotEmpty)
+        _SidebarSectionHeader(label: l10n.categoriesHeader),
+
+      ...categories.map((category) {
+        final id = category.categoryId;
+        return _SidebarRow(
+          icon: Icons.folder_outlined,
+          title: category.categoryName,
+          selected: selectedCategory == id,
+          onTap: () => onCategorySelected(id),
+        );
+      }),
+
+      SizedBox(height: DS.space.lg),
+    ];
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: children,
+    );
+  }
+}
+
+class _SidebarRow extends StatefulWidget {
+  const _SidebarRow({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+    this.iconActiveColor,
+    this.trailing,
+    this.unreadDot = false,
+  });
+
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  /// Colour the icon picks up when the row is selected. Defaults to
+  /// the brand teal — pass `AppColors.accentWarm` for the favourites
+  /// row, etc.
+  final Color? iconActiveColor;
+  final Widget? trailing;
+  final bool unreadDot;
+
+  @override
+  State<_SidebarRow> createState() => _SidebarRowState();
+}
+
+class _SidebarRowState extends State<_SidebarRow> {
+  bool _hovered = false;
+
+  void _setHover(bool v) {
+    if (_hovered == v) return;
+    setState(() => _hovered = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final hovered = _hovered;
+
+    final Color bg;
+    final Color iconColor;
+    final Color textColor;
+    final FontWeight weight;
+
+    if (selected) {
+      bg = AppColors.primaryBlue.withValues(alpha: 0.25);
+      iconColor = widget.iconActiveColor ?? AppColors.primaryBlue;
+      textColor = Colors.white;
+      weight = FontWeight.w600;
+    } else if (hovered) {
+      bg = Colors.white.withValues(alpha: 0.08);
+      iconColor = Colors.white;
+      textColor = Colors.white;
+      weight = FontWeight.w500;
+    } else {
+      bg = Colors.transparent;
+      iconColor = DS.colour.textTertiary;
+      textColor = DS.colour.textSecondary;
+      weight = FontWeight.w400;
+    }
+
+    final scale = hovered && !selected ? DS.focus.chipScale : 1.0;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _setHover(true),
+      onExit: (_) => _setHover(false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedScale(
+          scale: scale,
+          duration: DS.focus.animation,
+          curve: DS.focus.curve,
+          child: AnimatedContainer(
+            duration: DS.focus.animation,
+            curve: DS.focus.curve,
+            margin: EdgeInsets.symmetric(
+              horizontal: DS.space.xs,
+              vertical: 1,
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: DS.space.sm,
+              vertical: DS.space.sm,
+            ),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(DS.radius.card),
+            ),
+            child: Row(
+              children: <Widget>[
+                if (widget.icon != null) ...<Widget>[
+                  _IconWithDot(
+                    icon: widget.icon!,
+                    color: iconColor,
+                    showDot: widget.unreadDot,
+                  ),
+                  SizedBox(width: DS.space.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: DSText.body.copyWith(
+                      fontSize: 14,
+                      color: textColor,
+                      fontWeight: weight,
+                    ),
+                  ),
+                ),
+                if (widget.trailing != null) ...<Widget>[
+                  SizedBox(width: DS.space.xxs),
+                  widget.trailing!,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconWithDot extends StatelessWidget {
+  const _IconWithDot({
+    required this.icon,
+    required this.color,
+    required this.showDot,
+  });
+
+  final IconData icon;
+  final Color color;
+  final bool showDot;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Icon(icon, size: 18, color: color);
+    if (!showDot) return base;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        base,
+        Positioned(
+          top: -3,
+          right: -4,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.darkBackground,
+                width: 1,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SidebarSectionHeader extends StatelessWidget {
+  const _SidebarSectionHeader({required this.label, this.trailing});
+
+  final String label;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        DS.space.md,
+        DS.space.md,
+        DS.space.xs,
+        DS.space.xxs,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: DSText.label.copyWith(
+                color: DS.colour.textTertiary,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+class _DeleteCollectionButton extends StatelessWidget {
+  const _DeleteCollectionButton({
+    required this.onConfirmed,
+    required this.backgroundColor,
+  });
+
+  final VoidCallback onConfirmed;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        iconSize: 16,
+        icon: Icon(
+          Icons.delete_outline,
+          size: 16,
+          color: DS.colour.textTertiary,
+        ),
+        tooltip: l10n.supprimer,
+        onPressed: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: backgroundColor,
+              title: Text(
+                l10n.confirmerSupprimerCollection,
+                style: DSText.title3,
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(l10n.annuler),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(
+                    l10n.supprimer,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true) onConfirmed();
+        },
+      ),
     );
   }
 }

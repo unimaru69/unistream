@@ -11,14 +11,15 @@ import '../../../models/content_mode.dart';
 class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   const HomeAppBar({
     super.key,
-    required this.mode,
+    required this.segment,
     required this.showGrid,
     required this.sortMode,
-    required this.onModeChanged,
+    required this.onSegmentChanged,
     required this.onGridToggle,
     required this.onSortChanged,
     required this.onEpgPressed,
     required this.onSearchPressed,
+    required this.onFavoritesPressed,
     required this.onSettingsPressed,
     required this.onShortcutsPressed,
     required this.onProfileChanged,
@@ -34,14 +35,15 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// classic behaviour (solid background).
   final ValueListenable<double>? scrollOffset;
 
-  final ContentMode mode;
+  final HomeSegment segment;
   final bool showGrid;
   final String sortMode;
-  final ValueChanged<ContentMode> onModeChanged;
+  final ValueChanged<HomeSegment> onSegmentChanged;
   final VoidCallback onGridToggle;
   final ValueChanged<String> onSortChanged;
   final VoidCallback onEpgPressed;
   final VoidCallback onSearchPressed;
+  final VoidCallback onFavoritesPressed;
   final VoidCallback onSettingsPressed;
   final VoidCallback onShortcutsPressed;
   final ValueChanged<String> onProfileChanged;
@@ -123,16 +125,20 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                 .toList(),
           ),
         ToggleButtons(
-          isSelected: [
-            mode == ContentMode.live,
-            mode == ContentMode.vod,
-            mode == ContentMode.series,
+          isSelected: <bool>[
+            segment == HomeSegment.home,
+            segment == HomeSegment.live,
+            segment == HomeSegment.vod,
+            segment == HomeSegment.series,
           ],
-          onPressed: (i) => onModeChanged(ContentMode.values[i]),
+          onPressed: (i) => onSegmentChanged(HomeSegment.values[i]),
           borderRadius: BorderRadius.circular(8),
           selectedColor: tc.textPrimary,
           fillColor: AppColors.primaryBlue,
-          children: [
+          children: <Widget>[
+            Padding(
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
+                child: Text(l10n.accueilTab)),
             Padding(
                 padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
                 child: Text(l10n.live)),
@@ -145,14 +151,16 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
         const SizedBox(width: 4),
-        if (!isCompact)
+        // Grid + sort make no sense on Accueil — every section has its
+        // own intrinsic ordering and there's no flat list to toggle.
+        if (!isCompact && segment != HomeSegment.home)
           IconButton(
             icon: Icon(showGrid ? Icons.view_list : Icons.grid_view),
             tooltip:
                 showGrid ? l10n.vueListe : l10n.vueGrille,
             onPressed: onGridToggle,
           ),
-        if (!isCompact)
+        if (!isCompact && segment != HomeSegment.home)
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
             tooltip: l10n.trier,
@@ -168,6 +176,11 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.search),
           tooltip: l10n.rechercheGlobale,
           onPressed: onSearchPressed,
+        ),
+        IconButton(
+          icon: const Icon(Icons.favorite_border),
+          tooltip: l10n.favoris,
+          onPressed: onFavoritesPressed,
         ),
         if (!isCompact) ...[
           IconButton(

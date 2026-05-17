@@ -6,15 +6,16 @@ import 'package:unistream/screens/home/widgets/home_app_bar.dart';
 void main() {
   test('HomeAppBar implements PreferredSizeWidget', () {
     final bar = HomeAppBar(
-      mode: ContentMode.live,
+      segment: HomeSegment.live,
       showGrid: false,
       sortMode: 'default',
       selectedCategory: null,
-      onModeChanged: (_) {},
+      onSegmentChanged: (_) {},
       onGridToggle: () {},
       onSortChanged: (_) {},
       onEpgPressed: () {},
       onSearchPressed: () {},
+      onFavoritesPressed: () {},
       onSettingsPressed: () {},
       onShortcutsPressed: () {},
       onProfileChanged: (_) {},
