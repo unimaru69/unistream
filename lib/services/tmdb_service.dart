@@ -99,6 +99,223 @@ class TmdbService {
     if (path == null || path.isEmpty) return null;
     return '$_imageBase/$size$path';
   }
+
+  /// Person details (name, biography, profile photo, dept). Returns
+  /// `null` on miss / disabled / network error.
+  Future<TmdbPersonDetails?> fetchPersonDetails(int personId) async {
+    if (!isEnabled) return null;
+    final uri = Uri.parse('$_base/person/$personId').replace(
+      queryParameters: <String, String>{
+        'api_key': apiKey,
+        'language': language,
+      },
+    );
+    try {
+      final r = await http.get(uri).timeout(const Duration(seconds: 6));
+      if (r.statusCode != 200) return null;
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      return TmdbPersonDetails.fromJson(body);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'TMDB fetchPersonDetails failed',
+          error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  /// Person filmography split into movies + TV shows. Sorted by year
+  /// (most recent first). Items without a poster are kept — the card
+  /// shows a placeholder so we don't hide credits silently.
+  Future<({List<TmdbPersonCredit> movies, List<TmdbPersonCredit> tv})>
+      fetchPersonCredits(int personId) async {
+    if (!isEnabled) {
+      return (movies: <TmdbPersonCredit>[], tv: <TmdbPersonCredit>[]);
+    }
+    final uri = Uri.parse('$_base/person/$personId/combined_credits').replace(
+      queryParameters: <String, String>{
+        'api_key': apiKey,
+        'language': language,
+      },
+    );
+    try {
+      final r = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (r.statusCode != 200) {
+        return (movies: <TmdbPersonCredit>[], tv: <TmdbPersonCredit>[]);
+      }
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      final cast = (body['cast'] as List?) ?? const [];
+      final movies = <TmdbPersonCredit>[];
+      final tv = <TmdbPersonCredit>[];
+      // Dedupe on TMDB id within each bucket — a single project
+      // sometimes lists the same actor twice (writer + actor).
+      final seenMovies = <int>{};
+      final seenTv = <int>{};
+      for (final raw in cast) {
+        final m = raw as Map<String, dynamic>;
+        final credit = TmdbPersonCredit.fromJson(m);
+        if (credit == null) continue;
+        if (credit.mediaType == TmdbKind.movie) {
+          if (seenMovies.add(credit.id)) movies.add(credit);
+        } else {
+          if (seenTv.add(credit.id)) tv.add(credit);
+        }
+      }
+      int yearOrZero(TmdbPersonCredit c) => c.year ?? 0;
+      movies.sort((a, b) => yearOrZero(b).compareTo(yearOrZero(a)));
+      tv.sort((a, b) => yearOrZero(b).compareTo(yearOrZero(a)));
+      return (movies: movies, tv: tv);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'TMDB fetchPersonCredits failed',
+          error: e, stackTrace: st);
+      return (movies: <TmdbPersonCredit>[], tv: <TmdbPersonCredit>[]);
+    }
+  }
+
+  /// Per-episode metadata for a TV season — name, overview, still
+  /// image path. Returned keyed by episode number so callers can do
+  /// `meta[ep.number]?.stillPath` without scanning a list.
+  ///
+  /// Returns an empty map on miss / disabled / network error so
+  /// callers can ignore failures and fall back gracefully.
+  Future<Map<int, EpisodeMeta>> fetchSeason({
+    required int tmdbId,
+    required int seasonNumber,
+  }) async {
+    if (!isEnabled) return const <int, EpisodeMeta>{};
+    final uri = Uri.parse('$_base/tv/$tmdbId/season/$seasonNumber').replace(
+      queryParameters: <String, String>{
+        'api_key': apiKey,
+        'language': language,
+      },
+    );
+    try {
+      final r = await http.get(uri).timeout(const Duration(seconds: 6));
+      if (r.statusCode != 200) return const <int, EpisodeMeta>{};
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      final episodes = (body['episodes'] as List?) ?? const [];
+      final out = <int, EpisodeMeta>{};
+      for (final e in episodes.cast<Map<String, dynamic>>()) {
+        final num = e['episode_number'] as int?;
+        if (num == null) continue;
+        out[num] = EpisodeMeta(
+          episodeNumber: num,
+          name: (e['name'] as String?) ?? '',
+          overview: (e['overview'] as String?) ?? '',
+          stillPath: e['still_path'] as String?,
+        );
+      }
+      return out;
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui, 'TMDB fetchSeason failed',
+          error: e, stackTrace: st);
+      return const <int, EpisodeMeta>{};
+    }
+  }
+}
+
+/// TMDB person details — slim subset for the cast filmography page.
+class TmdbPersonDetails {
+  const TmdbPersonDetails({
+    required this.id,
+    required this.name,
+    this.biography,
+    this.profilePath,
+    this.knownForDepartment,
+  });
+
+  final int id;
+  final String name;
+  final String? biography;
+  final String? profilePath;
+
+  /// e.g. "Acting", "Directing", "Writing". TMDB-supplied; not
+  /// localised but commonly understood. Caller can translate / hide.
+  final String? knownForDepartment;
+
+  factory TmdbPersonDetails.fromJson(Map<String, dynamic> j) {
+    final bio = (j['biography'] as String?)?.trim();
+    return TmdbPersonDetails(
+      id: j['id'] as int,
+      name: (j['name'] as String?) ?? '',
+      biography: (bio == null || bio.isEmpty) ? null : bio,
+      profilePath: j['profile_path'] as String?,
+      knownForDepartment: j['known_for_department'] as String?,
+    );
+  }
+
+  String? profileUrl({String size = 'h632'}) =>
+      TmdbService.image(profilePath, size: size);
+}
+
+/// A single TMDB credit on a person's filmography — used by the cast
+/// filmography screen.
+class TmdbPersonCredit {
+  const TmdbPersonCredit({
+    required this.id,
+    required this.mediaType,
+    required this.title,
+    this.character,
+    this.posterPath,
+    this.year,
+  });
+
+  final int id;
+  final TmdbKind mediaType;
+  final String title;
+  final String? character;
+  final String? posterPath;
+  final int? year;
+
+  static TmdbPersonCredit? fromJson(Map<String, dynamic> j) {
+    final mt = j['media_type'] as String?;
+    final TmdbKind kind;
+    if (mt == 'movie') {
+      kind = TmdbKind.movie;
+    } else if (mt == 'tv') {
+      kind = TmdbKind.tv;
+    } else {
+      return null; // person → person credits are skipped
+    }
+    final title =
+        ((kind == TmdbKind.movie ? j['title'] : j['name']) as String?) ?? '';
+    if (title.isEmpty) return null;
+    final dateField =
+        kind == TmdbKind.movie ? 'release_date' : 'first_air_date';
+    final date = (j[dateField] as String?) ?? '';
+    final year = int.tryParse(date.length >= 4 ? date.substring(0, 4) : '');
+    final character = (j['character'] as String?)?.trim();
+    return TmdbPersonCredit(
+      id: j['id'] as int,
+      mediaType: kind,
+      title: title,
+      character: (character == null || character.isEmpty) ? null : character,
+      posterPath: j['poster_path'] as String?,
+      year: year,
+    );
+  }
+
+  String? posterUrl({String size = 'w500'}) =>
+      TmdbService.image(posterPath, size: size);
+}
+
+/// TMDB per-episode metadata. Slim — only fields the UI consumes.
+class EpisodeMeta {
+  const EpisodeMeta({
+    required this.episodeNumber,
+    required this.name,
+    required this.overview,
+    this.stillPath,
+  });
+
+  final int episodeNumber;
+  final String name;
+  final String overview;
+  final String? stillPath;
+
+  /// Convenience: full TMDB URL for the still (16:9 thumbnail).
+  /// Defaults to `w300` — fine on poster-row cards. Pass `original`
+  /// for full screen detail.
+  String? stillUrl({String size = 'w300'}) =>
+      TmdbService.image(stillPath, size: size);
 }
 
 class _SearchHit {
@@ -122,6 +339,11 @@ class TmdbResult {
   final List<TmdbCast> cast;
   final List<TmdbVideo> videos;
 
+  /// Movie: `runtime` (minutes). Series: median of
+  /// `episode_run_time[]` rounded. `null` when TMDB has no value.
+  /// Used by the VOD / Series detail metadata strip (`2h17` / `47 min`).
+  final int? runtime;
+
   const TmdbResult({
     required this.id,
     required this.kind,
@@ -134,6 +356,7 @@ class TmdbResult {
     this.backdropPath,
     this.cast = const [],
     this.videos = const [],
+    this.runtime,
   });
 
   factory TmdbResult.fromJson(Map<String, dynamic> j, TmdbKind kind) {
@@ -158,6 +381,28 @@ class TmdbResult {
         .map(TmdbVideo.fromJson)
         .toList();
 
+    // Runtime — TMDB exposes it as `runtime` (minutes) on movies and
+    // `episode_run_time` (an array of minute values) on TV. Take the
+    // first non-zero entry of the array; some shows ship multiple
+    // values for different formats (Q&A vs. main, etc.).
+    int? runtime;
+    if (kind == TmdbKind.movie) {
+      final r = j['runtime'];
+      if (r is int && r > 0) runtime = r;
+    } else {
+      final list = (j['episode_run_time'] as List?) ?? const [];
+      for (final v in list) {
+        if (v is int && v > 0) {
+          runtime = v;
+          break;
+        }
+        if (v is num && v.toInt() > 0) {
+          runtime = v.toInt();
+          break;
+        }
+      }
+    }
+
     return TmdbResult(
       id: j['id'] as int,
       kind: kind,
@@ -174,6 +419,7 @@ class TmdbResult {
       backdropPath: j['backdrop_path'] as String?,
       cast: cast,
       videos: videoList,
+      runtime: runtime,
     );
   }
 
@@ -189,6 +435,7 @@ class TmdbResult {
         'backdropPath': backdropPath,
         'cast': cast.map((c) => c.toJson()).toList(),
         'videos': videos.map((v) => v.toJson()).toList(),
+        'runtime': runtime,
       };
 
   factory TmdbResult.fromCache(Map<String, dynamic> j) {
@@ -210,6 +457,7 @@ class TmdbResult {
           .cast<Map<String, dynamic>>()
           .map(TmdbVideo.fromJson)
           .toList(),
+      runtime: j['runtime'] as int?,
     );
   }
 }
