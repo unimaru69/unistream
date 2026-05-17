@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/colors.dart';
@@ -35,6 +37,12 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
   bool _hovered = false;
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  // Debounce timer for `onChanged` — the parent's filter pass walks
+  // a 5–15k-channel list on every notification, so firing it on
+  // every keystroke causes visible jank on iPad. 150 ms matches the
+  // pattern already in use by `search_screen.dart`.
+  Timer? _debounce;
+  static const _debounceDuration = Duration(milliseconds: 150);
 
   @override
   void initState() {
@@ -56,10 +64,19 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onChangedDebounced(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, () {
+      if (!mounted) return;
+      widget.onChanged(value);
+    });
   }
 
   void _handleFocusChange() {
@@ -78,6 +95,7 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
 
   void _clear() {
     _controller.clear();
+    _debounce?.cancel(); // explicit clear bypasses debounce
     widget.onChanged('');
     setState(() => _editing = false);
     _focusNode.unfocus();
@@ -140,9 +158,14 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
                       color: fg.withValues(alpha: 0.55),
                     ),
                   ),
-                  onChanged: widget.onChanged,
-                  onSubmitted: (_) {
-                    if (widget.query.isEmpty) {
+                  onChanged: _onChangedDebounced,
+                  onSubmitted: (val) {
+                    // User pressed enter — fire immediately, skip the
+                    // pending debounce so the filter pass is in sync
+                    // with the visible text.
+                    _debounce?.cancel();
+                    widget.onChanged(val);
+                    if (val.isEmpty) {
                       setState(() => _editing = false);
                     }
                   },

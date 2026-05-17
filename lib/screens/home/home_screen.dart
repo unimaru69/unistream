@@ -291,8 +291,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  // Memoization of `_sortedStreams`. `build()` is called on every
+  // provider change (and there are 8 watched) — sorting a 10k+
+  // stream list on each rebuild caused visible jank on iPad.
+  //
+  // Cache key encodes the inputs that actually affect the result:
+  //   * source list identity (any `setState(() => _streams = ...)`
+  //     binds a new instance, so identity check catches it)
+  //   * sort mode
+  //   * for fav-dependent modes, the favourites keys length (cheap
+  //     proxy that bumps on every fav toggle)
+  //   * for progress-dependent modes, the progress map length
+  //
+  // For 'default' / 'alpha' / 'number' / 'recent' the cache is
+  // perfectly stable; for 'favFirst' / 'unwatched' / 'inProgress'
+  // it's stable between fav/progress changes (still rebuilds when
+  // the user toggles a favourite — which is what we want).
+  List<dynamic>? _sortCache;
+  Object? _sortCacheSource;
+  String? _sortCacheKey;
+
   List<dynamic> get _sortedStreams {
     if (_sortMode == 'default') return _streams;
+
+    // Build cheap cache signature.
+    int favSig = 0;
+    int progSig = 0;
+    if (_sortMode == 'favFirst') {
+      favSig = ref.read(favoritesProvider).keys.length;
+    } else if (_sortMode == 'unwatched' || _sortMode == 'inProgress') {
+      progSig = (ref.read(watchProgressProvider).valueOrNull ?? const {}).length;
+    }
+    final key = '$_sortMode|$favSig|$progSig';
+    if (identical(_sortCacheSource, _streams) &&
+        _sortCacheKey == key &&
+        _sortCache != null) {
+      return _sortCache!;
+    }
+
     final list = List<dynamic>.from(_streams);
 
     int recencyKey(dynamic it) {
@@ -361,6 +397,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }).toList();
         filtered.sort((a, b) => getStreamName(a).toLowerCase()
             .compareTo(getStreamName(b).toLowerCase()));
+        _sortCacheSource = _streams;
+        _sortCacheKey = key;
+        _sortCache = filtered;
         return filtered;
       case 'inProgress':
         // Items currently being watched (0.5 % – 95 %). Sort most-
@@ -377,8 +416,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final rb = progress[contentKeyForSort(b)] ?? 0;
           return rb.compareTo(ra);
         });
+        _sortCacheSource = _streams;
+        _sortCacheKey = key;
+        _sortCache = filtered;
         return filtered;
     }
+    _sortCacheSource = _streams;
+    _sortCacheKey = key;
+    _sortCache = list;
     return list;
   }
 
