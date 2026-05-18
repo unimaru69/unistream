@@ -177,13 +177,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Apple Sign-In (iOS + macOS Debug only) — on macOS
-                // Release the entitlement is dropped (off-store
-                // Developer ID can't carry it), so we offer a
-                // passwordless magic-link sign-in instead so the
-                // user can still access their Supabase account
-                // without typing a password. See
-                // `macos/Runner/Release.entitlements` for context.
+                // Apple Sign-In on platforms that support the
+                // entitlement (iOS + macOS Debug). Everywhere else
+                // — macOS Release DMG (entitlement dropped, see
+                // Release.entitlements), Linux, Windows — fall back
+                // to passwordless magic-link so the user can still
+                // sign in to their Supabase account.
                 if (Platform.isIOS || (Platform.isMacOS && !kReleaseMode)) ...[
                   OutlinedButton.icon(
                     onPressed: auth.isLoading ? null : _appleSignIn,
@@ -197,7 +196,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                ] else if (Platform.isMacOS) ...[
+                ] else ...[
                   OutlinedButton.icon(
                     onPressed: auth.isLoading
                         ? null

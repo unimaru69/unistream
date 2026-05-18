@@ -158,9 +158,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Apple Sign-In (iOS + macOS Debug only — see
-                // login_page.dart for context). macOS Release falls
-                // back to the magic-link flow.
+                // Apple Sign-In on platforms that support the
+                // entitlement (iOS + macOS Debug). Everywhere else
+                // falls back to magic-link — see login_page.dart.
                 if (Platform.isIOS || (Platform.isMacOS && !kReleaseMode)) ...[
                   OutlinedButton.icon(
                     onPressed: auth.isLoading ? null : _appleSignIn,
@@ -174,7 +174,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                ] else if (Platform.isMacOS) ...[
+                ] else ...[
                   OutlinedButton.icon(
                     onPressed: auth.isLoading
                         ? null
