@@ -199,20 +199,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Verifies the 6-digit code. On success the AuthState listener
-  /// emits `signedIn` which `AuthGate` picks up.
+  /// Verifies the 6-10 digit OTP. On success Supabase returns a
+  /// session and we flip our local AuthState to authenticated so
+  /// AuthGate picks it up and routes to the splash flow.
+  ///
+  /// Earlier version relied on an `onAuthStateChange` listener
+  /// supposedly flipping `isAuthenticated` automatically — but
+  /// `AuthNotifier` only reads `currentSession` once at startup
+  /// (see `_init`). So we have to mirror what `signIn` / `signUp`
+  /// do: update state explicitly with the user from the response.
   Future<bool> verifyMagicLinkCode({
     required String email,
     required String code,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _auth.verifyMagicLinkCode(email: email, code: code);
+      final response =
+          await _auth.verifyMagicLinkCode(email: email, code: code);
       if (!mounted) return false;
-      // AuthState listener flips isAuthenticated → caller doesn't
-      // need to do anything else.
+      if (response?.user != null) {
+        state = AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          user: response!.user,
+        );
+        _fetchAccountInfo();
+        return true;
+      }
+      // Supabase returned no user — unexpected but treat as failure.
       state = state.copyWith(isLoading: false);
-      return true;
+      return false;
     } catch (e) {
       if (!mounted) return false;
       state = state.copyWith(isLoading: false, error: _mapError(e));
