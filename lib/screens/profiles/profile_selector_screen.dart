@@ -54,11 +54,13 @@ class ProfileSelectorScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     // Empty-state headline differs from the "Qui regarde ?" Netflix-y
     // prompt — we're inviting the user to create their first profile.
-    final title = profiles.isEmpty && allowCreate
-        ? 'Bienvenue'
-        : l10n.quiRegarde;
-    final subtitle = profiles.isEmpty && allowCreate
-        ? 'Créez un profil pour commencer'
+    final emptyAllowCreate = profiles.isEmpty && allowCreate;
+    final userEmail = ref.watch(authProvider).user?.email;
+    final title = emptyAllowCreate ? 'Bienvenue' : l10n.quiRegarde;
+    final subtitle = emptyAllowCreate
+        ? 'Vos profils sont propres à cet appareil. Créez-en un avec '
+            'les mêmes identifiants Xtream que sur vos autres appareils '
+            'pour synchroniser vos favoris et votre progression.'
         : null;
     return Scaffold(
       body: Container(
@@ -73,12 +75,33 @@ class ProfileSelectorScreen extends ConsumerWidget {
                   Text(title,
                       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold,
                           color: Colors.white)),
+                  // Show the signed-in email so the user knows they
+                  // ARE authenticated (the screen looked like a
+                  // "login again" prompt without this context).
+                  if (emptyAllowCreate && userEmail != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Connecté en tant que $userEmail',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ],
                   if (subtitle != null) ...[
-                    const SizedBox(height: 8),
-                    Text(subtitle,
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.7))),
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 32),
                   Wrap(
@@ -123,10 +146,10 @@ class ProfileSelectorScreen extends ConsumerWidget {
                             .popUntil((route) => route.isFirst);
                       },
                       child: const Text(
-                        'Vous avez déjà un compte ? Connectez-vous',
+                        'Changer de compte',
                         style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
+                          color: Colors.white60,
+                          fontSize: 12,
                           decoration: TextDecoration.underline,
                           decorationColor: Colors.white24,
                         ),
