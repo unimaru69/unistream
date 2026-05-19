@@ -170,12 +170,17 @@ vendor_libmpv() {
     cd "$TMP"
 
     # Discover the current "noble" pool filename for each package.
-    # Ubuntu's pool listing pages stay HTML-stable.
+    # Ubuntu's pool listing pages stay HTML-stable. Wrap each curl
+    # in a helper so a 404 says WHICH URL was wrong.
+    fetch_idx() {
+      local url="$1"
+      curl -fsSL "$url" || { echo "!! 404 on $url" >&2; return 1; }
+    }
     local idx_mpv idx_ffmpeg idx_libass idx_libplacebo
-    idx_mpv=$(curl -fsSL "$UBUNTU/universe/m/mpv/")
-    idx_ffmpeg=$(curl -fsSL "$UBUNTU/main/f/ffmpeg/")
-    idx_libass=$(curl -fsSL "$UBUNTU/universe/liba/libass/")
-    idx_libplacebo=$(curl -fsSL "$UBUNTU/universe/libp/libplacebo/")
+    idx_mpv=$(fetch_idx       "$UBUNTU/universe/m/mpv/")     || exit 1
+    idx_ffmpeg=$(fetch_idx    "$UBUNTU/universe/f/ffmpeg/")  || exit 1
+    idx_libass=$(fetch_idx    "$UBUNTU/universe/liba/libass/")    || exit 1
+    idx_libplacebo=$(fetch_idx "$UBUNTU/universe/libp/libplacebo/") || exit 1
 
     local debs=()
     local d
@@ -186,7 +191,7 @@ vendor_libmpv() {
     local pkg
     for pkg in libavformat60 libavcodec60 libavutil58 libswscale7 libswresample4 libpostproc57; do
       d=$(echo "$idx_ffmpeg" | grep -oE "${pkg}_[^\"]+_amd64\.deb" | sort -uV | tail -1)
-      [ -n "$d" ] && debs+=("$UBUNTU/main/f/ffmpeg/$d")
+      [ -n "$d" ] && debs+=("$UBUNTU/universe/f/ffmpeg/$d")
     done
     d=$(echo "$idx_libass" | grep -oE 'libass9_[^"]+_amd64\.deb' | sort -uV | tail -1)
     [ -n "$d" ] && debs+=("$UBUNTU/universe/liba/libass/$d")
