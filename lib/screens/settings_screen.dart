@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import '../models/app_config.dart';
 import '../providers/config_provider.dart';
+import '../providers/sync_trigger_provider.dart';
 import '../repositories/content_repository.dart';
 import '../services/import_export.dart';
 import 'package:unistream/l10n/app_localizations.dart';
@@ -56,6 +57,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
       if (!mounted) return;
+      // Credentials changed → profileHash likely changed too. Re-run
+      // the startup sync so favorites / progress / collections from
+      // the (now matching) iOS profile actually land here. Mirrors the
+      // trigger fired by OnboardingScreen at first-time setup.
+      ref.read(syncTriggerProvider.notifier).update((s) => s + 1);
       Navigator.pop(context, true);
     } catch (e) {
       setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _saving = false; });

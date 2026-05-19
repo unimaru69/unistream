@@ -8,6 +8,7 @@ import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
 import '../core/theme_colors.dart';
 import '../providers/config_provider.dart';
+import '../providers/sync_trigger_provider.dart';
 import '../services/m3u_parser.dart';
 import '../repositories/content_repository.dart';
 import '../core/logger.dart';
@@ -146,6 +147,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return;
       }
       if (!mounted) return;
+      // Now that AppConfig has the freshly-saved profile (and therefore
+      // a non-empty `profileHash`), ask main.dart to re-run the startup
+      // sync pull. Without this, the favorites / watchlist / progress
+      // the user already owns on iOS stay invisible: `_initSync` ran at
+      // magic-link sign-in time when AppConfig.profiles was still empty
+      // → it pulled nothing → and no further sync ever fires until the
+      // next cold start.
+      ref.read(syncTriggerProvider.notifier).update((s) => s + 1);
       _goToPage(2);
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (!mounted) return;

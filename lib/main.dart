@@ -20,6 +20,7 @@ import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
 import 'providers/favorites_provider.dart';
 import 'providers/collections_provider.dart';
+import 'providers/sync_trigger_provider.dart';
 import 'providers/watch_progress_provider.dart';
 import 'services/content_key_migration.dart';
 import 'services/supabase_config.dart';
@@ -232,6 +233,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   Timer? _windowSaveTimer;
   bool _syncPaused = false;
   StreamSubscription? _authSub;
+  ProviderSubscription<int>? _syncTriggerSub;
 
   @override
   void initState() {
@@ -278,6 +280,22 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         }
       }
     });
+    // Re-run the full startup sync whenever someone bumps the
+    // syncTriggerProvider counter. Today's only caller is
+    // OnboardingScreen — after the user finishes configuring their
+    // Xtream server we finally know the profileHash that matches
+    // their iOS install, and need to pull favorites / progress /
+    // collections that were invisible during the initial sign-in
+    // pull (when AppConfig.profiles was still empty).
+    _syncTriggerSub = ref.listenManual<int>(
+      syncTriggerProvider,
+      (prev, next) {
+        if (prev == null || next <= prev) return;
+        AppLogger.info(LogModule.sync,
+            'Sync trigger fired (n=$next) — re-running startup sync');
+        _initSync();
+      },
+    );
   }
 
   @override
@@ -477,6 +495,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   @override
   void dispose() {
     _authSub?.cancel();
+    _syncTriggerSub?.close();
     WidgetsBinding.instance.removeObserver(this);
     _windowSaveTimer?.cancel();
     EpgReminderService.instance.dispose();
