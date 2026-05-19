@@ -89,13 +89,18 @@ _integrate_desktop() {
     cp "$icon_src" "$icon_dst" 2>/dev/null || true
   fi
 
-  # Write canonical .desktop with absolute Exec path.
+  # Write canonical .desktop. Icon= is an ABSOLUTE PATH on purpose:
+  # the by-name lookup (Icon=unistream) only resolves if hicolor has
+  # a valid `index.theme` AND `gtk-update-icon-cache` could index it
+  # — neither holds in a vanilla user home (gtk-update-icon-cache
+  # silently refuses without index.theme). Absolute path bypasses
+  # the theme machinery entirely.
   cat > "$target" <<DESKTOP
 [Desktop Entry]
 Name=UniStream
 Comment=IPTV & VOD streaming application
 Exec=${APPIMAGE} %U
-Icon=unistream
+Icon=${icon_dst}
 Type=Application
 Categories=AudioVideo;Video;Player;
 Terminal=false
@@ -104,9 +109,8 @@ X-AppImage-Version=1
 DESKTOP
   chmod 0644 "$target" 2>/dev/null || true
 
-  # Refresh caches — both are best-effort, never fatal.
+  # Refresh desktop-file index — best-effort, never fatal.
   update-desktop-database "$desktop_dir" 2>/dev/null || true
-  gtk-update-icon-cache -t "$icon_theme" 2>/dev/null || true
 }
 # Run in the background so the user doesn't pay for cache rebuilds
 # on every launch. First-run case: the user just double-clicked the
