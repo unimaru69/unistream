@@ -44,6 +44,76 @@ export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/lib:${HERE}/usr/bin:${LD
 # Unset GTK_PATH to avoid host module conflicts
 unset GTK_MODULES 2>/dev/null || true
 unset GTK3_MODULES 2>/dev/null || true
+
+# ── Desktop integration ──────────────────────────────────────────
+# Install a `.desktop` entry + icon into ~/.local/share so the GNOME
+# / KDE launcher shows UniStream with the right icon and a working
+# Exec= pointing at the current AppImage path. On Fedora vanilla
+# (no AppImageLauncher) this is what produces an iconified entry
+# in the Activities overview.
+#
+# Skipped when:
+#   • $APPIMAGE is unset — we're being run with `--appimage-extract-
+#     and-run`, or directly from a squashfs-root: there's no stable
+#     Exec target so we don't try to integrate.
+#   • $UNISTREAM_NO_DESKTOP_INTEGRATION=1 — escape hatch.
+#   • AppImageLauncher (or similar) has already integrated this
+#     AppImage: detected by an `appimagekit_*.desktop` file.
+#   • Our own entry already exists and Exec= matches $APPIMAGE
+#     (idempotent — no rewrite cost on subsequent launches).
+_integrate_desktop() {
+  [ -n "${UNISTREAM_NO_DESKTOP_INTEGRATION:-}" ] && return 0
+  [ -z "${APPIMAGE:-}" ] && return 0
+
+  local data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  local desktop_dir="$data_home/applications"
+  local icon_theme="$data_home/icons/hicolor"
+  local icon_dir="$icon_theme/256x256/apps"
+  local target="$desktop_dir/unistream.desktop"
+
+  # AppImageLauncher already integrated it — leave its files alone.
+  if ls "$desktop_dir"/appimagekit_*unistream*.desktop >/dev/null 2>&1; then
+    return 0
+  fi
+  # Our entry already up to date.
+  if [ -f "$target" ] && grep -qFx "Exec=${APPIMAGE} %U" "$target"; then
+    return 0
+  fi
+
+  mkdir -p "$desktop_dir" "$icon_dir"
+
+  # Install icon if missing or older than the bundled copy.
+  local icon_src="${HERE}/usr/share/icons/hicolor/256x256/apps/unistream.png"
+  local icon_dst="$icon_dir/unistream.png"
+  if [ -f "$icon_src" ] && [ ! "$icon_dst" -nt "$icon_src" ]; then
+    cp "$icon_src" "$icon_dst" 2>/dev/null || true
+  fi
+
+  # Write canonical .desktop with absolute Exec path.
+  cat > "$target" <<DESKTOP
+[Desktop Entry]
+Name=UniStream
+Comment=IPTV & VOD streaming application
+Exec=${APPIMAGE} %U
+Icon=unistream
+Type=Application
+Categories=AudioVideo;Video;Player;
+Terminal=false
+StartupWMClass=unistream
+X-AppImage-Version=1
+DESKTOP
+  chmod 0644 "$target" 2>/dev/null || true
+
+  # Refresh caches — both are best-effort, never fatal.
+  update-desktop-database "$desktop_dir" 2>/dev/null || true
+  gtk-update-icon-cache -t "$icon_theme" 2>/dev/null || true
+}
+# Run in the background so the user doesn't pay for cache rebuilds
+# on every launch. First-run case: the user just double-clicked the
+# AppImage, so they're already inside the app — the launcher entry
+# only matters next time around.
+_integrate_desktop &
+
 exec "${HERE}/usr/bin/unistream" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
