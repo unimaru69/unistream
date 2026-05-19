@@ -154,7 +154,7 @@ chmod +x "$APPDIR/AppRun"
 #     and are loaded via LD_LIBRARY_PATH set by AppRun. They never
 #     touch system /usr/lib64.
 VENDOR_DIR="build/vendor/libmpv"
-VENDOR_STAMP="$VENDOR_DIR/.fetched-v1"
+VENDOR_STAMP="$VENDOR_DIR/.fetched-v2"
 
 vendor_libmpv() {
   if [ -f "$VENDOR_STAMP" ]; then
@@ -189,7 +189,10 @@ vendor_libmpv() {
     debs+=("$UBUNTU/universe/m/mpv/$d")
 
     local pkg
-    for pkg in libavformat60 libavcodec60 libavutil58 libswscale7 libswresample4 libpostproc57; do
+    # Full FFmpeg 6 runtime — media_kit's Linux native plugin pulls
+    # libavfilter + libavdevice too, not just the format/codec core.
+    for pkg in libavformat60 libavcodec60 libavutil58 libswscale7 \
+               libswresample4 libpostproc57 libavfilter9 libavdevice60; do
       d=$(echo "$idx_ffmpeg" | grep -oE "${pkg}_[^\"]+_amd64\.deb" | sort -uV | tail -1)
       [ -n "$d" ] && debs+=("$UBUNTU/universe/f/ffmpeg/$d")
     done
@@ -238,7 +241,7 @@ echo "==> Bundling shared libraries..."
 # Names of libraries we vendored above — these MUST come from the
 # vendored copy, never from the host (host's mpv 0.39+ would crash
 # media_kit at runtime).
-VENDORED_LIB_PREFIXES="libmpv libavformat libavcodec libavutil libswscale libswresample libpostproc libass libplacebo"
+VENDORED_LIB_PREFIXES="libmpv libavformat libavcodec libavutil libavfilter libavdevice libswscale libswresample libpostproc libass libplacebo"
 
 is_vendored() {
   local name="$1" prefix
