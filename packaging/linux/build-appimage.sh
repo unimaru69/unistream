@@ -82,9 +82,16 @@ _integrate_desktop() {
 
   mkdir -p "$desktop_dir" "$icon_dir"
 
-  # Install icon if missing or older than the bundled copy.
+  # Install icon if missing or older than the bundled copy. Guard
+  # against a prior broken state where `unistream.png` is a directory
+  # (a stray `mkdir -p .../unistream.png` somewhere upstream nested
+  # the real PNG inside an eponymous dir) — `cp` into that directory
+  # would just deepen the mess.
   local icon_src="${HERE}/usr/share/icons/hicolor/256x256/apps/unistream.png"
   local icon_dst="$icon_dir/unistream.png"
+  if [ -d "$icon_dst" ]; then
+    rm -rf "$icon_dst"
+  fi
   if [ -f "$icon_src" ] && [ ! "$icon_dst" -nt "$icon_src" ]; then
     cp "$icon_src" "$icon_dst" 2>/dev/null || true
   fi
