@@ -64,6 +64,38 @@ final class AuthService {
         logger.info("Signed in with Apple")
     }
 
+    // MARK: - Identity linking
+    //
+    // Goal: one Supabase user, multiple sign-in methods. The trap we
+    // rescue from is the iOS Apple Sign-In + "Hide my email" case
+    // where the user ends up with a privaterelay address as their
+    // primary email — that address can't receive magic-link OTPs on
+    // Mac / Linux / Windows, so favorites stay isolated on the iOS
+    // user_id. Updating the email here flips the primary while the
+    // Apple OAuth identity (keyed by `sub`, not email) keeps working.
+    // A subsequent magic-link OTP to the new email on any desktop
+    // build then resolves to the SAME user_id → sync works.
+
+    /// OAuth + email identities currently linked to the signed-in
+    /// user. Mirrors Flutter's `AuthService.currentIdentities`.
+    var currentIdentities: [UserIdentity] {
+        currentUser?.identities ?? []
+    }
+
+    /// Sends a confirmation link to `newEmail`. Once the user clicks
+    /// the link, Supabase swaps their primary email; the Apple OAuth
+    /// identity stays attached to the same user_id.
+    ///
+    /// Throws if `newEmail` is malformed or already belongs to another
+    /// Supabase user — the caller surfaces Supabase's error.
+    func updateEmail(_ newEmail: String) async throws {
+        isLoading = true
+        defer { isLoading = false }
+
+        _ = try await client.auth.update(user: UserAttributes(email: newEmail))
+        logger.info("Email update requested — confirmation sent to \(newEmail)")
+    }
+
     // MARK: - Sign Out
 
     func signOut() async throws {

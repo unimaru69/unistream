@@ -5,6 +5,7 @@ import Kingfisher
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @State private var showSubscription = false
+    @State private var showCrossDeviceEmail = false
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
     @State private var imageCacheSize: String = "…"
@@ -116,11 +117,46 @@ struct SettingsView: View {
                 }
             } header: { settingsHeader("Profils") }
 
-            // Account
+            // Account — current email + linked identities + cross-device email action.
+            // Mirrors the Flutter AccountScreen "Synchronisation entre appareils"
+            // card so users can rescue the Apple-Sign-In + "Hide my email" trap
+            // (privaterelay address can't receive magic-link OTPs on desktop builds).
             Section {
                 if let email = appState.authService.currentUser?.email {
-                    Label(email, systemImage: "envelope")
-                        .foregroundColor(DS.Colour.textSecondary)
+                    HStack {
+                        Label(email, systemImage: "envelope")
+                            .foregroundColor(DS.Colour.textSecondary)
+                        Spacer()
+                        if email.hasSuffix("@privaterelay.appleid.com") {
+                            // Visual nudge: this address is the trap.
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                        }
+                    }
+                }
+                // List linked sign-in methods so the user understands
+                // updating the email won't unlink Apple Sign-In.
+                ForEach(appState.authService.currentIdentities, id: \.id) { id in
+                    HStack {
+                        let (icon, label) = identityDisplay(for: id.provider)
+                        Label(label, systemImage: icon)
+                            .foregroundColor(DS.Colour.textPrimary)
+                        Spacer()
+                        if let value = id.identityData?["email"]?.stringValue {
+                            Text(value)
+                                .font(.caption)
+                                .foregroundColor(DS.Colour.textSecondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                }
+                Button {
+                    showCrossDeviceEmail = true
+                } label: {
+                    Label("Synchronisation entre appareils",
+                          systemImage: "rectangle.connected.to.line.below")
                 }
             } header: { settingsHeader("Compte") }
 
@@ -254,6 +290,9 @@ struct SettingsView: View {
         .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
         }
+        .fullScreenCover(isPresented: $showCrossDeviceEmail) {
+            CrossDeviceEmailSheet()
+        }
         .onAppear { refreshCacheSize() }
         .alert("Cache vidé", isPresented: $showCachePurged) {
             Button("OK", role: .cancel) {}
@@ -285,6 +324,15 @@ struct SettingsView: View {
             .font(.subheadline.weight(.semibold))
             .foregroundColor(DS.Colour.textPrimary)
             .padding(.top, 8)
+    }
+
+    private func identityDisplay(for provider: String) -> (icon: String, label: String) {
+        switch provider {
+        case "apple":  return ("apple.logo", "Sign in with Apple")
+        case "google": return ("globe", "Google")
+        case "email":  return ("envelope.fill", "Email")
+        default:       return ("person.crop.circle", provider)
+        }
     }
 
     @ViewBuilder

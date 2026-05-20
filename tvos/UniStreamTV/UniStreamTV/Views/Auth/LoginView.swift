@@ -78,6 +78,33 @@ struct LoginView: View {
                 }
                 .frame(maxWidth: 500)
 
+                // Cross-device hint shown above the Apple Sign-In
+                // button. Pre-empts the "Hide my email" trap: a user
+                // who picks Hide ends up with a privaterelay address
+                // as their Supabase primary email — that address
+                // can't receive magic-link OTPs on Mac, Linux or
+                // Windows, so their favorites won't follow them off
+                // the Apple TV. Settings → Synchronisation entre
+                // appareils ships a rescue path if they already did.
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "rectangle.connected.to.line.below")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                    Text("Pour synchroniser tes favoris et ta progression entre iPhone, iPad, Mac et Linux, choisis « Partager mon email » avec Apple Sign-In (pas « Masquer »). L'email masqué crée un compte isolé.")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: 500)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+
                 // Apple Sign-In — SwiftUI's SignInWithAppleButton is
                 // focusable on tvOS but doesn't fire its onCompletion when
                 // the Select button is pressed (works fine on iOS). Drive
