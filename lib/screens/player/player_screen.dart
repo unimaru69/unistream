@@ -252,12 +252,9 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       getController: () => _controller,
       onHandoff: () => _handedOff = true,
     );
-    // Linux gets debug-level mpv logs temporarily so we can diagnose
-    // the live-TV freeze/black cycle. Cheap on a desktop, very loud
-    // in the terminal — flip back to `.warn` once that's resolved.
     _player = widget.existingPlayer ?? Player(
-      configuration: PlayerConfiguration(
-        logLevel: Platform.isLinux ? MPVLogLevel.debug : MPVLogLevel.warn,
+      configuration: const PlayerConfiguration(
+        logLevel: MPVLogLevel.warn,
       ),
     );
     // On Linux, force software decoding for maximum compatibility.
