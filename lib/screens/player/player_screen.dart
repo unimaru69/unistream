@@ -1283,9 +1283,11 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
           normal: MaterialVideoControlsThemeData(
             seekBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             bottomButtonBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            // On desktop: disable touch gestures, show controls on hover
-            volumeGesture: !_isDesktop,
-            brightnessGesture: !_isDesktop,
+            // On desktop: disable touch gestures, show controls on hover.
+            // NOTE: Predidit's media_kit fork drops `volumeGesture` /
+            // `brightnessGesture` (those were upstream 1.2.x-only). We
+            // already passed `!_isDesktop` → `false` on every platform
+            // we ship today, so the removal is a no-op behavior-wise.
             seekGesture: !_isDesktop,
             seekOnDoubleTap: !_isDesktop,
             visibleOnMount: true,
@@ -1295,8 +1297,6 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
             topButtonBar: const [_FullscreenBackButton(), Spacer()],
             seekBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             bottomButtonBarMargin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            volumeGesture: !_isDesktop,
-            brightnessGesture: !_isDesktop,
             seekGesture: !_isDesktop,
             seekOnDoubleTap: !_isDesktop,
           ),
