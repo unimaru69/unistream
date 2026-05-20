@@ -153,6 +153,11 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   late final Player _player;
   late final VideoController _controller;
   bool _minimized = false;
+  // True when the user zapped to another channel: the next PlayerScreen
+  // now owns `_player` / `_controller`. Our dispose() must NOT tear
+  // them down or the new screen ends up holding a dead handle and we
+  // get a black/freeze cycle on every channel switch.
+  bool _handedOff = false;
   int _reconnectAttempts = 0;
   String? _playError;
 
@@ -243,6 +248,9 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       channelIndex: widget.channelIndex,
       onStateChanged: () { if (mounted) setState(() {}); },
       repo: _repo,
+      getPlayer: () => _player,
+      getController: () => _controller,
+      onHandoff: () => _handedOff = true,
     );
     // Linux gets debug-level mpv logs temporarily so we can diagnose
     // the live-TV freeze/black cycle. Cheap on a desktop, very loud
@@ -779,7 +787,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     _epgTickTimer?.cancel();
     _zapping.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
-    if (!_minimized) {
+    if (!_minimized && !_handedOff) {
       if (widget.resumeKey != null && _lastDur > Duration.zero) {
         WatchProgress.save(widget.resumeKey!, _lastPos, _lastDur);
       }
@@ -790,6 +798,10 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       }
       _player.dispose();
     }
+    // `_handedOff == true` → the next PlayerScreen (pushed by the zap
+    // controller) reuses _player/_controller. Skip disposal, it'll
+    // happen in the new screen's dispose when the user actually leaves
+    // the player.
     if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);

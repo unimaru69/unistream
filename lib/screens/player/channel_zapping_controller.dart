@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/channel.dart';
 import '../../repositories/content_repository.dart';
@@ -14,6 +16,9 @@ class ChannelZappingController {
     required this.channelIndex,
     required this.onStateChanged,
     required ContentRepository repo,
+    this.getPlayer,
+    this.getController,
+    this.onHandoff,
   }) : _repo = repo;
 
   final ContentRepository _repo;
@@ -21,6 +26,22 @@ class ChannelZappingController {
   final List<Channel>? channelList;
   final int? channelIndex;
   final VoidCallback onStateChanged;
+
+  /// Hooks used to hand the live Player+VideoController from the
+  /// CURRENT PlayerScreen over to the next one when zapping. Without
+  /// the handoff, every channel switch recreates the whole pipeline:
+  /// new Player → new VideoController → new EGL context → 1-2 seconds
+  /// of "frozen last frame, then black" before the new stream takes
+  /// over. Predidit's fork on Linux makes this especially visible
+  /// because each VideoOutput init drags the swap-chain emulation
+  /// + dedicated render thread along.
+  ///
+  /// Caller sets `onHandoff` to flag the outgoing PlayerScreen as
+  /// "handed off" so its dispose() skips `_player.dispose()` (the new
+  /// screen now owns the player).
+  final Player? Function()? getPlayer;
+  final VideoController? Function()? getController;
+  final VoidCallback? onHandoff;
 
   bool showChannelList = false;
   String digitBuffer = '';
@@ -87,6 +108,22 @@ class ChannelZappingController {
     final sid = ch.id;
     final url = _repo.getLiveStreamUrl(sid);
     final name = ch.name.isNotEmpty ? ch.name : AppLocalizations.of(context)!.sansTitre;
+    // Grab the current screen's Player + VideoController BEFORE we push
+    // the replacement, then flag the outgoing screen so its dispose
+    // skips tearing them down. The new PlayerScreen reuses them, so
+    // there's a single EGL context for the whole zapping session.
+    //
+    // We swap the URL HERE (not in the new screen's initState) because
+    // PlayerScreen treats `existingPlayer != null` as a mini-player
+    // handoff and deliberately skips `.open()` to preserve the current
+    // playback position. For zap we want the opposite — load the new
+    // channel right now, while the EGL pipeline stays untouched.
+    final handoffPlayer = getPlayer?.call();
+    final handoffController = getController?.call();
+    if (handoffPlayer != null) {
+      handoffPlayer.open(Media(url));
+      onHandoff?.call();
+    }
     Navigator.pushReplacement(context, slideRoute(PlayerScreen(
       url: url,
       title: name,
@@ -94,6 +131,8 @@ class ChannelZappingController {
       coverUrl: ch.displayIcon.isNotEmpty ? ch.displayIcon : null,
       channelList: list,
       channelIndex: idx,
+      existingPlayer: handoffPlayer,
+      existingController: handoffController,
     )));
   }
 
