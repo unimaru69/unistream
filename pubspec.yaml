@@ -57,6 +57,15 @@ dependencies:
       url: https://github.com/Predidit/media-kit.git
       ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
       path: ./media_kit_video
+  # Umbrella that the fork uses to register platform-specific libs at
+  # Flutter's plugin-discovery time. Without it, media_kit prints
+  # `WARNING: package:media_kit_libs_*** not found.` and Linux falls
+  # back to expecting a system libmpv.
+  media_kit_libs_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/universal/media_kit_libs_video
   http: ^1.6.0
   url_launcher: ^6.3.0
   # iOS / iPadOS playback uses libVLC via flutter_vlc_player. media_kit

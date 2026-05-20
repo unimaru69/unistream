@@ -44,6 +44,11 @@ export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/lib:${HERE}/usr/bin:${LD
 # Unset GTK_PATH to avoid host module conflicts
 unset GTK_MODULES 2>/dev/null || true
 unset GTK3_MODULES 2>/dev/null || true
+# libmpv refuses to run with a non-C numeric locale (e.g. fr_FR.UTF-8
+# where the decimal separator is `,`). Force LC_NUMERIC to C just for
+# this process — does NOT affect LC_MESSAGES / LC_TIME so the UI stays
+# in the user's language.
+export LC_NUMERIC=C
 
 # ── Desktop integration ──────────────────────────────────────────
 # Install a `.desktop` entry + icon into ~/.local/share so the GNOME
