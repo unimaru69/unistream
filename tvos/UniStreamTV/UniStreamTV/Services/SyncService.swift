@@ -561,7 +561,15 @@ final class SyncService {
     func markAsWatched(contentKey: String, title: String? = nil, seriesId: String? = nil) {
         let existing = watchProgress[contentKey]
         // Synthetic 1h duration — real duration will overwrite on first real play.
-        let durationMs = existing?.durationMs ?? 3_600_000
+        // `??` falls through only when `existing` is nil; an entry whose
+        // durationMs is 0 (the registerPlayback sentinel that an older
+        // build pushed before VLC parsed the stream) DOES exist, so we
+        // need an explicit zero-guard to land back on the 1h synthetic
+        // — otherwise positionMs = 0 * 0.99 = 0 and the new
+        // pushProgress duration-guard refuses to ship it, leaving the
+        // corrupt Supabase row stale forever.
+        let existingDuration = existing?.durationMs ?? 0
+        let durationMs = existingDuration > 0 ? existingDuration : 3_600_000
         let positionMs = Int(Double(durationMs) * 0.99)
         watchProgress[contentKey] = WatchEntry(
             positionMs: positionMs,
