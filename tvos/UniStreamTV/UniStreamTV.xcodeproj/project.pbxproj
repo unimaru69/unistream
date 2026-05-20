@@ -80,6 +80,7 @@
 		9A1C87AE9B0350501CCA24A3 /* VODViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 245C67A06283083BFC7A96EE /* VODViewModel.swift */; };
 		9DE50478D2783589389B7D9E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99459B64C0F2E14AECBB353 /* DesignSystem.swift */; };
 		A28876D3617EC849EDF82AD1 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC93FA043E16C7D3D41353A2 /* HistoryView.swift */; };
+		A3452580F73D0B03D30D0C17 /* CrossDeviceEmailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9367D823379BF218E23FB3B /* CrossDeviceEmailSheet.swift */; };
 		A569B005A477E360F8335C5E /* FavoriteItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A72883A64F190F787A8978B /* FavoriteItemTests.swift */; };
 		A67CA8400DC8B966A343B8E1 /* TopShelfContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DF7C52329E9C6F3005D909 /* TopShelfContentProvider.swift */; };
 		A7E78AF8173566AD9A7697E0 /* PlayerPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8264B86EFECAACF504505140 /* PlayerPresenter.swift */; };
@@ -223,6 +224,7 @@
 		A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGReminderService.swift; sourceTree = "<group>"; };
 		A5712621A2D936C3A2D53353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A5E315AF490837A1C541826E /* URLSession+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Retry.swift"; sourceTree = "<group>"; };
+		A9367D823379BF218E23FB3B /* CrossDeviceEmailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossDeviceEmailSheet.swift; sourceTree = "<group>"; };
 		A9F53EF3C573E71F4AA5EFE8 /* TMDBCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBCache.swift; sourceTree = "<group>"; };
 		AC098256E4044D03F74240BF /* LiveFocusedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveFocusedPreview.swift; sourceTree = "<group>"; };
 		AE0B109201D90541B8CC2A4C /* DemoMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMode.swift; sourceTree = "<group>"; };
@@ -433,6 +435,7 @@
 		808F4543D4D675DC5451EAB5 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				A9367D823379BF218E23FB3B /* CrossDeviceEmailSheet.swift */,
 				4D2BAE3875739CF23A3B6029 /* ParentalSettingsView.swift */,
 				20D396CE8FF4090C7142CE2E /* ProfileEditorView.swift */,
 				8E868467221E5324BDE5EB5F /* SettingsView.swift */,
@@ -771,6 +774,7 @@
 				AF753A6FB728027D39899B7D /* Constants.swift in Sources */,
 				977BDF7263CA342DE059F776 /* ContentMode.swift in Sources */,
 				498620BBA9E626DCA6DDF8C2 /* ContinueWatchingRow.swift in Sources */,
+				A3452580F73D0B03D30D0C17 /* CrossDeviceEmailSheet.swift in Sources */,
 				4D359C8BABE1899006585AC5 /* DemoMode.swift in Sources */,
 				9DE50478D2783589389B7D9E /* DesignSystem.swift in Sources */,
 				BF3E2D8D9FB733911AF76B20 /* EPGCache.swift in Sources */,
@@ -930,7 +934,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -951,7 +955,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -975,7 +979,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -996,7 +1000,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 61;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
