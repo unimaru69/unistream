@@ -32,13 +32,31 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  media_kit: ^1.2.6
-  media_kit_video: ^2.0.1
-  media_kit_libs_macos_video: ^1.1.4
-  media_kit_libs_windows_video: ^1.0.10
-  media_kit_libs_linux: ^1.1.4
-  media_kit_libs_ios_video: ^1.1.4
-  media_kit_libs_android_video: ^1.3.6
+  # ── media_kit: Predidit fork ──
+  # Upstream media_kit 1.2.6 crashes on every modern Linux distro at
+  # player init with `m_config_core.c:571: m_config_cache_from_shadow:
+  # Assertion 'group_index >= 0' failed.` — the host's libmpv 0.39+
+  # restructured option groups and upstream hasn't shipped a fix
+  # (issue #1051 open since Dec 2024, maintainer dormant).
+  #
+  # Predidit's fork ships a self-contained prebuilt libmpv2 on Linux
+  # (statically links FFmpeg 7.1, so no `.so.60` vs `.so.62` mismatch),
+  # plus an out-of-tree FFmpeg patch that handles non-standard HLS
+  # streams — exactly what Xtream providers serve. iOS / Android /
+  # macOS / Windows paths in the fork are kept in sync with upstream.
+  #
+  # Pinned to a specific SHA, not `ref: main`, so Predidit can't
+  # break our build by pushing while we sleep.
+  media_kit:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./media_kit
+  media_kit_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./media_kit_video
   http: ^1.6.0
   url_launcher: ^6.3.0
   # iOS / iPadOS playback uses libVLC via flutter_vlc_player. media_kit
@@ -90,6 +108,40 @@ dependencies:
   crypto: ^3.0.7
   flutter_local_notifications: ^21.0.0
   purchases_flutter: ^9.16.1
+
+# All platform-specific media_kit native lib packages re-routed to
+# Predidit's fork. Same SHA as the media_kit / media_kit_video git
+# deps above so the whole stack ships from a single tree.
+#
+# Without these overrides, pub resolves the inner `media_kit_libs_*`
+# deps (referenced transitively by media_kit_video) to pub.dev, which
+# brings back upstream's broken Linux libmpv stub.
+dependency_overrides:
+  media_kit_libs_linux:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/linux/media_kit_libs_linux
+  media_kit_libs_ios_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/ios/media_kit_libs_ios_video
+  media_kit_libs_android_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/android/media_kit_libs_android_video
+  media_kit_libs_macos_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/macos/media_kit_libs_macos_video
+  media_kit_libs_windows_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
+      path: ./libs/windows/media_kit_libs_windows_video
 
 dev_dependencies:
   integration_test:

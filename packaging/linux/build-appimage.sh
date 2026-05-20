@@ -129,128 +129,22 @@ exec "${HERE}/usr/bin/unistream" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# ──────────────────────────────────────────────────────────────────
-# Vendored libmpv + FFmpeg (pinned to a media_kit-compatible version)
-# ──────────────────────────────────────────────────────────────────
-#
-# media_kit 1.2.6 (our pinned Dart-side package) does NOT support
-# libmpv 0.39+. Past that, the player crashes at first setProperty:
-#   `m_config_core.c:571: m_config_cache_from_shadow: Assertion
-#    `group_index >= 0' failed`
-# This is documented as media_kit issue #1010 — mpv 0.39 restructured
-# option groups and no media_kit release has caught up yet.
-#
-# Building on a current Fedora (mpv 0.41) and bundling the host's
-# libmpv reproduces the crash on every run. We need to pin libmpv to
-# a known-compatible build (mpv 0.37 from Ubuntu 24.04 LTS, which
-# ships FFmpeg 6.x as its companion).
-#
-# Why Ubuntu noble debs and not Fedora RPMs:
-#   • pool.ubuntu.com/* URLs are stable for every version ever
-#     published (forever — that's the archive's mandate).
-#   • Fedora's GA tree is dropped from active mirrors a few months
-#     after a release EOLs; RPM Fusion doesn't maintain an archive.
-#   • The host OS is irrelevant — these libs live under $APPDIR/usr/lib
-#     and are loaded via LD_LIBRARY_PATH set by AppRun. They never
-#     touch system /usr/lib64.
-VENDOR_DIR="build/vendor/libmpv"
-VENDOR_STAMP="$VENDOR_DIR/.fetched-v2"
-
-vendor_libmpv() {
-  if [ -f "$VENDOR_STAMP" ]; then
-    echo "==> Using cached vendored libmpv ($VENDOR_DIR)"
-    return 0
-  fi
-  echo "==> Vendoring libmpv 0.37 + FFmpeg 6 from Ubuntu noble pool..."
-  local UBUNTU="http://archive.ubuntu.com/ubuntu/pool"
-  local TMP="build/vendor/.tmp"
-  rm -rf "$TMP" "$VENDOR_DIR"
-  mkdir -p "$TMP" "$VENDOR_DIR"
-  (
-    cd "$TMP"
-
-    # Discover the current "noble" pool filename for each package.
-    # Ubuntu's pool listing pages stay HTML-stable. Wrap each curl
-    # in a helper so a 404 says WHICH URL was wrong.
-    fetch_idx() {
-      local url="$1"
-      curl -fsSL "$url" || { echo "!! 404 on $url" >&2; return 1; }
-    }
-    local idx_mpv idx_ffmpeg idx_libass idx_libplacebo
-    idx_mpv=$(fetch_idx       "$UBUNTU/universe/m/mpv/")     || exit 1
-    idx_ffmpeg=$(fetch_idx    "$UBUNTU/universe/f/ffmpeg/")  || exit 1
-    idx_libass=$(fetch_idx    "$UBUNTU/universe/liba/libass/")    || exit 1
-    idx_libplacebo=$(fetch_idx "$UBUNTU/universe/libp/libplacebo/") || exit 1
-
-    local debs=()
-    local d
-    d=$(echo "$idx_mpv" | grep -oE 'libmpv2_0\.37[^"]*_amd64\.deb' | sort -uV | tail -1)
-    [ -z "$d" ] && { echo "!! No libmpv2 0.37 found in noble pool" >&2; exit 1; }
-    debs+=("$UBUNTU/universe/m/mpv/$d")
-
-    local pkg
-    # Full FFmpeg 6 runtime — media_kit's Linux native plugin pulls
-    # libavfilter + libavdevice too, not just the format/codec core.
-    for pkg in libavformat60 libavcodec60 libavutil58 libswscale7 \
-               libswresample4 libpostproc57 libavfilter9 libavdevice60; do
-      d=$(echo "$idx_ffmpeg" | grep -oE "${pkg}_[^\"]+_amd64\.deb" | sort -uV | tail -1)
-      [ -n "$d" ] && debs+=("$UBUNTU/universe/f/ffmpeg/$d")
-    done
-    d=$(echo "$idx_libass" | grep -oE 'libass9_[^"]+_amd64\.deb' | sort -uV | tail -1)
-    [ -n "$d" ] && debs+=("$UBUNTU/universe/liba/libass/$d")
-    d=$(echo "$idx_libplacebo" | grep -oE 'libplacebo[0-9]+_[^"]+_amd64\.deb' | sort -uV | tail -1)
-    [ -n "$d" ] && debs+=("$UBUNTU/universe/libp/libplacebo/$d")
-
-    echo "    ${#debs[@]} packages to fetch."
-    local url
-    for url in "${debs[@]}"; do
-      echo "    · $(basename "$url")"
-      curl -fsSL -O "$url" || { echo "!! Failed: $url" >&2; exit 1; }
-    done
-
-    local deb
-    for deb in *.deb; do
-      ar x "$deb"
-      if [ -f data.tar.xz ];  then tar xf data.tar.xz
-      elif [ -f data.tar.zst ]; then tar xf data.tar.zst
-      fi
-      rm -f control.tar.* data.tar.* debian-binary
-    done
-    # Flatten all .so files (preserving symlinks) into VENDOR_DIR.
-    find usr -name 'lib*.so*' \( -type f -o -type l \) \
-         -exec cp -a {} "../libmpv/" \;
-  )
-  # Repoint libmpv.so.2 → libmpv.so.2.X.Y (the deb ships them but cp -a
-  # may have flattened weirdly). Idempotent.
-  (
-    cd "$VENDOR_DIR"
-    local real
-    real=$(ls libmpv.so.2.* 2>/dev/null | head -1)
-    [ -n "$real" ] && ln -sf "$real" libmpv.so.2
-  )
-  rm -rf "build/vendor/.tmp"
-  touch "$VENDOR_STAMP"
-  echo "    Vendored $(find "$VENDOR_DIR" -name 'lib*.so*' | wc -l) libs."
-}
-
-vendor_libmpv
-
 # Bundle all non-glibc shared libraries needed by the binary and its .so deps
 echo "==> Bundling shared libraries..."
 
-# Names of libraries we vendored above — these MUST come from the
-# vendored copy, never from the host (host's mpv 0.39+ would crash
-# media_kit at runtime).
-VENDORED_LIB_PREFIXES="libmpv libavformat libavcodec libavutil libavfilter libavdevice libswscale libswresample libpostproc libass libplacebo"
-
-is_vendored() {
-  local name="$1" prefix
-  for prefix in $VENDORED_LIB_PREFIXES; do
-    case "$name" in "${prefix}".so*) return 0 ;; esac
-  done
-  return 1
-}
-
+# libmpv lookup avoidance: media_kit's Linux side resolves to Predidit's
+# fork (see pubspec.yaml), whose media_kit_video CMakeLists.txt
+# downloads a self-contained libmpv2 (with FFmpeg 7.1 statically
+# linked) and drops it into `build/linux/x64/release/bundle/lib/`.
+# That's what we want at runtime — NEVER the host's libmpv, which on
+# any modern distro (mpv 0.39+) would crash media_kit at first
+# setProperty with the m_config_cache_from_shadow assertion.
+#
+# `bundle_lib` runs `ldd` on host paths, so without an explicit skip
+# it would copy /lib64/libmpv.so.2 into $APPDIR/usr/lib/ — which sits
+# higher in AppRun's LD_LIBRARY_PATH than the bundle's own libmpv and
+# wins at runtime. So: skip libmpv entirely here, and trust the
+# flutter bundle copy already in $APPDIR/usr/bin/lib/.
 bundle_lib() {
   local libpath="$1"
   local libname
@@ -260,6 +154,10 @@ bundle_lib() {
   # - GPU/graphics stack (EGL, GL, GLX, GLESv2, vulkan, drm, gbm) — must match host GPU drivers
   # - X11/Wayland core — must match host display server
   # - Mesa internals, nvidia, etc.
+  # - libmpv: shipped by Predidit's media_kit fork inside the Flutter
+  #   bundle (`usr/bin/lib/libmpv.so.2`), with FFmpeg statically linked
+  #   in; bundling the host's libmpv would override it via
+  #   LD_LIBRARY_PATH order and revive the mpv 0.39+ assertion crash.
   case "$libname" in
     libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s*|linux-vdso*) return 0 ;;
     libEGL.so*|libGL.so*|libGLX.so*|libGLESv2.so*|libGLdispatch.so*) return 0 ;;
@@ -270,18 +168,12 @@ bundle_lib() {
     libasound.so*|libjack*.so*) return 0 ;;
     libva.so*|libva-*.so*|libvdpau.so*) return 0 ;;
     libstdc++.so*) return 0 ;;
+    libmpv.so*) return 0 ;;
   esac
-  # Vendored libs win — never copy the host's mpv/FFmpeg/libass/libplacebo.
-  if is_vendored "$libname"; then return 0; fi
   if [ ! -f "$APPDIR/usr/lib/$libname" ]; then
     cp "$libpath" "$APPDIR/usr/lib/" 2>/dev/null && echo "   Bundled $libname" || true
   fi
 }
-
-# Copy ALL vendored libs into $APPDIR/usr/lib first so AppRun's
-# LD_LIBRARY_PATH picks them up before anything else.
-echo "==> Installing vendored libmpv + FFmpeg into bundle..."
-cp -a "$VENDOR_DIR"/lib*.so* "$APPDIR/usr/lib/"
 
 # Pass 1: bundle deps of all binaries/libs in the Flutter bundle
 mapfile -t BINS < <(find "$APPDIR/usr/bin" -type f \( -name "*.so" -o -name "*.so.*" -o -executable \) 2>/dev/null)
@@ -292,11 +184,11 @@ for bin in "${BINS[@]}"; do
   done
 done
 
-# Pass 2: resolve deps of vendored libmpv (its transitive non-vendored
-# deps still need bundling — libuchardet, liblzma, etc.). bundle_lib
-# is_vendored-guarded so it won't replace the pinned libmpv/FFmpeg.
-echo "==> Resolving transitive dependencies of vendored libmpv..."
-mapfile -t BUNDLED < <(find "$APPDIR/usr/lib" -type f -name "*.so*" 2>/dev/null)
+# Pass 2: resolve deps of the bundled libmpv (it sits under usr/bin/lib/).
+# Its transitive deps (libuchardet, liblzma, libplacebo, libass, …)
+# still need bundling.
+echo "==> Resolving transitive dependencies of libmpv..."
+mapfile -t BUNDLED < <(find "$APPDIR/usr/bin/lib" "$APPDIR/usr/lib" -type f -name "*.so*" 2>/dev/null)
 for lib in "${BUNDLED[@]}"; do
   mapfile -t TDEPS < <(ldd "$lib" 2>/dev/null | grep "=> /" | awk '{print $3}' || true)
   for dep in "${TDEPS[@]}"; do
