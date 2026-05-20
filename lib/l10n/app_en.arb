@@ -424,6 +424,27 @@
   "compteSupprimerConfirmation": "Are you sure? This action is irreversible. All your data will be permanently deleted.",
   "compteSupprimerBouton": "Delete Permanently",
 
+  "crossDeviceTitre": "Cross-device sync",
+  "crossDeviceExplainerGeneric": "The email on your account is your cross-device identifier. Sign in with the same email everywhere — iPhone, iPad, Mac, Linux — so your favorites, watchlist, and progress show up automatically on every device.",
+  "crossDeviceExplainerPrivateRelay": "You signed in with Apple's Hide My Email. That address CAN'T receive magic-link OTPs on Mac, Linux or Windows, so your favorites won't sync there. Set a real email below to enable cross-device sync — Apple Sign-In on iOS keeps working untouched.",
+  "crossDeviceIdApple": "Sign in with Apple",
+  "crossDeviceIdGoogle": "Google",
+  "crossDeviceIdEmail": "Email + magic link",
+  "crossDeviceModifierEmail": "Set cross-device email",
+  "crossDeviceNouvelEmail": "New email",
+  "crossDeviceNouvelEmailHint": "you@example.com",
+  "crossDeviceEmailIdentique": "That's already your current email",
+  "crossDeviceEnvoyerLien": "Send confirmation link",
+  "crossDeviceConfirmationEnvoyee": "Link sent to {email}",
+  "@crossDeviceConfirmationEnvoyee": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "crossDeviceConfirmationDetail": "Open your inbox and click the link to confirm the change. Once confirmed, sign in via magic-link with this new email on your other devices — your data will already be there.",
+  "crossDeviceHintApple": "To sync favorites and progress across iPhone, iPad, Mac and Linux, pick \"Share my email\" with Apple Sign-In (not \"Hide\"). The hidden email creates an isolated account.",
+  "crossDeviceHintGeneric": "This email is your cross-device identifier. Sign in with the same address on every device so favorites and progress sync automatically.",
+
   "paywallTitre": "Upgrade to Premium",
   "paywallDescription": "Unlock all features",
   "paywallRestaurer": "Restore purchases",

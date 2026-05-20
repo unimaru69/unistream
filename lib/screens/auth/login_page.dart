@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import 'forgot_password_page.dart';
 import 'magic_link_page.dart';
+import 'widgets/cross_device_hint.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToSignup;
@@ -175,6 +176,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : Text(l10n.authSeConnecter, style: const TextStyle(fontSize: 16)),
                 ),
+                const SizedBox(height: 16),
+
+                // Cross-device hint shown above the Apple / magic-link
+                // buttons. The most common foot-gun is "Hide my email"
+                // on iOS Apple Sign-In: it scopes the user's data to a
+                // privaterelay address that can't receive OTPs on the
+                // desktop builds → favorites stay invisible cross-device.
+                // The hint pre-empts that. AccountScreen ships a rescue
+                // path for users who already fell into it.
+                const CrossDeviceHint(),
                 const SizedBox(height: 16),
 
                 // Apple Sign-In on platforms that support the

@@ -2030,6 +2030,96 @@ abstract class AppLocalizations {
   /// **'Supprimer définitivement'**
   String get compteSupprimerBouton;
 
+  /// No description provided for @crossDeviceTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Synchronisation entre appareils'**
+  String get crossDeviceTitre;
+
+  /// No description provided for @crossDeviceExplainerGeneric.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'email associé à ton compte sert d\'identifiant cross-device. Pour que tes favoris, ta watchlist et ta progression remontent automatiquement sur tes autres appareils (iPhone, iPad, Mac, Linux), connecte-toi partout avec ce même email.'**
+  String get crossDeviceExplainerGeneric;
+
+  /// No description provided for @crossDeviceExplainerPrivateRelay.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu utilises l\'email masqué d\'Apple (Hide My Email). Il ne peut PAS recevoir de lien magique sur Mac, Linux ou Windows — donc tes favoris ne se synchroniseront pas. Configure ici ton vrai email pour activer la synchro cross-device : ton Apple Sign-In iOS continuera à fonctionner sans rien changer.'**
+  String get crossDeviceExplainerPrivateRelay;
+
+  /// No description provided for @crossDeviceIdApple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sign in with Apple'**
+  String get crossDeviceIdApple;
+
+  /// No description provided for @crossDeviceIdGoogle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Google'**
+  String get crossDeviceIdGoogle;
+
+  /// No description provided for @crossDeviceIdEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Email + lien magique'**
+  String get crossDeviceIdEmail;
+
+  /// No description provided for @crossDeviceModifierEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Configurer l\'email cross-device'**
+  String get crossDeviceModifierEmail;
+
+  /// No description provided for @crossDeviceNouvelEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvel email'**
+  String get crossDeviceNouvelEmail;
+
+  /// No description provided for @crossDeviceNouvelEmailHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'ton.adresse@exemple.com'**
+  String get crossDeviceNouvelEmailHint;
+
+  /// No description provided for @crossDeviceEmailIdentique.
+  ///
+  /// In fr, this message translates to:
+  /// **'C\'est déjà ton email actuel'**
+  String get crossDeviceEmailIdentique;
+
+  /// No description provided for @crossDeviceEnvoyerLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer le lien de confirmation'**
+  String get crossDeviceEnvoyerLien;
+
+  /// No description provided for @crossDeviceConfirmationEnvoyee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien envoyé à {email}'**
+  String crossDeviceConfirmationEnvoyee(String email);
+
+  /// No description provided for @crossDeviceConfirmationDetail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvre l\'email et clique le lien pour confirmer le changement. Une fois validé, connecte-toi via lien magique avec ce nouvel email sur tes autres appareils — tes données seront déjà là.'**
+  String get crossDeviceConfirmationDetail;
+
+  /// No description provided for @crossDeviceHintApple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pour synchroniser tes favoris et ta progression entre iPhone, iPad, Mac et Linux, choisis « Partager mon email » avec Apple Sign-In (pas « Masquer »). L\'email masqué crée un compte isolé.'**
+  String get crossDeviceHintApple;
+
+  /// No description provided for @crossDeviceHintGeneric.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet email sera ton identifiant cross-device. Connecte-toi avec la même adresse sur tous tes appareils pour que tes favoris et ta progression se synchronisent.'**
+  String get crossDeviceHintGeneric;
+
   /// No description provided for @paywallTitre.
   ///
   /// In fr, this message translates to:

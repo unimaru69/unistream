@@ -1104,6 +1104,58 @@ class AppLocalizationsFr extends AppLocalizations {
   String get compteSupprimerBouton => 'Supprimer définitivement';
 
   @override
+  String get crossDeviceTitre => 'Synchronisation entre appareils';
+
+  @override
+  String get crossDeviceExplainerGeneric =>
+      'L\'email associé à ton compte sert d\'identifiant cross-device. Pour que tes favoris, ta watchlist et ta progression remontent automatiquement sur tes autres appareils (iPhone, iPad, Mac, Linux), connecte-toi partout avec ce même email.';
+
+  @override
+  String get crossDeviceExplainerPrivateRelay =>
+      'Tu utilises l\'email masqué d\'Apple (Hide My Email). Il ne peut PAS recevoir de lien magique sur Mac, Linux ou Windows — donc tes favoris ne se synchroniseront pas. Configure ici ton vrai email pour activer la synchro cross-device : ton Apple Sign-In iOS continuera à fonctionner sans rien changer.';
+
+  @override
+  String get crossDeviceIdApple => 'Sign in with Apple';
+
+  @override
+  String get crossDeviceIdGoogle => 'Google';
+
+  @override
+  String get crossDeviceIdEmail => 'Email + lien magique';
+
+  @override
+  String get crossDeviceModifierEmail => 'Configurer l\'email cross-device';
+
+  @override
+  String get crossDeviceNouvelEmail => 'Nouvel email';
+
+  @override
+  String get crossDeviceNouvelEmailHint => 'ton.adresse@exemple.com';
+
+  @override
+  String get crossDeviceEmailIdentique => 'C\'est déjà ton email actuel';
+
+  @override
+  String get crossDeviceEnvoyerLien => 'Envoyer le lien de confirmation';
+
+  @override
+  String crossDeviceConfirmationEnvoyee(String email) {
+    return 'Lien envoyé à $email';
+  }
+
+  @override
+  String get crossDeviceConfirmationDetail =>
+      'Ouvre l\'email et clique le lien pour confirmer le changement. Une fois validé, connecte-toi via lien magique avec ce nouvel email sur tes autres appareils — tes données seront déjà là.';
+
+  @override
+  String get crossDeviceHintApple =>
+      'Pour synchroniser tes favoris et ta progression entre iPhone, iPad, Mac et Linux, choisis « Partager mon email » avec Apple Sign-In (pas « Masquer »). L\'email masqué crée un compte isolé.';
+
+  @override
+  String get crossDeviceHintGeneric =>
+      'Cet email sera ton identifiant cross-device. Connecte-toi avec la même adresse sur tous tes appareils pour que tes favoris et ta progression se synchronisent.';
+
+  @override
   String get paywallTitre => 'Passez à Premium';
 
   @override

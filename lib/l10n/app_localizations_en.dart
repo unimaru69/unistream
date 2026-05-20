@@ -1096,6 +1096,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compteSupprimerBouton => 'Delete Permanently';
 
   @override
+  String get crossDeviceTitre => 'Cross-device sync';
+
+  @override
+  String get crossDeviceExplainerGeneric =>
+      'The email on your account is your cross-device identifier. Sign in with the same email everywhere — iPhone, iPad, Mac, Linux — so your favorites, watchlist, and progress show up automatically on every device.';
+
+  @override
+  String get crossDeviceExplainerPrivateRelay =>
+      'You signed in with Apple\'s Hide My Email. That address CAN\'T receive magic-link OTPs on Mac, Linux or Windows, so your favorites won\'t sync there. Set a real email below to enable cross-device sync — Apple Sign-In on iOS keeps working untouched.';
+
+  @override
+  String get crossDeviceIdApple => 'Sign in with Apple';
+
+  @override
+  String get crossDeviceIdGoogle => 'Google';
+
+  @override
+  String get crossDeviceIdEmail => 'Email + magic link';
+
+  @override
+  String get crossDeviceModifierEmail => 'Set cross-device email';
+
+  @override
+  String get crossDeviceNouvelEmail => 'New email';
+
+  @override
+  String get crossDeviceNouvelEmailHint => 'you@example.com';
+
+  @override
+  String get crossDeviceEmailIdentique => 'That\'s already your current email';
+
+  @override
+  String get crossDeviceEnvoyerLien => 'Send confirmation link';
+
+  @override
+  String crossDeviceConfirmationEnvoyee(String email) {
+    return 'Link sent to $email';
+  }
+
+  @override
+  String get crossDeviceConfirmationDetail =>
+      'Open your inbox and click the link to confirm the change. Once confirmed, sign in via magic-link with this new email on your other devices — your data will already be there.';
+
+  @override
+  String get crossDeviceHintApple =>
+      'To sync favorites and progress across iPhone, iPad, Mac and Linux, pick \"Share my email\" with Apple Sign-In (not \"Hide\"). The hidden email creates an isolated account.';
+
+  @override
+  String get crossDeviceHintGeneric =>
+      'This email is your cross-device identifier. Sign in with the same address on every device so favorites and progress sync automatically.';
+
+  @override
   String get paywallTitre => 'Upgrade to Premium';
 
   @override

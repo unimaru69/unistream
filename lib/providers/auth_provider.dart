@@ -236,6 +236,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Cross-device email (identity linking) ──
+  //
+  // Asks Supabase to swap the user's primary email. The change is
+  // pending until the user clicks the confirmation link Supabase
+  // mails to the new address; OAuth identities (Apple in particular)
+  // stay linked across the update because they're keyed by `sub`,
+  // not email.
+  //
+  // Use case: an iOS Apple-Sign-In user with "Hide my email" wants
+  // to start syncing with the macOS / Linux desktop where Apple
+  // Sign-In isn't available — they update their email here, then
+  // sign in via magic-link to the same address on desktop and land
+  // on the SAME user_id.
+  //
+  // Returns true once the confirmation request was accepted by
+  // Supabase. The UI then surfaces a "check your inbox" message.
+  Future<bool> updateEmail(String newEmail) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _auth.updateEmail(newEmail);
+      if (!mounted) return false;
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: _mapError(e),
+      );
+      return false;
+    }
+  }
+
   // ── Sign Out ──
 
   Future<void> signOut() async {

@@ -6,6 +6,7 @@ import '../../core/colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import 'magic_link_page.dart';
+import 'widgets/cross_device_hint.dart';
 
 class SignupPage extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToLogin;
@@ -156,6 +157,11 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : Text(l10n.authCreerCompte, style: const TextStyle(fontSize: 16)),
                 ),
+                const SizedBox(height: 16),
+
+                // Cross-device sync hint — see login_page.dart for the
+                // rationale (pre-empts the "Hide my email" trap).
+                const CrossDeviceHint(),
                 const SizedBox(height: 16),
 
                 // Apple Sign-In on platforms that support the

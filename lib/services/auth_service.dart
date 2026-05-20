@@ -173,6 +173,51 @@ class AuthService {
     }
   }
 
+  // ── Identity linking ──────────────────────────────────────────
+  //
+  // Goal: one Supabase user, multiple sign-in methods. The canonical
+  // cross-device sync trap is an iOS user who signs in via Apple with
+  // "Hide my email" → Supabase stores `xyz@privaterelay.appleid.com`.
+  // They then open the macOS DMG / Linux AppImage / Windows build and
+  // sign in via magic-link with their real address → Supabase creates
+  // a SECOND user (different user_id) → favorites / progress are tied
+  // to the iOS account, invisible from the desktop.
+  //
+  // updateEmail() flips the primary email on the currently-signed-in
+  // user. Apple Sign-In keeps working because its identity is keyed
+  // by the Apple `sub`, not the email. Magic-link OTPs sent to the
+  // new email then resolve to the SAME user_id → sync works.
+  //
+  // Pre-requisite: the new email must NOT already be on another
+  // Supabase user (Supabase rejects with `email_exists` otherwise).
+  // The UI surfaces this so the user can delete the orphan account
+  // from the Supabase dashboard before retrying.
+
+  /// Lists the OAuth + email identities currently linked to the
+  /// signed-in user. Each entry's `provider` is `"apple"`,
+  /// `"google"`, `"email"`, etc. Returns an empty list when there
+  /// is no session.
+  List<UserIdentity> get currentIdentities =>
+      currentUser?.identities ?? const [];
+
+  /// Sends a confirmation link to [newEmail]. Once the user clicks
+  /// the link, Supabase swaps their primary email; OAuth identities
+  /// (Apple in particular) remain attached to the same user_id.
+  ///
+  /// Throws if [newEmail] is malformed or already belongs to another
+  /// Supabase user. Caller is expected to localize the error.
+  Future<void> updateEmail(String newEmail) async {
+    try {
+      await _client!.auth.updateUser(UserAttributes(email: newEmail));
+      AppLogger.info(LogModule.sync,
+          'Email update requested — confirmation sent to $newEmail');
+    } catch (e, st) {
+      AppLogger.error(LogModule.sync, 'Email update failed',
+          error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
   // ── Sign Out ──
 
   Future<void> signOut() async {
