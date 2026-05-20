@@ -370,6 +370,19 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     // Skip sync if not authenticated
     if (!AuthService.instance.isAuthenticated) return;
 
+    // One-shot diagnostic: surface the identity context this client
+    // is about to query Supabase with. Useful for cross-device sync
+    // debugging — when favorites don't show up on a new device, this
+    // line tells you whether the issue is user_id mismatch
+    // (different accounts), profile_hash mismatch (different Xtream
+    // creds stored differently), or empty hash (no profile yet).
+    AppLogger.info(LogModule.sync,
+        'Sync identity: userId=${AuthService.instance.userId ?? "null"} '
+        'profileHash=${SupabaseConfig.profileHash.isEmpty ? "EMPTY" : SupabaseConfig.profileHash} '
+        'serverUrl="${AppConfig.serverUrl}" '
+        'username="${AppConfig.username}" '
+        'profiles=${AppConfig.profiles.length}');
+
     try {
       // One-time migration: claim orphaned data from pre-auth era
       final prefs = await SharedPreferences.getInstance();
