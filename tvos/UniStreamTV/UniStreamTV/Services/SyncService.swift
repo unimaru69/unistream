@@ -618,17 +618,29 @@ final class SyncService {
 
     func registerPlayback(contentKey: String, title: String, durationMs: Int = 0, streamUrl: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
         let existing = watchProgress[contentKey]
+        let effectiveDuration = durationMs > 0 ? durationMs : (existing?.durationMs ?? 0)
         // Always update the title (even if one exists — caller has the latest)
         watchProgress[contentKey] = WatchEntry(
             positionMs: existing?.positionMs ?? 1,
-            durationMs: durationMs > 0 ? durationMs : (existing?.durationMs ?? 0),
+            durationMs: effectiveDuration,
             updatedAt: Date(),
             title: title,
             streamUrl: streamUrl ?? existing?.streamUrl,
             coverUrl: coverUrl ?? existing?.coverUrl,
             seriesId: seriesId ?? existing?.seriesId
         )
-        debouncePushProgress(contentKey: contentKey)
+        // Only push when we have a real duration. The previous behaviour
+        // pushed the (positionMs=1, durationMs=0) sentinel as soon as
+        // the user clicked "Lire" on an episode, BEFORE VLC had parsed
+        // the stream's duration. If saveProgress then never fired with
+        // real values (slow HTTP metadata, fast skip, app backgrounded,
+        // …), Supabase kept a corrupted row forever. Other devices
+        // would read it back, compute `position/duration` → null /
+        // 0/0, and never count the episode as watched — drift between
+        // tvOS local (7/9) and the rest (5/9).
+        if effectiveDuration > 0 {
+            debouncePushProgress(contentKey: contentKey)
+        }
     }
 
     /// Resolve missing titles from API data.
@@ -795,6 +807,15 @@ final class SyncService {
         }
 
         guard let entry = watchProgress[contentKey] else { return }
+        // Defence in depth — never upsert a sentinel-shaped row. Without
+        // this, any future code path that bypasses registerPlayback's
+        // duration guard could still poison Supabase with rows that
+        // Flutter's pull merges in as "unknown progress" (the division
+        // by zero in `position/duration` lands as null cross-device).
+        guard entry.durationMs > 0 else {
+            logger.debug("pushProgress: skipping \(contentKey) — duration unknown (\(entry.positionMs)/\(entry.durationMs))")
+            return
+        }
 
         // Store title + URL + cover in meta_json for cross-device sync.
         // Use JSONSerialization so quotes / unicode encode safely.
