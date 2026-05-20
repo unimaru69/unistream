@@ -244,9 +244,12 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       onStateChanged: () { if (mounted) setState(() {}); },
       repo: _repo,
     );
+    // Linux gets debug-level mpv logs temporarily so we can diagnose
+    // the live-TV freeze/black cycle. Cheap on a desktop, very loud
+    // in the terminal — flip back to `.warn` once that's resolved.
     _player = widget.existingPlayer ?? Player(
-      configuration: const PlayerConfiguration(
-        logLevel: MPVLogLevel.warn,
+      configuration: PlayerConfiguration(
+        logLevel: Platform.isLinux ? MPVLogLevel.debug : MPVLogLevel.warn,
       ),
     );
     // On Linux, force software decoding for maximum compatibility.
@@ -295,6 +298,10 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     _errorSubscription = _player.stream.error.listen((err) {
       if (err.isNotEmpty && mounted && !_minimized) {
         _reconnectAttempts++;
+        // Stamped error log — lets us correlate mpv errors with the
+        // freeze/black cycle on live streams (Linux fork debug).
+        AppLogger.warning('player',
+            'mpv error #$_reconnectAttempts: $err (url=${widget.url})');
         if (_reconnectAttempts <= 3) {
           Future.delayed(const Duration(seconds: 2), () {
             if (!mounted || _minimized) return;
