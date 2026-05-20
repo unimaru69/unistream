@@ -79,7 +79,11 @@ dependencies:
   cached_network_image: ^3.4.1
   file_picker: ^8.1.0
   window_manager: ^0.4.3
-  flutter_secure_storage: ^9.2.4
+  # Bumped from ^9.2.4 to ^10.2.0 to match Predidit's media-kit fork
+  # transitive dep on `js: ^0.7.0` (9.2.4 pins js ^0.6.3, mutually
+  # exclusive). 10.x is a major bump but the Dart API we touch
+  # (FlutterSecureStorage.read / write / delete) is unchanged.
+  flutter_secure_storage: ^10.2.0
   flutter_cache_manager: ^3.4.1
   # Needed to resolve the on-disk path where flutter_cache_manager
   # stores its files, so the Settings → Cache row can show a live
