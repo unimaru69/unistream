@@ -23,11 +23,11 @@ struct Channel: Identifiable, Hashable {
     /// Parse from a JSON dictionary — tolerant of int/string mixing.
     init(json: [String: Any]) {
         streamId = "\(json["stream_id"] ?? "")"
-        name = json["name"] as? String ?? ""
-        streamIcon = json["stream_icon"] as? String
-        cover = json["cover"] as? String
-        categoryId = json["category_id"].map { "\($0)" }
-        categoryName = json["category_name"] as? String
+        name = coerceString(json["name"])
+        streamIcon = coerceStringOrNull(json["stream_icon"])
+        cover = coerceStringOrNull(json["cover"])
+        categoryId = coerceStringOrNull(json["category_id"])
+        categoryName = coerceStringOrNull(json["category_name"])
         if let n = json["num"] as? Int {
             num = n
         } else if let s = json["num"] as? String {
@@ -35,7 +35,7 @@ struct Channel: Identifiable, Hashable {
         }
         tvArchive = "\(json["tv_archive"] ?? "0")"
         tvArchiveDuration = "\(json["tv_archive_duration"] ?? "0")"
-        added = json["added"] as? String
-        lastModified = json["last_modified"] as? String
+        added = coerceStringOrNull(json["added"])
+        lastModified = coerceStringOrNull(json["last_modified"])
     }
 }

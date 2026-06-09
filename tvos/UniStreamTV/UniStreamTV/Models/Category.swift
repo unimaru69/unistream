@@ -16,8 +16,8 @@ struct Category: Identifiable, Hashable {
 
     /// Parse from JSON dict — tolerant of int/string mixing.
     init(json: [String: Any]) {
-        categoryId = "\(json["category_id"] ?? "")"
-        categoryName = json["category_name"] as? String ?? ""
+        categoryId = coerceString(json["category_id"])
+        categoryName = coerceString(json["category_name"])
         if let p = json["parent_id"] as? Int {
             parentId = p
         } else if let s = json["parent_id"] as? String {

@@ -20,16 +20,16 @@ struct SeriesItem: Identifiable, Hashable {
 
     init(json: [String: Any]) {
         seriesId = "\(json["series_id"] ?? "")"
-        name = json["name"] as? String ?? ""
-        cover = json["cover"] as? String
-        streamIcon = json["stream_icon"] as? String
-        categoryId = json["category_id"].map { "\($0)" }
-        categoryName = json["category_name"] as? String
-        numSeasons = json["num_seasons"].map { "\($0)" }
-        rating = json["rating"] as? String
-        plot = json["plot"] as? String
-        description = json["description"] as? String
-        added = json["added"] as? String
-        lastModified = json["last_modified"] as? String
+        name = coerceString(json["name"])
+        cover = coerceStringOrNull(json["cover"])
+        streamIcon = coerceStringOrNull(json["stream_icon"])
+        categoryId = coerceStringOrNull(json["category_id"])
+        categoryName = coerceStringOrNull(json["category_name"])
+        numSeasons = coerceStringOrNull(json["num_seasons"])
+        rating = coerceStringOrNull(json["rating"])
+        plot = coerceStringOrNull(json["plot"])
+        description = coerceStringOrNull(json["description"])
+        added = coerceStringOrNull(json["added"])
+        lastModified = coerceStringOrNull(json["last_modified"])
     }
 }
