@@ -7,8 +7,10 @@ part of 'category.dart';
 // **************************************************************************
 
 _Category _$CategoryFromJson(Map<String, dynamic> json) => _Category(
-  categoryId: json['category_id'] as String,
-  categoryName: json['category_name'] as String? ?? '',
+  categoryId: coerceString(json['category_id']),
+  categoryName: json['category_name'] == null
+      ? ''
+      : coerceString(json['category_name']),
   parentId: (json['parent_id'] as num?)?.toInt() ?? 0,
 );
 

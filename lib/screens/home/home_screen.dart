@@ -498,7 +498,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error(LogModule.api, 'init failed', error: e, stackTrace: st);
       setState(() { _loading = false; _error = null; });
     }
   }
@@ -558,7 +559,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
         _loadStreams(firstVisible.categoryId);
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error(LogModule.api, 'loadCategories failed mode=${_mode.key}', error: e, stackTrace: st);
       setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loading = false; });
     }
   }
@@ -716,7 +718,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       };
       _resetPagination();
       setState(() => _loadingStreams = false);
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error(LogModule.api, 'loadStreams failed mode=${_mode.key} cat=$categoryId', error: e, stackTrace: st);
       setState(() { _error = localizeApiError(_repo.errorKey(e), AppLocalizations.of(context)!); _loadingStreams = false; });
     }
   }

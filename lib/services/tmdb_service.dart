@@ -57,7 +57,10 @@ class TmdbService {
       'include_adult': 'false',
     });
     final r = await http.get(uri).timeout(const Duration(seconds: 6));
-    if (r.statusCode != 200) return null;
+    if (r.statusCode != 200) {
+      AppLogger.warning(LogModule.ui, 'TMDB search HTTP ${r.statusCode} for "${t.title}": ${r.body.length > 200 ? r.body.substring(0, 200) : r.body}');
+      return null;
+    }
     final body = jsonDecode(r.body) as Map<String, dynamic>;
     final results = (body['results'] as List? ?? []).cast<Map<String, dynamic>>();
     if (results.isEmpty) return null;

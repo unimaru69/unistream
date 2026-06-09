@@ -53,5 +53,30 @@ void main() {
       final cat = Category.fromJson(json);
       expect(cat.categoryName, '');
     });
+
+    // Regression: some Xtream panels return category_id as a number (1) rather
+    // than a string ("1"). A strict `as String` cast threw and surfaced as the
+    // generic "Une erreur est survenue" error after switching servers.
+    test('fromJson coerces numeric category_id to String', () {
+      final json = {
+        'category_id': 42,
+        'category_name': 'Sports',
+        'parent_id': 5,
+      };
+      final cat = Category.fromJson(json);
+      expect(cat.categoryId, '42');
+      expect(cat.categoryName, 'Sports');
+      expect(cat.parentId, 5);
+    });
+
+    test('fromJson coerces numeric category_name to String', () {
+      final json = {
+        'category_id': 3,
+        'category_name': 2024,
+      };
+      final cat = Category.fromJson(json);
+      expect(cat.categoryId, '3');
+      expect(cat.categoryName, '2024');
+    });
   });
 }

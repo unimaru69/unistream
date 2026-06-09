@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Episode {
 
- dynamic get id; String? get title;@JsonKey(name: 'container_extension') String get containerExtension;@JsonKey(name: 'episode_num') dynamic get episodeNum;
+ dynamic get id;@JsonKey(fromJson: coerceStringOrNull) String? get title;@JsonKey(name: 'container_extension', fromJson: coerceString) String get containerExtension;@JsonKey(name: 'episode_num') dynamic get episodeNum;
 /// Create a copy of Episode
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $EpisodeCopyWith<$Res>  {
   factory $EpisodeCopyWith(Episode value, $Res Function(Episode) _then) = _$EpisodeCopyWithImpl;
 @useResult
 $Res call({
- dynamic id, String? title,@JsonKey(name: 'container_extension') String containerExtension,@JsonKey(name: 'episode_num') dynamic episodeNum
+ dynamic id,@JsonKey(fromJson: coerceStringOrNull) String? title,@JsonKey(name: 'container_extension', fromJson: coerceString) String containerExtension,@JsonKey(name: 'episode_num') dynamic episodeNum
 });
 
 
@@ -156,7 +156,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( dynamic id,  String? title, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( dynamic id, @JsonKey(fromJson: coerceStringOrNull)  String? title, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Episode() when $default != null:
 return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);case _:
@@ -177,7 +177,7 @@ return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( dynamic id,  String? title, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( dynamic id, @JsonKey(fromJson: coerceStringOrNull)  String? title, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)  $default,) {final _that = this;
 switch (_that) {
 case _Episode():
 return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);case _:
@@ -197,7 +197,7 @@ return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( dynamic id,  String? title, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( dynamic id, @JsonKey(fromJson: coerceStringOrNull)  String? title, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'episode_num')  dynamic episodeNum)?  $default,) {final _that = this;
 switch (_that) {
 case _Episode() when $default != null:
 return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);case _:
@@ -212,12 +212,12 @@ return $default(_that.id,_that.title,_that.containerExtension,_that.episodeNum);
 @JsonSerializable()
 
 class _Episode implements Episode {
-  const _Episode({required this.id, this.title, @JsonKey(name: 'container_extension') this.containerExtension = 'mp4', @JsonKey(name: 'episode_num') this.episodeNum});
+  const _Episode({required this.id, @JsonKey(fromJson: coerceStringOrNull) this.title, @JsonKey(name: 'container_extension', fromJson: coerceString) this.containerExtension = 'mp4', @JsonKey(name: 'episode_num') this.episodeNum});
   factory _Episode.fromJson(Map<String, dynamic> json) => _$EpisodeFromJson(json);
 
 @override final  dynamic id;
-@override final  String? title;
-@override@JsonKey(name: 'container_extension') final  String containerExtension;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? title;
+@override@JsonKey(name: 'container_extension', fromJson: coerceString) final  String containerExtension;
 @override@JsonKey(name: 'episode_num') final  dynamic episodeNum;
 
 /// Create a copy of Episode
@@ -253,7 +253,7 @@ abstract mixin class _$EpisodeCopyWith<$Res> implements $EpisodeCopyWith<$Res> {
   factory _$EpisodeCopyWith(_Episode value, $Res Function(_Episode) _then) = __$EpisodeCopyWithImpl;
 @override @useResult
 $Res call({
- dynamic id, String? title,@JsonKey(name: 'container_extension') String containerExtension,@JsonKey(name: 'episode_num') dynamic episodeNum
+ dynamic id,@JsonKey(fromJson: coerceStringOrNull) String? title,@JsonKey(name: 'container_extension', fromJson: coerceString) String containerExtension,@JsonKey(name: 'episode_num') dynamic episodeNum
 });
 
 

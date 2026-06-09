@@ -13,6 +13,7 @@ import '../models/channel.dart';
 import '../models/vod_item.dart';
 import '../models/series_item.dart';
 import '../models/episode.dart';
+import '../models/json_coerce.dart';
 import '../models/server_info.dart';
 
 // ── Network helpers ──
@@ -378,13 +379,25 @@ class XtreamApi {
 
   static Future<Map<String, List<Episode>>> getSeriesEpisodesTyped(String seriesId) async {
     final data = await getSeriesInfo(seriesId);
-    final episodes = data['episodes'] as Map<String, dynamic>? ?? {};
-    return episodes.map((season, epList) {
-      final list = (epList as List<dynamic>)
-          .map((e) => Episode.fromJson(e as Map<String, dynamic>))
+    // Xtream panels disagree on the `episodes` shape: usually a map keyed by
+    // season ("1": [...]), but some return a flat list, an empty list, or omit
+    // it entirely. Normalise to a season→episodes map; anything unexpected
+    // yields an empty result rather than a TypeError.
+    final raw = data['episodes'];
+    final Map<String, dynamic> episodes = switch (raw) {
+      Map<String, dynamic> m => m,
+      List<dynamic> l => {'1': l},
+      _ => <String, dynamic>{},
+    };
+    final result = <String, List<Episode>>{};
+    episodes.forEach((season, epList) {
+      if (epList is! List) return;
+      result[season] = epList
+          .whereType<Map<String, dynamic>>()
+          .map(Episode.fromJson)
           .toList();
-      return MapEntry(season, list);
     });
+    return result;
   }
 
   static Future<Map<String, dynamic>> getShortEpg(String streamId, {int limit = 8}) async {
@@ -401,11 +414,19 @@ class XtreamApi {
     if (inflight != null) return inflight;
     final future = (() async {
       try {
-        final data = jsonDecode((await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body) as Map<String, dynamic>;
-        _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+        final body = (await httpGet('$baseUrl&action=get_short_epg&stream_id=$streamId&limit=$limit')).body;
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
+        _epgCache[key] = EpgCacheEntry(decoded, DateTime.now());
         if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
         _scheduleEpgSave();
-        return data;
+        return decoded;
+      } catch (e) {
+        // Best-effort EPG: some panels return an empty body or an HTML error
+        // page (non-JSON) → degrade to "no EPG" instead of throwing into every
+        // caller. Not cached, so it retries on the next request.
+        AppLogger.debug(LogModule.epg, 'short EPG unavailable for $streamId: $e');
+        return <String, dynamic>{};
       } finally {
         _epgInflight.remove(key);
       }
@@ -426,11 +447,18 @@ class XtreamApi {
     if (inflight != null) return inflight;
     final future = (() async {
       try {
-        final data = jsonDecode((await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body) as Map<String, dynamic>;
-        _epgCache[key] = EpgCacheEntry(data, DateTime.now());
+        final body = (await httpGet('$baseUrl&action=get_simple_data_table&stream_id=$streamId')).body;
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
+        _epgCache[key] = EpgCacheEntry(decoded, DateTime.now());
         if (_epgCache.length > _epgCacheMaxSize) _evictEpgCache();
         _scheduleEpgSave();
-        return data;
+        return decoded;
+      } catch (e) {
+        // Best-effort EPG (see getShortEpg): degrade to "no EPG" on a non-JSON
+        // or error body instead of throwing into every caller.
+        AppLogger.debug(LogModule.epg, 'full-day EPG unavailable for $streamId: $e');
+        return <String, dynamic>{};
       } finally {
         _epgInflight.remove(key);
       }
@@ -474,8 +502,8 @@ class XtreamApi {
     EpgPreviewEntry? upcoming;
     for (final raw in listings) {
       final item = raw as Map<String, dynamic>;
-      final startStr = item['start'] as String?;
-      final endStr = item['end'] as String?;
+      final startStr = coerceStringOrNull(item['start']);
+      final endStr = coerceStringOrNull(item['end']);
       if (startStr == null || endStr == null) continue;
       DateTime start;
       DateTime end;
@@ -485,7 +513,7 @@ class XtreamApi {
       } catch (_) {
         continue;
       }
-      final rawTitle = item['title'] as String? ?? '';
+      final rawTitle = coerceString(item['title']);
       String title = rawTitle;
       try {
         title = utf8.decode(base64Decode(rawTitle));
@@ -527,14 +555,14 @@ class XtreamApi {
     if (listings == null || listings.isEmpty) return null;
     final now = DateTime.now();
     for (final item in listings) {
-      final startStr = item['start'] as String?;
-      final endStr = item['end'] as String?;
+      final startStr = coerceStringOrNull(item['start']);
+      final endStr = coerceStringOrNull(item['end']);
       if (startStr == null || endStr == null) continue;
       try {
         final start = DateTime.parse(startStr);
         final end = DateTime.parse(endStr);
         if (now.isAfter(start) && now.isBefore(end)) {
-          final title = item['title'] as String?;
+          final title = coerceStringOrNull(item['title']);
           if (title != null && title.isNotEmpty) {
             // Title may be base64 encoded
             try {

@@ -8,18 +8,20 @@ part of 'vod_item.dart';
 
 _VodItem _$VodItemFromJson(Map<String, dynamic> json) => _VodItem(
   streamId: json['stream_id'],
-  name: json['name'] as String? ?? '',
-  streamIcon: json['stream_icon'] as String?,
-  cover: json['cover'] as String?,
-  containerExtension: json['container_extension'] as String? ?? 'mp4',
-  categoryId: json['category_id'] as String?,
-  categoryName: json['category_name'] as String?,
-  rating: json['rating'] as String?,
-  streamType: json['stream_type'] as String?,
-  plot: json['plot'] as String?,
-  description: json['description'] as String?,
-  added: json['added'] as String?,
-  lastModified: json['last_modified'] as String?,
+  name: json['name'] == null ? '' : coerceString(json['name']),
+  streamIcon: coerceStringOrNull(json['stream_icon']),
+  cover: coerceStringOrNull(json['cover']),
+  containerExtension: json['container_extension'] == null
+      ? 'mp4'
+      : coerceString(json['container_extension']),
+  categoryId: coerceStringOrNull(json['category_id']),
+  categoryName: coerceStringOrNull(json['category_name']),
+  rating: coerceStringOrNull(json['rating']),
+  streamType: coerceStringOrNull(json['stream_type']),
+  plot: coerceStringOrNull(json['plot']),
+  description: coerceStringOrNull(json['description']),
+  added: coerceStringOrNull(json['added']),
+  lastModified: coerceStringOrNull(json['last_modified']),
 );
 
 Map<String, dynamic> _$VodItemToJson(_VodItem instance) => <String, dynamic>{

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SeriesItem {
 
-@JsonKey(name: 'series_id') dynamic get seriesId; String get name; String? get cover;@JsonKey(name: 'stream_icon') String? get streamIcon;@JsonKey(name: 'category_id') String? get categoryId;@JsonKey(name: 'category_name') String? get categoryName;@JsonKey(name: 'num_seasons') String? get numSeasons; String? get rating; String? get plot; String? get description; String? get added;@JsonKey(name: 'last_modified') String? get lastModified;
+@JsonKey(name: 'series_id') dynamic get seriesId;@JsonKey(fromJson: coerceString) String get name;@JsonKey(fromJson: coerceStringOrNull) String? get cover;@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? get streamIcon;@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? get categoryId;@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? get categoryName;@JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) String? get numSeasons;@JsonKey(fromJson: coerceStringOrNull) String? get rating;@JsonKey(fromJson: coerceStringOrNull) String? get plot;@JsonKey(fromJson: coerceStringOrNull) String? get description;@JsonKey(fromJson: coerceStringOrNull) String? get added;@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? get lastModified;
 /// Create a copy of SeriesItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $SeriesItemCopyWith<$Res>  {
   factory $SeriesItemCopyWith(SeriesItem value, $Res Function(SeriesItem) _then) = _$SeriesItemCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'series_id') dynamic seriesId, String name, String? cover,@JsonKey(name: 'stream_icon') String? streamIcon,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName,@JsonKey(name: 'num_seasons') String? numSeasons, String? rating, String? plot, String? description, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'series_id') dynamic seriesId,@JsonKey(fromJson: coerceString) String name,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) String? numSeasons,@JsonKey(fromJson: coerceStringOrNull) String? rating,@JsonKey(fromJson: coerceStringOrNull) String? plot,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 
@@ -164,7 +164,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'series_id')  dynamic seriesId,  String name,  String? cover, @JsonKey(name: 'stream_icon')  String? streamIcon, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num_seasons')  String? numSeasons,  String? rating,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'series_id')  dynamic seriesId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull)  String? numSeasons, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SeriesItem() when $default != null:
 return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.categoryId,_that.categoryName,_that.numSeasons,_that.rating,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -185,7 +185,7 @@ return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.cat
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'series_id')  dynamic seriesId,  String name,  String? cover, @JsonKey(name: 'stream_icon')  String? streamIcon, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num_seasons')  String? numSeasons,  String? rating,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'series_id')  dynamic seriesId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull)  String? numSeasons, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)  $default,) {final _that = this;
 switch (_that) {
 case _SeriesItem():
 return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.categoryId,_that.categoryName,_that.numSeasons,_that.rating,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -205,7 +205,7 @@ return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.cat
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'series_id')  dynamic seriesId,  String name,  String? cover, @JsonKey(name: 'stream_icon')  String? streamIcon, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num_seasons')  String? numSeasons,  String? rating,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'series_id')  dynamic seriesId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull)  String? numSeasons, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,) {final _that = this;
 switch (_that) {
 case _SeriesItem() when $default != null:
 return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.categoryId,_that.categoryName,_that.numSeasons,_that.rating,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -220,21 +220,21 @@ return $default(_that.seriesId,_that.name,_that.cover,_that.streamIcon,_that.cat
 @JsonSerializable()
 
 class _SeriesItem implements SeriesItem {
-  const _SeriesItem({@JsonKey(name: 'series_id') required this.seriesId, this.name = '', this.cover, @JsonKey(name: 'stream_icon') this.streamIcon, @JsonKey(name: 'category_id') this.categoryId, @JsonKey(name: 'category_name') this.categoryName, @JsonKey(name: 'num_seasons') this.numSeasons, this.rating, this.plot, this.description, this.added, @JsonKey(name: 'last_modified') this.lastModified});
+  const _SeriesItem({@JsonKey(name: 'series_id') required this.seriesId, @JsonKey(fromJson: coerceString) this.name = '', @JsonKey(fromJson: coerceStringOrNull) this.cover, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) this.streamIcon, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull) this.categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull) this.categoryName, @JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) this.numSeasons, @JsonKey(fromJson: coerceStringOrNull) this.rating, @JsonKey(fromJson: coerceStringOrNull) this.plot, @JsonKey(fromJson: coerceStringOrNull) this.description, @JsonKey(fromJson: coerceStringOrNull) this.added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) this.lastModified});
   factory _SeriesItem.fromJson(Map<String, dynamic> json) => _$SeriesItemFromJson(json);
 
 @override@JsonKey(name: 'series_id') final  dynamic seriesId;
-@override@JsonKey() final  String name;
-@override final  String? cover;
-@override@JsonKey(name: 'stream_icon') final  String? streamIcon;
-@override@JsonKey(name: 'category_id') final  String? categoryId;
-@override@JsonKey(name: 'category_name') final  String? categoryName;
-@override@JsonKey(name: 'num_seasons') final  String? numSeasons;
-@override final  String? rating;
-@override final  String? plot;
-@override final  String? description;
-@override final  String? added;
-@override@JsonKey(name: 'last_modified') final  String? lastModified;
+@override@JsonKey(fromJson: coerceString) final  String name;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? cover;
+@override@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) final  String? streamIcon;
+@override@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) final  String? categoryId;
+@override@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) final  String? categoryName;
+@override@JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) final  String? numSeasons;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? rating;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? plot;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? description;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? added;
+@override@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) final  String? lastModified;
 
 /// Create a copy of SeriesItem
 /// with the given fields replaced by the non-null parameter values.
@@ -269,7 +269,7 @@ abstract mixin class _$SeriesItemCopyWith<$Res> implements $SeriesItemCopyWith<$
   factory _$SeriesItemCopyWith(_SeriesItem value, $Res Function(_SeriesItem) _then) = __$SeriesItemCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'series_id') dynamic seriesId, String name, String? cover,@JsonKey(name: 'stream_icon') String? streamIcon,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName,@JsonKey(name: 'num_seasons') String? numSeasons, String? rating, String? plot, String? description, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'series_id') dynamic seriesId,@JsonKey(fromJson: coerceString) String name,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) String? numSeasons,@JsonKey(fromJson: coerceStringOrNull) String? rating,@JsonKey(fromJson: coerceStringOrNull) String? plot,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 
