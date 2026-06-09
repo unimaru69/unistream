@@ -16,17 +16,29 @@ extension TitleFormatting on String {
   /// mostly letters/digits, so titles that legitimately contain a "|"
   /// early on (rare, but it happens with episode titles) are untouched.
   String get strippingProviderTag {
-    final pipe = indexOf('|');
-    if (pipe < 1 || pipe > 4) return this;
-    final prefix = substring(0, pipe);
-    final ok = prefix.codeUnits.every((c) {
-      return (c >= 0x30 && c <= 0x39) || // 0-9
-          (c >= 0x41 && c <= 0x5A) || // A-Z
-          (c >= 0x61 && c <= 0x7A) || // a-z
-          c == 0x20; // space
-    });
-    if (!ok) return this;
-    return substring(pipe + 1).trim();
+    var s = this;
+    // New-style leading pipe-wrapped tags: "|FR|", "|FR-4K DV|", and stacked
+    // ones like "|VO|STFR|". A title that *starts* with '|' is a provider-tag
+    // wrapper, so strip each leading "|…|" block (loop handles stacking).
+    while (s.startsWith('|')) {
+      final close = s.indexOf('|', 1);
+      if (close < 0) break;
+      s = s.substring(close + 1).trimLeft();
+    }
+    // Legacy "XX| " tag: 1–4 mostly-alphanumeric chars then a pipe. Also
+    // catches the residue of a stacked tag ("|VO|STFR| …") after the loop.
+    final pipe = s.indexOf('|');
+    if (pipe >= 1 && pipe <= 4) {
+      final prefix = s.substring(0, pipe);
+      final ok = prefix.codeUnits.every((c) {
+        return (c >= 0x30 && c <= 0x39) || // 0-9
+            (c >= 0x41 && c <= 0x5A) || // A-Z
+            (c >= 0x61 && c <= 0x7A) || // a-z
+            c == 0x20; // space
+      });
+      if (ok) s = s.substring(pipe + 1).trim();
+    }
+    return identical(s, this) ? this : s.trim();
   }
 
   /// Strip a trailing parenthesised 4-digit year — e.g.

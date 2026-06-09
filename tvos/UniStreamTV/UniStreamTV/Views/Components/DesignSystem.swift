@@ -179,15 +179,27 @@ extension String {
     /// "ARI| Bhramam" / "FR| Drag Race France" format off-screen
     /// without losing the tag for internal language scoring.
     var strippingProviderTag: String {
-        guard let pipe = firstIndex(of: "|") else { return self }
-        let prefixLen = distance(from: startIndex, to: pipe)
-        guard prefixLen >= 1, prefixLen <= 4 else { return self }
-        // Make sure the prefix is mostly letters/digits — avoids
-        // stripping titles that legitimately contain "|" early on.
-        let prefix = self[startIndex..<pipe]
-        guard prefix.allSatisfy({ $0.isLetter || $0.isNumber || $0 == " " }) else { return self }
-        let after = self[index(after: pipe)...]
-        return String(after).trimmingCharacters(in: .whitespacesAndNewlines)
+        var s = self
+        // New-style leading pipe-wrapped tags: "|FR|", "|FR-4K DV|", and stacked
+        // ones like "|VO|STFR|". A title that starts with '|' is a provider-tag
+        // wrapper, so strip each leading "|…|" block (loop handles stacking).
+        while s.hasPrefix("|") {
+            let afterFirst = s.index(after: s.startIndex)
+            guard let close = s[afterFirst...].firstIndex(of: "|") else { break }
+            s = String(s[s.index(after: close)...]).trimmingCharacters(in: .whitespaces)
+        }
+        // Legacy "XX| " tag: 1–4 mostly-alphanumeric chars then a pipe. Also
+        // catches the residue of a stacked tag after the loop above.
+        if let pipe = s.firstIndex(of: "|") {
+            let prefixLen = s.distance(from: s.startIndex, to: pipe)
+            if prefixLen >= 1, prefixLen <= 4 {
+                let prefix = s[s.startIndex..<pipe]
+                if prefix.allSatisfy({ $0.isLetter || $0.isNumber || $0 == " " }) {
+                    s = String(s[s.index(after: pipe)...])
+                }
+            }
+        }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Strip a trailing parenthesised 4-digit year — e.g.
