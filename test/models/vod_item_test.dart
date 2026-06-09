@@ -95,5 +95,23 @@ void main() {
       final vod = VodItem(streamId: 1);
       expect(vod.displayIcon, '');
     });
+
+    // Regression: some Xtream panels return numeric values for text fields
+    // (rating as 8.5, category_id as 21). Strict String? casts threw
+    // "type 'double'/'int' is not a subtype of type 'String?'" → black error
+    // screen on Films/Séries after switching servers.
+    test('fromJson coerces numeric rating / category_id to String', () {
+      final json = {
+        'stream_id': 100,
+        'name': 'Movie',
+        'rating': 8.5,
+        'category_id': 21,
+        'category_name': 1469,
+      };
+      final vod = VodItem.fromJson(json);
+      expect(vod.rating, '8.5');
+      expect(vod.categoryId, '21');
+      expect(vod.categoryName, '1469');
+    });
   });
 }

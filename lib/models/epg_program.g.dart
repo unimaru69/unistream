@@ -7,14 +7,14 @@ part of 'epg_program.dart';
 // **************************************************************************
 
 _EpgProgram _$EpgProgramFromJson(Map<String, dynamic> json) => _EpgProgram(
-  title: json['title'] as String? ?? '',
-  description: json['description'] as String?,
-  start: json['start'] as String?,
-  end: json['end'] as String?,
-  startTimestamp: json['start_timestamp'] as String?,
-  stopTimestamp: json['stop_timestamp'] as String?,
-  startUtc: json['start_utc'] as String?,
-  startServerLocal: json['start_server_local'] as String?,
+  title: json['title'] == null ? '' : coerceString(json['title']),
+  description: coerceStringOrNull(json['description']),
+  start: coerceStringOrNull(json['start']),
+  end: coerceStringOrNull(json['end']),
+  startTimestamp: coerceStringOrNull(json['start_timestamp']),
+  stopTimestamp: coerceStringOrNull(json['stop_timestamp']),
+  startUtc: coerceStringOrNull(json['start_utc']),
+  startServerLocal: coerceStringOrNull(json['start_server_local']),
   startEpoch: json['start_epoch'],
 );
 

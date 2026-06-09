@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'json_coerce.dart';
 
 part 'episode.freezed.dart';
 part 'episode.g.dart';
@@ -7,8 +8,8 @@ part 'episode.g.dart';
 abstract class Episode with _$Episode {
   const factory Episode({
     required dynamic id,
-    String? title,
-    @JsonKey(name: 'container_extension') @Default('mp4') String containerExtension,
+    @JsonKey(fromJson: coerceStringOrNull) String? title,
+    @JsonKey(name: 'container_extension', fromJson: coerceString) @Default('mp4') String containerExtension,
     @JsonKey(name: 'episode_num') dynamic episodeNum,
   }) = _Episode;
 

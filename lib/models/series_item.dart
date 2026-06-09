@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'json_coerce.dart';
 
 part 'series_item.freezed.dart';
 part 'series_item.g.dart';
@@ -7,17 +8,17 @@ part 'series_item.g.dart';
 abstract class SeriesItem with _$SeriesItem {
   const factory SeriesItem({
     @JsonKey(name: 'series_id') required dynamic seriesId,
-    @Default('') String name,
-    String? cover,
-    @JsonKey(name: 'stream_icon') String? streamIcon,
-    @JsonKey(name: 'category_id') String? categoryId,
-    @JsonKey(name: 'category_name') String? categoryName,
-    @JsonKey(name: 'num_seasons') String? numSeasons,
-    String? rating,
-    String? plot,
-    String? description,
-    String? added,
-    @JsonKey(name: 'last_modified') String? lastModified,
+    @JsonKey(fromJson: coerceString) @Default('') String name,
+    @JsonKey(fromJson: coerceStringOrNull) String? cover,
+    @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,
+    @JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,
+    @JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,
+    @JsonKey(name: 'num_seasons', fromJson: coerceStringOrNull) String? numSeasons,
+    @JsonKey(fromJson: coerceStringOrNull) String? rating,
+    @JsonKey(fromJson: coerceStringOrNull) String? plot,
+    @JsonKey(fromJson: coerceStringOrNull) String? description,
+    @JsonKey(fromJson: coerceStringOrNull) String? added,
+    @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified,
   }) = _SeriesItem;
 
   factory SeriesItem.fromJson(Map<String, dynamic> json) => _$SeriesItemFromJson(json);

@@ -8,16 +8,16 @@ part of 'channel.dart';
 
 _Channel _$ChannelFromJson(Map<String, dynamic> json) => _Channel(
   streamId: json['stream_id'],
-  name: json['name'] as String? ?? '',
-  streamIcon: json['stream_icon'] as String?,
-  cover: json['cover'] as String?,
-  categoryId: json['category_id'] as String?,
-  categoryName: json['category_name'] as String?,
+  name: json['name'] == null ? '' : coerceString(json['name']),
+  streamIcon: coerceStringOrNull(json['stream_icon']),
+  cover: coerceStringOrNull(json['cover']),
+  categoryId: coerceStringOrNull(json['category_id']),
+  categoryName: coerceStringOrNull(json['category_name']),
   num: json['num'],
   tvArchive: json['tv_archive'] ?? 0,
   tvArchiveDuration: json['tv_archive_duration'] ?? '0',
-  added: json['added'] as String?,
-  lastModified: json['last_modified'] as String?,
+  added: coerceStringOrNull(json['added']),
+  lastModified: coerceStringOrNull(json['last_modified']),
 );
 
 Map<String, dynamic> _$ChannelToJson(_Channel instance) => <String, dynamic>{

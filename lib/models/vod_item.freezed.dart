@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$VodItem {
 
-@JsonKey(name: 'stream_id') dynamic get streamId; String get name;@JsonKey(name: 'stream_icon') String? get streamIcon; String? get cover;@JsonKey(name: 'container_extension') String get containerExtension;@JsonKey(name: 'category_id') String? get categoryId;@JsonKey(name: 'category_name') String? get categoryName; String? get rating;@JsonKey(name: 'stream_type') String? get streamType; String? get plot; String? get description; String? get added;@JsonKey(name: 'last_modified') String? get lastModified;
+@JsonKey(name: 'stream_id') dynamic get streamId;@JsonKey(fromJson: coerceString) String get name;@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? get streamIcon;@JsonKey(fromJson: coerceStringOrNull) String? get cover;@JsonKey(name: 'container_extension', fromJson: coerceString) String get containerExtension;@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? get categoryId;@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? get categoryName;@JsonKey(fromJson: coerceStringOrNull) String? get rating;@JsonKey(name: 'stream_type', fromJson: coerceStringOrNull) String? get streamType;@JsonKey(fromJson: coerceStringOrNull) String? get plot;@JsonKey(fromJson: coerceStringOrNull) String? get description;@JsonKey(fromJson: coerceStringOrNull) String? get added;@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? get lastModified;
 /// Create a copy of VodItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $VodItemCopyWith<$Res>  {
   factory $VodItemCopyWith(VodItem value, $Res Function(VodItem) _then) = _$VodItemCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'stream_id') dynamic streamId, String name,@JsonKey(name: 'stream_icon') String? streamIcon, String? cover,@JsonKey(name: 'container_extension') String containerExtension,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName, String? rating,@JsonKey(name: 'stream_type') String? streamType, String? plot, String? description, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'stream_id') dynamic streamId,@JsonKey(fromJson: coerceString) String name,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'container_extension', fromJson: coerceString) String containerExtension,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(fromJson: coerceStringOrNull) String? rating,@JsonKey(name: 'stream_type', fromJson: coerceStringOrNull) String? streamType,@JsonKey(fromJson: coerceStringOrNull) String? plot,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 
@@ -165,7 +165,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName,  String? rating, @JsonKey(name: 'stream_type')  String? streamType,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(name: 'stream_type', fromJson: coerceStringOrNull)  String? streamType, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VodItem() when $default != null:
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.containerExtension,_that.categoryId,_that.categoryName,_that.rating,_that.streamType,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -186,7 +186,7 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName,  String? rating, @JsonKey(name: 'stream_type')  String? streamType,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(name: 'stream_type', fromJson: coerceStringOrNull)  String? streamType, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)  $default,) {final _that = this;
 switch (_that) {
 case _VodItem():
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.containerExtension,_that.categoryId,_that.categoryName,_that.rating,_that.streamType,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -206,7 +206,7 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.con
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'container_extension')  String containerExtension, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName,  String? rating, @JsonKey(name: 'stream_type')  String? streamType,  String? plot,  String? description,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'container_extension', fromJson: coerceString)  String containerExtension, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(fromJson: coerceStringOrNull)  String? rating, @JsonKey(name: 'stream_type', fromJson: coerceStringOrNull)  String? streamType, @JsonKey(fromJson: coerceStringOrNull)  String? plot, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,) {final _that = this;
 switch (_that) {
 case _VodItem() when $default != null:
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.containerExtension,_that.categoryId,_that.categoryName,_that.rating,_that.streamType,_that.plot,_that.description,_that.added,_that.lastModified);case _:
@@ -221,22 +221,22 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.con
 @JsonSerializable()
 
 class _VodItem implements VodItem {
-  const _VodItem({@JsonKey(name: 'stream_id') required this.streamId, this.name = '', @JsonKey(name: 'stream_icon') this.streamIcon, this.cover, @JsonKey(name: 'container_extension') this.containerExtension = 'mp4', @JsonKey(name: 'category_id') this.categoryId, @JsonKey(name: 'category_name') this.categoryName, this.rating, @JsonKey(name: 'stream_type') this.streamType, this.plot, this.description, this.added, @JsonKey(name: 'last_modified') this.lastModified});
+  const _VodItem({@JsonKey(name: 'stream_id') required this.streamId, @JsonKey(fromJson: coerceString) this.name = '', @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) this.streamIcon, @JsonKey(fromJson: coerceStringOrNull) this.cover, @JsonKey(name: 'container_extension', fromJson: coerceString) this.containerExtension = 'mp4', @JsonKey(name: 'category_id', fromJson: coerceStringOrNull) this.categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull) this.categoryName, @JsonKey(fromJson: coerceStringOrNull) this.rating, @JsonKey(name: 'stream_type', fromJson: coerceStringOrNull) this.streamType, @JsonKey(fromJson: coerceStringOrNull) this.plot, @JsonKey(fromJson: coerceStringOrNull) this.description, @JsonKey(fromJson: coerceStringOrNull) this.added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) this.lastModified});
   factory _VodItem.fromJson(Map<String, dynamic> json) => _$VodItemFromJson(json);
 
 @override@JsonKey(name: 'stream_id') final  dynamic streamId;
-@override@JsonKey() final  String name;
-@override@JsonKey(name: 'stream_icon') final  String? streamIcon;
-@override final  String? cover;
-@override@JsonKey(name: 'container_extension') final  String containerExtension;
-@override@JsonKey(name: 'category_id') final  String? categoryId;
-@override@JsonKey(name: 'category_name') final  String? categoryName;
-@override final  String? rating;
-@override@JsonKey(name: 'stream_type') final  String? streamType;
-@override final  String? plot;
-@override final  String? description;
-@override final  String? added;
-@override@JsonKey(name: 'last_modified') final  String? lastModified;
+@override@JsonKey(fromJson: coerceString) final  String name;
+@override@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) final  String? streamIcon;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? cover;
+@override@JsonKey(name: 'container_extension', fromJson: coerceString) final  String containerExtension;
+@override@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) final  String? categoryId;
+@override@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) final  String? categoryName;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? rating;
+@override@JsonKey(name: 'stream_type', fromJson: coerceStringOrNull) final  String? streamType;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? plot;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? description;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? added;
+@override@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) final  String? lastModified;
 
 /// Create a copy of VodItem
 /// with the given fields replaced by the non-null parameter values.
@@ -271,7 +271,7 @@ abstract mixin class _$VodItemCopyWith<$Res> implements $VodItemCopyWith<$Res> {
   factory _$VodItemCopyWith(_VodItem value, $Res Function(_VodItem) _then) = __$VodItemCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'stream_id') dynamic streamId, String name,@JsonKey(name: 'stream_icon') String? streamIcon, String? cover,@JsonKey(name: 'container_extension') String containerExtension,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName, String? rating,@JsonKey(name: 'stream_type') String? streamType, String? plot, String? description, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'stream_id') dynamic streamId,@JsonKey(fromJson: coerceString) String name,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'container_extension', fromJson: coerceString) String containerExtension,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(fromJson: coerceStringOrNull) String? rating,@JsonKey(name: 'stream_type', fromJson: coerceStringOrNull) String? streamType,@JsonKey(fromJson: coerceStringOrNull) String? plot,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 

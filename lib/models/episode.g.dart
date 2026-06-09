@@ -8,8 +8,10 @@ part of 'episode.dart';
 
 _Episode _$EpisodeFromJson(Map<String, dynamic> json) => _Episode(
   id: json['id'],
-  title: json['title'] as String?,
-  containerExtension: json['container_extension'] as String? ?? 'mp4',
+  title: coerceStringOrNull(json['title']),
+  containerExtension: json['container_extension'] == null
+      ? 'mp4'
+      : coerceString(json['container_extension']),
   episodeNum: json['episode_num'],
 );
 

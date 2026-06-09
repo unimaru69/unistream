@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$EpgProgram {
 
- String get title; String? get description; String? get start; String? get end;@JsonKey(name: 'start_timestamp') String? get startTimestamp;@JsonKey(name: 'stop_timestamp') String? get stopTimestamp;@JsonKey(name: 'start_utc') String? get startUtc;@JsonKey(name: 'start_server_local') String? get startServerLocal;@JsonKey(name: 'start_epoch') dynamic get startEpoch;
+@JsonKey(fromJson: coerceString) String get title;@JsonKey(fromJson: coerceStringOrNull) String? get description;@JsonKey(fromJson: coerceStringOrNull) String? get start;@JsonKey(fromJson: coerceStringOrNull) String? get end;@JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull) String? get startTimestamp;@JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull) String? get stopTimestamp;@JsonKey(name: 'start_utc', fromJson: coerceStringOrNull) String? get startUtc;@JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull) String? get startServerLocal;@JsonKey(name: 'start_epoch') dynamic get startEpoch;
 /// Create a copy of EpgProgram
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $EpgProgramCopyWith<$Res>  {
   factory $EpgProgramCopyWith(EpgProgram value, $Res Function(EpgProgram) _then) = _$EpgProgramCopyWithImpl;
 @useResult
 $Res call({
- String title, String? description, String? start, String? end,@JsonKey(name: 'start_timestamp') String? startTimestamp,@JsonKey(name: 'stop_timestamp') String? stopTimestamp,@JsonKey(name: 'start_utc') String? startUtc,@JsonKey(name: 'start_server_local') String? startServerLocal,@JsonKey(name: 'start_epoch') dynamic startEpoch
+@JsonKey(fromJson: coerceString) String title,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? start,@JsonKey(fromJson: coerceStringOrNull) String? end,@JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull) String? startTimestamp,@JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull) String? stopTimestamp,@JsonKey(name: 'start_utc', fromJson: coerceStringOrNull) String? startUtc,@JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull) String? startServerLocal,@JsonKey(name: 'start_epoch') dynamic startEpoch
 });
 
 
@@ -161,7 +161,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String title,  String? description,  String? start,  String? end, @JsonKey(name: 'start_timestamp')  String? startTimestamp, @JsonKey(name: 'stop_timestamp')  String? stopTimestamp, @JsonKey(name: 'start_utc')  String? startUtc, @JsonKey(name: 'start_server_local')  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: coerceString)  String title, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? start, @JsonKey(fromJson: coerceStringOrNull)  String? end, @JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull)  String? startTimestamp, @JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull)  String? stopTimestamp, @JsonKey(name: 'start_utc', fromJson: coerceStringOrNull)  String? startUtc, @JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull)  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _EpgProgram() when $default != null:
 return $default(_that.title,_that.description,_that.start,_that.end,_that.startTimestamp,_that.stopTimestamp,_that.startUtc,_that.startServerLocal,_that.startEpoch);case _:
@@ -182,7 +182,7 @@ return $default(_that.title,_that.description,_that.start,_that.end,_that.startT
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String title,  String? description,  String? start,  String? end, @JsonKey(name: 'start_timestamp')  String? startTimestamp, @JsonKey(name: 'stop_timestamp')  String? stopTimestamp, @JsonKey(name: 'start_utc')  String? startUtc, @JsonKey(name: 'start_server_local')  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: coerceString)  String title, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? start, @JsonKey(fromJson: coerceStringOrNull)  String? end, @JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull)  String? startTimestamp, @JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull)  String? stopTimestamp, @JsonKey(name: 'start_utc', fromJson: coerceStringOrNull)  String? startUtc, @JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull)  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)  $default,) {final _that = this;
 switch (_that) {
 case _EpgProgram():
 return $default(_that.title,_that.description,_that.start,_that.end,_that.startTimestamp,_that.stopTimestamp,_that.startUtc,_that.startServerLocal,_that.startEpoch);case _:
@@ -202,7 +202,7 @@ return $default(_that.title,_that.description,_that.start,_that.end,_that.startT
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String title,  String? description,  String? start,  String? end, @JsonKey(name: 'start_timestamp')  String? startTimestamp, @JsonKey(name: 'stop_timestamp')  String? stopTimestamp, @JsonKey(name: 'start_utc')  String? startUtc, @JsonKey(name: 'start_server_local')  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: coerceString)  String title, @JsonKey(fromJson: coerceStringOrNull)  String? description, @JsonKey(fromJson: coerceStringOrNull)  String? start, @JsonKey(fromJson: coerceStringOrNull)  String? end, @JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull)  String? startTimestamp, @JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull)  String? stopTimestamp, @JsonKey(name: 'start_utc', fromJson: coerceStringOrNull)  String? startUtc, @JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull)  String? startServerLocal, @JsonKey(name: 'start_epoch')  dynamic startEpoch)?  $default,) {final _that = this;
 switch (_that) {
 case _EpgProgram() when $default != null:
 return $default(_that.title,_that.description,_that.start,_that.end,_that.startTimestamp,_that.stopTimestamp,_that.startUtc,_that.startServerLocal,_that.startEpoch);case _:
@@ -217,17 +217,17 @@ return $default(_that.title,_that.description,_that.start,_that.end,_that.startT
 @JsonSerializable()
 
 class _EpgProgram implements EpgProgram {
-  const _EpgProgram({this.title = '', this.description, this.start, this.end, @JsonKey(name: 'start_timestamp') this.startTimestamp, @JsonKey(name: 'stop_timestamp') this.stopTimestamp, @JsonKey(name: 'start_utc') this.startUtc, @JsonKey(name: 'start_server_local') this.startServerLocal, @JsonKey(name: 'start_epoch') this.startEpoch});
+  const _EpgProgram({@JsonKey(fromJson: coerceString) this.title = '', @JsonKey(fromJson: coerceStringOrNull) this.description, @JsonKey(fromJson: coerceStringOrNull) this.start, @JsonKey(fromJson: coerceStringOrNull) this.end, @JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull) this.startTimestamp, @JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull) this.stopTimestamp, @JsonKey(name: 'start_utc', fromJson: coerceStringOrNull) this.startUtc, @JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull) this.startServerLocal, @JsonKey(name: 'start_epoch') this.startEpoch});
   factory _EpgProgram.fromJson(Map<String, dynamic> json) => _$EpgProgramFromJson(json);
 
-@override@JsonKey() final  String title;
-@override final  String? description;
-@override final  String? start;
-@override final  String? end;
-@override@JsonKey(name: 'start_timestamp') final  String? startTimestamp;
-@override@JsonKey(name: 'stop_timestamp') final  String? stopTimestamp;
-@override@JsonKey(name: 'start_utc') final  String? startUtc;
-@override@JsonKey(name: 'start_server_local') final  String? startServerLocal;
+@override@JsonKey(fromJson: coerceString) final  String title;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? description;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? start;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? end;
+@override@JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull) final  String? startTimestamp;
+@override@JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull) final  String? stopTimestamp;
+@override@JsonKey(name: 'start_utc', fromJson: coerceStringOrNull) final  String? startUtc;
+@override@JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull) final  String? startServerLocal;
 @override@JsonKey(name: 'start_epoch') final  dynamic startEpoch;
 
 /// Create a copy of EpgProgram
@@ -263,7 +263,7 @@ abstract mixin class _$EpgProgramCopyWith<$Res> implements $EpgProgramCopyWith<$
   factory _$EpgProgramCopyWith(_EpgProgram value, $Res Function(_EpgProgram) _then) = __$EpgProgramCopyWithImpl;
 @override @useResult
 $Res call({
- String title, String? description, String? start, String? end,@JsonKey(name: 'start_timestamp') String? startTimestamp,@JsonKey(name: 'stop_timestamp') String? stopTimestamp,@JsonKey(name: 'start_utc') String? startUtc,@JsonKey(name: 'start_server_local') String? startServerLocal,@JsonKey(name: 'start_epoch') dynamic startEpoch
+@JsonKey(fromJson: coerceString) String title,@JsonKey(fromJson: coerceStringOrNull) String? description,@JsonKey(fromJson: coerceStringOrNull) String? start,@JsonKey(fromJson: coerceStringOrNull) String? end,@JsonKey(name: 'start_timestamp', fromJson: coerceStringOrNull) String? startTimestamp,@JsonKey(name: 'stop_timestamp', fromJson: coerceStringOrNull) String? stopTimestamp,@JsonKey(name: 'start_utc', fromJson: coerceStringOrNull) String? startUtc,@JsonKey(name: 'start_server_local', fromJson: coerceStringOrNull) String? startServerLocal,@JsonKey(name: 'start_epoch') dynamic startEpoch
 });
 
 

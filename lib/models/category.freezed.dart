@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Category {
 
-@JsonKey(name: 'category_id') String get categoryId;@JsonKey(name: 'category_name') String get categoryName;@JsonKey(name: 'parent_id') int get parentId;
+@JsonKey(name: 'category_id', fromJson: coerceString) String get categoryId;@JsonKey(name: 'category_name', fromJson: coerceString) String get categoryName;@JsonKey(name: 'parent_id') int get parentId;
 /// Create a copy of Category
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $CategoryCopyWith<$Res>  {
   factory $CategoryCopyWith(Category value, $Res Function(Category) _then) = _$CategoryCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'category_id') String categoryId,@JsonKey(name: 'category_name') String categoryName,@JsonKey(name: 'parent_id') int parentId
+@JsonKey(name: 'category_id', fromJson: coerceString) String categoryId,@JsonKey(name: 'category_name', fromJson: coerceString) String categoryName,@JsonKey(name: 'parent_id') int parentId
 });
 
 
@@ -155,7 +155,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'category_id')  String categoryId, @JsonKey(name: 'category_name')  String categoryName, @JsonKey(name: 'parent_id')  int parentId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'category_id', fromJson: coerceString)  String categoryId, @JsonKey(name: 'category_name', fromJson: coerceString)  String categoryName, @JsonKey(name: 'parent_id')  int parentId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Category() when $default != null:
 return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
@@ -176,7 +176,7 @@ return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'category_id')  String categoryId, @JsonKey(name: 'category_name')  String categoryName, @JsonKey(name: 'parent_id')  int parentId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'category_id', fromJson: coerceString)  String categoryId, @JsonKey(name: 'category_name', fromJson: coerceString)  String categoryName, @JsonKey(name: 'parent_id')  int parentId)  $default,) {final _that = this;
 switch (_that) {
 case _Category():
 return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
@@ -196,7 +196,7 @@ return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'category_id')  String categoryId, @JsonKey(name: 'category_name')  String categoryName, @JsonKey(name: 'parent_id')  int parentId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'category_id', fromJson: coerceString)  String categoryId, @JsonKey(name: 'category_name', fromJson: coerceString)  String categoryName, @JsonKey(name: 'parent_id')  int parentId)?  $default,) {final _that = this;
 switch (_that) {
 case _Category() when $default != null:
 return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
@@ -211,11 +211,11 @@ return $default(_that.categoryId,_that.categoryName,_that.parentId);case _:
 @JsonSerializable()
 
 class _Category implements Category {
-  const _Category({@JsonKey(name: 'category_id') required this.categoryId, @JsonKey(name: 'category_name') this.categoryName = '', @JsonKey(name: 'parent_id') this.parentId = 0});
+  const _Category({@JsonKey(name: 'category_id', fromJson: coerceString) required this.categoryId, @JsonKey(name: 'category_name', fromJson: coerceString) this.categoryName = '', @JsonKey(name: 'parent_id') this.parentId = 0});
   factory _Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
 
-@override@JsonKey(name: 'category_id') final  String categoryId;
-@override@JsonKey(name: 'category_name') final  String categoryName;
+@override@JsonKey(name: 'category_id', fromJson: coerceString) final  String categoryId;
+@override@JsonKey(name: 'category_name', fromJson: coerceString) final  String categoryName;
 @override@JsonKey(name: 'parent_id') final  int parentId;
 
 /// Create a copy of Category
@@ -251,7 +251,7 @@ abstract mixin class _$CategoryCopyWith<$Res> implements $CategoryCopyWith<$Res>
   factory _$CategoryCopyWith(_Category value, $Res Function(_Category) _then) = __$CategoryCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'category_id') String categoryId,@JsonKey(name: 'category_name') String categoryName,@JsonKey(name: 'parent_id') int parentId
+@JsonKey(name: 'category_id', fromJson: coerceString) String categoryId,@JsonKey(name: 'category_name', fromJson: coerceString) String categoryName,@JsonKey(name: 'parent_id') int parentId
 });
 
 

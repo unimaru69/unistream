@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Channel {
 
-@JsonKey(name: 'stream_id') dynamic get streamId; String get name;@JsonKey(name: 'stream_icon') String? get streamIcon; String? get cover;@JsonKey(name: 'category_id') String? get categoryId;@JsonKey(name: 'category_name') String? get categoryName;@JsonKey(name: 'num') dynamic get num;@JsonKey(name: 'tv_archive') dynamic get tvArchive;@JsonKey(name: 'tv_archive_duration') dynamic get tvArchiveDuration; String? get added;@JsonKey(name: 'last_modified') String? get lastModified;
+@JsonKey(name: 'stream_id') dynamic get streamId;@JsonKey(fromJson: coerceString) String get name;@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? get streamIcon;@JsonKey(fromJson: coerceStringOrNull) String? get cover;@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? get categoryId;@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? get categoryName;@JsonKey(name: 'num') dynamic get num;@JsonKey(name: 'tv_archive') dynamic get tvArchive;@JsonKey(name: 'tv_archive_duration') dynamic get tvArchiveDuration;@JsonKey(fromJson: coerceStringOrNull) String? get added;@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? get lastModified;
 /// Create a copy of Channel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $ChannelCopyWith<$Res>  {
   factory $ChannelCopyWith(Channel value, $Res Function(Channel) _then) = _$ChannelCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'stream_id') dynamic streamId, String name,@JsonKey(name: 'stream_icon') String? streamIcon, String? cover,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName,@JsonKey(name: 'num') dynamic num,@JsonKey(name: 'tv_archive') dynamic tvArchive,@JsonKey(name: 'tv_archive_duration') dynamic tvArchiveDuration, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'stream_id') dynamic streamId,@JsonKey(fromJson: coerceString) String name,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(name: 'num') dynamic num,@JsonKey(name: 'tv_archive') dynamic tvArchive,@JsonKey(name: 'tv_archive_duration') dynamic tvArchiveDuration,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 
@@ -163,7 +163,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Channel() when $default != null:
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.categoryId,_that.categoryName,_that.num,_that.tvArchive,_that.tvArchiveDuration,_that.added,_that.lastModified);case _:
@@ -184,7 +184,7 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.cat
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)  $default,) {final _that = this;
 switch (_that) {
 case _Channel():
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.categoryId,_that.categoryName,_that.num,_that.tvArchive,_that.tvArchiveDuration,_that.added,_that.lastModified);case _:
@@ -204,7 +204,7 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.cat
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'stream_id')  dynamic streamId,  String name, @JsonKey(name: 'stream_icon')  String? streamIcon,  String? cover, @JsonKey(name: 'category_id')  String? categoryId, @JsonKey(name: 'category_name')  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration,  String? added, @JsonKey(name: 'last_modified')  String? lastModified)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'stream_id')  dynamic streamId, @JsonKey(fromJson: coerceString)  String name, @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull)  String? streamIcon, @JsonKey(fromJson: coerceStringOrNull)  String? cover, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull)  String? categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull)  String? categoryName, @JsonKey(name: 'num')  dynamic num, @JsonKey(name: 'tv_archive')  dynamic tvArchive, @JsonKey(name: 'tv_archive_duration')  dynamic tvArchiveDuration, @JsonKey(fromJson: coerceStringOrNull)  String? added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull)  String? lastModified)?  $default,) {final _that = this;
 switch (_that) {
 case _Channel() when $default != null:
 return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.categoryId,_that.categoryName,_that.num,_that.tvArchive,_that.tvArchiveDuration,_that.added,_that.lastModified);case _:
@@ -219,20 +219,20 @@ return $default(_that.streamId,_that.name,_that.streamIcon,_that.cover,_that.cat
 @JsonSerializable()
 
 class _Channel implements Channel {
-  const _Channel({@JsonKey(name: 'stream_id') required this.streamId, this.name = '', @JsonKey(name: 'stream_icon') this.streamIcon, this.cover, @JsonKey(name: 'category_id') this.categoryId, @JsonKey(name: 'category_name') this.categoryName, @JsonKey(name: 'num') this.num, @JsonKey(name: 'tv_archive') this.tvArchive = 0, @JsonKey(name: 'tv_archive_duration') this.tvArchiveDuration = '0', this.added, @JsonKey(name: 'last_modified') this.lastModified});
+  const _Channel({@JsonKey(name: 'stream_id') required this.streamId, @JsonKey(fromJson: coerceString) this.name = '', @JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) this.streamIcon, @JsonKey(fromJson: coerceStringOrNull) this.cover, @JsonKey(name: 'category_id', fromJson: coerceStringOrNull) this.categoryId, @JsonKey(name: 'category_name', fromJson: coerceStringOrNull) this.categoryName, @JsonKey(name: 'num') this.num, @JsonKey(name: 'tv_archive') this.tvArchive = 0, @JsonKey(name: 'tv_archive_duration') this.tvArchiveDuration = '0', @JsonKey(fromJson: coerceStringOrNull) this.added, @JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) this.lastModified});
   factory _Channel.fromJson(Map<String, dynamic> json) => _$ChannelFromJson(json);
 
 @override@JsonKey(name: 'stream_id') final  dynamic streamId;
-@override@JsonKey() final  String name;
-@override@JsonKey(name: 'stream_icon') final  String? streamIcon;
-@override final  String? cover;
-@override@JsonKey(name: 'category_id') final  String? categoryId;
-@override@JsonKey(name: 'category_name') final  String? categoryName;
+@override@JsonKey(fromJson: coerceString) final  String name;
+@override@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) final  String? streamIcon;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? cover;
+@override@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) final  String? categoryId;
+@override@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) final  String? categoryName;
 @override@JsonKey(name: 'num') final  dynamic num;
 @override@JsonKey(name: 'tv_archive') final  dynamic tvArchive;
 @override@JsonKey(name: 'tv_archive_duration') final  dynamic tvArchiveDuration;
-@override final  String? added;
-@override@JsonKey(name: 'last_modified') final  String? lastModified;
+@override@JsonKey(fromJson: coerceStringOrNull) final  String? added;
+@override@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) final  String? lastModified;
 
 /// Create a copy of Channel
 /// with the given fields replaced by the non-null parameter values.
@@ -267,7 +267,7 @@ abstract mixin class _$ChannelCopyWith<$Res> implements $ChannelCopyWith<$Res> {
   factory _$ChannelCopyWith(_Channel value, $Res Function(_Channel) _then) = __$ChannelCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'stream_id') dynamic streamId, String name,@JsonKey(name: 'stream_icon') String? streamIcon, String? cover,@JsonKey(name: 'category_id') String? categoryId,@JsonKey(name: 'category_name') String? categoryName,@JsonKey(name: 'num') dynamic num,@JsonKey(name: 'tv_archive') dynamic tvArchive,@JsonKey(name: 'tv_archive_duration') dynamic tvArchiveDuration, String? added,@JsonKey(name: 'last_modified') String? lastModified
+@JsonKey(name: 'stream_id') dynamic streamId,@JsonKey(fromJson: coerceString) String name,@JsonKey(name: 'stream_icon', fromJson: coerceStringOrNull) String? streamIcon,@JsonKey(fromJson: coerceStringOrNull) String? cover,@JsonKey(name: 'category_id', fromJson: coerceStringOrNull) String? categoryId,@JsonKey(name: 'category_name', fromJson: coerceStringOrNull) String? categoryName,@JsonKey(name: 'num') dynamic num,@JsonKey(name: 'tv_archive') dynamic tvArchive,@JsonKey(name: 'tv_archive_duration') dynamic tvArchiveDuration,@JsonKey(fromJson: coerceStringOrNull) String? added,@JsonKey(name: 'last_modified', fromJson: coerceStringOrNull) String? lastModified
 });
 
 
