@@ -289,8 +289,21 @@ final class XtreamAPIService {
             throw XtreamError.invalidUrl
         }
         let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let episodes = json["episodes"] as? [String: Any] else {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
+        }
+
+        // Xtream panels disagree on the `episodes` shape: usually a map keyed by
+        // season ("1": [...]), but some return a flat list, an empty list, or omit
+        // it entirely. Normalise to a season→episodes map; anything unexpected
+        // yields an empty result rather than dropping silently on a type mismatch.
+        let episodes: [String: Any]
+        switch json["episodes"] {
+        case let dict as [String: Any]:
+            episodes = dict
+        case let list as [[String: Any]]:
+            episodes = ["1": list]
+        default:
             return [:]
         }
 
@@ -310,12 +323,19 @@ final class XtreamAPIService {
         guard let url = URL(string: "\(baseUrl)&action=get_short_epg&stream_id=\(streamId)&limit=\(limit)") else {
             throw XtreamError.invalidUrl
         }
-        let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let listings = json["epg_listings"] as? [[String: Any]] else {
+        // Best-effort EPG: some panels return an empty body or an HTML error page
+        // (non-JSON) → degrade to "no EPG" instead of throwing into every caller.
+        do {
+            let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let listings = json["epg_listings"] as? [[String: Any]] else {
+                return []
+            }
+            return listings.map { EpgProgram(json: $0) }
+        } catch {
+            logger.debug("Short EPG unavailable for \(streamId): \(error.localizedDescription)")
             return []
         }
-        return listings.map { EpgProgram(json: $0) }
     }
 
     /// Full-day EPG for a single channel (used for catch-up program list).
@@ -324,12 +344,19 @@ final class XtreamAPIService {
         guard let url = URL(string: "\(baseUrl)&action=get_simple_data_table&stream_id=\(streamId)") else {
             throw XtreamError.invalidUrl
         }
-        let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let listings = json["epg_listings"] as? [[String: Any]] else {
+        // Best-effort EPG (see getShortEpg): degrade to "no EPG" on a non-JSON
+        // or error body instead of throwing into every caller.
+        do {
+            let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let listings = json["epg_listings"] as? [[String: Any]] else {
+                return []
+            }
+            return listings.map { EpgProgram(json: $0) }
+        } catch {
+            logger.debug("Full-day EPG unavailable for \(streamId): \(error.localizedDescription)")
             return []
         }
-        return listings.map { EpgProgram(json: $0) }
     }
 
     /// Timeshift URL using server-local start string (preferred — avoids timezone conversion).

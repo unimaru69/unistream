@@ -21,17 +21,17 @@ struct VodItem: Identifiable, Hashable {
 
     init(json: [String: Any]) {
         streamId = "\(json["stream_id"] ?? "")"
-        name = json["name"] as? String ?? ""
-        streamIcon = json["stream_icon"] as? String
-        cover = json["cover"] as? String
-        containerExtension = json["container_extension"] as? String ?? "mp4"
-        categoryId = json["category_id"].map { "\($0)" }
-        categoryName = json["category_name"] as? String
-        rating = json["rating"] as? String
-        streamType = json["stream_type"] as? String
-        plot = json["plot"] as? String
-        description = json["description"] as? String
-        added = json["added"] as? String
-        lastModified = json["last_modified"] as? String
+        name = coerceString(json["name"])
+        streamIcon = coerceStringOrNull(json["stream_icon"])
+        cover = coerceStringOrNull(json["cover"])
+        containerExtension = coerceStringOrNull(json["container_extension"]) ?? "mp4"
+        categoryId = coerceStringOrNull(json["category_id"])
+        categoryName = coerceStringOrNull(json["category_name"])
+        rating = coerceStringOrNull(json["rating"])
+        streamType = coerceStringOrNull(json["stream_type"])
+        plot = coerceStringOrNull(json["plot"])
+        description = coerceStringOrNull(json["description"])
+        added = coerceStringOrNull(json["added"])
+        lastModified = coerceStringOrNull(json["last_modified"])
     }
 }

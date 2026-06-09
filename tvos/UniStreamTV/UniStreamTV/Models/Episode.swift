@@ -12,8 +12,8 @@ struct Episode: Identifiable, Hashable {
 
     init(json: [String: Any]) {
         episodeId = "\(json["id"] ?? "")"
-        title = json["title"] as? String
-        containerExtension = json["container_extension"] as? String ?? "mp4"
+        title = coerceStringOrNull(json["title"])
+        containerExtension = coerceStringOrNull(json["container_extension"]) ?? "mp4"
         if let n = json["episode_num"] as? Int {
             episodeNum = n
         } else if let s = json["episode_num"] as? String {

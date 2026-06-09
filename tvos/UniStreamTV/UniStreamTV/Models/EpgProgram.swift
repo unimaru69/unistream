@@ -39,11 +39,11 @@ struct EpgProgram: Identifiable, Hashable {
 
     init(json: [String: Any]) {
         // Title — may be base64 encoded
-        let rawTitle = json["title"] as? String ?? ""
+        let rawTitle = coerceString(json["title"])
         title = rawTitle.base64Decoded
 
         // Store raw server-local start for timeshift URL
-        serverLocalStart = json["start"] as? String ?? ""
+        serverLocalStart = coerceString(json["start"])
 
         // Prefer epoch timestamps (reliable, no timezone ambiguity)
         if let startEpoch = Self.parseEpoch(json["start_timestamp"]),
@@ -52,8 +52,8 @@ struct EpgProgram: Identifiable, Hashable {
             end = Date(timeIntervalSince1970: stopEpoch)
         } else {
             // Fallback: parse date strings (server-local treated as UTC for display)
-            start = Self.dateFormatter.date(from: json["start"] as? String ?? "")
-            end = Self.dateFormatter.date(from: json["end"] as? String ?? "")
+            start = Self.dateFormatter.date(from: coerceString(json["start"]))
+            end = Self.dateFormatter.date(from: coerceString(json["end"]))
         }
     }
 
