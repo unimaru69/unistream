@@ -22,6 +22,19 @@ final class VLCPlayerViewController: UIViewController {
         "--freetype-rel-fontsize=20",
     ])
     private let url: URL
+    /// The URL currently loaded into the player. Starts as `url`, but the
+    /// extension-fallback chain (see `tryNextExtensionFallback`) swaps it for
+    /// an alternate-extension variant when the server's advertised
+    /// `container_extension` doesn't match what's actually servable.
+    private var currentUrl: URL
+    /// Alternate-extension URLs to try if `url` fails to open. Xtream panels
+    /// disagree on `container_extension` (some omit it → we default to `mp4`
+    /// even when the file is `.mkv`/`.ts`), so a 404 on the advertised
+    /// extension is common on a freshly-added server. AVPlayer already retries
+    /// alternates via `VODFallbackHandler`; this gives the (default) VLC path
+    /// the same resilience instead of dead-ending on "Erreur de lecture".
+    private let extensionFallbacks: [URL]
+    private var extensionFallbackIndex = 0
     private let videoTitle: String
     private var resumeFromMs: Int?
     private let contentKey: String?
@@ -43,6 +56,8 @@ final class VLCPlayerViewController: UIViewController {
 
     init(url: URL, title: String, resumeFromMs: Int? = nil, contentKey: String? = nil) {
         self.url = url
+        self.currentUrl = url
+        self.extensionFallbacks = Self.buildExtensionFallbacks(from: url)
         self.videoTitle = title
         self.resumeFromMs = resumeFromMs
         self.contentKey = contentKey
@@ -200,7 +215,7 @@ final class VLCPlayerViewController: UIViewController {
     ///   at that position. Far more reliable than a post-play `mediaPlayer.time = …`
     ///   seek, which races demux readiness on slow links.
     private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
-        let media = VLCMedia(url: url)
+        let media = VLCMedia(url: currentUrl)
 
         // Resume position — apply BEFORE play so we don't have to chase
         // a working moment for the post-play seek.
@@ -258,6 +273,57 @@ final class VLCPlayerViewController: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.overlayModel.subtitle = nil
         }
+    }
+
+    /// Reload playback with the next alternate-extension URL. Called from the
+    /// `.error` handler once the hardware→software retry for the current URL is
+    /// exhausted. Returns `false` when no alternates remain (caller then shows
+    /// the error alert).
+    @discardableResult
+    private func tryNextExtensionFallback() -> Bool {
+        guard extensionFallbackIndex < extensionFallbacks.count else { return false }
+        let next = extensionFallbacks[extensionFallbackIndex]
+        extensionFallbackIndex += 1
+        currentUrl = next
+
+        // Each new URL gets its own hardware→software retry budget.
+        softwareDecodeRetryDone = false
+
+        // A failed open leaves `mediaPlayer.time` at 0, so honour the originally
+        // requested resume position rather than reading it back off the player.
+        let resumeSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
+        mediaPlayer.stop()
+        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: resumeSec)
+        mediaPlayer.play()
+
+        overlayModel.subtitle = "Nouvelle tentative…"
+        showOverlay()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.overlayModel.subtitle = nil
+        }
+        return true
+    }
+
+    /// Build the alternate-extension URL chain for a VOD/series stream.
+    /// Xtream serves the same asset at `/movie/.../id.{ext}`; when the
+    /// advertised extension 404s we try the common containers in turn. VLC
+    /// handles mkv/avi/ts natively, so we include them (unlike the AVPlayer
+    /// chain, which is limited to formats AVFoundation accepts).
+    private static func buildExtensionFallbacks(from url: URL) -> [URL] {
+        let urlStr = url.absoluteString
+        guard let dotRange = urlStr.range(of: ".", options: .backwards),
+              dotRange.lowerBound > urlStr.startIndex else { return [] }
+        let ext = urlStr[dotRange.upperBound...]
+        // Only treat the trailing token as a swappable extension when it looks
+        // like one (no slash → it's a file extension, not part of the path).
+        guard !ext.contains("/") else { return [] }
+
+        let base = String(urlStr[urlStr.startIndex..<dotRange.lowerBound])
+        let currentExt = ext.lowercased()
+        let candidates = ["mp4", "mkv", "m3u8", "ts", "avi"]
+        return candidates
+            .filter { $0 != currentExt }
+            .compactMap { URL(string: "\(base).\($0)") }
     }
 
     /// If audio is decoding but no video frame has appeared after ~6s, the
@@ -614,6 +680,12 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 // One automatic retry with software decoding before giving up.
                 if !softwareDecodeRetryDone {
                     retryWithSoftwareDecode()
+                    return
+                }
+                // Hardware + software both failed for this URL — the server
+                // likely doesn't serve the advertised container extension.
+                // Try the next alternate extension before surfacing an error.
+                if tryNextExtensionFallback() {
                     return
                 }
                 let alert = UIAlertController(
