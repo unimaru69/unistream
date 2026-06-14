@@ -46,8 +46,8 @@ final class VLCPlayerViewController: UIViewController {
     private var videoWatchdog: Timer?
 
     /// VOD/series stream URLs (`/movie/…`, `/series/…`) on some Xtream panels
-    /// reply with a 302 to a tokenised, load-balanced backend
-    /// (`http://2.58.x.x:91xx/…?token=…`). VLCKit on tvOS does NOT follow that
+    /// reply with a 302 to a tokenised, load-balanced backend on a different
+    /// host/port (`…?token=…`). VLCKit on tvOS does NOT follow that
     /// redirect — it sits in `.opening` forever (the "perpetual spinner"),
     /// never reaching `.error`, so no fallback fires. We resolve the redirect
     /// ourselves (URLSession follows it natively) and hand VLC the final URL.
@@ -762,7 +762,7 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
 
 /// Resolves the HTTP 302 redirect that some Xtream panels return on
 /// `/movie/` and `/series/` stream URLs (a tokenised, load-balanced backend
-/// like `http://2.58.x.x:91xx/…?token=…`). VLCKit on tvOS does not follow
+/// on a different host/port, `…?token=…`). VLCKit on tvOS does not follow
 /// this redirect — the player sits in `.opening` indefinitely (the
 /// "perpetual spinner") — so we follow it ourselves with `URLSession`
 /// (which honours redirects natively) and feed VLC the final URL. The
