@@ -178,21 +178,6 @@ struct SettingsView: View {
                     }
                 }
 
-                Toggle(isOn: Binding(
-                    get: { PlayerPresenter.useVlcForVod },
-                    set: { PlayerPresenter.useVlcForVod = $0 }
-                )) {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Lecteur VLC pour films & séries")
-                            Text("VLC gère plus de formats que le lecteur Apple. Désactivez seulement si vous préférez l'interface native d'Apple TV.")
-                                .font(.caption)
-                                .foregroundColor(DS.Colour.textSecondary)
-                        }
-                    } icon: {
-                        Image(systemName: "film.stack")
-                    }
-                }
             } header: { settingsHeader("Lecture") }
 
             // TMDB metadata enrichment

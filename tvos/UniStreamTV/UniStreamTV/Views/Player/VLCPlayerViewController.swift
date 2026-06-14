@@ -51,11 +51,6 @@ final class VLCPlayerViewController: UIViewController {
     private var softwareDecodeRetryDone = false
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
-    /// Diagnostic: if playback hasn't started after a while, surface libvlc's
-    /// state on the drawer so a TestFlight tester can read back exactly where
-    /// it stalls (opening = network/redirect, playing-but-no-video = render,
-    /// error = hard fail) instead of an opaque infinite spinner.
-    private var stallDiagnosticTimer: Timer?
 
     // UI
     private let videoView = UIView()
@@ -100,7 +95,6 @@ final class VLCPlayerViewController: UIViewController {
         startOverlayAutoHide()
         startProgressTracking()
         startVideoWatchdog()
-        startStallDiagnostic()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -112,7 +106,6 @@ final class VLCPlayerViewController: UIViewController {
         saveVLCProgress()
         progressTimer?.invalidate()
         videoWatchdog?.invalidate()
-        stallDiagnosticTimer?.invalidate()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -215,14 +208,12 @@ final class VLCPlayerViewController: UIViewController {
 
     private func setupPlayer() {
         let startSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
-        // Force software decoding from the start. The same MKV (H.264 Main +
-        // AC-3) plays on Flutter/iOS (MobileVLCKit) with hardware decoding,
-        // but on tvOS (TVVLCKit) the VideoToolbox path shows a brief red
-        // "unsupported" badge then stalls. Apple TV's CPU decodes this content
-        // in software comfortably, so we skip VideoToolbox entirely here.
-        // (`--codec=avcodec`, the fork's HW_ACCELERATION_DISABLED.)
-        softwareDecodeRetryDone = true
-        mediaPlayer.media = buildMedia(softwareDecode: true, startTimeSec: startSec)
+        // Hardware decoding (VideoToolbox via `--codec=all`), same as the live
+        // player which runs fine on this hardware — best for 4K/HEVC. If the
+        // decoder rejects a stream, `mediaPlayerStateChanged`'s `.error` case
+        // (and the audio-but-no-video watchdog) fall back to software decoding
+        // automatically.
+        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: startSec)
         mediaPlayer.drawable = videoView
         mediaPlayer.delegate = self
     }
@@ -296,7 +287,7 @@ final class VLCPlayerViewController: UIViewController {
         // requested resume position rather than reading it back off the player.
         let resumeSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
         mediaPlayer.stop()
-        mediaPlayer.media = buildMedia(softwareDecode: true, startTimeSec: resumeSec)
+        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: resumeSec)
         mediaPlayer.play()
 
         overlayModel.subtitle = "Nouvelle tentative…"
@@ -344,40 +335,6 @@ final class VLCPlayerViewController: UIViewController {
                     self.retryWithSoftwareDecode()
                 }
             }
-        }
-    }
-
-    /// Surface libvlc's state on screen if playback hasn't started, so a
-    /// TestFlight tester can read back where it stalls instead of staring at
-    /// an opaque spinner. Diagnostic only — remove once playback is solid.
-    private func startStallDiagnostic() {
-        stallDiagnosticTimer?.invalidate()
-        stallDiagnosticTimer = Timer.scheduledTimer(withTimeInterval: 12.0, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                guard self.mediaPlayer.state != .playing, !self.mediaPlayer.isPlaying else { return }
-                let size = self.mediaPlayer.videoSize
-                let audio = (self.mediaPlayer.audioTrackIndexes as? [Int32])?.count ?? 0
-                self.overlayModel.subtitle =
-                    "Diagnostic : état=\(Self.stateName(self.mediaPlayer.state)) "
-                    + "vidéo=\(Int(size.width))x\(Int(size.height)) audio=\(audio)"
-                self.showOverlay()
-            }
-        }
-    }
-
-    /// Human-readable libvlc state for the on-screen diagnostic.
-    private static func stateName(_ state: VLCMediaPlayerState) -> String {
-        switch state {
-        case .stopped: return "stopped"
-        case .opening: return "opening"
-        case .buffering: return "buffering"
-        case .ended: return "ended"
-        case .error: return "error"
-        case .playing: return "playing"
-        case .paused: return "paused"
-        case .esAdded: return "esAdded"
-        @unknown default: return "?"
         }
     }
 
@@ -702,10 +659,6 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 overlayModel.isBuffering = true
             case .playing:
                 overlayModel.isBuffering = false
-                stallDiagnosticTimer?.invalidate()
-                if overlayModel.subtitle?.hasPrefix("Diagnostic") == true {
-                    overlayModel.subtitle = nil
-                }
                 // Resuming from pause re-arms the auto-hide timer if
                 // the drawer is currently visible — without this it'd
                 // stay up forever after un-pausing.

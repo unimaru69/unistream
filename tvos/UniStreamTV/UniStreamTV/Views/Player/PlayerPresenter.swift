@@ -43,13 +43,9 @@ enum PlayerPresenter {
     /// the AVPlayer path is not a real option for this content. This used to
     /// be a user toggle defaulting to `true`, but a stored/legacy `false`
     /// silently routed every movie through AVPlayer — the root cause of
-    /// "films won't launch" — and the Settings toggle could get stuck. We now
-    /// force VLC regardless of the stored value; the setter is kept so the
-    /// Settings toggle binding still compiles (writing has no effect).
-    static var useVlcForVod: Bool {
-        get { true }
-        set { UserDefaults.standard.set(newValue, forKey: "player.vod.vlc") }
-    }
+    /// "films won't launch" — and the Settings toggle could get stuck. The
+    /// toggle is gone; VLC is forced.
+    static var useVlcForVod: Bool { true }
 
     /// Present a live channel stream.
     static func playLive(url: URL, title: String? = nil, contentKey: String? = nil, coverUrl: String? = nil) {
