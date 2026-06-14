@@ -45,6 +45,21 @@ final class VLCPlayerViewController: UIViewController {
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
 
+    /// VOD/series stream URLs (`/movie/…`, `/series/…`) on some Xtream panels
+    /// reply with a 302 to a tokenised, load-balanced backend
+    /// (`http://2.58.x.x:91xx/…?token=…`). VLCKit on tvOS does NOT follow that
+    /// redirect — it sits in `.opening` forever (the "perpetual spinner"),
+    /// never reaching `.error`, so no fallback fires. We resolve the redirect
+    /// ourselves (URLSession follows it natively) and hand VLC the final URL.
+    /// Live `.m3u8` is served directly (no redirect) and must keep its current
+    /// synchronous, no-resolution path — hence this gate.
+    private let needsRedirectResolution: Bool
+    /// Set once `viewDidAppear` has run, so an async URL resolution that lands
+    /// before or after appearance both start playback at the right moment.
+    private var hasAppeared = false
+    /// Set once `mediaPlayer.media` is populated (post-resolution for VOD).
+    private var mediaReady = false
+
     // UI
     private let videoView = UIView()
     /// SwiftUI drawer overlay — replaces the previous UIKit chrome
@@ -58,6 +73,8 @@ final class VLCPlayerViewController: UIViewController {
         self.url = url
         self.currentUrl = url
         self.extensionFallbacks = Self.buildExtensionFallbacks(from: url)
+        let path = url.path
+        self.needsRedirectResolution = path.contains("/movie/") || path.contains("/series/")
         self.videoTitle = title
         self.resumeFromMs = resumeFromMs
         self.contentKey = contentKey
@@ -73,12 +90,19 @@ final class VLCPlayerViewController: UIViewController {
         setupVideoView()
         setupOverlay()
         setupGestures()
-        setupPlayer()
+        mediaPlayer.drawable = videoView
+        mediaPlayer.delegate = self
+        beginPlayback(of: url)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        mediaPlayer.play()
+        hasAppeared = true
+        // For VOD the media may still be resolving the 302 redirect; in that
+        // case `loadResolvedMedia` starts playback once it lands. Only play
+        // here if the media is already wired up (live path, or resolution
+        // that beat appearance).
+        if mediaReady { mediaPlayer.play() }
 
         // Resume position is wired through libvlc's native
         // `:start-time` media option in `buildMedia`, so playback
@@ -199,11 +223,38 @@ final class VLCPlayerViewController: UIViewController {
         // fires for external keyboards, never for IR remotes' D-pad.
     }
 
-    private func setupPlayer() {
+    /// Entry point for loading a stream URL. For VOD/series it first resolves
+    /// the Xtream 302 redirect off the main thread (VLCKit won't follow it),
+    /// then loads the resolved URL; live loads synchronously, unchanged.
+    /// Reused by the extension-fallback path so alternates get resolved too.
+    private func beginPlayback(of original: URL) {
+        guard needsRedirectResolution else {
+            currentUrl = original
+            loadResolvedMedia()
+            return
+        }
+
+        // Show the spinner while we resolve — this is the window that used to
+        // be the "perpetual spinner".
+        overlayModel.isBuffering = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let resolved = await RedirectResolver.resolve(original)
+            // Bail if the user dismissed the player mid-resolution.
+            guard self.isViewLoaded, self.view.window != nil || !self.hasAppeared else { return }
+            self.currentUrl = resolved ?? original
+            self.loadResolvedMedia()
+        }
+    }
+
+    /// Wire the (already-resolved) `currentUrl` into the player and start
+    /// playback if the view has appeared. Safe to call repeatedly (fallbacks).
+    private func loadResolvedMedia() {
         let startSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
+        mediaPlayer.stop()
         mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: startSec)
-        mediaPlayer.drawable = videoView
-        mediaPlayer.delegate = self
+        mediaReady = true
+        if hasAppeared { mediaPlayer.play() }
     }
 
     /// Build a VLCMedia tuned for IPTV/timeshift MPEG-TS streams.
@@ -216,6 +267,11 @@ final class VLCPlayerViewController: UIViewController {
     ///   seek, which races demux readiness on slow links.
     private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
         let media = VLCMedia(url: currentUrl)
+
+        // Some Xtream fronts (Cloudflare) reject or 302 oddly on the default
+        // libvlc User-Agent; present a browser-like UA so the backend serves
+        // the stream directly.
+        media.addOption(":http-user-agent=\(RedirectResolver.userAgent)")
 
         // Resume position — apply BEFORE play so we don't have to chase
         // a working moment for the post-play seek.
@@ -284,23 +340,19 @@ final class VLCPlayerViewController: UIViewController {
         guard extensionFallbackIndex < extensionFallbacks.count else { return false }
         let next = extensionFallbacks[extensionFallbackIndex]
         extensionFallbackIndex += 1
-        currentUrl = next
 
         // Each new URL gets its own hardware→software retry budget.
         softwareDecodeRetryDone = false
-
-        // A failed open leaves `mediaPlayer.time` at 0, so honour the originally
-        // requested resume position rather than reading it back off the player.
-        let resumeSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
-        mediaPlayer.stop()
-        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: resumeSec)
-        mediaPlayer.play()
 
         overlayModel.subtitle = "Nouvelle tentative…"
         showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.overlayModel.subtitle = nil
         }
+
+        // `next` is a pre-redirect (front-panel) URL — route it through
+        // `beginPlayback` so it gets the same 302 resolution as the original.
+        beginPlayback(of: next)
         return true
     }
 
@@ -702,6 +754,47 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
             default:
                 break
             }
+        }
+    }
+}
+
+// MARK: - Redirect Resolver
+
+/// Resolves the HTTP 302 redirect that some Xtream panels return on
+/// `/movie/` and `/series/` stream URLs (a tokenised, load-balanced backend
+/// like `http://2.58.x.x:91xx/…?token=…`). VLCKit on tvOS does not follow
+/// this redirect — the player sits in `.opening` indefinitely (the
+/// "perpetual spinner") — so we follow it ourselves with `URLSession`
+/// (which honours redirects natively) and feed VLC the final URL. The
+/// resolved, tokenised URL is replayable across separate connections and
+/// supports HTTP Range, so VLC can stream and seek against it normally.
+enum RedirectResolver {
+    /// Browser-like UA — Cloudflare-fronted panels 400 unusual User-Agents.
+    static let userAgent = "Mozilla/5.0 (Apple TV; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)"
+
+    /// Follow redirects and return the final URL, or `nil` on failure (caller
+    /// falls back to the original URL). A 0-1 byte Range keeps the probe cheap
+    /// while still triggering the panel's redirect logic.
+    static func resolve(_ url: URL) async -> URL? {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 12
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 12
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+
+        do {
+            let (_, response) = try await session.data(for: request)
+            // `response.url` reflects the final URL after URLSession has
+            // followed every redirect. If the panel didn't redirect, this is
+            // just the original URL — harmless.
+            guard let resolved = response.url else { return nil }
+            return resolved
+        } catch {
+            return nil
         }
     }
 }
