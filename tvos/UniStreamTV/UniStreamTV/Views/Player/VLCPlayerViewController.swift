@@ -257,55 +257,44 @@ final class VLCPlayerViewController: UIViewController {
         if hasAppeared { mediaPlayer.play() }
     }
 
-    /// Build a VLCMedia tuned for IPTV/timeshift MPEG-TS streams.
-    /// - softwareDecode: if true, disables VideoToolbox (used as a fallback when
-    ///   hardware decoding fails — typical for some 1080i50 H.264 High-profile
-    ///   streams served by Xtream catch-up where VideoToolbox refuses the SPS/PPS).
-    /// - startTimeSec: seconds into the asset to start at — wired through to
-    ///   libvlc's native `:start-time` so the first decoded frame is already
-    ///   at that position. Far more reliable than a post-play `mediaPlayer.time = …`
-    ///   seek, which races demux readiness on slow links.
+    /// Build a VLCMedia for a VOD/series file (typically MKV/MP4 over HTTP).
+    ///
+    /// Mirrors the option set that is known to work for this content: the
+    /// tvOS live player (`VLCLivePlayerViewController`) and the Flutter iOS
+    /// player (`flutter_vlc_player`, `HwAcc.full` + `networkCaching` +
+    /// `httpReconnect`). Both use the dictionary `addOptions` form with bare
+    /// keys (NOT `--`-prefixed strings, which are libvlc *instance* options
+    /// that `addOption` silently drops) and — crucially — do NOT force
+    /// `avcodec-hw=videotoolbox`. Forcing VideoToolbox made some HEVC/H.264
+    /// MKV files fail to decode on tvOS (brief red "unsupported" badge, then
+    /// an endless buffering loop) while the very same file plays on
+    /// Flutter/iOS. We let libvlc pick the decoder (hardware with automatic
+    /// software fallback), exactly like `HwAcc.full`.
+    ///
+    /// The live-only tuning that used to live here (deinterlace, ts-* MPEG-TS
+    /// robustness, sout caching) is intentionally gone — it doesn't apply to
+    /// a seekable VOD container and only added risk.
+    ///
+    /// - softwareDecode: force software decoding (`avcodec-hw=none`) — the
+    ///   one automatic retry we still attempt if libvlc reports `.error`.
+    /// - startTimeSec: seconds into the asset to start at, via libvlc's native
+    ///   `:start-time` so the first decoded frame is already at that position.
     private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
         let media = VLCMedia(url: currentUrl)
 
-        // Some Xtream fronts (Cloudflare) reject or 302 oddly on the default
-        // libvlc User-Agent; present a browser-like UA so the backend serves
-        // the stream directly.
-        media.addOption(":http-user-agent=\(RedirectResolver.userAgent)")
-
-        // Resume position — apply BEFORE play so we don't have to chase
-        // a working moment for the post-play seek.
+        var options: [String: Any] = [
+            "network-caching": 3000,
+            "file-caching": 3000,
+            // Survive transient drops without killing playback.
+            "http-reconnect": true,
+        ]
         if startTimeSec > 0 {
-            media.addOption(":start-time=\(startTimeSec)")
+            options["start-time"] = startTimeSec
         }
-
-        // Caching — HD catch-up over re-muxing Xtream servers is bursty.
-        // Generous buffers drastically reduce "audio only / no video" glitches.
-        media.addOption("--network-caching=5000")
-        media.addOption("--live-caching=3000")
-        media.addOption("--file-caching=3000")
-        media.addOption("--sout-mux-caching=3000")
-
-        // Decoding
         if softwareDecode {
-            media.addOption("--avcodec-hw=none")
-        } else {
-            // Prefer VideoToolbox explicitly on tvOS (more predictable than "any",
-            // which can pick an incompatible path for 1080i50 H.264 streams).
-            media.addOption("--avcodec-hw=videotoolbox")
+            options["avcodec-hw"] = "none"
         }
-        // Multi-threaded decoder (0 = auto = ncpu)
-        media.addOption("--avcodec-threads=0")
-        // Skip broken frames rather than stalling the pipeline
-        media.addOption("--avcodec-skiploopfilter=4")
-
-        // Deinterlace: most FR catch-up is 1080i50 — auto-enable yadif when needed
-        media.addOption("--deinterlace=-1")            // -1 = auto
-        media.addOption("--deinterlace-mode=yadif")
-
-        // MPEG-TS robustness
-        media.addOption("--ts-trust-pcr")
-        media.addOption("--no-ts-cc-check")            // tolerate continuity counter gaps
+        media.addOptions(options)
 
         return media
     }
