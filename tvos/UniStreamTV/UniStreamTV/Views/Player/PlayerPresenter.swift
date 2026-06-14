@@ -38,18 +38,16 @@ enum PlayerPresenter {
         set { UserDefaults.standard.set(newValue, forKey: "player.live.vlc") }
     }
 
-    /// Whether to use VLC (true) or AVPlayer (false) for VOD and series.
-    ///
-    /// Default flipped to `true` after testing showed that ~95% of the
-    /// IPTV catalogue (typical FR provider) hits the AVPlayer fallback
-    /// chain anyway — the previous "AVPlayer-first" policy just added
-    /// 5-8 s of latency before VLC took over. Defaulting to VLC starts
-    /// playback immediately and gives users the SwiftUI drawer
-    /// consistently. The minority of HLS/MP4 assets that AVPlayer
-    /// could play natively still play fine in VLC; users can flip this
-    /// off in Settings to revert.
+    /// VOD/series always use VLC. AVPlayer cannot play the MKV containers the
+    /// IPTV catalogue ships (it shows a red "prohibited" badge and stalls), so
+    /// the AVPlayer path is not a real option for this content. This used to
+    /// be a user toggle defaulting to `true`, but a stored/legacy `false`
+    /// silently routed every movie through AVPlayer — the root cause of
+    /// "films won't launch" — and the Settings toggle could get stuck. We now
+    /// force VLC regardless of the stored value; the setter is kept so the
+    /// Settings toggle binding still compiles (writing has no effect).
     static var useVlcForVod: Bool {
-        get { UserDefaults.standard.object(forKey: "player.vod.vlc") as? Bool ?? true }
+        get { true }
         set { UserDefaults.standard.set(newValue, forKey: "player.vod.vlc") }
     }
 
