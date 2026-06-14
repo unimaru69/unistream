@@ -938,7 +938,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -959,7 +959,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -983,7 +983,7 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_ENTITLEMENTS = UniStreamTV/UniStreamTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = UniStreamTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1004,7 +1004,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelfExtension/TopShelfExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = VS8P2MA59S;
 				INFOPLIST_FILE = TopShelfExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
