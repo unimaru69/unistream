@@ -26,6 +26,13 @@ final class VLCPlayerViewController: UIViewController {
     /// extension-fallback chain (see `tryNextExtensionFallback`) swaps it for
     /// an alternate-extension variant when the server's advertised
     /// `container_extension` doesn't match what's actually servable.
+    ///
+    /// Note: VOD/series URLs are passed straight through (the original
+    /// `/movie/…`, `/series/…` URL). Some Xtream panels answer those with a
+    /// 302 to a tokenised backend; libvlc follows that redirect itself (and
+    /// gets a fresh token on every reconnect), exactly as the working
+    /// Flutter/iOS player does. We deliberately do NOT pre-resolve the
+    /// redirect — pinning one token broke reconnects/seeks (endless spinner).
     private var currentUrl: URL
     /// Alternate-extension URLs to try if `url` fails to open. Xtream panels
     /// disagree on `container_extension` (some omit it → we default to `mp4`
@@ -45,21 +52,6 @@ final class VLCPlayerViewController: UIViewController {
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
 
-    /// VOD/series stream URLs (`/movie/…`, `/series/…`) on some Xtream panels
-    /// reply with a 302 to a tokenised, load-balanced backend on a different
-    /// host/port (`…?token=…`). VLCKit on tvOS does NOT follow that
-    /// redirect — it sits in `.opening` forever (the "perpetual spinner"),
-    /// never reaching `.error`, so no fallback fires. We resolve the redirect
-    /// ourselves (URLSession follows it natively) and hand VLC the final URL.
-    /// Live `.m3u8` is served directly (no redirect) and must keep its current
-    /// synchronous, no-resolution path — hence this gate.
-    private let needsRedirectResolution: Bool
-    /// Set once `viewDidAppear` has run, so an async URL resolution that lands
-    /// before or after appearance both start playback at the right moment.
-    private var hasAppeared = false
-    /// Set once `mediaPlayer.media` is populated (post-resolution for VOD).
-    private var mediaReady = false
-
     // UI
     private let videoView = UIView()
     /// SwiftUI drawer overlay — replaces the previous UIKit chrome
@@ -73,8 +65,6 @@ final class VLCPlayerViewController: UIViewController {
         self.url = url
         self.currentUrl = url
         self.extensionFallbacks = Self.buildExtensionFallbacks(from: url)
-        let path = url.path
-        self.needsRedirectResolution = path.contains("/movie/") || path.contains("/series/")
         self.videoTitle = title
         self.resumeFromMs = resumeFromMs
         self.contentKey = contentKey
@@ -90,19 +80,12 @@ final class VLCPlayerViewController: UIViewController {
         setupVideoView()
         setupOverlay()
         setupGestures()
-        mediaPlayer.drawable = videoView
-        mediaPlayer.delegate = self
-        beginPlayback(of: url)
+        setupPlayer()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        hasAppeared = true
-        // For VOD the media may still be resolving the 302 redirect; in that
-        // case `loadResolvedMedia` starts playback once it lands. Only play
-        // here if the media is already wired up (live path, or resolution
-        // that beat appearance).
-        if mediaReady { mediaPlayer.play() }
+        mediaPlayer.play()
 
         // Resume position is wired through libvlc's native
         // `:start-time` media option in `buildMedia`, so playback
@@ -223,78 +206,39 @@ final class VLCPlayerViewController: UIViewController {
         // fires for external keyboards, never for IR remotes' D-pad.
     }
 
-    /// Entry point for loading a stream URL. For VOD/series it first resolves
-    /// the Xtream 302 redirect off the main thread (VLCKit won't follow it),
-    /// then loads the resolved URL; live loads synchronously, unchanged.
-    /// Reused by the extension-fallback path so alternates get resolved too.
-    private func beginPlayback(of original: URL) {
-        guard needsRedirectResolution else {
-            currentUrl = original
-            loadResolvedMedia()
-            return
-        }
-
-        // Show the spinner while we resolve — this is the window that used to
-        // be the "perpetual spinner".
-        overlayModel.isBuffering = true
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let resolved = await RedirectResolver.resolve(original)
-            // Bail if the user dismissed the player mid-resolution.
-            guard self.isViewLoaded, self.view.window != nil || !self.hasAppeared else { return }
-            self.currentUrl = resolved ?? original
-            self.loadResolvedMedia()
-        }
-    }
-
-    /// Wire the (already-resolved) `currentUrl` into the player and start
-    /// playback if the view has appeared. Safe to call repeatedly (fallbacks).
-    private func loadResolvedMedia() {
+    private func setupPlayer() {
         let startSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
-        mediaPlayer.stop()
         mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: startSec)
-        mediaReady = true
-        if hasAppeared { mediaPlayer.play() }
+        mediaPlayer.drawable = videoView
+        mediaPlayer.delegate = self
     }
 
     /// Build a VLCMedia for a VOD/series file (typically MKV/MP4 over HTTP).
     ///
-    /// Mirrors the option set that is known to work for this content: the
-    /// tvOS live player (`VLCLivePlayerViewController`) and the Flutter iOS
-    /// player (`flutter_vlc_player`, `HwAcc.full` + `networkCaching` +
-    /// `httpReconnect`). Both use the dictionary `addOptions` form with bare
-    /// keys (NOT `--`-prefixed strings, which are libvlc *instance* options
-    /// that `addOption` silently drops) and — crucially — do NOT force
-    /// `avcodec-hw=videotoolbox`. Forcing VideoToolbox made some HEVC/H.264
-    /// MKV files fail to decode on tvOS (brief red "unsupported" badge, then
-    /// an endless buffering loop) while the very same file plays on
-    /// Flutter/iOS. We let libvlc pick the decoder (hardware with automatic
-    /// software fallback), exactly like `HwAcc.full`.
+    /// These options are a byte-for-byte mirror of the option strings the
+    /// working Flutter/iOS player feeds libvlc via the vendored
+    /// `flutter_vlc_player` fork (`HwAcc.full` + `networkCaching(2000)` +
+    /// `httpReconnect(true)` → `--codec=all`, `--network-caching=2000`,
+    /// `--http-reconnect`). The same MKV that span forever on tvOS plays on
+    /// iOS with exactly this set, so we replicate it rather than invent tvOS
+    /// tuning. In particular we do NOT force `avcodec-hw=videotoolbox`
+    /// (`--codec=all` lets libvlc pick hardware with software fallback) and
+    /// we drop the old live-only options (deinterlace, ts-*, sout caching),
+    /// which don't apply to a seekable VOD container.
     ///
-    /// The live-only tuning that used to live here (deinterlace, ts-* MPEG-TS
-    /// robustness, sout caching) is intentionally gone — it doesn't apply to
-    /// a seekable VOD container and only added risk.
-    ///
-    /// - softwareDecode: force software decoding (`avcodec-hw=none`) — the
-    ///   one automatic retry we still attempt if libvlc reports `.error`.
-    /// - startTimeSec: seconds into the asset to start at, via libvlc's native
-    ///   `:start-time` so the first decoded frame is already at that position.
+    /// - softwareDecode: the one automatic retry on `.error` — uses
+    ///   `--codec=avcodec` (the fork's `HW_ACCELERATION_DISABLED`).
+    /// - startTimeSec: start offset via libvlc's native `:start-time`.
     private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
         let media = VLCMedia(url: currentUrl)
 
-        var options: [String: Any] = [
-            "network-caching": 3000,
-            "file-caching": 3000,
-            // Survive transient drops without killing playback.
-            "http-reconnect": true,
-        ]
+        media.addOption("--network-caching=2000")
+        media.addOption("--http-reconnect")
+        // HwAcc.full → "--codec=all"; software-decode retry → disabled HW.
+        media.addOption(softwareDecode ? "--codec=avcodec" : "--codec=all")
         if startTimeSec > 0 {
-            options["start-time"] = startTimeSec
+            media.addOption(":start-time=\(startTimeSec)")
         }
-        if softwareDecode {
-            options["avcodec-hw"] = "none"
-        }
-        media.addOptions(options)
 
         return media
     }
@@ -329,19 +273,23 @@ final class VLCPlayerViewController: UIViewController {
         guard extensionFallbackIndex < extensionFallbacks.count else { return false }
         let next = extensionFallbacks[extensionFallbackIndex]
         extensionFallbackIndex += 1
+        currentUrl = next
 
         // Each new URL gets its own hardware→software retry budget.
         softwareDecodeRetryDone = false
+
+        // A failed open leaves `mediaPlayer.time` at 0, so honour the originally
+        // requested resume position rather than reading it back off the player.
+        let resumeSec = (resumeFromMs ?? 0) > 0 ? Double(resumeFromMs!) / 1000.0 : 0
+        mediaPlayer.stop()
+        mediaPlayer.media = buildMedia(softwareDecode: false, startTimeSec: resumeSec)
+        mediaPlayer.play()
 
         overlayModel.subtitle = "Nouvelle tentative…"
         showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.overlayModel.subtitle = nil
         }
-
-        // `next` is a pre-redirect (front-panel) URL — route it through
-        // `beginPlayback` so it gets the same 302 resolution as the original.
-        beginPlayback(of: next)
         return true
     }
 
@@ -743,47 +691,6 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
             default:
                 break
             }
-        }
-    }
-}
-
-// MARK: - Redirect Resolver
-
-/// Resolves the HTTP 302 redirect that some Xtream panels return on
-/// `/movie/` and `/series/` stream URLs (a tokenised, load-balanced backend
-/// on a different host/port, `…?token=…`). VLCKit on tvOS does not follow
-/// this redirect — the player sits in `.opening` indefinitely (the
-/// "perpetual spinner") — so we follow it ourselves with `URLSession`
-/// (which honours redirects natively) and feed VLC the final URL. The
-/// resolved, tokenised URL is replayable across separate connections and
-/// supports HTTP Range, so VLC can stream and seek against it normally.
-enum RedirectResolver {
-    /// Browser-like UA — Cloudflare-fronted panels 400 unusual User-Agents.
-    static let userAgent = "Mozilla/5.0 (Apple TV; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)"
-
-    /// Follow redirects and return the final URL, or `nil` on failure (caller
-    /// falls back to the original URL). A 0-1 byte Range keeps the probe cheap
-    /// while still triggering the panel's redirect logic.
-    static func resolve(_ url: URL) async -> URL? {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 12
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
-
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 12
-        let session = URLSession(configuration: config)
-        defer { session.invalidateAndCancel() }
-
-        do {
-            let (_, response) = try await session.data(for: request)
-            // `response.url` reflects the final URL after URLSession has
-            // followed every redirect. If the panel didn't redirect, this is
-            // just the original URL — harmless.
-            guard let resolved = response.url else { return nil }
-            return resolved
-        } catch {
-            return nil
         }
     }
 }
