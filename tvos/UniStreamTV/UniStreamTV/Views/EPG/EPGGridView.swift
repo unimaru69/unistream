@@ -111,8 +111,16 @@ struct EPGGridView: View {
         .task(id: cacheKey) {
             await primeFiltersIfNeeded()
             await preloadInitialBatch()
-            try? await Task.sleep(for: .milliseconds(120))
-            placeInitialFocusIfNeeded()
+            // NB: we deliberately do *not* plant focus into the grid here.
+            // The grid is presented as the right-hand preview pane of
+            // LiveSplitView as soon as the sidebar focus *lands* on the
+            // "Guide TV" entry (focus-driven preview, no tap). Imperatively
+            // assigning `focusedCell` at that point yanked the focus engine
+            // out of the sidebar and into a programme cell — so scrolling
+            // the categories list "stuck" the moment it reached EPG. Focus
+            // now stays in the sidebar; the user enters the grid by pressing
+            // → into the detail .focusSection(), and the engine picks the
+            // leftmost on-screen cell (the lane is already scrolled to "now").
         }
         .onChange(of: transientToast) { _, newValue in
             guard newValue != nil else { return }
@@ -663,17 +671,6 @@ struct EPGGridView: View {
         Task {
             await epgCache.loadDay(day, channels: [channel], api: appState.api)
         }
-    }
-
-    private func placeInitialFocusIfNeeded() {
-        guard focusedCell == nil else { return }
-        guard let firstChannel = visibleChannels.first else { return }
-        let progs = epgCache.byDay[dayKey]?[firstChannel.streamId] ?? []
-        let target = progs.first(where: { isCurrent($0) })
-            ?? progs.first(where: { isUpcoming($0) })
-            ?? progs.first
-        guard let target else { return }
-        focusedCell = .program(channelId: firstChannel.streamId, programId: target.id)
     }
 
     // MARK: - Formatters

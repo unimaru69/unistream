@@ -1,6 +1,22 @@
 import Foundation
 import os
 
+private extension Sequence {
+    /// Order-preserving de-duplication by a key, keeping the first occurrence.
+    ///
+    /// Xtream panels routinely return the same `stream_id` / `category_id`
+    /// more than once (mislabelled channels, the same stream listed in two
+    /// categories, malformed rows with a missing id that all coerce to "").
+    /// Feeding those duplicates into a SwiftUI `ForEach` + `@FocusState`
+    /// keyed on that id makes the tvOS focus engine crash mid-navigation
+    /// (the focus path stops resolving to a unique view) — which surfaced
+    /// as "browsing the grid eventually quits the app". Dedup at the source.
+    func uniqued<Key: Hashable>(by key: (Element) -> Key) -> [Element] {
+        var seen = Set<Key>()
+        return filter { seen.insert(key($0)).inserted }
+    }
+}
+
 /// Xtream API client — mirrors Flutter's `xtream_api.dart` (live TV endpoints for MVP).
 @MainActor @Observable
 final class XtreamAPIService {
@@ -142,6 +158,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format de catégories invalide")
         }
         return jsonArray.map { Category(json: $0) }
+            .filter { !$0.categoryId.isEmpty }
+            .uniqued(by: { $0.categoryId })
     }
 
     func getLiveStreams(categoryId: String? = nil) async throws -> [Channel] {
@@ -174,6 +192,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format de chaînes invalide")
         }
         let channels = jsonArray.map { Channel(json: $0) }
+            .filter { !$0.streamId.isEmpty }
+            .uniqued(by: { $0.streamId })
 
         // Update cache
         streamCache[cacheKey] = (channels, Date())
@@ -217,6 +237,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format de catégories VOD invalide")
         }
         return jsonArray.map { Category(json: $0) }
+            .filter { !$0.categoryId.isEmpty }
+            .uniqued(by: { $0.categoryId })
     }
 
     func getVodStreams(categoryId: String? = nil) async throws -> [VodItem] {
@@ -240,6 +262,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format VOD invalide")
         }
         let items = jsonArray.map { VodItem(json: $0) }
+            .filter { !$0.streamId.isEmpty }
+            .uniqued(by: { $0.streamId })
         streamCache[cacheKey] = (items, Date())
         return items
     }
@@ -256,6 +280,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format de catégories séries invalide")
         }
         return jsonArray.map { Category(json: $0) }
+            .filter { !$0.categoryId.isEmpty }
+            .uniqued(by: { $0.categoryId })
     }
 
     func getSeries(categoryId: String? = nil) async throws -> [SeriesItem] {
@@ -279,6 +305,8 @@ final class XtreamAPIService {
             throw XtreamError.invalidResponse("Format séries invalide")
         }
         let items = jsonArray.map { SeriesItem(json: $0) }
+            .filter { !$0.seriesId.isEmpty }
+            .uniqued(by: { $0.seriesId })
         streamCache[cacheKey] = (items, Date())
         return items
     }
