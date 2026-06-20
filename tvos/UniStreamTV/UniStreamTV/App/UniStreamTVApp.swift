@@ -11,6 +11,12 @@ struct UniStreamTVApp: App {
         // crash (auth, session restore, first render) is still captured.
         SentryConfig.startIfEnabled()
         Self.tuneImageCache()
+        // Force TMDBCache to instantiate now: its init purges the legacy
+        // oversized `tmdb.cache.*` keys from UserDefaults.standard. Doing it
+        // here — before any other code writes to the standard preferences
+        // domain — un-bloats an already-crashing install so the next
+        // `defaults.set` doesn't re-trip the CFPreferences size-limit abort.
+        _ = TMDBCache.shared
     }
 
     /// Cap Kingfisher's in-memory image cache.
