@@ -15,6 +15,7 @@
 		08207ABB4F2ABA12FA5FCFEF /* Feature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9B41B3186FB8546EEE4897 /* Feature.swift */; };
 		0BBBFFED2409C2EDE8D81694 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 13493CCA54D704317A960906 /* Supabase */; };
 		0D8B1883A60FDA24BB0B5AA2 /* ServerSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD9217BA080D88D6A2C082F /* ServerSetupView.swift */; };
+		11497D2894499D58C177EB6A /* SentryConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C6B0FCD4990121B7C41792 /* SentryConfig.swift */; };
 		12B2122A46AC67B80069DE0B /* EpgProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F40537748B9D0F7C2C251D /* EpgProgram.swift */; };
 		141C6932E3C5EFA9833F2159 /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53329EA9B5B6D7266B3C446D /* FavoritesView.swift */; };
 		17F480142B20CB11F47244DA /* TVButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517B9C4B9B525DF85EB03F04 /* TVButtonStyle.swift */; };
@@ -29,6 +30,7 @@
 		2A00549F237BEAC8E9BADA96 /* TrackPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE6BD3767D6AD0F42CC6E58 /* TrackPickerView.swift */; };
 		2D6BE5C54384C5AA93C12E12 /* InlineSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59DEB4AF326646995E8A570B /* InlineSearchField.swift */; };
 		31EE19C6604182185813B0E8 /* AccountInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788A2CCE0A1CDD5AC39D5B61 /* AccountInfoTests.swift */; };
+		329E5F4CA2AF07195B743FF8 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5A9B6BCC79B005D09C049509 /* Sentry */; };
 		33382376A6E0F411C23AD456 /* HomeHeroBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD553224771A148184A803D /* HomeHeroBanner.swift */; };
 		333CC08443DB8EE7AE6CD3E7 /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D396CE8FF4090C7142CE2E /* ProfileEditorView.swift */; };
 		35CEC4B5A6A0B363698431FC /* RecentlyAddedRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF3AD30AC55A9E5F26290EF4 /* RecentlyAddedRow.swift */; };
@@ -224,6 +226,7 @@
 		A04CB8C04ED1E64A112120B8 /* Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Profile.swift; sourceTree = "<group>"; };
 		A0F780A721C2BE021051A5F3 /* FavoriteItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteItem.swift; sourceTree = "<group>"; };
 		A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGReminderService.swift; sourceTree = "<group>"; };
+		A2C6B0FCD4990121B7C41792 /* SentryConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryConfig.swift; sourceTree = "<group>"; };
 		A5712621A2D936C3A2D53353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A5E315AF490837A1C541826E /* URLSession+Retry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Retry.swift"; sourceTree = "<group>"; };
 		A9367D823379BF218E23FB3B /* CrossDeviceEmailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossDeviceEmailSheet.swift; sourceTree = "<group>"; };
@@ -276,6 +279,7 @@
 				6141730C612B231677DF1E1C /* RevenueCat in Frameworks */,
 				889324CE5AD1642BA67E1547 /* Kingfisher in Frameworks */,
 				F6D94D56132741F8798787B9 /* VLCKitSPM in Frameworks */,
+				329E5F4CA2AF07195B743FF8 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -592,6 +596,7 @@
 			children = (
 				D83A3CE8441AC647CBB36955 /* Constants.swift */,
 				AE0B109201D90541B8CC2A4C /* DemoMode.swift */,
+				A2C6B0FCD4990121B7C41792 /* SentryConfig.swift */,
 				8124D84D4CBEE7E9EC6A5B0F /* SupabaseConfig.swift */,
 			);
 			path = Config;
@@ -632,6 +637,7 @@
 				3B768F7AB8F3B884F8DDB8F5 /* RevenueCat */,
 				57AD1E562D7D3CF523E245E3 /* Kingfisher */,
 				FA47CB26747C88B146A85278 /* VLCKitSPM */,
+				5A9B6BCC79B005D09C049509 /* Sentry */,
 			);
 			productName = UniStreamTV;
 			productReference = EF69BBFA0D440F5DA021DEAB /* UniStreamTV.app */;
@@ -706,6 +712,7 @@
 			packageReferences = (
 				D5F5478576D4844CC2B52B86 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				292F4D0D490A9ADDF20DFC31 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				4CF9844EFA3CDFE96615F98F /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 				2DE0BA8A9C9257A417C1EA2D /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				86DAB4A2E38DF31E6E4A3150 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
 			);
@@ -820,6 +827,7 @@
 				01274DDB81330AB9D108DAC5 /* ResumeConfirmView.swift in Sources */,
 				B3EDB73821767045CEC564CC /* SearchView.swift in Sources */,
 				8F68A1E8095F127B74AF12F2 /* SearchViewModel.swift in Sources */,
+				11497D2894499D58C177EB6A /* SentryConfig.swift in Sources */,
 				3DA76FEED5723C6F69E22973 /* SeriesCategoryListView.swift in Sources */,
 				F85AB092BE1E42A5CB45E472 /* SeriesDetailView.swift in Sources */,
 				494F3BA1FC2441C0F19AABBD /* SeriesGridView.swift in Sources */,
@@ -1180,6 +1188,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		4CF9844EFA3CDFE96615F98F /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 		86DAB4A2E38DF31E6E4A3150 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
@@ -1213,6 +1229,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D5F5478576D4844CC2B52B86 /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		5A9B6BCC79B005D09C049509 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4CF9844EFA3CDFE96615F98F /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 		FA47CB26747C88B146A85278 /* VLCKitSPM */ = {
 			isa = XCSwiftPackageProductDependency;

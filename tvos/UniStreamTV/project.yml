@@ -19,6 +19,9 @@ packages:
   VLCKitSPM:
     url: https://github.com/tylerjonesio/vlckit-spm
     from: "3.5.1"
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "8.0.0"
 
 targets:
   UniStreamTV:
@@ -59,6 +62,8 @@ targets:
       - package: Kingfisher
       - package: VLCKitSPM
         product: VLCKitSPM
+      - package: Sentry
+        product: Sentry
       - target: TopShelfExtension
         embed: true
         codeSign: true
