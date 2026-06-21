@@ -473,20 +473,38 @@ struct HomeHeroBanner: View {
         let enrichedVods = await filterByTMDBBackdrop(candidateVods)
         let enrichedSeries = await filterByTMDBBackdrop(candidateSeries)
 
-        let topVods = Array(enrichedVods.prefix(5))
-        let topSeries = Array(enrichedSeries.prefix(5))
-
         var interleaved: [RecentlyAddedItem] = []
         var cache: [String: TMDBResult] = [:]
-        let maxCount = max(topVods.count, topSeries.count)
-        for i in 0..<maxCount {
-            if i < topVods.count {
-                interleaved.append(topVods[i].item)
-                cache[topVods[i].item.id] = topVods[i].tmdb
+
+        if enrichedVods.isEmpty && enrichedSeries.isEmpty {
+            // Resilience fallback: TMDB returned no usable backdrop for ANY
+            // candidate — feature disabled, no API key in this build, or a
+            // network/key failure. Don't leave the hero a dark void at the
+            // top of Home (the regression after build 74 wiped the
+            // long-lived TMDB cache the hero had been coasting on). Fall back
+            // to the top-scored candidates rendered with the provider's own
+            // artwork: HeroSlideBackdrop already drops to item.displayIcon
+            // when TMDB has no backdrop, and plotOf() uses the provider plot.
+            let topVods = Array(candidateVods.prefix(5))
+            let topSeries = Array(candidateSeries.prefix(5))
+            let maxCount = max(topVods.count, topSeries.count)
+            for i in 0..<maxCount {
+                if i < topVods.count { interleaved.append(topVods[i]) }
+                if i < topSeries.count { interleaved.append(topSeries[i]) }
             }
-            if i < topSeries.count {
-                interleaved.append(topSeries[i].item)
-                cache[topSeries[i].item.id] = topSeries[i].tmdb
+        } else {
+            let topVods = Array(enrichedVods.prefix(5))
+            let topSeries = Array(enrichedSeries.prefix(5))
+            let maxCount = max(topVods.count, topSeries.count)
+            for i in 0..<maxCount {
+                if i < topVods.count {
+                    interleaved.append(topVods[i].item)
+                    cache[topVods[i].item.id] = topVods[i].tmdb
+                }
+                if i < topSeries.count {
+                    interleaved.append(topSeries[i].item)
+                    cache[topSeries[i].item.id] = topSeries[i].tmdb
+                }
             }
         }
 

@@ -1,5 +1,4 @@
 import SwiftUI
-import Kingfisher
 
 @main
 struct UniStreamTVApp: App {
@@ -10,30 +9,12 @@ struct UniStreamTVApp: App {
         // Start crash/error monitoring before anything else so an early
         // crash (auth, session restore, first render) is still captured.
         SentryConfig.startIfEnabled()
-        Self.tuneImageCache()
         // Force TMDBCache to instantiate now: its init purges the legacy
         // oversized `tmdb.cache.*` keys from UserDefaults.standard. Doing it
         // here — before any other code writes to the standard preferences
         // domain — un-bloats an already-crashing install so the next
         // `defaults.set` doesn't re-trip the CFPreferences size-limit abort.
         _ = TMDBCache.shared
-    }
-
-    /// Cap Kingfisher's in-memory image cache.
-    ///
-    /// By default Kingfisher sizes the memory cache at ~25 % of physical
-    /// RAM. On an Apple TV that's several hundred MB — and a Live/VOD grid
-    /// scrolls dozens of logos/posters through it while a VLCKit decode
-    /// buffer also wants memory. That combination is the prime suspect for
-    /// the "app silently quits back to the tvOS home menu" reports (a
-    /// jetsam out-of-memory kill, not a code crash). A conservative cap
-    /// keeps us well under the per-app limit; evicted images just re-decode
-    /// from the (untouched) disk cache. Sentry's watchdog-termination
-    /// tracking will confirm whether OOM was really the cause.
-    private static func tuneImageCache() {
-        let cache = ImageCache.default
-        cache.memoryStorage.config.totalCostLimit = 96 * 1024 * 1024 // 96 MB
-        cache.memoryStorage.config.countLimit = 120
     }
 
     var body: some Scene {
