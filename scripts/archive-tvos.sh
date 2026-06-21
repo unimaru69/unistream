@@ -51,6 +51,25 @@ EXPORT_OPTIONS="$TVOS_DIR/ExportOptions.plist"
 [[ -f "$PROJECT_YML" ]] || { echo "missing $PROJECT_YML"; exit 1; }
 [[ -f "$EXPORT_OPTIONS" ]] || { echo "missing $EXPORT_OPTIONS"; exit 1; }
 
+# ── Resolve the TMDB API key ──────────────────────────────────────────
+# Info.plist's TMDBAPIKey expands from the TMDB_API_KEY build setting,
+# which project.yml defaults to "" — so a local archive ships with TMDB
+# enrichment dormant (empty hero backdrops, no cast/overview). CI injects
+# it from the `TMDB_KEY` GitHub secret; locally we read it, in order, from:
+#   1. $TMDB_API_KEY / $TMDB_KEY in the environment
+#   2. an untracked key file at tvos/UniStreamTV/.tmdb_key (gitignored)
+# Never commit the key — that's why it's a file/env, not project.yml.
+: "${TMDB_API_KEY:=${TMDB_KEY:-}}"
+if [[ -z "$TMDB_API_KEY" && -f "$TVOS_DIR/.tmdb_key" ]]; then
+    TMDB_API_KEY="$(tr -d '[:space:]' < "$TVOS_DIR/.tmdb_key")"
+fi
+if [[ -z "$TMDB_API_KEY" ]]; then
+    echo "⚠️  No TMDB key (env TMDB_API_KEY/TMDB_KEY or $TVOS_DIR/.tmdb_key)."
+    echo "    Building without TMDB — hero falls back to provider artwork."
+else
+    echo "→ TMDB key found (len=${#TMDB_API_KEY}) — enrichment enabled"
+fi
+
 # ── Bump CURRENT_PROJECT_VERSION ──────────────────────────────────────
 CURRENT=$(grep -E '^[[:space:]]+CURRENT_PROJECT_VERSION:' "$PROJECT_YML" \
     | head -1 | sed -E 's/.*"([0-9]+)".*/\1/')
@@ -83,6 +102,7 @@ echo "→ Archiving (this can take a few minutes)…"
     -destination 'generic/platform=tvOS' \
     -archivePath "$ARCHIVE_PATH" \
     -allowProvisioningUpdates \
+    TMDB_API_KEY="$TMDB_API_KEY" \
     | xcbeautify --quieter 2>/dev/null || true)
 
 [[ -d "$ARCHIVE_PATH" ]] || { echo "✗ archive missing — fix the build error and retry"; exit 1; }

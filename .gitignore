@@ -4,6 +4,10 @@
 *.pyc
 *.swp
 .DS_Store
+
+# Local secrets — never commit (TMDB API key for local tvOS archives)
+.tmdb_key
+tvos/UniStreamTV/.tmdb_key
 .atom/
 .build/
 .buildlog/
