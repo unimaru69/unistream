@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/design_tokens.dart';
+import 'package:unistream/core/form_factor.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
@@ -449,7 +452,7 @@ class _StreamListViewState extends State<StreamListView> {
             childAspectRatio: aspect,
           ),
           itemCount: itemCount,
-          itemBuilder: (_, i) {
+          itemBuilder: (context, i) {
         if (i >= items.length) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
@@ -469,10 +472,15 @@ class _StreamListViewState extends State<StreamListView> {
           if (sid.isNotEmpty) liveNow = XtreamApi.getCachedEpgNow(sid);
         }
 
+        // Activating the tile (tap, Enter, or D-pad center) plays it —
+        // or toggles selection in multi-select mode. Shared between the
+        // tile's own GestureDetector and the focus ActivateIntent below.
+        void onActivate() => widget.selectionMode
+            ? widget.onToggleSelection(selKey)
+            : widget.onPlayStream(s);
+
         // Wrapped in a TMDB-aware consumer: for films/series, replaces the
         // low-res IPTV poster with the TMDB w500 poster when available.
-        // MouseRegion surfaces hover on desktop so the host can drive
-        // a bottom-of-grid `FocusedItemPreview` panel.
         final tile = TmdbAwareGridTile(
           key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
           stream: s,
@@ -483,20 +491,60 @@ class _StreamListViewState extends State<StreamListView> {
           isInCollection: widget.activeCollectionId != null,
           selectionMode: widget.selectionMode,
           isSelected: isSelected,
-          onTap: widget.selectionMode
-              ? () => widget.onToggleSelection(selKey)
-              : () => widget.onPlayStream(s),
+          onTap: onActivate,
           onToggleFavorite: () => widget.onToggleFavorite(s),
           onToggleWatchlist: () => widget.onToggleWatchlist(s),
           onRemoveFromCollection: () => widget.onRemoveFromCollection(s),
           onSecondaryTap: (_) => widget.onShowStreamInfo(s),
           subtitle: liveNow,
         );
-        if (widget.onItemHover == null) return tile;
-        return MouseRegion(
-          onEnter: (_) => widget.onItemHover!(s, true),
-          onExit: (_) => widget.onItemHover!(s, false),
-          child: tile,
+
+        Widget result = tile;
+        // MouseRegion surfaces hover on desktop so the host can drive
+        // the bottom-of-grid `FocusedItemPreview` panel.
+        if (widget.onItemHover != null) {
+          result = MouseRegion(
+            onEnter: (_) => widget.onItemHover!(s, true),
+            onExit: (_) => widget.onItemHover!(s, false),
+            child: result,
+          );
+        }
+        // Focus traversal for D-pad (Android TV) and keyboard. The D-pad
+        // arrives as arrow keys → Flutter's directional focus moves
+        // between tiles; gaining focus drives the SAME preview panel as
+        // hover, and the focused tile is scrolled into view. Enter /
+        // Space / DPAD-center activate it.
+        return FocusableActionDetector(
+          // Seed the D-pad with a starting point: the first tile grabs
+          // focus when the grid first builds on Android TV.
+          autofocus: FormFactorInfo.isAndroidTv && i == 0,
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                onActivate();
+                return null;
+              },
+            ),
+          },
+          shortcuts: const <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+          },
+          onShowFocusHighlight: (focused) {
+            widget.onItemHover?.call(s, focused);
+            if (focused) {
+              // Keep the focused tile fully on-screen as the D-pad walks
+              // the grid. alignment 0.5 centers it vertically.
+              Scrollable.ensureVisible(
+                context,
+                alignment: 0.5,
+                duration: DS.motion.quick,
+                curve: Curves.easeOut,
+              );
+            }
+          },
+          child: result,
         );
       },
         ),

@@ -9,6 +9,7 @@ import '../../services/connectivity_service.dart';
 import '../../repositories/preferences_repository.dart';
 import 'package:unistream/core/logger.dart';
 import '../../core/colors.dart';
+import '../../core/form_factor.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../models/app_config.dart';
@@ -977,7 +978,13 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     return d.inHours > 0 ? '${d.inHours}:$m:$s' : '$m:$s';
   }
 
-  bool get _isDesktop => Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+  // Android TV has no touchscreen and is driven by the D-pad, so it wants
+  // the same "no touch-gesture seek" treatment as desktop.
+  bool get _isDesktop =>
+      Platform.isLinux ||
+      Platform.isMacOS ||
+      Platform.isWindows ||
+      FormFactorInfo.isAndroidTv;
   bool get _isLiveMode => widget.streamId != null && !_isCatchupMode && widget.resumeKey == null;
   bool get _isCatchupMode => widget.isCatchup || widget.title.contains('(Replay)');
 

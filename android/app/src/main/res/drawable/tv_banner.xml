@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV launcher banner (displayed at 320x180dp). Brand-dark
+     background with the UniStream logo centered. A higher-fidelity
+     1280x720 banner is supplied separately in the Play Store listing. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/tv_banner_background"/>
+    <item
+        android:width="160dp"
+        android:height="160dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@mipmap/ic_launcher_foreground"
+            android:gravity="center"/>
+    </item>
+</layer-list>

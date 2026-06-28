@@ -12,6 +12,7 @@ import '../../models/continue_watching_item.dart';
 import '../../models/favorite_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
+import '../../widgets/dpad_focusable.dart';
 import 'widgets/ambient_wallpaper.dart';
 import 'widgets/catchup_row.dart';
 import 'widgets/continue_watching_row.dart';
@@ -346,7 +347,11 @@ class _FavoriteTileState extends State<_FavoriteTile> {
   @override
   Widget build(BuildContext context) {
     final cover = widget.fav.cover;
-    return MouseRegion(
+    return DpadFocusable(
+      onTap: widget.onTap,
+      // Focus drives the same scale + ambient-wallpaper override as hover.
+      onFocusChange: _setHover,
+      child: MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => _setHover(true),
       onExit: (_) => _setHover(false),
@@ -444,6 +449,7 @@ class _FavoriteTileState extends State<_FavoriteTile> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

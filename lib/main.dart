@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/logger.dart';
+import 'core/form_factor.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
@@ -160,6 +161,19 @@ void main() async {
     await SupabaseConfig.initialize();
   }
   await AppConfig.load();
+
+  // Resolve Android TV / leanback once so the UI can switch to the
+  // 10-foot density + D-pad focus synchronously from here on. No-op
+  // off Android.
+  await FormFactorInfo.ensureInitialized();
+  if (FormFactorInfo.isAndroidTv) {
+    // Android defaults the focus highlight mode to `touch`, so
+    // `onShowFocusHighlight` never fires and the focused tile shows no
+    // ring until the first key press. Force the desktop/TV behaviour so
+    // D-pad focus is visible from the first frame.
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+  }
 
   // Rehydrate the in-memory EPG cache from disk. Without this the
   // first scroll on the Live grid fires hundreds of get_short_epg

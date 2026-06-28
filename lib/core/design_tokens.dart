@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'colors.dart';
+import 'form_factor.dart';
 
 /// Design tokens for UniStream — spacing, padding, radii, focus, motion.
 /// Mirror of `DS` in `tvos/UniStreamTV/UniStreamTV/Views/Components/
@@ -42,28 +43,29 @@ class _Spacing {
 
 /// Screen-edge / section paddings.
 ///
-/// Values are intentionally tighter than the tvOS counterpart (Swift uses
-/// 60pt screen / 40pt detail / 60pt bottom — the 10-foot UI breathes more).
-/// Desktop / tablet UniStream uses denser figures because the user sits
-/// close to the screen and a 60-pt margin would feel wasteful.
+/// Desktop / phone use denser figures because the user sits close to the
+/// screen and a 60-pt margin would feel wasteful. On **Android TV** the
+/// values open up to the tvOS 10-foot density (Swift uses 60/40/60) — the
+/// wider screen-edge padding also keeps content inside the TV overscan
+/// safe area on older sets. Switched at runtime via [FormFactorInfo].
 class _Padding {
   const _Padding();
 
   /// Horizontal padding for full-width screens.
-  final double screenHorizontal = 24;
+  double get screenHorizontal => FormFactorInfo.isAndroidTv ? 48 : 24;
 
   /// Horizontal padding inside split-view detail panes.
-  final double detailHorizontal = 20;
+  double get detailHorizontal => FormFactorInfo.isAndroidTv ? 40 : 20;
 
   /// Top padding below the app bar / nav title.
-  final double contentTop = 16;
+  double get contentTop => FormFactorInfo.isAndroidTv ? 32 : 16;
 
   /// Bottom padding at the end of a scrollable screen.
-  final double contentBottom = 32;
+  double get contentBottom => FormFactorInfo.isAndroidTv ? 48 : 32;
 
   /// Vertical breathing room between major sections (hero → row,
   /// row → row). Matches Swift's `DS.Padding.sectionGap`.
-  final double sectionGap = 48;
+  double get sectionGap => FormFactorInfo.isAndroidTv ? 56 : 48;
 }
 
 /// Corner radii. Mirrors `DS.Radius` (Swift).
@@ -105,7 +107,8 @@ class _Focus {
 
   /// Thin accent ring drawn on focused cards. Pulled from the brand teal
   /// at low opacity so it reads as a glow rather than a hard outline.
-  final double ringWidth = 2;
+  /// Thicker on Android TV so the focused tile reads from 3 metres away.
+  double get ringWidth => FormFactorInfo.isAndroidTv ? 4 : 2;
 
   /// Standard focus animation — long enough to feel intentional, short
   /// enough that grid scrolling never feels sluggish.

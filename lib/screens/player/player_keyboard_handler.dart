@@ -109,7 +109,8 @@ bool handlePlayerKeyEvent(
   }
 
   // ── Single press events ──
-  if (key == LogicalKeyboardKey.space) {
+  // `select` is the Android TV / leanback D-pad center button.
+  if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.select) {
     callbacks.playPause();
     return true;
   }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
 import '../../core/design_tokens.dart';
+import '../../core/tv_focus.dart';
 import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
 import '../channel_detail_screen.dart';
@@ -1254,7 +1255,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? _categories.where((c) => !blockedIds.contains(c.categoryId)).toList()
         : _categories;
 
-    return HomeKeyboardHandler(
+    return TvFocusScope(
+      child: HomeKeyboardHandler(
       onSettings: _openSettings,
       onSearch: () => Navigator.push(context, fadeRoute(const SearchScreen()))
           .then((_) => _refreshProgress()),
@@ -1713,6 +1715,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               return body;
             }),
       ),
+    ),
     ),
     );
   }

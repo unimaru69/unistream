@@ -22,6 +22,7 @@ import '../utils/routes.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/title_formatting.dart';
 import '../widgets/hero_buttons.dart';
+import '../widgets/dpad_focusable.dart';
 import '../widgets/plex_backdrop.dart';
 import 'home/widgets/collection_dialogs.dart';
 import '../widgets/skeleton_list.dart';
@@ -977,6 +978,9 @@ class _SeasonChipState extends State<_SeasonChip> {
     return Tooltip(
       message: AppLocalizations.of(context)!.clicDroitMarquerSaison,
       waitDuration: const Duration(milliseconds: 600),
+      child: DpadFocusable(
+      onTap: widget.onTap,
+      onFocusChange: (f) => setState(() => _hovered = f),
       child: MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -1023,6 +1027,7 @@ class _SeasonChipState extends State<_SeasonChip> {
             ),
           ),
         ),
+      ),
       ),
       ),
     );
@@ -1102,7 +1107,10 @@ class _EpisodeRowState extends State<_EpisodeRow> {
         ? DS.colour.textTertiary
         : DS.colour.textPrimary;
 
-    return MouseRegion(
+    return DpadFocusable(
+      onTap: widget.onTap,
+      onFocusChange: (f) => setState(() => _hovered = f),
+      child: MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -1199,6 +1207,7 @@ class _EpisodeRowState extends State<_EpisodeRow> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
