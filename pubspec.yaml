@@ -114,7 +114,10 @@ dependencies:
 
   # Logging & crash reporting
   logger: ^2.5.0
-  sentry_flutter: ^8.12.0
+  # 9.x fixes the Android-native ClassCastException (Integer→Long) that
+  # 8.14.2 throws in updateOptions for autoSessionTrackingIntervalMillis —
+  # the native cast didn't accept the Int the MethodChannel marshals.
+  sentry_flutter: ^9.22.0
   connectivity_plus: ^6.1.0
   # Form-factor detection: exposes AndroidDeviceInfo.systemFeatures, which
   # contains `android.software.leanback` on Android TV devices. Used by
