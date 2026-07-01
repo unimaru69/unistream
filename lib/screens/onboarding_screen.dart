@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
+import '../core/form_factor.dart';
 import '../core/theme_colors.dart';
+import '../core/tv_focus.dart';
 import '../providers/config_provider.dart';
 import '../providers/sync_trigger_provider.dart';
 import '../services/m3u_parser.dart';
@@ -29,6 +31,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _serverCtrl = TextEditingController();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  // Owned nodes (survive setState rebuilds) + IME "Next" chaining so the
+  // Xtream form is fillable with a D-pad on Android TV.
+  final _serverFocus = FocusNode();
+  final _userFocus = FocusNode();
+  final _passFocus = FocusNode();
   bool _saving = false;
   bool _obscure = true;
   String? _error;
@@ -41,6 +48,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _serverCtrl.dispose();
     _userCtrl.dispose();
     _passCtrl.dispose();
+    _serverFocus.dispose();
+    _userFocus.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
@@ -49,7 +59,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       page,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-    );
+    ).then((_) {
+      // Move focus onto the first form field when the config page opens,
+      // so the D-pad has a landing spot (PageView doesn't do this).
+      if (page == 1 && FormFactorInfo.isAndroidTv && mounted) {
+        _serverFocus.requestFocus();
+      }
+    });
   }
 
   Future<void> _importM3u() async {
@@ -174,7 +190,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: PageView(
@@ -185,6 +202,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           _buildConfigPage(context),
           _buildSuccessPage(context),
         ],
+      ),
       ),
       ),
     );
@@ -278,6 +296,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(height: 32),
                 TextFormField(
                   controller: _serverCtrl,
+                  focusNode: _serverFocus,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _userFocus.requestFocus(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.serverUrlHint,
@@ -299,6 +321,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _userCtrl,
+                  focusNode: _userFocus,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passFocus.requestFocus(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.nomUtilisateur,
@@ -314,7 +339,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passCtrl,
+                  focusNode: _passFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _saving ? null : _authenticate(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.motDePasse,

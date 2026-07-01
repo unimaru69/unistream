@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
+import '../../core/form_factor.dart';
+import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import 'forgot_password_page.dart';
@@ -21,12 +23,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passFocus = FocusNode();
   bool _obscure = true;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
@@ -49,7 +55,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
 
-    return Center(
+    return TvFocusScope(
+      child: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: ConstrainedBox(
@@ -95,8 +102,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // Email field
                 TextFormField(
                   controller: _emailCtrl,
+                  focusNode: _emailFocus,
+                  // On Android TV, focus the first field on entry so the
+                  // remote can start typing immediately.
+                  autofocus: FormFactorInfo.isAndroidTv,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
+                  // IME "Next" jumps to the password field — the reliable
+                  // way to move between fields on a D-pad (arrow keys are
+                  // captured by the text caret).
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passFocus.requestFocus(),
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authEmail, Icons.email_outlined),
                   validator: (v) {
@@ -110,7 +126,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // Password field
                 TextFormField(
                   controller: _passCtrl,
+                  focusNode: _passFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authMotDePasse, Icons.lock_outline).copyWith(
                     suffixIcon: IconButton(
@@ -251,6 +269,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
