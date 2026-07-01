@@ -144,7 +144,12 @@ void main() async {
   // via `video_player`, skip the global init so the UI still boots on
   // iPhone / iPad. Playback will be a no-op on those platforms.
   if (!Platform.isIOS) {
-    MediaKit.ensureInitialized();
+    try {
+      MediaKit.ensureInitialized();
+    } catch (e, st) {
+      AppLogger.warning(LogModule.player,
+          'MediaKit init failed — continuing without it', error: e, stackTrace: st);
+    }
   }
   if (kDemoMode && kDemoLandscape) {
     // Lock orientation to landscape for screenshot generation.
@@ -158,14 +163,23 @@ void main() async {
     await prefs.setString(StorageKeys.locale, kDemoLocale);
   }
   if (!kDemoMode) {
-    await SupabaseConfig.initialize();
+    // Never let a slow/unreachable network wedge the splash: Supabase
+    // (and other startup inits below) run behind a timeout so `runApp`
+    // is always reached. Sync still degrades gracefully when it's null.
+    await SupabaseConfig.initialize().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => AppLogger.warning(
+          LogModule.sync, 'Supabase init timed out at startup — continuing'),
+    );
   }
   await AppConfig.load();
 
   // Resolve Android TV / leanback once so the UI can switch to the
   // 10-foot density + D-pad focus synchronously from here on. No-op
-  // off Android.
-  await FormFactorInfo.ensureInitialized();
+  // off Android. Timeout-guarded so a stuck platform channel can't
+  // block the first frame.
+  await FormFactorInfo.ensureInitialized()
+      .timeout(const Duration(seconds: 4), onTimeout: () {});
   if (FormFactorInfo.isAndroidTv) {
     // Android defaults the focus highlight mode to `touch`, so
     // `onShowFocusHighlight` never fires and the focused tile shows no
@@ -205,7 +219,16 @@ void main() async {
   }
 
   if (!kDemoMode) {
-    await NotificationService.instance.init();
+    // Guarded: notification-channel setup must never hang or crash the
+    // splash (esp. on Android TV, where the notification stack differs).
+    try {
+      await NotificationService.instance
+          .init()
+          .timeout(const Duration(seconds: 8));
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui,
+          'Notification init failed/timed out — continuing', error: e, stackTrace: st);
+    }
   }
   await loadThemeMode();
 
