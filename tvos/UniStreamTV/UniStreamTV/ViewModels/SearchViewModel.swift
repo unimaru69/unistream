@@ -53,13 +53,13 @@ final class SearchViewModel {
     }
 
     /// Pre-load all content for local search (called once).
-    func preload() async {
-        guard !isLoaded else { return }
+    func preload(force: Bool = false) async {
+        guard !isLoaded || force else { return }
         isSearching = true
         do {
-            async let ch = api.getLiveStreams()
-            async let vd = api.getVodStreams()
-            async let sr = api.getSeries()
+            async let ch = api.getLiveStreams(force: force)
+            async let vd = api.getVodStreams(force: force)
+            async let sr = api.getSeries(force: force)
             allChannels = try await ch
             allVod = try await vd
             allSeries = try await sr
@@ -69,6 +69,14 @@ final class SearchViewModel {
             logger.error("Search preload failed: \(error.localizedDescription)")
         }
         isSearching = false
+    }
+
+    /// Drop the local snapshot and re-pull it from the panel, then
+    /// re-run the active query so on-screen results reflect the new
+    /// catalogue. Called after a catalogue refresh.
+    func reload() async {
+        await preload(force: true)
+        search()
     }
 
     /// Filter results by query and active filter (local, instant).

@@ -4,6 +4,8 @@ import SwiftUI
 struct SearchView: View {
     @Environment(AppState.self) private var appState
     @State private var searchVM: SearchViewModel?
+    /// Catalogue generation the view-model's snapshot was built from.
+    @State private var loadedGeneration: Int?
 
     var body: some View {
         NavigationStack {
@@ -24,13 +26,25 @@ struct SearchView: View {
                 VODDetailView(item: vod, api: appState.api)
             }
         }
-        .task {
-            if searchVM == nil {
-                let vm = SearchViewModel(api: appState.api)
-                vm.syncService = appState.syncService
-                searchVM = vm
-                await vm.preload()
+        // Keyed on the catalogue generation: search preloads the whole
+        // catalogue once for local filtering, so after a refresh it must
+        // drop its snapshot or the user keeps searching yesterday's
+        // catalogue.
+        .task(id: appState.catalogRefresh.generation) {
+            let generation = appState.catalogRefresh.generation
+            if let vm = searchVM {
+                // `.task(id:)` also re-fires on tab re-entry — only
+                // re-pull when the generation actually moved.
+                guard loadedGeneration != generation else { return }
+                loadedGeneration = generation
+                await vm.reload()
+                return
             }
+            let vm = SearchViewModel(api: appState.api)
+            vm.syncService = appState.syncService
+            searchVM = vm
+            loadedGeneration = generation
+            await vm.preload()
         }
     }
 }

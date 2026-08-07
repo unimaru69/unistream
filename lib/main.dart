@@ -16,6 +16,7 @@ import 'core/colors.dart';
 import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
 import 'services/xtream_api.dart';
+import 'providers/catalog_refresh_provider.dart';
 import 'providers/locale_provider.dart';
 import 'models/app_config.dart';
 import 'providers/favorites_provider.dart';
@@ -246,6 +247,10 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     EpgReminderService.instance.init(onAlert: _onEpgReminderAlert);
     // Pull remote data, start realtime, and init RevenueCat after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // A cold start fetches the catalogue from the network anyway (the
+      // stream cache is in-memory only), so stamp launch as a refresh —
+      // otherwise the first resume would re-pull data we just pulled.
+      unawaited(ref.read(catalogRefreshProvider.notifier).markFreshStart());
       _initSync();
       final userId = AuthService.instance.userId;
       if (userId != null) {
@@ -328,6 +333,11 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
           // Already running — just refresh the snapshot.
           unawaited(_refreshOnResume());
         }
+        // Independent of the Supabase sync above: that one pulls the
+        // user's own data (favorites, progress, collections), this one
+        // asks the Xtream panel whether it has new content. No-ops
+        // unless the catalogue is older than the user's chosen interval.
+        unawaited(ref.read(catalogRefreshProvider.notifier).refreshIfStale());
         AppLogger.info(LogModule.sync, 'App resumed — pull refresh triggered');
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
@@ -26,6 +28,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/watch_progress_provider.dart';
 import '../../providers/collections_provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/catalog_refresh_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../utils/feature_access.dart';
 import '../../widgets/premium_gate.dart';
@@ -504,6 +507,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  // ── Catalogue refresh ──
+
+  /// Explicit "va chercher les nouveautés". [catalogRefreshProvider]
+  /// drops the caches, this awaits the actual re-pull so the
+  /// confirmation only appears once the new data is on screen.
+  Future<void> _refreshCatalog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final done = await ref.read(catalogRefreshProvider.notifier).refresh();
+    if (!mounted || !done) return;
+    // The generation listener fires too — `_reloadAfterCatalogRefresh`
+    // coalesces both into a single round-trip.
+    await _reloadAfterCatalogRefresh();
+    if (!mounted) return;
+    showAppSnackBar(context, l10n.catalogueActualise);
+  }
+
+  /// In-flight catalogue reload, so the generation listener and an
+  /// explicit button press share one round-trip instead of racing two.
+  Future<void>? _catalogReload;
+
+  Future<void> _reloadAfterCatalogRefresh() {
+    return _catalogReload ??= _runCatalogReload()
+        .whenComplete(() => _catalogReload = null);
+  }
+
+  /// Re-pull everything this screen holds after the catalogue caches
+  /// were dropped. `_accueilFeatured` is cleared first because
+  /// [_loadCategories] only re-fires the Accueil loader when it's empty.
+  Future<void> _runCatalogReload() async {
+    _accueilFeatured = const <dynamic>[];
+    final category = _selectedCategory;
+    await _loadCategories();
+    if (!mounted || category == null) return;
+    await _loadStreams(category, force: true);
+  }
+
   Future<void> _retryConnection() async {
     setState(() { _loading = true; _error = null; });
     ref.read(favoritesProvider.notifier).load();
@@ -701,7 +740,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<void> _loadStreams(String categoryId) async {
+  /// [force] bypasses the 5-minute stream cache. Pull-to-refresh and the
+  /// app-bar refresh set it — without it both were served the very list
+  /// the user was trying to refresh.
+  Future<void> _loadStreams(String categoryId, {bool force = false}) async {
     setState(() {
       _selectedCategory = categoryId;
       _loadingStreams = true;
@@ -712,9 +754,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     try {
       _streams = switch (_mode) {
-        ContentMode.live   => await _repo.getLiveStreams(categoryId),
-        ContentMode.vod    => await _repo.getVodStreams(categoryId),
-        ContentMode.series => await _repo.getSeries(categoryId),
+        ContentMode.live   => await _repo.getLiveStreams(categoryId, force),
+        ContentMode.vod    => await _repo.getVodStreams(categoryId, force),
+        ContentMode.series => await _repo.getSeries(categoryId, force),
       };
       _resetPagination();
       setState(() => _loadingStreams = false);
@@ -1131,6 +1173,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             continueWatchingProvider.select((async) => async.valueOrNull)) ??
         const [];
     final collections = ref.watch(collectionsProvider);
+
+    // Catalogue refresh: this screen keeps its own `_categories` /
+    // `_streams` instead of going through `api_provider`, so invalidating
+    // those providers doesn't reach it — the generation counter does.
+    ref.listen<int>(
+      catalogRefreshProvider.select((s) => s.generation),
+      (prev, next) {
+        if (prev == null || next <= prev) return;
+        unawaited(_reloadAfterCatalogRefresh());
+      },
+    );
+    final isRefreshingCatalog =
+        ref.watch(catalogRefreshProvider.select((s) => s.isRefreshing));
+
     // Items lists are only needed for the special category sync
     // below — read (not watch) since that block is already guarded
     // by `_selectedCategory == '__favorites__'` / `__watchlist__`.
@@ -1282,6 +1338,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .then((_) => _refreshProgress()),
         onSettingsPressed: _openSettings,
         onShortcutsPressed: _showShortcutsHelp,
+        onRefreshCatalog: _refreshCatalog,
+        isRefreshingCatalog: isRefreshingCatalog,
         onProfileChanged: (id) async {
           await ref.read(configProvider.notifier).switchProfile(id);
           ref.read(favoritesProvider.notifier).load();
@@ -1603,7 +1661,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     itemSelectionKeyBuilder: _itemSelectionKey,
                     progressKeyBuilder: _progressKey,
                     onRefresh: _selectedCategory != null ? () async {
-                      await _loadStreams(_selectedCategory!);
+                      await _loadStreams(_selectedCategory!, force: true);
                     } : null,
                     hasMore: usePagination ? pagState.hasMore : false,
                     totalCount: usePagination ? pagState.totalCount : _streams.length,

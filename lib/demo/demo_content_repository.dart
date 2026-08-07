@@ -58,20 +58,23 @@ class DemoContentRepository extends ContentRepository {
 
   // ── Streams ──
 
+  // `force` is accepted for signature parity and ignored — demo data
+  // never goes stale.
+
   @override
-  Future<List<Channel>> getLiveStreams([String? categoryId]) async {
+  Future<List<Channel>> getLiveStreams([String? categoryId, bool force = false]) async {
     if (categoryId == null) return DemoData.liveChannels;
     return DemoData.liveChannels.where((c) => c.categoryId == categoryId).toList();
   }
 
   @override
-  Future<List<VodItem>> getVodStreams([String? categoryId]) async {
+  Future<List<VodItem>> getVodStreams([String? categoryId, bool force = false]) async {
     if (categoryId == null) return DemoData.vodItems;
     return DemoData.vodItems.where((v) => v.categoryId == categoryId).toList();
   }
 
   @override
-  Future<List<SeriesItem>> getSeries([String? categoryId]) async {
+  Future<List<SeriesItem>> getSeries([String? categoryId, bool force = false]) async {
     if (categoryId == null) return DemoData.seriesList;
     return DemoData.seriesList.where((s) => s.categoryId == categoryId).toList();
   }

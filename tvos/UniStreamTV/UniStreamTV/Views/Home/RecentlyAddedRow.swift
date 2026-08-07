@@ -52,6 +52,10 @@ struct RecentlyAddedRow: View {
     @Environment(AppState.self) private var appState
     @State private var items: [RecentlyAddedItem] = []
     @State private var isLoading = false
+    /// Catalogue generation `items` were built from — see
+    /// `HomeHeroBanner`. This row is the one place "nouveautés" is
+    /// literally the point, so it must survive a refresh.
+    @State private var loadedGeneration: Int?
 
     var body: some View {
         Group {
@@ -61,7 +65,7 @@ struct RecentlyAddedRow: View {
                 contentView
             }
         }
-        .task { await loadData() }
+        .task(id: appState.catalogRefresh.generation) { await loadData() }
     }
 
     // MARK: - Subviews
@@ -101,12 +105,14 @@ struct RecentlyAddedRow: View {
 
     @MainActor
     private func loadData() async {
-        guard items.isEmpty else { return }
+        let generation = appState.catalogRefresh.generation
+        guard items.isEmpty || loadedGeneration != generation else { return }
         isLoading = true
         defer { isLoading = false }
 
         let api = appState.api
         guard api.isAuthenticated else { return }
+        loadedGeneration = generation
 
         async let vodResult = api.getVodStreams()
         async let seriesResult = api.getSeries()

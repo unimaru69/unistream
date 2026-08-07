@@ -58,6 +58,7 @@
 		6A1C8A0DE2124CF2B4D75205 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F8C32DD3D1D784098988B7 /* PlayerView.swift */; };
 		6A9FA16BEC126790811F010A /* TMDBViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B145C105C58D8FFCEFADE90 /* TMDBViewModel.swift */; };
 		6B64AA45CE7FD55F9BDE8F62 /* VODSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF9A66BE8205446C706338D2 /* VODSplitView.swift */; };
+		730FC7BA9FC48E7B76027A0C /* CatalogRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D448C11F50164031BC382E92 /* CatalogRefreshService.swift */; };
 		75612E02929A2A249A0C1421 /* SeriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C006B441E8DDFCDE018925AE /* SeriesViewModel.swift */; };
 		75E0AFB6F392CB5CD9707557 /* Episode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F96A79587CCA902C7E2147 /* Episode.swift */; };
 		766A8CED8069F344D526E6D6 /* XtreamAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A75B0178BBF62969911A00 /* XtreamAPIService.swift */; };
@@ -252,6 +253,7 @@
 		CF5F50D4F0C4ACFB57A7A951 /* ChannelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelDetailView.swift; sourceTree = "<group>"; };
 		CF703BD873DE264823660A7E /* PremiumGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumGate.swift; sourceTree = "<group>"; };
 		D1F8C32DD3D1D784098988B7 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		D448C11F50164031BC382E92 /* CatalogRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogRefreshService.swift; sourceTree = "<group>"; };
 		D5DDA0498EA1249640855584 /* ContentMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentMode.swift; sourceTree = "<group>"; };
 		D83A3CE8441AC647CBB36955 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DBD9217BA080D88D6A2C082F /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
@@ -366,6 +368,7 @@
 			children = (
 				42D517AEE9BA76841A8A5F88 /* AuthService.swift */,
 				166596C0ADA2855458AB4DE0 /* CatalogIndex.swift */,
+				D448C11F50164031BC382E92 /* CatalogRefreshService.swift */,
 				39D57B2FBA0F19FC72B159E4 /* CollectionsService.swift */,
 				09C68F23B666F8C7B7B34774 /* EPGCache.swift */,
 				A14EA3927FB2826C66D7C52C /* EPGReminderService.swift */,
@@ -773,6 +776,7 @@
 				7DA736955A27E82D9DC6C9C8 /* AuthService.swift in Sources */,
 				2070D518A2ADBD63D8AA6E26 /* CastFilmographyView.swift in Sources */,
 				C52E46A20E74C414B1256AF4 /* CatalogIndex.swift in Sources */,
+				730FC7BA9FC48E7B76027A0C /* CatalogRefreshService.swift in Sources */,
 				EB2FB31F03916B518F89CEDF /* CatalogSortChips.swift in Sources */,
 				805114601A8B3CCFDE4ED762 /* CatchUpRow.swift in Sources */,
 				1F294089B6206E5B22425241 /* Category.swift in Sources */,

@@ -151,6 +151,15 @@ struct ProfilePickerView: View {
             password: profile.password
         )
         appState.api.clearCache()
+        // A different profile is a different panel: drop the catalogue
+        // index and re-bind the refresh stamp, which is stored per
+        // profile. The API cache was just cleared, so the next fetches
+        // hit the network — that counts as a fresh catalogue.
+        appState.catalogIndex.reset()
+        appState.catalogRefresh.configure(
+            profilePrefix: "\(profile.serverUrl)_\(profile.username)"
+        )
+        appState.catalogRefresh.markFreshStart()
         Task {
             do {
                 _ = try await appState.api.authenticate()

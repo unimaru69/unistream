@@ -105,15 +105,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     _onChanged(q);
   }
 
-  Future<void> _search() async {
+  /// [force] bypasses the 5-minute catalogue cache — set by
+  /// pull-to-refresh, which otherwise re-filtered the exact same lists.
+  Future<void> _search({bool force = false}) async {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return;
     setState(() => _loading = true);
     try {
       final results = await Future.wait([
-        _repo.getLiveStreams(),
-        _repo.getVodStreams(),
-        _repo.getSeries(),
+        _repo.getLiveStreams(null, force),
+        _repo.getVodStreams(null, force),
+        _repo.getSeries(null, force),
       ]);
       final liveChannels = results[0] as List<Channel>;
       final vodItems = results[1] as List<VodItem>;
@@ -405,7 +407,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
           ),
         ),
         Expanded(child: RefreshIndicator(
-          onRefresh: _search,
+          onRefresh: () => _search(force: true),
           child: ListView.builder(
             itemCount: filtered.length,
             itemBuilder: (_, i) {

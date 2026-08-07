@@ -4,6 +4,7 @@ import SwiftUI
 struct UniStreamTVApp: App {
     @State private var appState = AppState()
     @State private var needsPinUnlock = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Start crash/error monitoring before anything else so an early
@@ -62,6 +63,19 @@ struct UniStreamTVApp: App {
             }
             .onOpenURL { url in
                 handleDeepLink(url)
+            }
+            // Coming back from background is the only moment we can
+            // cheaply notice the provider added content while the app
+            // was suspended. `refreshCatalogIfStale` no-ops unless the
+            // user's chosen interval has elapsed, so a quick trip to
+            // the tvOS home screen never re-downloads the catalogue.
+            // `onChange` skips the initial value on purpose: a cold
+            // start already fetches everything.
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { @MainActor in
+                    await appState.refreshCatalogIfStale()
+                }
             }
         }
     }

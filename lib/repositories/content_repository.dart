@@ -49,14 +49,16 @@ class ContentRepository {
 
   // ── Streams ──
 
-  Future<List<Channel>> getLiveStreams([String? categoryId]) =>
-      XtreamApi.getLiveStreamsTyped(categoryId);
+  /// [force] bypasses the 5-minute stream cache — see
+  /// [XtreamApi.getLiveStreams].
+  Future<List<Channel>> getLiveStreams([String? categoryId, bool force = false]) =>
+      XtreamApi.getLiveStreamsTyped(categoryId, force);
 
-  Future<List<VodItem>> getVodStreams([String? categoryId]) =>
-      XtreamApi.getVodStreamsTyped(categoryId);
+  Future<List<VodItem>> getVodStreams([String? categoryId, bool force = false]) =>
+      XtreamApi.getVodStreamsTyped(categoryId, force);
 
-  Future<List<SeriesItem>> getSeries([String? categoryId]) =>
-      XtreamApi.getSeriesTyped(categoryId);
+  Future<List<SeriesItem>> getSeries([String? categoryId, bool force = false]) =>
+      XtreamApi.getSeriesTyped(categoryId, force);
 
   Future<Map<String, List<Episode>>> getSeriesEpisodes(String seriesId) =>
       XtreamApi.getSeriesEpisodesTyped(seriesId);
@@ -93,6 +95,10 @@ class ContentRepository {
   // ── Cache management ──
 
   int get epgCacheSize => XtreamApi.epgCacheSize;
+
+  /// Drop the in-memory catalogue cache so the next fetch goes back to
+  /// the panel. Used by the catalogue refresh.
+  void clearStreamCache() => XtreamApi.clearStreamCache();
 
   Future<void> clearAllEpgCache() => XtreamApi.clearAllEpgCache();
 

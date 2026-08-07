@@ -881,13 +881,13 @@ abstract class AppLocalizations {
   /// No description provided for @ilYaMinutes.
   ///
   /// In fr, this message translates to:
-  /// **'Il y a {count} min'**
+  /// **'il y a {count} min'**
   String ilYaMinutes(int count);
 
   /// No description provided for @ilYaHeures.
   ///
   /// In fr, this message translates to:
-  /// **'Il y a {count}h'**
+  /// **'il y a {count} h'**
   String ilYaHeures(int count);
 
   /// No description provided for @hier.
@@ -899,7 +899,7 @@ abstract class AppLocalizations {
   /// No description provided for @ilYaJours.
   ///
   /// In fr, this message translates to:
-  /// **'Il y a {count} jours'**
+  /// **'il y a {count} j'**
   String ilYaJours(int count);
 
   /// No description provided for @quitterPleinEcran.
@@ -1123,6 +1123,78 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.'**
   String get descriptionCache;
+
+  /// No description provided for @catalogueSection.
+  ///
+  /// In fr, this message translates to:
+  /// **'CATALOGUE'**
+  String get catalogueSection;
+
+  /// No description provided for @derniereActualisation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dernière actualisation : {age}'**
+  String derniereActualisation(String age);
+
+  /// No description provided for @actualiserCatalogue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Actualiser le catalogue'**
+  String get actualiserCatalogue;
+
+  /// No description provided for @catalogueActualise.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catalogue actualisé'**
+  String get catalogueActualise;
+
+  /// No description provided for @actualisationAuto.
+  ///
+  /// In fr, this message translates to:
+  /// **'Actualisation automatique'**
+  String get actualisationAuto;
+
+  /// No description provided for @actualisationManuelle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Manuelle'**
+  String get actualisationManuelle;
+
+  /// No description provided for @actualisation6h.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toutes les 6 h'**
+  String get actualisation6h;
+
+  /// No description provided for @actualisation12h.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toutes les 12 h'**
+  String get actualisation12h;
+
+  /// No description provided for @actualisationQuotidienne.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une fois par jour'**
+  String get actualisationQuotidienne;
+
+  /// No description provided for @descriptionCatalogue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récupère les chaînes, films et séries ajoutés par votre fournisseur. L\'actualisation automatique se déclenche au retour sur l\'app si le catalogue est plus ancien que le délai choisi.'**
+  String get descriptionCatalogue;
+
+  /// No description provided for @jamais.
+  ///
+  /// In fr, this message translates to:
+  /// **'jamais'**
+  String get jamais;
+
+  /// No description provided for @alInstant.
+  ///
+  /// In fr, this message translates to:
+  /// **'à l\'instant'**
+  String get alInstant;
 
   /// No description provided for @configSauvegardeeVers.
   ///

@@ -12,6 +12,9 @@ final class VODViewModel {
     var isLoadingItems = false
     var error: String?
 
+    /// Category the grid is currently showing — see `LiveViewModel`.
+    private(set) var currentCategory: Category?
+
     private let api: XtreamAPIService
 
     init(api: XtreamAPIService) {
@@ -31,17 +34,28 @@ final class VODViewModel {
         isLoadingCategories = false
     }
 
-    func loadItems(for category: Category) async {
+    func loadItems(for category: Category, force: Bool = false) async {
         isLoadingItems = true
         error = nil
+        currentCategory = category
         items = []
         do {
-            items = try await api.getVodStreams(categoryId: category.categoryId)
+            items = try await api.getVodStreams(categoryId: category.categoryId, force: force)
             logger.info("Loaded \(self.items.count) VOD items")
         } catch {
             self.error = error.localizedDescription
             logger.error("VOD items failed: \(error.localizedDescription)")
         }
         isLoadingItems = false
+    }
+
+    /// Re-pull the currently displayed lists — see `LiveViewModel`.
+    func reloadAfterCatalogRefresh() async {
+        if !categories.isEmpty {
+            await loadCategories()
+        }
+        if let category = currentCategory {
+            await loadItems(for: category, force: true)
+        }
     }
 }

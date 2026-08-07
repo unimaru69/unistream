@@ -23,6 +23,10 @@ final class AppState {
     /// Day-keyed EPG cache so the Guide TV grid doesn't re-fetch
     /// the entire payload every time the user re-enters the view.
     let epgCache = EPGCache()
+    /// "Va rechercher les nouveautés du serveur" — explicit action plus
+    /// staleness-based auto-refresh on foreground. See the service for
+    /// why the 5-minute API cache isn't a freshness policy.
+    let catalogRefresh = CatalogRefreshService()
 
     // Navigation state
     var isAuthenticated = false
@@ -117,8 +121,26 @@ final class AppState {
             parentalService.configure(
                 profilePrefix: "\(profile.serverUrl)_\(profile.username)"
             )
+            catalogRefresh.configure(
+                profilePrefix: "\(profile.serverUrl)_\(profile.username)"
+            )
+            catalogRefresh.markFreshStart()
             Task { await syncService.pullAll() }
         }
+    }
+
+    // MARK: - Catalogue refresh
+
+    /// User-triggered "Actualiser le catalogue" (Réglages).
+    func refreshCatalog() async {
+        await catalogRefresh.refresh(self, reason: "manuel")
+    }
+
+    /// Foreground return — only does work when the catalogue is older
+    /// than the user's chosen interval.
+    func refreshCatalogIfStale() async {
+        guard hasActiveProfile, catalogRefresh.isStale else { return }
+        await catalogRefresh.refresh(self, reason: "auto (retour au premier plan)")
     }
 
     // MARK: - Private
@@ -173,6 +195,11 @@ final class AppState {
         let profilePrefix = "\(profile.serverUrl)_\(profile.username)"
         parentalService.configure(profilePrefix: profilePrefix)
         collectionsService.configure(profilePrefix: profilePrefix)
+        catalogRefresh.configure(profilePrefix: profilePrefix)
+        // The stream cache is in-memory only, so a cold start already
+        // pulls a fresh catalogue — don't let the staleness check fire
+        // an immediate second round of the same requests.
+        catalogRefresh.markFreshStart()
 
         setupVMs()
     }

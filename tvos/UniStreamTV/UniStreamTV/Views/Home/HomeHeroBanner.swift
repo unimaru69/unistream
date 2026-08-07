@@ -8,7 +8,10 @@ struct HomeHeroBanner: View {
     @Environment(AppState.self) private var appState
     @State private var items: [RecentlyAddedItem] = []
     @State private var currentIndex: Int = 0
-    @State private var hasLoaded = false
+    /// Catalogue generation the current `items` were built from. `nil`
+    /// until the first successful load. Replaces a plain `hasLoaded`
+    /// latch so a catalogue refresh re-opens the gate exactly once.
+    @State private var loadedGeneration: Int?
     /// TMDB lookups resolved during `load()` so the foreground can fall
     /// back on `result.overview` when the IPTV provider gives us no
     /// plot of its own. Keyed on `RecentlyAddedItem.id`.
@@ -25,6 +28,12 @@ struct HomeHeroBanner: View {
     private let heroHeight: CGFloat = 640
     // Auto-rotate period.
     private let rotationInterval: TimeInterval = 8
+
+    /// Identity for the load task: re-fetch when auth flips to true and
+    /// after every catalogue refresh.
+    private var loadKey: String {
+        "\(appState.api.isAuthenticated)-\(appState.catalogRefresh.generation)"
+    }
 
     private var currentItem: RecentlyAddedItem? {
         guard !items.isEmpty else { return nil }
@@ -75,7 +84,10 @@ struct HomeHeroBanner: View {
                 break
             }
         }
-        .task(id: appState.api.isAuthenticated) { await load() }
+        // Re-runs when auth flips to true, and again after every
+        // catalogue refresh so the hero can surface titles the provider
+        // added while the app was suspended.
+        .task(id: loadKey) { await load() }
         .task(id: items.count) { await autoRotate() }
         // Mirror the auto-rotated item to the parent so it can render a
         // full-screen wallpaper synced with the hero.
@@ -354,8 +366,9 @@ struct HomeHeroBanner: View {
         // call if the API wasn't ready yet.
         let api = appState.api
         guard api.isAuthenticated else { return }
-        guard !hasLoaded else { return }
-        hasLoaded = true
+        let generation = appState.catalogRefresh.generation
+        guard loadedGeneration != generation else { return }
+        loadedGeneration = generation
 
         async let vodResult = api.getVodStreams()
         async let seriesResult = api.getSeries()

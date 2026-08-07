@@ -78,6 +78,17 @@ final class CatalogIndex {
         }
     }
 
+    /// Drop both indexes so the next `warmupIfNeeded` goes back to the
+    /// panel. Called after an explicit catalogue refresh — otherwise a
+    /// cast filmography would keep resolving against the catalogue as it
+    /// was when the app launched.
+    func reset() {
+        movieIndex = [:]
+        seriesIndex = [:]
+        movieState = .idle
+        seriesState = .idle
+    }
+
     // MARK: - Loaders
 
     private func loadMovies() async {

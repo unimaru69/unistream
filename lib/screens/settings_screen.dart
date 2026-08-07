@@ -16,6 +16,7 @@ import 'settings/widgets/import_export_section.dart';
 import 'settings/widgets/appearance_section.dart';
 import 'settings/widgets/language_prefs_section.dart';
 import 'settings/widgets/cache_section.dart';
+import 'settings/widgets/catalog_section.dart';
 import 'settings/widgets/advanced_section.dart';
 import 'settings/widgets/account_section.dart';
 import 'settings/widgets/tmdb_section.dart';
@@ -180,6 +181,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const LanguagePrefsSection(),
                 const SizedBox(height: 16),
                 const TmdbSection(),
+                const SizedBox(height: 16),
+                const CatalogSection(),
                 const SizedBox(height: 16),
                 const CacheSection(),
                 const SizedBox(height: 16),

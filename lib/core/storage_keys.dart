@@ -113,6 +113,16 @@ class StorageKeys {
   // ── EPG cache persistence ──
   static String epgCache(String profileId) => 'epg_cache_$profileId';
 
+  // ── Catalogue refresh ──
+  /// When the catalogue was last pulled from the panel. Profile-scoped:
+  /// two profiles are two different providers with unrelated catalogues.
+  static String catalogLastRefresh(String profileId) =>
+      'catalog_last_refresh_$profileId';
+
+  /// Auto-refresh interval in seconds (0 = manual only). User preference,
+  /// not profile-scoped.
+  static const catalogAutoRefreshInterval = 'catalog_auto_refresh_interval';
+
   // ── HTTP retry configuration ──
   static const retryMaxAttempts = 'retry_max_attempts';
   static const retryTimeoutSec = 'retry_timeout_sec';

@@ -250,6 +250,41 @@
   "viderCacheEpg": "Vider le cache EPG",
   "viderCacheImages": "Vider le cache images",
   "descriptionCache": "Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.",
+  "catalogueSection": "CATALOGUE",
+  "derniereActualisation": "Dernière actualisation : {age}",
+  "@derniereActualisation": {
+    "placeholders": {
+      "age": {"type": "String"}
+    }
+  },
+  "actualiserCatalogue": "Actualiser le catalogue",
+  "catalogueActualise": "Catalogue actualisé",
+  "actualisationAuto": "Actualisation automatique",
+  "actualisationManuelle": "Manuelle",
+  "actualisation6h": "Toutes les 6 h",
+  "actualisation12h": "Toutes les 12 h",
+  "actualisationQuotidienne": "Une fois par jour",
+  "descriptionCatalogue": "Récupère les chaînes, films et séries ajoutés par votre fournisseur. L'actualisation automatique se déclenche au retour sur l'app si le catalogue est plus ancien que le délai choisi.",
+  "jamais": "jamais",
+  "alInstant": "à l'instant",
+  "ilYaMinutes": "il y a {count} min",
+  "@ilYaMinutes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ilYaHeures": "il y a {count} h",
+  "@ilYaHeures": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ilYaJours": "il y a {count} j",
+  "@ilYaJours": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "configSauvegardeeVers": "Configuration sauvegardée → {path}",
   "@configSauvegardeeVers": {
     "placeholders": {

@@ -19,6 +19,7 @@ void main() {
       onSettingsPressed: () {},
       onShortcutsPressed: () {},
       onProfileChanged: (_) {},
+      onRefreshCatalog: () {},
     );
     expect(bar, isA<PreferredSizeWidget>());
     expect(bar.preferredSize.height, kToolbarHeight);

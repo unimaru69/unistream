@@ -309,10 +309,14 @@ class XtreamApi {
     return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<List<dynamic>> getLiveStreams([String? catId]) async {
-    AppLogger.breadcrumb('api', 'getLiveStreams', data: {'categoryId': catId});
+  /// [force] bypasses the 5-minute cache and goes back to the panel.
+  /// Used by pull-to-refresh and the explicit "Actualiser le catalogue"
+  /// action — without it those affordances silently returned the very
+  /// list the user was trying to refresh.
+  static Future<List<dynamic>> getLiveStreams([String? catId, bool force = false]) async {
+    AppLogger.breadcrumb('api', 'getLiveStreams', data: {'categoryId': catId, 'force': force});
     final cacheKey = 'get_live_streams:${catId ?? ''}';
-    final cached = _getStreamCached(cacheKey);
+    final cached = force ? null : _getStreamCached(cacheKey);
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_live_streams';
     if (catId != null) url += '&category_id=$catId';
@@ -321,8 +325,8 @@ class XtreamApi {
     return result;
   }
 
-  static Future<List<Channel>> getLiveStreamsTyped([String? catId]) async {
-    final list = await getLiveStreams(catId);
+  static Future<List<Channel>> getLiveStreamsTyped([String? catId, bool force = false]) async {
+    final list = await getLiveStreams(catId, force);
     return list.map((e) => Channel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -334,9 +338,10 @@ class XtreamApi {
     return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<List<dynamic>> getVodStreams([String? catId]) async {
+  /// [force]: see [getLiveStreams].
+  static Future<List<dynamic>> getVodStreams([String? catId, bool force = false]) async {
     final cacheKey = 'get_vod_streams:${catId ?? ''}';
-    final cached = _getStreamCached(cacheKey);
+    final cached = force ? null : _getStreamCached(cacheKey);
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_vod_streams';
     if (catId != null) url += '&category_id=$catId';
@@ -345,8 +350,8 @@ class XtreamApi {
     return result;
   }
 
-  static Future<List<VodItem>> getVodStreamsTyped([String? catId]) async {
-    final list = await getVodStreams(catId);
+  static Future<List<VodItem>> getVodStreamsTyped([String? catId, bool force = false]) async {
+    final list = await getVodStreams(catId, force);
     return list.map((e) => VodItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -358,9 +363,10 @@ class XtreamApi {
     return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<List<dynamic>> getSeries([String? catId]) async {
+  /// [force]: see [getLiveStreams].
+  static Future<List<dynamic>> getSeries([String? catId, bool force = false]) async {
     final cacheKey = 'get_series:${catId ?? ''}';
-    final cached = _getStreamCached(cacheKey);
+    final cached = force ? null : _getStreamCached(cacheKey);
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_series';
     if (catId != null) url += '&category_id=$catId';
@@ -369,8 +375,8 @@ class XtreamApi {
     return result;
   }
 
-  static Future<List<SeriesItem>> getSeriesTyped([String? catId]) async {
-    final list = await getSeries(catId);
+  static Future<List<SeriesItem>> getSeriesTyped([String? catId, bool force = false]) async {
+    final list = await getSeries(catId, force);
     return list.map((e) => SeriesItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 

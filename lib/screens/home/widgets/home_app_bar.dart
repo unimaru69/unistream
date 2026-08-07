@@ -23,7 +23,9 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onSettingsPressed,
     required this.onShortcutsPressed,
     required this.onProfileChanged,
+    required this.onRefreshCatalog,
     required this.selectedCategory,
+    this.isRefreshingCatalog = false,
     this.leadingMenuButton,
     this.isCompact = false,
     this.scrollOffset,
@@ -47,6 +49,13 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onSettingsPressed;
   final VoidCallback onShortcutsPressed;
   final ValueChanged<String> onProfileChanged;
+
+  /// Explicit "go and fetch what the provider added". Desktop has no
+  /// pull-to-refresh gesture, so this button is the only discoverable
+  /// way to force a catalogue pull there.
+  final VoidCallback onRefreshCatalog;
+  final bool isRefreshingCatalog;
+
   final String? selectedCategory;
   final Widget? leadingMenuButton;
   final bool isCompact;
@@ -212,6 +221,17 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         if (!isCompact) ...[
           IconButton(
+            icon: isRefreshingCatalog
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            tooltip: l10n.actualiserCatalogue,
+            onPressed: isRefreshingCatalog ? null : onRefreshCatalog,
+          ),
+          IconButton(
             icon: const Icon(Icons.live_tv),
             tooltip: l10n.guideTV,
             onPressed: onEpgPressed,
@@ -233,6 +253,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
             onSelected: (value) {
               switch (value) {
                 case 'grid': onGridToggle();
+                case 'refresh': onRefreshCatalog();
                 case 'epg': onEpgPressed();
                 case 'settings': onSettingsPressed();
                 case 'sort_default': onSortChanged('default');
@@ -247,6 +268,15 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
                 const SizedBox(width: 8),
                 Text(showGrid ? l10n.vueListe : l10n.vueGrille),
               ])),
+              PopupMenuItem(
+                value: 'refresh',
+                enabled: !isRefreshingCatalog,
+                child: Row(children: [
+                  const Icon(Icons.refresh, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.actualiserCatalogue),
+                ]),
+              ),
               PopupMenuItem(value: 'epg', child: Row(children: [
                 const Icon(Icons.live_tv, size: 18),
                 const SizedBox(width: 8),

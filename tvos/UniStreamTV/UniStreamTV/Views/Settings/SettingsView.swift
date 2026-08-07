@@ -183,6 +183,60 @@ struct SettingsView: View {
             // TMDB metadata enrichment
             TMDBSettingsSection()
 
+            // Catalogue freshness — the app never polls the panel on its
+            // own beyond this, so these two rows are the whole story for
+            // "comment je récupère les nouveautés ?".
+            Section {
+                HStack {
+                    Label("Dernière actualisation", systemImage: "clock.arrow.2.circlepath")
+                    Spacer()
+                    Text(appState.catalogRefresh.lastRefreshLabel)
+                        .foregroundColor(DS.Colour.textSecondary)
+                }
+
+                Button {
+                    Task { await appState.refreshCatalog() }
+                } label: {
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Actualiser le catalogue")
+                                Text("Récupère les chaînes, films et séries ajoutés par votre fournisseur.")
+                                    .font(.caption)
+                                    .foregroundColor(DS.Colour.textSecondary)
+                            }
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        if appState.catalogRefresh.isRefreshing {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(appState.catalogRefresh.isRefreshing)
+
+                Picker(selection: Binding(
+                    get: { appState.catalogRefresh.interval },
+                    set: { appState.catalogRefresh.interval = $0 }
+                )) {
+                    ForEach(CatalogRefreshService.Interval.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Actualisation automatique")
+                            Text("Se déclenche au retour sur l'app si le catalogue est plus ancien que ce délai.")
+                                .font(.caption)
+                                .foregroundColor(DS.Colour.textSecondary)
+                        }
+                    } icon: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                    }
+                }
+            } header: { settingsHeader("Catalogue") }
+
             // Cache management
             Section {
                 HStack {

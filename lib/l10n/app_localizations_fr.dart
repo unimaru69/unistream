@@ -407,12 +407,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String ilYaMinutes(int count) {
-    return 'Il y a $count min';
+    return 'il y a $count min';
   }
 
   @override
   String ilYaHeures(int count) {
-    return 'Il y a ${count}h';
+    return 'il y a $count h';
   }
 
   @override
@@ -420,7 +420,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String ilYaJours(int count) {
-    return 'Il y a $count jours';
+    return 'il y a $count j';
   }
 
   @override
@@ -548,6 +548,45 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get descriptionCache =>
       'Le cache EPG stocke les programmes TV pour un accès rapide. Le cache images stocke les affiches et logos téléchargés.';
+
+  @override
+  String get catalogueSection => 'CATALOGUE';
+
+  @override
+  String derniereActualisation(String age) {
+    return 'Dernière actualisation : $age';
+  }
+
+  @override
+  String get actualiserCatalogue => 'Actualiser le catalogue';
+
+  @override
+  String get catalogueActualise => 'Catalogue actualisé';
+
+  @override
+  String get actualisationAuto => 'Actualisation automatique';
+
+  @override
+  String get actualisationManuelle => 'Manuelle';
+
+  @override
+  String get actualisation6h => 'Toutes les 6 h';
+
+  @override
+  String get actualisation12h => 'Toutes les 12 h';
+
+  @override
+  String get actualisationQuotidienne => 'Une fois par jour';
+
+  @override
+  String get descriptionCatalogue =>
+      'Récupère les chaînes, films et séries ajoutés par votre fournisseur. L\'actualisation automatique se déclenche au retour sur l\'app si le catalogue est plus ancien que le délai choisi.';
+
+  @override
+  String get jamais => 'jamais';
+
+  @override
+  String get alInstant => 'à l\'instant';
 
   @override
   String configSauvegardeeVers(String path) {

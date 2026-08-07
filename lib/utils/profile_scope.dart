@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/catalog_refresh_provider.dart';
 import '../providers/collections_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/parental_provider.dart';
@@ -29,4 +30,8 @@ void invalidateProfileScopedProviders(
   invalidate(historyProvider);
   invalidate(watchProgressProvider);
   invalidate(continueWatchingProvider);
+  // Last-refresh timestamps are per profile, and `AppConfig.switchProfile`
+  // already dropped the stream cache — the rebuilt notifier re-reads the
+  // new profile's stamp.
+  invalidate(catalogRefreshProvider);
 }

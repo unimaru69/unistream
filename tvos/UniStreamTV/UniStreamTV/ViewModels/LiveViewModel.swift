@@ -20,6 +20,11 @@ final class LiveViewModel {
     private(set) var allChannels: [Channel] = []
     var isLoadingAllChannels = false
 
+    /// Category the grid is currently showing. Remembered so a catalogue
+    /// refresh can re-pull exactly what the user is looking at instead of
+    /// leaving them on a stale list.
+    private(set) var currentCategory: Category?
+
     private let api: XtreamAPIService
 
     init(api: XtreamAPIService) {
@@ -43,14 +48,15 @@ final class LiveViewModel {
     }
 
     /// Load channels for a specific category.
-    func loadChannels(for category: Category) async {
+    func loadChannels(for category: Category, force: Bool = false) async {
         isLoadingChannels = true
         error = nil
+        currentCategory = category
         channels = [] // Clear previous
         epgData = [:] // Clear previous EPG
 
         do {
-            channels = try await api.getLiveStreams(categoryId: category.categoryId)
+            channels = try await api.getLiveStreams(categoryId: category.categoryId, force: force)
             logger.info("Loaded \(self.channels.count) channels for '\(category.categoryName)'")
             // Load EPG in background after channels are ready
             await loadEpgForChannels(channels)
@@ -63,12 +69,12 @@ final class LiveViewModel {
     }
 
     /// Load all channels (for favorites filtering and channel counts).
-    func loadAllChannels() async {
-        guard allChannels.isEmpty else { return }
+    func loadAllChannels(force: Bool = false) async {
+        guard allChannels.isEmpty || force else { return }
         isLoadingAllChannels = true
 
         do {
-            allChannels = try await api.getLiveStreams()
+            allChannels = try await api.getLiveStreams(force: force)
             logger.info("Loaded \(self.allChannels.count) total channels")
 
             // Compute channel counts per category
@@ -130,5 +136,21 @@ final class LiveViewModel {
     func setChannels(_ newChannels: [Channel]) {
         channels = newChannels
         epgData = [:]
+    }
+
+    /// Re-pull whatever this view-model currently holds, bypassing the
+    /// API cache. Driven by `CatalogRefreshService` — only the lists that
+    /// were already loaded are re-fetched, so a refresh never turns into
+    /// a full catalogue download the user didn't ask for.
+    func reloadAfterCatalogRefresh() async {
+        if !categories.isEmpty {
+            await loadCategories()
+        }
+        if !allChannels.isEmpty {
+            await loadAllChannels(force: true)
+        }
+        if let category = currentCategory {
+            await loadChannels(for: category, force: true)
+        }
     }
 }

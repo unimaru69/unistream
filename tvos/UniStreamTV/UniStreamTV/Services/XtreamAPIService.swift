@@ -162,7 +162,10 @@ final class XtreamAPIService {
             .uniqued(by: { $0.categoryId })
     }
 
-    func getLiveStreams(categoryId: String? = nil) async throws -> [Channel] {
+    /// - Parameter force: bypass the 5-minute cache and go back to the
+    ///   panel. Used by the catalogue refresh so an explicit "Actualiser"
+    ///   never hands back the list we already had.
+    func getLiveStreams(categoryId: String? = nil, force: Bool = false) async throws -> [Channel] {
         if DemoMode.isActive {
             guard let catId = categoryId else { return DemoData.liveChannels }
             return DemoData.liveChannels.filter { $0.categoryId == catId }
@@ -170,7 +173,8 @@ final class XtreamAPIService {
         let cacheKey = "get_live_streams:\(categoryId ?? "all")"
 
         // Check cache
-        if let cached = streamCache[cacheKey],
+        if !force,
+           let cached = streamCache[cacheKey],
            Date().timeIntervalSince(cached.timestamp) < Constants.streamCacheTTL,
            let channels = cached.data as? [Channel] {
             return channels
@@ -241,13 +245,15 @@ final class XtreamAPIService {
             .uniqued(by: { $0.categoryId })
     }
 
-    func getVodStreams(categoryId: String? = nil) async throws -> [VodItem] {
+    /// - Parameter force: see `getLiveStreams(categoryId:force:)`.
+    func getVodStreams(categoryId: String? = nil, force: Bool = false) async throws -> [VodItem] {
         if DemoMode.isActive {
             guard let catId = categoryId else { return DemoData.vodItems }
             return DemoData.vodItems.filter { $0.categoryId == catId }
         }
         let cacheKey = "get_vod_streams:\(categoryId ?? "all")"
-        if let cached = streamCache[cacheKey],
+        if !force,
+           let cached = streamCache[cacheKey],
            Date().timeIntervalSince(cached.timestamp) < Constants.streamCacheTTL,
            let items = cached.data as? [VodItem] {
             return items
@@ -284,13 +290,15 @@ final class XtreamAPIService {
             .uniqued(by: { $0.categoryId })
     }
 
-    func getSeries(categoryId: String? = nil) async throws -> [SeriesItem] {
+    /// - Parameter force: see `getLiveStreams(categoryId:force:)`.
+    func getSeries(categoryId: String? = nil, force: Bool = false) async throws -> [SeriesItem] {
         if DemoMode.isActive {
             guard let catId = categoryId else { return DemoData.seriesList }
             return DemoData.seriesList.filter { $0.categoryId == catId }
         }
         let cacheKey = "get_series:\(categoryId ?? "all")"
-        if let cached = streamCache[cacheKey],
+        if !force,
+           let cached = streamCache[cacheKey],
            Date().timeIntervalSince(cached.timestamp) < Constants.streamCacheTTL,
            let items = cached.data as? [SeriesItem] {
             return items
