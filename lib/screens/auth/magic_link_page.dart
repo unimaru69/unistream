@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/colors.dart';
-import '../../core/form_factor.dart';
 import '../../core/tv_focus.dart';
 import '../../providers/auth_provider.dart';
 
@@ -135,9 +134,6 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                             // Email
                             TvArrowEscape(child: TextFormField(
                               controller: _emailCtrl,
-                              // TV: land on the email field on entry, and
-                              // let the IME "Done" fire the send directly.
-                              autofocus: FormFactorInfo.isAndroidTv,
                               keyboardType: TextInputType.emailAddress,
                               autocorrect: false,
                               enabled: !_sent,

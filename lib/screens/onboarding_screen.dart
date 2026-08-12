@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
-import '../core/form_factor.dart';
 import '../core/theme_colors.dart';
 import '../core/tv_focus.dart';
 import '../providers/config_provider.dart';
@@ -55,17 +54,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _goToPage(int page) {
+    // On Android TV the config page's landing focus is handled by
+    // TvFocusScope's heal: the welcome page's button node is disposed by
+    // the PageView transition, focus drops, and the heal seeds the first
+    // focusable of the new page — the server field's TvArrowEscape guard
+    // (deliberately NOT the field itself, which would pop the IME).
     _pageController.animateToPage(
       page,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-    ).then((_) {
-      // Move focus onto the first form field when the config page opens,
-      // so the D-pad has a landing spot (PageView doesn't do this).
-      if (page == 1 && FormFactorInfo.isAndroidTv && mounted) {
-        _serverFocus.requestFocus();
-      }
-    });
+    );
   }
 
   Future<void> _importM3u() async {

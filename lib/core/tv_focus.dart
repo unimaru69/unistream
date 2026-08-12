@@ -115,57 +115,173 @@ class _TvFocusScopeState extends State<TvFocusScope> {
   }
 }
 
-/// Lets the D-pad escape a focused [TextField] vertically on Android TV.
+/// Makes a [TextField] D-pad friendly on Android TV. No-op elsewhere.
 ///
-/// A focused `EditableText` consumes arrow keys for caret movement (via
-/// `DefaultTextEditingShortcuts` at the app root), so Up/Down can never
-/// leave the field — the user gets trapped and can't reach the buttons
-/// below the form. Wrapping the field in this widget intercepts Up/Down
-/// on the way up the focus chain (we sit *closer to the leaf* than the
-/// root shortcuts, so we win) and turns them into directional focus
-/// traversal instead. Left/Right are left alone so the caret still moves
-/// while editing.
+/// The core problem this solves: Flutter opens the on-screen keyboard
+/// **the moment a text field gains focus**. On a phone that's what a tap
+/// means; on TV, D-pad traversal *passes through* fields, so every step
+/// through a form popped the fullscreen IME, which then captured the
+/// D-pad — the "keyboard opens out of nowhere and keeps coming back"
+/// loop. The native leanback pattern is: a text field is an inert focus
+/// stop, and the keyboard only opens on an explicit OK press.
 ///
-/// No-op wrapper off Android TV. Note: when the on-screen keyboard is
-/// open, the system IME consumes the D-pad for its own key grid — this
-/// only kicks in once the IME is closed (Back) and the field still holds
-/// focus.
-class TvArrowEscape extends StatelessWidget {
+/// This wrapper implements that pattern around an unmodified child field:
+///
+/// - It owns a focusable **guard node** that becomes the traversal stop.
+///   The inner `EditableText`'s node is marked `skipTraversal` (found by
+///   walking descendants each frame), so arrows can never wander into
+///   the field by themselves — and therefore never open the IME.
+/// - A focus ring is painted around the child when the guard is focused,
+///   since the field's own focused border only lights up while editing.
+/// - **OK / Enter / D-pad-center** on the guard focuses the inner field,
+///   which opens the keyboard (and re-shows it if the field is already
+///   focused after the user closed the IME with Back).
+/// - While editing, **Up/Down** escape the field into directional focus
+///   traversal (the caret keeps Left/Right); falling back to reading
+///   order so the user is never trapped.
+///
+/// Programmatic `FocusNode.requestFocus()` on the field (IME "Next"
+/// chaining between fields) still works: `skipTraversal` only hides the
+/// node from *traversal*, not from explicit requests.
+class TvArrowEscape extends StatefulWidget {
   const TvArrowEscape({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    if (!FormFactorInfo.isAndroidTv) return child;
-    return Focus(
-      // Pure key-interceptor: never focusable, never a traversal stop.
-      canRequestFocus: false,
-      skipTraversal: true,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        final key = event.logicalKey;
-        TraversalDirection? dir;
-        if (key == LogicalKeyboardKey.arrowDown) dir = TraversalDirection.down;
-        if (key == LogicalKeyboardKey.arrowUp) dir = TraversalDirection.up;
-        if (dir == null) return KeyEventResult.ignored;
-        final primary = FocusManager.instance.primaryFocus;
-        if (primary == null) return KeyEventResult.ignored;
-        final moved = primary.focusInDirection(dir);
-        if (!moved) {
-          // Geometric traversal found nothing (off-screen target, odd
-          // layout) — fall back to reading order so we never trap.
-          dir == TraversalDirection.down
-              ? primary.nextFocus()
-              : primary.previousFocus();
-        }
-        // Consume either way so the caret shortcut at the root doesn't
-        // also fire.
+  State<TvArrowEscape> createState() => _TvArrowEscapeState();
+}
+
+class _TvArrowEscapeState extends State<TvArrowEscape> {
+  final FocusNode _guard = FocusNode(debugLabel: 'TvArrowEscape');
+  bool _guardFocused = false;
+
+  @override
+  void dispose() {
+    _guard.dispose();
+    super.dispose();
+  }
+
+  /// The inner field's real focus node (the `EditableText`'s), if built.
+  ///
+  /// The node is hosted by a plain `Focus` widget *inside* EditableText's
+  /// build, so `context.widget` is `Focus` — the reliable discriminator is
+  /// having an [EditableTextState] ancestor (the suffix icon button's node
+  /// doesn't: the decoration is a sibling branch of the editable).
+  FocusNode? get _fieldNode {
+    for (final d in _guard.descendants) {
+      final ctx = d.context;
+      if (ctx != null &&
+          ctx.findAncestorStateOfType<EditableTextState>() != null) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  bool get _editing {
+    final primary = FocusManager.instance.primaryFocus;
+    return primary != null && primary != _guard && _guard.hasFocus;
+  }
+
+  /// Keep the inner field out of D-pad traversal. Descendant nodes are
+  /// recreated on rebuilds, so re-apply after every frame.
+  void _applySkipTraversal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fieldNode?.skipTraversal = true;
+    });
+  }
+
+  void _startEditing() {
+    final field = _fieldNode;
+    if (field == null) return;
+    if (field.hasPrimaryFocus) {
+      // Field already holds focus but the user closed the IME with Back
+      // — focusing again is a no-op, so re-show the keyboard explicitly.
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    } else {
+      field.requestFocus();
+    }
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+
+    // OK / center / enter on the inert guard → enter edit mode. While
+    // editing, let enter reach the field (fires onSubmitted / IME action).
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (!_editing && event is KeyDownEvent) {
+        _startEditing();
         return KeyEventResult.handled;
+      }
+      if (_editing && key == LogicalKeyboardKey.select &&
+          event is KeyDownEvent) {
+        // D-pad center while editing with the IME closed: bring it back.
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Up/Down while editing: escape the caret into focus traversal.
+    // (While merely guard-focused, returning ignored lets the app-level
+    // DirectionalFocusIntent shortcuts traverse normally.)
+    if (!_editing) return KeyEventResult.ignored;
+    TraversalDirection? dir;
+    if (key == LogicalKeyboardKey.arrowDown) dir = TraversalDirection.down;
+    if (key == LogicalKeyboardKey.arrowUp) dir = TraversalDirection.up;
+    if (dir == null) return KeyEventResult.ignored;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null) return KeyEventResult.ignored;
+    final scope = primary.nearestScope;
+    final moved = primary.focusInDirection(dir);
+    if (!moved) {
+      dir == TraversalDirection.down
+          ? primary.nextFocus()
+          : primary.previousFocus();
+    }
+    // CRITICAL: escaping recorded the *field* as the directional-policy
+    // history origin. Pressing the opposite direction later would pop
+    // that history and hand focus straight back to the field — bypassing
+    // skipTraversal entirely (framework behaviour) — reopening the IME
+    // out of nowhere. Drop the history so the field stays inert.
+    if (scope != null && primary.context != null) {
+      FocusTraversalGroup.of(primary.context!).invalidateScopeData(scope);
+    }
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!FormFactorInfo.isAndroidTv) return widget.child;
+    _applySkipTraversal();
+    return Focus(
+      focusNode: _guard,
+      onFocusChange: (f) {
+        if (mounted && f != _guardFocused) setState(() => _guardFocused = f);
       },
-      child: child,
+      onKeyEvent: _onKeyEvent,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            width: 2.5,
+            // Ring only while the guard itself is focused — during
+            // editing the field's own focused border takes over.
+            color: _guardFocused && !_editing
+                ? const Color(0xFF1B6B8A)
+                : const Color(0x00000000),
+          ),
+        ),
+        child: widget.child,
+      ),
     );
   }
 }

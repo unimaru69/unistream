@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
-import '../../core/form_factor.dart';
 import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
@@ -93,7 +92,6 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
           const SizedBox(height: 32),
           TvArrowEscape(child: TextFormField(
             controller: _emailCtrl,
-            autofocus: FormFactorInfo.isAndroidTv,
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
             textInputAction: TextInputAction.done,

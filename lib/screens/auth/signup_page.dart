@@ -55,7 +55,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
 
-    return Center(
+    return TvFocusScope(
+      child: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: ConstrainedBox(
@@ -236,6 +237,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

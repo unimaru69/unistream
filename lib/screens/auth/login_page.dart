@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
-import '../../core/form_factor.dart';
 import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
@@ -103,9 +102,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 TvArrowEscape(child: TextFormField(
                   controller: _emailCtrl,
                   focusNode: _emailFocus,
-                  // On Android TV, focus the first field on entry so the
-                  // remote can start typing immediately.
-                  autofocus: FormFactorInfo.isAndroidTv,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   // IME "Next" jumps to the password field — the reliable
