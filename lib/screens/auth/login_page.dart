@@ -100,7 +100,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 40),
 
                 // Email field
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _emailCtrl,
                   focusNode: _emailFocus,
                   // On Android TV, focus the first field on entry so the
@@ -120,11 +120,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     if (!v.contains('@') || !v.contains('.')) return l10n.authEmailInvalide;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
 
                 // Password field
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _passCtrl,
                   focusNode: _passFocus,
                   obscureText: _obscure,
@@ -144,7 +144,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     return null;
                   },
                   onFieldSubmitted: (_) => _submit(),
-                ),
+                )),
                 const SizedBox(height: 8),
 
                 // Forgot password

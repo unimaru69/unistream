@@ -294,7 +294,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _serverCtrl,
                   focusNode: _serverFocus,
                   keyboardType: TextInputType.url,
@@ -317,9 +317,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     if (uri == null || !uri.hasScheme) return l10n.urlInvalide;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _userCtrl,
                   focusNode: _userFocus,
                   textInputAction: TextInputAction.next,
@@ -335,9 +335,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         borderSide: BorderSide.none),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
-                ),
+                )),
                 const SizedBox(height: 16),
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _passCtrl,
                   focusNode: _passFocus,
                   obscureText: _obscure,
@@ -360,7 +360,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         borderSide: BorderSide.none),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
-                ),
+                )),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Semantics(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'form_factor.dart';
 
@@ -99,6 +100,61 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
       child: widget.child,
+    );
+  }
+}
+
+/// Lets the D-pad escape a focused [TextField] vertically on Android TV.
+///
+/// A focused `EditableText` consumes arrow keys for caret movement (via
+/// `DefaultTextEditingShortcuts` at the app root), so Up/Down can never
+/// leave the field — the user gets trapped and can't reach the buttons
+/// below the form. Wrapping the field in this widget intercepts Up/Down
+/// on the way up the focus chain (we sit *closer to the leaf* than the
+/// root shortcuts, so we win) and turns them into directional focus
+/// traversal instead. Left/Right are left alone so the caret still moves
+/// while editing.
+///
+/// No-op wrapper off Android TV. Note: when the on-screen keyboard is
+/// open, the system IME consumes the D-pad for its own key grid — this
+/// only kicks in once the IME is closed (Back) and the field still holds
+/// focus.
+class TvArrowEscape extends StatelessWidget {
+  const TvArrowEscape({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!FormFactorInfo.isAndroidTv) return child;
+    return Focus(
+      // Pure key-interceptor: never focusable, never a traversal stop.
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        final key = event.logicalKey;
+        TraversalDirection? dir;
+        if (key == LogicalKeyboardKey.arrowDown) dir = TraversalDirection.down;
+        if (key == LogicalKeyboardKey.arrowUp) dir = TraversalDirection.up;
+        if (dir == null) return KeyEventResult.ignored;
+        final primary = FocusManager.instance.primaryFocus;
+        if (primary == null) return KeyEventResult.ignored;
+        final moved = primary.focusInDirection(dir);
+        if (!moved) {
+          // Geometric traversal found nothing (off-screen target, odd
+          // layout) — fall back to reading order so we never trap.
+          dir == TraversalDirection.down
+              ? primary.nextFocus()
+              : primary.previousFocus();
+        }
+        // Consume either way so the caret shortcut at the root doesn't
+        // also fire.
+        return KeyEventResult.handled;
+      },
+      child: child,
     );
   }
 }
