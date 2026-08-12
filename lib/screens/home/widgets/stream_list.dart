@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/design_tokens.dart';
 import 'package:unistream/core/form_factor.dart';
+import 'package:unistream/core/tv_focus.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
@@ -274,7 +275,7 @@ class _StreamListViewState extends State<StreamListView> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(children: [
-        Expanded(child: TextField(
+        Expanded(child: TvArrowEscape(child: TextField(
           controller: widget.searchCtrl,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
@@ -292,7 +293,7 @@ class _StreamListViewState extends State<StreamListView> {
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
           onChanged: widget.onSearchChanged,
-        )),
+        ))),
         if (widget.selectedCategory == '__favorites__' || widget.selectedCategory == '__watchlist__')
           Padding(
             padding: const EdgeInsets.only(left: 8),

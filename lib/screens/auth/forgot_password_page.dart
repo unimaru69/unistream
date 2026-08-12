@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
+import '../../core/form_factor.dart';
+import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 
@@ -38,7 +40,8 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
 
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
@@ -67,6 +70,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -87,10 +91,12 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
             ),
           ),
           const SizedBox(height: 32),
-          TextFormField(
+          TvArrowEscape(child: TextFormField(
             controller: _emailCtrl,
+            autofocus: FormFactorInfo.isAndroidTv,
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
+            textInputAction: TextInputAction.done,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               labelText: l10n.authEmail,
@@ -117,7 +123,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
               return null;
             },
             onFieldSubmitted: (_) => _submit(),
-          ),
+          )),
           const SizedBox(height: 24),
           if (auth.error != null) ...[
             Container(

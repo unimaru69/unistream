@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
+import 'package:unistream/core/tv_focus.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/skeleton_list.dart';
@@ -479,7 +480,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
     return Scaffold(
       appBar: AppBar(
         backgroundColor: tc.surface, elevation: 0,
-        title: TextField(
+        title: TvArrowEscape(child: TextField(
           controller: _ctrl,
           autofocus: true,
           style: const TextStyle(fontSize: 16),
@@ -499,7 +500,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> with SingleTickerPr
                 : null,
           ),
           onChanged: _onChanged,
-        ),
+        )),
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: AppColors.primaryBlue,

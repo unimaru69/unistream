@@ -78,7 +78,8 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
@@ -261,6 +262,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import 'magic_link_page.dart';
@@ -21,6 +22,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _passFocus = FocusNode();
+  final _confirmFocus = FocusNode();
   bool _obscure = true;
 
   @override
@@ -28,6 +31,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
+    _passFocus.dispose();
+    _confirmFocus.dispose();
     super.dispose();
   }
 
@@ -74,10 +79,12 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 const SizedBox(height: 32),
 
                 // Email
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passFocus.requestFocus(),
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authEmail, Icons.email_outlined),
                   validator: (v) {
@@ -85,13 +92,16 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     if (!v.contains('@') || !v.contains('.')) return l10n.authEmailInvalide;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
 
                 // Password
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _passCtrl,
+                  focusNode: _passFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _confirmFocus.requestFocus(),
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authMotDePasse, Icons.lock_outline).copyWith(
                     suffixIcon: IconButton(
@@ -107,13 +117,15 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     if (v.length < 6) return l10n.authMotDePasseCourt;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
 
                 // Confirm password
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _confirmCtrl,
+                  focusNode: _confirmFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authConfirmerMotDePasse, Icons.lock_outline),
                   validator: (v) {
@@ -122,7 +134,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     return null;
                   },
                   onFieldSubmitted: (_) => _submit(),
-                ),
+                )),
                 const SizedBox(height: 24),
 
                 // Error message

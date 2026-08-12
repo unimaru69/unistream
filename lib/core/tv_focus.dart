@@ -71,10 +71,21 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     return pf != null && pf is! FocusScopeNode && pf.context != null;
   }
 
+  /// Routes below a pushed page stay mounted, so their TvFocusScope's
+  /// FocusManager listener stays alive too. Without this guard, a covered
+  /// screen's auto-heal steals focus back into its own (hidden) subtree
+  /// and fights the topmost route — seen as the IME popping open "for
+  /// nothing" in a loop on the magic-link page. Only the *current* route
+  /// may seed/heal.
+  bool get _routeIsCurrent {
+    final route = ModalRoute.of(context);
+    return route == null || route.isCurrent;
+  }
+
   /// Retry-seed initial focus until a real node sticks (content loads
   /// async, so early frames have nothing focusable).
   void _seed([int attempt = 0]) {
-    if (!mounted || _hasRealFocus) return;
+    if (!mounted || !_routeIsCurrent || _hasRealFocus) return;
     final moved = FocusScope.of(context).nextFocus();
     if (!moved && attempt < 20) {
       WidgetsBinding.instance
@@ -90,7 +101,7 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     _healScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _healScheduled = false;
-      if (mounted && !_hasRealFocus) _seed();
+      if (mounted && _routeIsCurrent && !_hasRealFocus) _seed();
     });
   }
 
