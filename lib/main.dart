@@ -12,6 +12,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/logger.dart';
 import 'core/form_factor.dart';
+import 'core/tv_diag_overlay.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
@@ -606,6 +607,8 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        // No-op unless built with --dart-define=TVDIAG=true on Android TV.
+        builder: (context, child) => withTvDiagOverlay(child!),
         home: const AuthGate(),
       ),
     );

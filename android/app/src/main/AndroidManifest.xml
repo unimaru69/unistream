@@ -55,6 +55,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Force the Skia renderer. Impeller (default since Flutter ~3.29)
+             is unproven on the GLES2-class GPUs of 2018-19 Android TVs
+             (Philips/Mali) — symptom on-device: last frame stays on
+             screen (focus ring visible, nothing moves) and the app dies
+             ~10 s in with no Sentry trace, on the first screen that uses
+             BackdropFilter blur. Revisit when TV-class GPUs are validated. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
     <queries>
         <intent>
