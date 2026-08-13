@@ -206,7 +206,7 @@ class XtreamApi {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(StorageKeys.epgCache(AppConfig.activeProfileId));
       if (raw == null || raw.isEmpty) return;
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final decoded = await _decodeOffMain(raw) as Map<String, dynamic>;
       final now = DateTime.now();
       for (final entry in decoded.entries) {
         final ts = DateTime.tryParse(entry.value['ts'] as String? ?? '');
@@ -236,7 +236,11 @@ class XtreamApi {
         };
       }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(StorageKeys.epgCache(AppConfig.activeProfileId), jsonEncode(serialized));
+      // Encode off-main too — same UI-thread-freeze rationale as
+      // _decodeOffMain, this fires repeatedly while EPG previews load.
+      final encoded = await compute(jsonEncode, serialized);
+      await prefs.setString(
+          StorageKeys.epgCache(AppConfig.activeProfileId), encoded);
     } catch (e, st) {
       AppLogger.warning(LogModule.epg, 'Failed to save EPG cache to disk', error: e, stackTrace: st);
     }
@@ -318,6 +322,18 @@ class XtreamApi {
     return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+
+  /// Decode a large JSON payload OFF the main isolate.
+  ///
+  /// Full catalog lists reach tens of MB on real providers; parsing them
+  /// with a plain [jsonDecode] froze the UI thread — invisible on fast
+  /// hardware, but 15-30 s on an armv7 TV CPU, where the user's D-pad
+  /// presses then trip Android's input-dispatch ANR and the system kills
+  /// the app (silently: no Sentry event on Android 8). Observed as
+  /// "Choreographer: Skipped 90+ frames" even on the emulator.
+  static Future<dynamic> _decodeOffMain(String body) =>
+      compute(jsonDecode, body);
+
   /// [force] bypasses the 5-minute cache and goes back to the panel.
   /// Used by pull-to-refresh and the explicit "Actualiser le catalogue"
   /// action — without it those affordances silently returned the very
@@ -329,7 +345,7 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_live_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -354,7 +370,7 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_vod_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -379,7 +395,7 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_series';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
     _putStreamCache(cacheKey, result);
     return result;
   }
