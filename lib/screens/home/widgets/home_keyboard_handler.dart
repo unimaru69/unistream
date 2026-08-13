@@ -31,11 +31,16 @@ class HomeKeyboardHandler extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Focus(
-      // On Android TV the initial focus must land on a real, traversable
-      // widget (a grid tile) so the D-pad has a starting point. This
-      // wrapper only handles Ctrl/Cmd shortcuts (desktop), and still
-      // receives descendant key events without holding focus itself.
+      // Desktop: this whole-screen Focus holds default focus so the
+      // Ctrl/Cmd shortcuts work before anything is clicked. On Android
+      // TV it must be a PURE interceptor: if it can take focus, the
+      // TvFocusScope seeding lands on it (first node in reading order),
+      // which satisfies "something has focus" with an invisible
+      // full-screen node — and directional traversal from a rect that
+      // covers the screen goes nowhere. Dead D-pad.
       autofocus: !FormFactorInfo.isAndroidTv,
+      canRequestFocus: !FormFactorInfo.isAndroidTv,
+      skipTraversal: FormFactorInfo.isAndroidTv,
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         final mod = Platform.isMacOS

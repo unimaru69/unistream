@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,6 +50,7 @@ class TvFocusScope extends StatefulWidget {
 
 class _TvFocusScopeState extends State<TvFocusScope> {
   bool _healScheduled = false;
+  Timer? _seedTimer;
 
   @override
   void initState() {
@@ -55,6 +58,16 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     if (FormFactorInfo.isAndroidTv) {
       FocusManager.instance.addListener(_onFocusChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) => _seed());
+      // Persistent seeding. A frame-count retry gives up in ~300 ms, but
+      // screens like Home show a skeleton for seconds before the first
+      // focusable exists — by then seeding was over and, with no focus
+      // change ever happening, the heal never fired either: dead D-pad
+      // forever. A slow periodic check (no-op once something has focus)
+      // guarantees the remote always gets an anchor eventually.
+      _seedTimer = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) => _seed(),
+      );
     }
   }
 
@@ -63,6 +76,7 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     if (FormFactorInfo.isAndroidTv) {
       FocusManager.instance.removeListener(_onFocusChanged);
     }
+    _seedTimer?.cancel();
     super.dispose();
   }
 
@@ -82,15 +96,12 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     return route == null || route.isCurrent;
   }
 
-  /// Retry-seed initial focus until a real node sticks (content loads
-  /// async, so early frames have nothing focusable).
-  void _seed([int attempt = 0]) {
+  /// Single seeding attempt — re-driven by [_seedTimer] until a real
+  /// node sticks (content loads async, so early frames have nothing
+  /// focusable), and by the heal listener after focus collapses.
+  void _seed() {
     if (!mounted || !_routeIsCurrent || _hasRealFocus) return;
-    final moved = FocusScope.of(context).nextFocus();
-    if (!moved && attempt < 20) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _seed(attempt + 1));
-    }
+    FocusScope.of(context).nextFocus();
   }
 
   /// When focus collapses to null / a bare scope (rebuild disposed the
