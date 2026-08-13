@@ -187,6 +187,13 @@ void main() async {
     // D-pad focus is visible from the first frame.
     FocusManager.instance.highlightStrategy =
         FocusHighlightStrategy.alwaysTraditional;
+    // Memory guard: TV boxes are 32-bit with ~1 GB shared RAM, and the
+    // decoded-image cache defaults to 100 MB — poster grids fill it
+    // within seconds of the first real catalog load, and the low-memory
+    // killer takes the app down silently (no Sentry event). Cap it hard;
+    // tiles re-decode from the disk cache when evicted, which is fine
+    // at 10-foot browsing speed.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
   }
 
   // Rehydrate the in-memory EPG cache from disk. Without this the

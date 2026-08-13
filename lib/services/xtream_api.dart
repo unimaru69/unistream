@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/form_factor.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
@@ -166,7 +167,12 @@ class XtreamApi {
 
   static final Map<String, EpgCacheEntry> _epgCache = {};
   static const Duration _epgCacheTtl = Duration(minutes: 30);
-  static const int _epgCacheMaxSize = 500;
+
+  /// TV boxes are memory-starved (32-bit, ~1 GB shared): keep the EPG
+  /// cache an order of magnitude smaller there. Measured on a real-scale
+  /// catalog (42k items), memory pressure is what silently kills the app
+  /// on armv7 Android TV — same lesson as the tvOS UserDefaults SIGABRT.
+  static int get _epgCacheMaxSize => FormFactorInfo.isAndroidTv ? 150 : 500;
 
   /// In-flight EPG fetches, keyed by the same cache key as
   /// `_epgCache`. When `N` widgets call `getShortEpg(stream_42)` at
@@ -253,7 +259,10 @@ class XtreamApi {
   // ── Stream list cache (action+categoryId -> list, TTL 5 min) ──
   static final Map<String, _StreamCacheEntry> _streamCache = {};
   static const Duration _streamCacheTtl = Duration(minutes: 5);
-  static const int _streamCacheMaxSize = 100;
+  /// Each entry is a FULL category list; the "all items" lists reach
+  /// 10-30k maps on real providers. 100 cached lists is fine on desktop,
+  /// lethal on a 32-bit TV — cap hard there.
+  static int get _streamCacheMaxSize => FormFactorInfo.isAndroidTv ? 10 : 100;
 
   /// Visible for testing — allows overriding the clock.
   @visibleForTesting

@@ -12,13 +12,20 @@ import 'auth_screen.dart';
 /// - While loading → brand splash (gradient + logo + spinner).
 /// - If not authenticated → [AuthScreen] (login/signup).
 /// - If authenticated → [SplashScreen] (existing flow).
+/// Dev-only bypass (`--dart-define=SKIP_AUTH=true`): jump straight to the
+/// splash/onboarding flow without a Supabase session. Used to exercise the
+/// real Xtream pipeline against a local mock server (e.g. on the Android
+/// TV emulator) where interactive sign-in isn't possible. Const-folded
+/// away in normal builds.
+const bool kSkipAuth = bool.fromEnvironment('SKIP_AUTH', defaultValue: false);
+
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Demo mode: skip auth and go straight to splash which will auto-configure.
-    if (kDemoMode) {
+    if (kDemoMode || kSkipAuth) {
       return const SplashScreen();
     }
 
