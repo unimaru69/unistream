@@ -27,6 +27,12 @@ class FormFactorInfo {
   /// [ensureInitialized] has run, and on every non-Android platform.
   static bool get isAndroidTv => _isAndroidTv;
 
+  /// Test hook: force the TV form factor in widget tests so the D-pad
+  /// focus behaviour (guards, traversal, activation) can be exercised
+  /// without a leanback device.
+  @visibleForTesting
+  static set debugIsAndroidTv(bool value) => _isAndroidTv = value;
+
   /// Coarse form factor. Desktop covers macOS / Windows / Linux; `tv`
   /// is Android TV; everything else mobile reports as `phone` (we don't
   /// currently distinguish tablets — kept in the enum for future use).

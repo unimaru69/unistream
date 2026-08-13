@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../models/profile.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/dpad_focusable.dart';
 import '../../widgets/pin_dialog.dart';
 
 /// Result returned by [ProfileSelectorScreen] via `Navigator.pop`.
@@ -62,7 +64,8 @@ class ProfileSelectorScreen extends ConsumerWidget {
             'les mêmes identifiants Xtream que sur vos autres appareils '
             'pour synchroniser vos favoris et votre progression.'
         : null;
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
@@ -163,6 +166,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -200,7 +204,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
+class _ProfileCard extends StatefulWidget {
   final Profile profile;
   final bool isActive;
   final VoidCallback onTap;
@@ -212,7 +216,26 @@ class _ProfileCard extends StatelessWidget {
   });
 
   @override
+  State<_ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<_ProfileCard> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
+    final profile = widget.profile;
+    final isActive = widget.isActive;
+    // D-pad focus ring takes precedence over the "active profile"
+    // outline so the selector cursor is always visible on TV.
+    final Border border;
+    if (_focused) {
+      border = Border.all(color: AppColors.primaryBlueLighter, width: 3);
+    } else if (isActive) {
+      border = Border.all(color: AppColors.primaryBlue, width: 2);
+    } else {
+      border = Border.all(color: Colors.white24, width: 1);
+    }
     return Semantics(
       button: true,
       label: [
@@ -220,27 +243,32 @@ class _ProfileCard extends StatelessWidget {
         if (profile.hasPin) 'protégé par PIN',
         if (isActive) 'profil actif',
       ].join(', '),
+      child: DpadFocusable(
+      onTap: widget.onTap,
+      onFocusChange: (f) => setState(() => _focused = f),
       child: GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
+          AnimatedScale(
+            scale: _focused ? 1.08 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: Container(
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: isActive
+              color: _focused || isActive
                   ? AppColors.primaryBlue.withValues(alpha: 0.3)
                   : Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: isActive
-                  ? Border.all(color: AppColors.primaryBlue, width: 2)
-                  : Border.all(color: Colors.white24, width: 1),
+              border: border,
             ),
             child: Center(
               child: Text(profile.avatar,
                   style: const TextStyle(fontSize: 36)),
             ),
+          ),
           ),
           const SizedBox(height: 8),
           Text(profile.name,
@@ -254,34 +282,51 @@ class _ProfileCard extends StatelessWidget {
             ),
         ],
       ),
-    ));
+    )));
   }
 }
 
-class _AddProfileCard extends StatelessWidget {
+class _AddProfileCard extends StatefulWidget {
   const _AddProfileCard({required this.onTap});
 
   final VoidCallback onTap;
+
+  @override
+  State<_AddProfileCard> createState() => _AddProfileCardState();
+}
+
+class _AddProfileCardState extends State<_AddProfileCard> {
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
       label: 'Nouveau profil',
-      child: GestureDetector(
-        onTap: onTap,
+      child: DpadFocusable(
+        onTap: widget.onTap,
+        onFocusChange: (f) => setState(() => _focused = f),
+        child: GestureDetector(
+        onTap: widget.onTap,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            AnimatedScale(
+              scale: _focused ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: _focused
+                    ? AppColors.primaryBlue.withValues(alpha: 0.25)
+                    : Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  width: 1,
+                  color: _focused
+                      ? AppColors.primaryBlueLighter
+                      : Colors.white.withValues(alpha: 0.35),
+                  width: _focused ? 3 : 1,
                   // Dashed-style border would be nicer but Flutter
                   // ships no out-of-the-box dashed BorderSide; the
                   // solid + low-opacity treatment reads as "empty
@@ -291,6 +336,7 @@ class _AddProfileCard extends StatelessWidget {
               child: const Center(
                 child: Icon(Icons.add, size: 36, color: Colors.white70),
               ),
+            ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -304,6 +350,6 @@ class _AddProfileCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

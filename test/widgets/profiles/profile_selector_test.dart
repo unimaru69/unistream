@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/models/profile.dart';
@@ -34,7 +35,9 @@ void main() {
   ];
 
   Widget buildApp({String activeProfileId = '1'}) {
-    return MaterialApp(
+    // ProviderScope: the screen is a ConsumerWidget (watches authProvider).
+    return ProviderScope(
+      child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('fr'),
@@ -42,7 +45,7 @@ void main() {
         profiles: testProfiles,
         activeProfileId: activeProfileId,
       ),
-    );
+    ));
   }
 
   group('ProfileSelectorScreen', () {
@@ -76,21 +79,22 @@ void main() {
     });
 
     testWidgets('tapping non-PIN profile pops with selected profile', (tester) async {
-      Profile? selected;
-      await tester.pumpWidget(MaterialApp(
+      ProfileSelectorResult? selected;
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: const Locale('fr'),
         home: Builder(builder: (context) => ElevatedButton(
           onPressed: () async {
-            selected = await Navigator.push<Profile>(context,
+            selected = await Navigator.push<ProfileSelectorResult>(context,
                 MaterialPageRoute(builder: (_) => ProfileSelectorScreen(
                   profiles: testProfiles, activeProfileId: '1',
                 )));
           },
           child: const Text('Open'),
         )),
-      ));
+      )));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -99,8 +103,10 @@ void main() {
       await tester.tap(find.text('Maman'));
       await tester.pumpAndSettle();
 
-      expect(selected?.id, '2');
-      expect(selected?.name, 'Maman');
+      expect(selected, isA<ProfileSelectedResult>());
+      final profile = (selected as ProfileSelectedResult).profile;
+      expect(profile.id, '2');
+      expect(profile.name, 'Maman');
     });
 
     testWidgets('tapping PIN-protected profile shows PIN dialog', (tester) async {
