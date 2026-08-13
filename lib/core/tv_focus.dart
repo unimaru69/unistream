@@ -144,7 +144,12 @@ class _TvFocusScopeState extends State<TvFocusScope> {
 /// chaining between fields) still works: `skipTraversal` only hides the
 /// node from *traversal*, not from explicit requests.
 class TvArrowEscape extends StatefulWidget {
-  const TvArrowEscape({super.key, required this.child});
+  const TvArrowEscape({super.key, this.guardNode, required this.child});
+
+  /// Optional externally-owned node for the guard, so a host screen can
+  /// programmatically land D-pad focus on this field's guard (e.g. after
+  /// a PageView transition). The caller keeps ownership/disposal.
+  final FocusNode? guardNode;
 
   final Widget child;
 
@@ -153,12 +158,14 @@ class TvArrowEscape extends StatefulWidget {
 }
 
 class _TvArrowEscapeState extends State<TvArrowEscape> {
-  final FocusNode _guard = FocusNode(debugLabel: 'TvArrowEscape');
+  FocusNode? _ownedGuard;
+  FocusNode get _guard => widget.guardNode ??
+      (_ownedGuard ??= FocusNode(debugLabel: 'TvArrowEscape'));
   bool _guardFocused = false;
 
   @override
   void dispose() {
-    _guard.dispose();
+    _ownedGuard?.dispose();
     super.dispose();
   }
 

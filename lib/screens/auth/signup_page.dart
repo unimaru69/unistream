@@ -217,12 +217,14 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   const SizedBox(height: 24),
                 ],
 
-                // Switch to login
+                // Switch to login. Flexible: see the mirror row in
+                // login_page — the French copy overflows the 400px cap.
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(l10n.authDejaUnCompte,
-                        style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                    Flexible(child: Text(l10n.authDejaUnCompte,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white60, fontSize: 13))),
                     TextButton(
                       onPressed: widget.onSwitchToLogin,
                       child: Text(l10n.authSeConnecter,

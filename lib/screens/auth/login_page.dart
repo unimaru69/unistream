@@ -245,12 +245,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 24),
                 ],
 
-                // Switch to signup
+                // Switch to signup. Flexible: the prompt + button exceed
+                // the form's 400px cap in French — without it the row
+                // overflows (clipped text in release).
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(l10n.authPasDeCompte,
-                        style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                    Flexible(child: Text(l10n.authPasDeCompte,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white60, fontSize: 13))),
                     TextButton(
                       onPressed: widget.onSwitchToSignup,
                       child: Text(l10n.authCreerCompte,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
+import '../core/form_factor.dart';
 import '../core/theme_colors.dart';
 import '../core/tv_focus.dart';
 import '../providers/config_provider.dart';
@@ -35,6 +36,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _serverFocus = FocusNode();
   final _userFocus = FocusNode();
   final _passFocus = FocusNode();
+  // The server field's TvArrowEscape guard — the D-pad landing spot when
+  // the config page opens (focusing the FIELD would pop the IME).
+  final _serverGuard = FocusNode(debugLabel: 'serverGuard');
   bool _saving = false;
   bool _obscure = true;
   String? _error;
@@ -50,20 +54,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _serverFocus.dispose();
     _userFocus.dispose();
     _passFocus.dispose();
+    _serverGuard.dispose();
     super.dispose();
   }
 
   void _goToPage(int page) {
-    // On Android TV the config page's landing focus is handled by
-    // TvFocusScope's heal: the welcome page's button node is disposed by
-    // the PageView transition, focus drops, and the heal seeds the first
-    // focusable of the new page — the server field's TvArrowEscape guard
-    // (deliberately NOT the field itself, which would pop the IME).
     _pageController.animateToPage(
       page,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-    );
+    ).then((_) {
+      // Explicit D-pad focus handoff: land on the server field's GUARD
+      // (ring, no IME) once the config page settles. Relying on
+      // TvFocusScope's heal proved racy — the welcome page may not be
+      // disposed yet, so focus never drops and nothing gets seeded.
+      if (page == 1 && FormFactorInfo.isAndroidTv && mounted) {
+        _serverGuard.requestFocus();
+      }
+    });
   }
 
   Future<void> _importM3u() async {
@@ -292,7 +300,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                TvArrowEscape(child: TextFormField(
+                TvArrowEscape(
+                  guardNode: _serverGuard,
+                  child: TextFormField(
                   controller: _serverCtrl,
                   focusNode: _serverFocus,
                   keyboardType: TextInputType.url,
