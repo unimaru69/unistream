@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unistream/core/form_factor.dart';
+import 'package:unistream/core/tv_diag_overlay.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
@@ -345,7 +346,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_live_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('liveFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('liveDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('liveDone');
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -370,7 +375,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_vod_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('vodFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('vodDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('vodDone');
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -395,7 +404,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_series';
     if (catId != null) url += '&category_id=$catId';
-    final result = await _decodeOffMain((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('seriesFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('seriesDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('seriesDone');
     _putStreamCache(cacheKey, result);
     return result;
   }

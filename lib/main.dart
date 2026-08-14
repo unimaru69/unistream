@@ -422,6 +422,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   /// Pull remote data from Supabase and merge into local providers,
   /// then start realtime subscriptions for live cross-device sync.
   Future<void> _initSync() async {
+    TvDiag.mark('sync');
     // Skip sync if not authenticated
     if (!AuthService.instance.isAuthenticated) return;
 

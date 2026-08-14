@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
 import '../../core/design_tokens.dart';
+import '../../core/tv_diag_overlay.dart';
 import '../../core/tv_focus.dart';
 import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
@@ -486,6 +487,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Init / loading ──
   Future<void> _init() async {
     try {
+      TvDiag.mark('auth');
       final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] == 1) {
         _repo.loadServerTimezone();
@@ -498,7 +500,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // ignore: unawaited_futures
           _loadAccueilFeatured();
         }
+        TvDiag.mark('cats');
         await _loadCategories();
+        TvDiag.mark('catsDone');
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
       }
@@ -610,6 +614,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Independent of [_loadRecentlyAdded] (which is per-mode and feeds
   /// the legacy split-view headers).
   Future<void> _loadAccueilFeatured() async {
+    TvDiag.mark('featured');
     AppLogger.debug(LogModule.ui, 'Loading Accueil featured items…');
     try {
       final results = await Future.wait<List<dynamic>>(<Future<List<dynamic>>>[
@@ -681,6 +686,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Accueil cross-mode home — the user can land on catch-up content
   /// from either surface.
   Future<void> _loadCatchupPrograms() async {
+    TvDiag.mark('catchup');
     final wantsCatchup =
         _mode == ContentMode.live || _segment == HomeSegment.home;
     if (!wantsCatchup) {

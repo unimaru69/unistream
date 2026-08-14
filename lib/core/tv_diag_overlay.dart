@@ -11,6 +11,28 @@ import 'form_factor.dart';
 /// diagnostic strip on Android TV builds.
 const bool kTvDiag = bool.fromEnvironment('TVDIAG', defaultValue: false);
 
+/// Phase breadcrumbs for the diag strip. The field photo showed the UI
+/// thread wedging at t≈4 s with memory fine, no Dart error, Skia active —
+/// the remaining question is WHICH operation wedges it. Instrumented
+/// call-sites mark their start/end; the strip shows the last three, so
+/// the photo taken at freeze time names the culprit.
+class TvDiag {
+  TvDiag._();
+
+  static final ValueNotifier<String> marks = ValueNotifier('');
+  static final List<String> _ring = <String>[];
+  static final Stopwatch _clock = Stopwatch()..start();
+
+  /// No-op unless the diag build is active.
+  static void mark(String name) {
+    if (!kTvDiag) return;
+    final t = (_clock.elapsedMilliseconds / 1000).toStringAsFixed(1);
+    _ring.add('$name@${t}s');
+    if (_ring.length > 3) _ring.removeAt(0);
+    marks.value = _ring.join(' > ');
+  }
+}
+
 /// Tiny always-on-top diagnostic strip for TV field debugging.
 ///
 /// The Philips test TV has no working adb and silent kills leave nothing
@@ -64,8 +86,10 @@ class _TvDiagOverlayState extends State<TvDiagOverlay> {
   Widget build(BuildContext context) {
     final rssMb = (ProcessInfo.currentRss / (1 << 20)).round();
     final up = _uptime.elapsed;
+    final marks = TvDiag.marks.value;
     final text = 'DIAG ${up.inSeconds}s  f=$_frames  rss=${rssMb}M'
-        '${_lastError.isEmpty ? '' : '  err=${_lastError.substring(0, _lastError.length > 60 ? 60 : _lastError.length)}'}';
+        '${marks.isEmpty ? '' : '\n$marks'}'
+        '${_lastError.isEmpty ? '' : '\nerr=${_lastError.substring(0, _lastError.length > 60 ? 60 : _lastError.length)}'}';
     return IgnorePointer(
       child: Align(
         alignment: Alignment.topLeft,
