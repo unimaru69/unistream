@@ -63,6 +63,13 @@ android {
 
     buildTypes {
         release {
+            // R8 runs on release builds and renames classes that native
+            // code resolves by name through JNI (libVLC, media_kit) —
+            // see proguard-rules.pro for the crash this prevents.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
