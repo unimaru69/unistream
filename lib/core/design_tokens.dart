@@ -41,31 +41,33 @@ class _Spacing {
   final double huge = 96;
 }
 
-/// Screen-edge / section paddings.
-///
-/// Desktop / phone use denser figures because the user sits close to the
-/// screen and a 60-pt margin would feel wasteful. On **Android TV** the
-/// values open up to the tvOS 10-foot density (Swift uses 60/40/60) — the
-/// wider screen-edge padding also keeps content inside the TV overscan
-/// safe area on older sets. Switched at runtime via [FormFactorInfo].
+/// Screen-edge / section paddings. Uniform across platforms — see the
+/// Android TV note inside the class.
 class _Padding {
   const _Padding();
 
+  // NOTE (Android TV): these deliberately do NOT inflate on TV anymore.
+  // Real TVs report ~320 dpi (devicePixelRatio 2), so a 1080p panel is
+  // only ~960 logical px wide — half a desktop window. Doubling paddings
+  // there made everything read as oversized and cost grid columns
+  // ("tout est un peu gros" from the field test). The 10-foot legibility
+  // comes from the thicker focus ring + the panel's own scaling instead.
+
   /// Horizontal padding for full-width screens.
-  double get screenHorizontal => FormFactorInfo.isAndroidTv ? 48 : 24;
+  final double screenHorizontal = 24;
 
   /// Horizontal padding inside split-view detail panes.
-  double get detailHorizontal => FormFactorInfo.isAndroidTv ? 40 : 20;
+  final double detailHorizontal = 20;
 
   /// Top padding below the app bar / nav title.
-  double get contentTop => FormFactorInfo.isAndroidTv ? 32 : 16;
+  final double contentTop = 16;
 
   /// Bottom padding at the end of a scrollable screen.
-  double get contentBottom => FormFactorInfo.isAndroidTv ? 48 : 32;
+  final double contentBottom = 32;
 
   /// Vertical breathing room between major sections (hero → row,
   /// row → row). Matches Swift's `DS.Padding.sectionGap`.
-  double get sectionGap => FormFactorInfo.isAndroidTv ? 56 : 48;
+  final double sectionGap = 48;
 }
 
 /// Corner radii. Mirrors `DS.Radius` (Swift).

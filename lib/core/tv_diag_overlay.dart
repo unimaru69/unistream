@@ -87,7 +87,14 @@ class _TvDiagOverlayState extends State<TvDiagOverlay> {
     final rssMb = (ProcessInfo.currentRss / (1 << 20)).round();
     final up = _uptime.elapsed;
     final marks = TvDiag.marks.value;
+    // Logical size + dpr: TVs often report 320 dpi (dpr 2.0), halving the
+    // logical canvas to 960x540 — everything then renders twice as big
+    // and grids lose columns. Needed to explain "tout est un peu gros".
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width.round();
+    final dpr = mq.devicePixelRatio.toStringAsFixed(1);
     final text = 'DIAG ${up.inSeconds}s  f=$_frames  rss=${rssMb}M'
+        '  ${w}x${mq.size.height.round()}@$dpr'
         '${marks.isEmpty ? '' : '\n$marks'}'
         '${_lastError.isEmpty ? '' : '\nerr=${_lastError.substring(0, _lastError.length > 60 ? 60 : _lastError.length)}'}';
     return IgnorePointer(

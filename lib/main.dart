@@ -147,9 +147,15 @@ void main() async {
   if (!Platform.isIOS) {
     try {
       MediaKit.ensureInitialized();
+      TvDiag.mark('mkOK');
     } catch (e, st) {
-      AppLogger.warning(LogModule.player,
-          'MediaKit init failed — continuing without it', error: e, stackTrace: st);
+      // NEVER swallow this silently: a failed libmpv init makes every
+      // playback throw "MediaKit.ensureInitialized must be called
+      // before" much later, with no clue why (exactly what the Philips
+      // TV showed). Surface it in the diag strip AND to Sentry.
+      TvDiag.mark('mkFAIL:${e.toString().split('\n').first}');
+      AppLogger.error(LogModule.player,
+          'MediaKit init FAILED — playback will not work', error: e, stackTrace: st);
     }
   }
   if (kDemoMode && kDemoLandscape) {

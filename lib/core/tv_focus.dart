@@ -116,12 +116,45 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     });
   }
 
+  /// Vertical traversal with a reading-order fallback.
+  ///
+  /// Field report: from the first content row the D-pad could not climb
+  /// back to the app bar — geometric `focusInDirection` finds nothing
+  /// (the row's tiles and the app bar don't overlap horizontally the way
+  /// the policy expects) and the user is stranded. We sit above the
+  /// leaves but below `WidgetsApp`'s default shortcuts, so text fields
+  /// (TvArrowEscape) still consume arrows first; anything reaching us
+  /// gets geometry-first, then reading order.
+  KeyEventResult _onVerticalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final isDown = key == LogicalKeyboardKey.arrowDown;
+    final isUp = key == LogicalKeyboardKey.arrowUp;
+    if (!isDown && !isUp) return KeyEventResult.ignored;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null) return KeyEventResult.ignored;
+    final moved = primary.focusInDirection(
+      isDown ? TraversalDirection.down : TraversalDirection.up,
+    );
+    if (moved) return KeyEventResult.handled;
+    return (isDown ? primary.nextFocus() : primary.previousFocus())
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!FormFactorInfo.isAndroidTv) return widget.child;
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
-      child: widget.child,
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: _onVerticalKey,
+        child: widget.child,
+      ),
     );
   }
 }
