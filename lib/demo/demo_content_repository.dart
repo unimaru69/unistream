@@ -45,6 +45,23 @@ class DemoContentRepository extends ContentRepository {
   @override
   void loadServerTimezone() {}
 
+  // Demo data is tiny — no isolate reduction needed, just mirror the
+  // shape the Home screen expects from the real repository.
+  @override
+  Future<List<dynamic>> getRecentCatalog({int max = 60}) async {
+    final all = <dynamic>[
+      ...await getVodStreams(),
+      ...await getSeries(),
+    ];
+    return all.take(max).toList();
+  }
+
+  @override
+  Future<List<Channel>> getCatchupChannels({int max = 15}) async {
+    final channels = await getLiveStreams();
+    return channels.where((c) => c.hasCatchup).take(max).toList();
+  }
+
   // ── Categories ──
 
   @override

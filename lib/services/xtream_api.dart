@@ -126,6 +126,48 @@ class _StreamCacheEntry {
   _StreamCacheEntry(this.data, this.timestamp);
 }
 
+
+// ── Isolate-side catalog reducers (Android TV memory survival) ──
+//
+// The Home screen used to pull the FULL vod + series + live lists in
+// parallel just to build the hero, "recently added" and catch-up rows.
+// On a real provider that's tens of thousands of objects materialised at
+// once on the main isolate — the invisible memory spike that got the app
+// SIGKILLed on a 1 GB armv7 TV (the diag strip froze mid-load, so the
+// last rss it showed was never the peak).
+//
+// These run inside `compute`: they decode, reduce, and hand back only a
+// small list, so the big graph is born and dies in the worker isolate.
+
+int _recencyOf(dynamic e) {
+  if (e is! Map) return 0;
+  final added = int.tryParse('${e['added'] ?? 0}') ?? 0;
+  final mod = int.tryParse('${e['last_modified'] ?? 0}') ?? 0;
+  return added > mod ? added : mod;
+}
+
+/// Decode + keep only the [_TrimArgs.max] most recently added entries.
+List<dynamic> _decodeTrimRecent(_TrimArgs args) {
+  final list = jsonDecode(args.body) as List<dynamic>;
+  list.sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+  return list.take(args.max).toList();
+}
+
+/// Decode + keep only catch-up-capable channels (tv_archive == 1).
+List<dynamic> _decodeCatchupChannels(_TrimArgs args) {
+  final list = jsonDecode(args.body) as List<dynamic>;
+  return list
+      .where((e) => e is Map && '${e['tv_archive']}' == '1')
+      .take(args.max)
+      .toList();
+}
+
+class _TrimArgs {
+  const _TrimArgs(this.body, this.max);
+  final String body;
+  final int max;
+}
+
 // ── API Xtream Codes ──
 class XtreamApi {
   /// Load retry configuration from SharedPreferences.
@@ -358,6 +400,52 @@ class XtreamApi {
   static Future<List<Channel>> getLiveStreamsTyped([String? catId, bool force = false]) async {
     final list = await getLiveStreams(catId, force);
     return list.map((e) => Channel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+
+  /// Most recently added VOD + series, reduced inside a worker isolate.
+  /// Feeds the Accueil hero + "Recently added" row without ever holding
+  /// the whole catalog on the main isolate.
+  static Future<List<dynamic>> getRecentCatalog({int max = 60}) async {
+    final out = <dynamic>[];
+    // Sequential, not Future.wait: on a memory-starved TV two multi-MB
+    // payloads in flight at once is exactly the spike we're avoiding.
+    for (final action in <String>['get_vod_streams', 'get_series']) {
+      try {
+        final body = (await httpGet('$baseUrl&action=$action')).body;
+        final trimmed = await compute(_decodeTrimRecent, _TrimArgs(body, max));
+        out.addAll(trimmed);
+      } catch (e, st) {
+        AppLogger.warning(LogModule.api, 'getRecentCatalog($action) failed',
+            error: e, stackTrace: st);
+      }
+    }
+    out.sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+    // Type only the survivors (≤ max), so the freezed objects never exist
+    // at catalog scale. Series carry `series_id`, films `stream_id`.
+    return out.take(max).map<dynamic>((e) {
+      final m = e as Map<String, dynamic>;
+      return m.containsKey('series_id')
+          ? SeriesItem.fromJson(m)
+          : VodItem.fromJson(m);
+    }).toList();
+  }
+
+  /// Catch-up-capable live channels only, reduced inside a worker isolate.
+  static Future<List<Channel>> getCatchupChannels({int max = 15}) async {
+    try {
+      final body =
+          (await httpGet('$baseUrl&action=get_live_streams')).body;
+      final trimmed =
+          await compute(_decodeCatchupChannels, _TrimArgs(body, max));
+      return trimmed
+          .map((e) => Channel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'getCatchupChannels failed',
+          error: e, stackTrace: st);
+      return <Channel>[];
+    }
   }
 
   static Future<List<dynamic>> getVodCategories() async =>

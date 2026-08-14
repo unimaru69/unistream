@@ -617,13 +617,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     TvDiag.mark('featured');
     AppLogger.debug(LogModule.ui, 'Loading Accueil featured items…');
     try {
-      final results = await Future.wait<List<dynamic>>(<Future<List<dynamic>>>[
-        _repo.getVodStreams().then((v) => v.cast<dynamic>()),
-        _repo.getSeries().then((s) => s.cast<dynamic>()),
-      ]);
-      final vodCount = results[0].length;
-      final seriesCount = results[1].length;
-      final all = <dynamic>[...results[0], ...results[1]];
+      // Reduced inside a worker isolate: the hero + Recently Added rows
+      // only ever show a handful of items, but this used to pull the FULL
+      // vod AND series lists in parallel — the memory spike that killed
+      // the app on 1 GB Android TV boxes.
+      final all = await _repo.getRecentCatalog(max: 60);
+      final vodCount = all.whereType<VodItem>().length;
+      final seriesCount = all.whereType<SeriesItem>().length;
       int recencyKey(dynamic it) {
         final added = (it is VodItem
                 ? it.added
@@ -694,9 +694,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
     try {
-      // Get all live channels to find catch-up enabled ones
-      final allChannels = await _repo.getLiveStreams();
-      final catchupChannels = allChannels.where((ch) => ch.hasCatchup).take(15).toList();
+      // Filtered inside a worker isolate — pulling every live channel here
+      // just to find the catch-up ones was part of the startup spike.
+      final catchupChannels = await _repo.getCatchupChannels(max: 15);
       if (catchupChannels.isEmpty) return;
 
       final now = DateTime.now().toUtc();
