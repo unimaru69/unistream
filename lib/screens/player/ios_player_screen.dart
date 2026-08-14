@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 import '../../core/colors.dart';
+import '../../core/tv_diag_overlay.dart';
 import '../../core/logger.dart';
 import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
@@ -124,6 +125,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   }
 
   void _initPlayer() {
+    TvDiag.mark('vlcInit');
     // Options mirror the flutter_vlc_player example for IPTV-style streams:
     // hardware decoding, network caching to absorb jitter, and HTTP reconnect
     // so transient drops don't kill playback.
@@ -151,6 +153,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     // Some streams don't autoplay reliably; force play once the platform
     // view is ready.
     c.addOnInitListener(() async {
+      TvDiag.mark('vlcReady');
       try {
         await c.play();
       } catch (_) {/* ignore — listener will surface real errors */}

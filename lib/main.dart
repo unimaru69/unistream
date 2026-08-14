@@ -140,6 +140,32 @@ void showMiniOverlay(MiniPlayerState state) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // MUST come before any FormFactorInfo.isAndroidTv read below: the flag
+  // is resolved by a platform channel, so it stays false until this
+  // await completes. Ordering this after the media_kit block was a real
+  // bug — the TV skip never applied and libmpv was still loaded there.
+  // Resolve Android TV / leanback once so the UI can switch to the
+  // 10-foot density + D-pad focus synchronously from here on. No-op
+  // off Android. Timeout-guarded so a stuck platform channel can't
+  // block the first frame.
+  await FormFactorInfo.ensureInitialized()
+      .timeout(const Duration(seconds: 4), onTimeout: () {});
+  if (FormFactorInfo.isAndroidTv) {
+    // Android defaults the focus highlight mode to `touch`, so
+    // `onShowFocusHighlight` never fires and the focused tile shows no
+    // ring until the first key press. Force the desktop/TV behaviour so
+    // D-pad focus is visible from the first frame.
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+    // Memory guard: TV boxes are 32-bit with ~1 GB shared RAM, and the
+    // decoded-image cache defaults to 100 MB — poster grids fill it
+    // within seconds of the first real catalog load, and the low-memory
+    // killer takes the app down silently (no Sentry event). Cap it hard;
+    // tiles re-decode from the disk cache when evicted, which is fine
+    // at 10-foot browsing speed.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
+  }
+
   // media_kit wraps libmpv, which crashes at init on iOS (EXC_BAD_ACCESS
   // in the DartWorker thread). Until we wire the iOS player to AVPlayer
   // via `video_player`, skip the global init so the UI still boots on
@@ -150,7 +176,10 @@ void main() async {
   // find libmpv.so" (confirmed on a Philips Android 8 TV via the diag
   // strip). Those devices play through libVLC instead, which only needs
   // EGL/GLESv2 (verified with readelf on the packaged libvlc.so).
-  if (!Platform.isIOS && !FormFactorInfo.isAndroidTv) {
+  if (Platform.isIOS || FormFactorInfo.isAndroidTv) {
+    // Visible confirmation in the diag strip that the skip really applied.
+    TvDiag.mark('mkSKIP');
+  } else {
     try {
       MediaKit.ensureInitialized();
       TvDiag.mark('mkOK');
@@ -186,28 +215,6 @@ void main() async {
     );
   }
   await AppConfig.load();
-
-  // Resolve Android TV / leanback once so the UI can switch to the
-  // 10-foot density + D-pad focus synchronously from here on. No-op
-  // off Android. Timeout-guarded so a stuck platform channel can't
-  // block the first frame.
-  await FormFactorInfo.ensureInitialized()
-      .timeout(const Duration(seconds: 4), onTimeout: () {});
-  if (FormFactorInfo.isAndroidTv) {
-    // Android defaults the focus highlight mode to `touch`, so
-    // `onShowFocusHighlight` never fires and the focused tile shows no
-    // ring until the first key press. Force the desktop/TV behaviour so
-    // D-pad focus is visible from the first frame.
-    FocusManager.instance.highlightStrategy =
-        FocusHighlightStrategy.alwaysTraditional;
-    // Memory guard: TV boxes are 32-bit with ~1 GB shared RAM, and the
-    // decoded-image cache defaults to 100 MB — poster grids fill it
-    // within seconds of the first real catalog load, and the low-memory
-    // killer takes the app down silently (no Sentry event). Cap it hard;
-    // tiles re-decode from the disk cache when evicted, which is fine
-    // at 10-foot browsing speed.
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
-  }
 
   // Rehydrate the in-memory EPG cache from disk. Without this the
   // first scroll on the Live grid fires hundreds of get_short_epg
