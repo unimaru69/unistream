@@ -84,7 +84,11 @@ class PlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
+    // libVLC path: iOS (libmpv crashes at init there) AND Android TV
+    // (libmpv needs libvulkan.so, absent on GLES2-era TV GPUs). Despite
+    // its name, IOSPlayerScreen is a plain libVLC screen with no
+    // iOS-specific code.
+    if (Platform.isIOS || FormFactorInfo.isAndroidTv) {
       return IOSPlayerScreen(
         url: url,
         title: title,

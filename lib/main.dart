@@ -144,7 +144,13 @@ void main() async {
   // in the DartWorker thread). Until we wire the iOS player to AVPlayer
   // via `video_player`, skip the global init so the UI still boots on
   // iPhone / iPad. Playback will be a no-op on those platforms.
-  if (!Platform.isIOS) {
+  // Android TV also skips libmpv: its prebuilt libmpv.so links against
+  // libvulkan.so, which 2018-19 TV panels (GLES2-class GPUs) simply don't
+  // ship — dlopen fails, and media_kit reports the misleading "Cannot
+  // find libmpv.so" (confirmed on a Philips Android 8 TV via the diag
+  // strip). Those devices play through libVLC instead, which only needs
+  // EGL/GLESv2 (verified with readelf on the packaged libvlc.so).
+  if (!Platform.isIOS && !FormFactorInfo.isAndroidTv) {
     try {
       MediaKit.ensureInitialized();
       TvDiag.mark('mkOK');
