@@ -23,6 +23,7 @@ import '../utils/snackbar_helper.dart';
 import '../utils/title_formatting.dart';
 import '../widgets/hero_buttons.dart';
 import '../widgets/dpad_focusable.dart';
+import '../core/tv_focus.dart';
 import '../widgets/plex_backdrop.dart';
 import 'home/widgets/collection_dialogs.dart';
 import '../widgets/skeleton_list.dart';
@@ -413,7 +414,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
 
     final cta = _primaryCta(progress);
 
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       backgroundColor: AppColors.darkBackground,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -504,6 +506,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

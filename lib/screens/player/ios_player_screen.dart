@@ -9,6 +9,7 @@ import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 import '../../core/colors.dart';
 import '../../core/tv_diag_overlay.dart';
+import '../../core/tv_focus.dart';
 import '../../core/logger.dart';
 import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
@@ -126,6 +127,9 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
 
   void _initPlayer() {
     TvDiag.mark('vlcInit');
+    // Native surface incoming: stop scaling the Flutter tree (see
+    // tvUiScaleEnabled). Restored in dispose().
+    tvUiScaleEnabled.value = false;
     // Options mirror the flutter_vlc_player example for IPTV-style streams:
     // hardware decoding, network caching to absorb jitter, and HTTP reconnect
     // so transient drops don't kill playback.
@@ -310,6 +314,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
       try { c.stop(); } catch (_) {}
       try { c.dispose(); } catch (_) {}
     }
+    tvUiScaleEnabled.value = true;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();

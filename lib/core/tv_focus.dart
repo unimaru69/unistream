@@ -364,6 +364,17 @@ class _TvArrowEscapeState extends State<TvArrowEscape> {
 /// window. Text, paddings and tile counts all fall back into their
 /// intended proportions; nothing in the app has to know about it.
 /// No-op off Android TV, and off when the panel is already wide enough.
+/// Global kill-switch for [TvUiScale].
+///
+/// Screens hosting a native PlatformView — the libVLC player — turn this
+/// off while they are visible. A PlatformView composited under a
+/// FittedBox/Transform is a known source of trouble on Android (the
+/// native surface is not part of the Flutter layer being scaled), and on
+/// the test TV it coincided with stuttering video and crashes when
+/// leaving playback. Video is full-screen anyway, so it has nothing to
+/// gain from the scaled canvas.
+final ValueNotifier<bool> tvUiScaleEnabled = ValueNotifier<bool>(true);
+
 class TvUiScale extends StatelessWidget {
   const TvUiScale({super.key, required this.child, this.targetWidth = 1280});
 
@@ -373,6 +384,14 @@ class TvUiScale extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!FormFactorInfo.isAndroidTv) return child;
+    return ValueListenableBuilder<bool>(
+      valueListenable: tvUiScaleEnabled,
+      builder: (context, enabled, _) =>
+          enabled ? _scaled(context) : child,
+    );
+  }
+
+  Widget _scaled(BuildContext context) {
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     if (w <= 0 || w >= targetWidth) return child;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../core/design_tokens.dart';
 import '../../core/typography.dart';
 import '../../l10n/app_localizations.dart';
@@ -213,7 +214,8 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
     final cleanedTitle = vod.name.cleanedTitleNoYear;
     final fallbackTitle = cleanedTitle.isEmpty ? l10n.sansTitre : cleanedTitle;
 
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       backgroundColor: AppColors.darkBackground,
       extendBodyBehindAppBar: true,
       // Transparent app bar — backdrop bleeds behind. Only purpose is
@@ -295,6 +297,7 @@ class _VodDetailScreenState extends ConsumerState<VodDetailScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }
