@@ -13,6 +13,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/logger.dart';
 import 'core/form_factor.dart';
 import 'core/tv_diag_overlay.dart';
+import 'core/tv_focus.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
@@ -628,7 +629,10 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         // No-op unless built with --dart-define=TVDIAG=true on Android TV.
-        builder: (context, child) => withTvDiagOverlay(child!),
+        // TvUiScale first (gives TV a 1280-wide logical canvas), diag
+        // strip on top so it stays readable at panel scale.
+        builder: (context, child) =>
+            withTvDiagOverlay(TvUiScale(child: child!)),
         home: const AuthGate(),
       ),
     );

@@ -315,10 +315,64 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     super.dispose();
   }
 
+
+  /// Remote-control keys for the libVLC screen.
+  ///
+  /// The controls were tap-only (built for iOS), so on a TV the overlay
+  /// could never be summoned: playback started and nothing but Back
+  /// worked. OK reveals the controls, then acts as play/pause; left/right
+  /// seek on VOD; any arrow keeps the overlay awake.
+  KeyEventResult _onRemoteKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final k = event.logicalKey;
+
+    if (k == LogicalKeyboardKey.select ||
+        k == LogicalKeyboardKey.enter ||
+        k == LogicalKeyboardKey.numpadEnter ||
+        k == LogicalKeyboardKey.space ||
+        k == LogicalKeyboardKey.mediaPlayPause ||
+        k == LogicalKeyboardKey.mediaPlay ||
+        k == LogicalKeyboardKey.mediaPause) {
+      // First press surfaces the (auto-hidden) overlay; once visible, OK
+      // means play/pause — the behaviour every TV app has.
+      if (!_showControls) {
+        _toggleControls();
+      } else {
+        _togglePlay();
+      }
+      return KeyEventResult.handled;
+    }
+
+    final isLeft = k == LogicalKeyboardKey.arrowLeft ||
+        k == LogicalKeyboardKey.mediaRewind;
+    final isRight = k == LogicalKeyboardKey.arrowRight ||
+        k == LogicalKeyboardKey.mediaFastForward;
+    if ((isLeft || isRight) && !_isLiveMode) {
+      _seekRelative(Duration(seconds: isRight ? 10 : -10));
+      if (!_showControls) setState(() => _showControls = true);
+      _scheduleHideControls();
+      return KeyEventResult.handled;
+    }
+
+    if (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown) {
+      if (!_showControls) {
+        _toggleControls();
+        return KeyEventResult.handled;
+      }
+      _scheduleHideControls();
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _controller;
-    return Scaffold(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onRemoteKey,
+      child: Scaffold(
       backgroundColor: Colors.black,
       // No outer GestureDetector — VLC's native UIView swallows taps before
       // they reach an ancestor. Instead we put a transparent tap-catcher
@@ -373,6 +427,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
             ),
         ],
       ),
+    ),
     );
   }
 

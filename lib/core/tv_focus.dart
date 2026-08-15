@@ -135,13 +135,28 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     if (!isDown && !isUp) return KeyEventResult.ignored;
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null) return KeyEventResult.ignored;
+    final before = primary.rect;
     final moved = primary.focusInDirection(
       isDown ? TraversalDirection.down : TraversalDirection.up,
     );
     if (moved) return KeyEventResult.handled;
-    return (isDown ? primary.nextFocus() : primary.previousFocus())
-        ? KeyEventResult.handled
-        : KeyEventResult.ignored;
+
+    // Geometry found nothing: fall back to reading order so the remote
+    // can still climb out of a row into the app bar…
+    final ok = isDown ? primary.nextFocus() : primary.previousFocus();
+    if (!ok) return KeyEventResult.ignored;
+
+    // …but reading order WRAPS at the ends, which on TV reads as "I press
+    // up at the top and land at the bottom of the page" (field report).
+    // If the new focus went the wrong way vertically, undo it and stay
+    // put — hitting the edge should simply do nothing.
+    final after = FocusManager.instance.primaryFocus;
+    final wrapped = after == null ||
+        (isDown ? after.rect.top < before.top : after.rect.top > before.top);
+    if (wrapped) {
+      primary.requestFocus();
+    }
+    return KeyEventResult.handled;
   }
 
   @override
@@ -332,6 +347,56 @@ class _TvArrowEscapeState extends State<TvArrowEscape> {
           ),
         ),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Gives Android TV a desktop-sized logical canvas.
+///
+/// TV panels report ~320 dpi, so a 1080p screen hands Flutter only
+/// 960x540 logical pixels — the app's layouts were designed around
+/// ~1280+, so on TV everything renders oversized and grids lose columns
+/// ("tout est un peu gros", confirmed by the diag strip's `960x540@2.0`).
+///
+/// This re-declares the canvas at [targetWidth] logical pixels and scales
+/// the whole tree down to fit, exactly like running the app in a wider
+/// window. Text, paddings and tile counts all fall back into their
+/// intended proportions; nothing in the app has to know about it.
+/// No-op off Android TV, and off when the panel is already wide enough.
+class TvUiScale extends StatelessWidget {
+  const TvUiScale({super.key, required this.child, this.targetWidth = 1280});
+
+  final Widget child;
+  final double targetWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!FormFactorInfo.isAndroidTv) return child;
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    if (w <= 0 || w >= targetWidth) return child;
+    final scale = w / targetWidth;
+    final logical = Size(targetWidth, mq.size.height / scale);
+    return MediaQuery(
+      // Report the enlarged canvas so layout code (and MediaQuery-driven
+      // breakpoints) reason in the scaled space, and compensate the
+      // device pixel ratio so image decode sizes stay physically correct.
+      data: mq.copyWith(
+        size: logical,
+        devicePixelRatio: mq.devicePixelRatio * scale,
+        padding: EdgeInsets.zero,
+        viewPadding: EdgeInsets.zero,
+        viewInsets: EdgeInsets.zero,
+      ),
+      child: FittedBox(
+        fit: BoxFit.fill,
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: logical.width,
+          height: logical.height,
+          child: child,
+        ),
       ),
     );
   }
