@@ -349,6 +349,11 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
         k == LogicalKeyboardKey.mediaPlayPause ||
         k == LogicalKeyboardKey.mediaPlay ||
         k == LogicalKeyboardKey.mediaPause) {
+      // Held keys repeat: acting on every repeat turned one long press on
+      // OK into ~20 play/pause flips a second on the test box. Repeats are
+      // meaningful for seeking (below), never for a toggle — same split as
+      // player_keyboard_handler.dart.
+      if (event is KeyRepeatEvent) return KeyEventResult.handled;
       // First press surfaces the (auto-hidden) overlay; once visible, OK
       // means play/pause — the behaviour every TV app has.
       if (!_showControls) {
