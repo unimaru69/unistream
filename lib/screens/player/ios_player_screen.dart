@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 import '../../core/colors.dart';
+import '../../core/form_factor.dart';
 import '../../core/tv_diag_overlay.dart';
 import '../../core/tv_focus.dart';
 import '../../core/logger.dart';
@@ -135,6 +136,10 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     // so transient drops don't kill playback.
     final c = VlcPlayerController.network(
       widget.url,
+      // Direct rendering: the decoder writes straight to the SurfaceView
+      // libVLC is attached to (see VLCSurfaceView). `decoding`
+      // (`:no-mediacodec-dr`) copies every frame out instead, which on the
+      // Skyworth box bought nothing and audibly choked the audio.
       hwAcc: HwAcc.full,
       autoPlay: true,
       // Subtitle sizing (`--freetype-rel-fontsize=20`) lives in our
@@ -216,8 +221,12 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
           'size=${v.size} '
           'pos=${v.position.inMilliseconds}ms '
           'err=${v.errorDescription}');
-      if (kDebugMode) {
-        // Direct print for `flutter run` console clarity.
+      if (kDebugMode || FormFactorInfo.isAndroidTv) {
+        // Direct print for `flutter run` console clarity — and on TV, the
+        // only way to see anything at all: AppLogger goes through the
+        // `logger` package, whose default filter drops everything in
+        // release builds, so `adb logcat` shows nothing on a sideloaded
+        // APK. print() lands in logcat as I/flutter either way.
         // ignore: avoid_print
         print('[VLC] state=${v.playingState.name} init=${v.isInitialized} '
             'playing=${v.isPlaying} buf=${v.isBuffering} '
@@ -391,6 +400,15 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
               child: VlcPlayer(
                 controller: c,
                 aspectRatio: _aspectRatio(c),
+                // Default (true) builds an AndroidView in virtual-display
+                // mode. On the Skyworth/Amlogic box that froze Flutter
+                // outright: the moment this screen opened, frame
+                // production stopped dead (`dumpsys gfxinfo` stuck on the
+                // same total across seconds) and the whole screen went
+                // black — DIAG overlay included, so not a video problem.
+                // `false` switches to initSurfaceAndroidView (hybrid
+                // composition): the player gets a real native SurfaceView.
+                virtualDisplay: !FormFactorInfo.isAndroidTv,
                 // Our own loading overlay handles the "Connexion…" UI;
                 // VLC's built-in spinner would make it a double spinner.
                 placeholder: const SizedBox.shrink(),

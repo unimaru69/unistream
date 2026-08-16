@@ -20,6 +20,7 @@ import android.view.View;
 
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.platform.PlatformView;
 import io.flutter.view.TextureRegistry;
 import software.solid.fluttervlcplayer.Enums.HwAcc;
@@ -37,14 +38,18 @@ final class FlutterVlcPlayer implements PlatformView {
     private final boolean debug = false;
     //
     private final Context context;
-    private final VLCTextureView textureView;
-    private final TextureRegistry.SurfaceTextureEntry textureEntry;
+    // SurfaceView, not TextureView: see VLCSurfaceView for why the
+    // texture path cannot work on Amlogic-based TV boxes.
+    private final VLCSurfaceView surfaceView;
     //
     private final QueuingEventSink mediaEventSink = new QueuingEventSink();
     private final EventChannel mediaEventChannel;
     //
     private final QueuingEventSink rendererEventSink = new QueuingEventSink();
     private final EventChannel rendererEventChannel;
+    // Answers the Dart side's "should I draw a Texture?" query — see the
+    // constructor. Null here: this implementation uses a SurfaceView.
+    private final MethodChannel textureIdChannel;
     //
     private LibVLC libVLC;
     private MediaPlayer mediaPlayer;
@@ -56,7 +61,7 @@ final class FlutterVlcPlayer implements PlatformView {
     // Platform view
     @Override
     public View getView() {
-        return textureView;
+        return surfaceView;
     }
 
     @Override
@@ -64,10 +69,10 @@ final class FlutterVlcPlayer implements PlatformView {
         if (isDisposed)
             return;
         //
-        textureView.dispose();
-        textureEntry.release();
+        surfaceView.dispose();
         mediaEventChannel.setStreamHandler(null);
         rendererEventChannel.setStreamHandler(null);
+        textureIdChannel.setMethodCallHandler(null);
         if (mediaPlayer != null) {
             mediaPlayer.stop();
             mediaPlayer.setEventListener(null);
@@ -114,11 +119,25 @@ final class FlutterVlcPlayer implements PlatformView {
                     }
                 });
         //
-        textureEntry = textureRegistry.createSurfaceTexture();
-        textureView = new VLCTextureView(context);
-        textureView.setSurfaceTexture(textureEntry.surfaceTexture());
-        textureView.forceLayout();
-        textureView.setFitsSystemWindows(true);
+
+        // Asked by the Dart side to decide whether to present the video
+        // itself through a Texture() widget. This implementation renders to
+        // a SurfaceView instead, so it answers null and the widget leaves
+        // the platform view alone.
+        textureIdChannel = new MethodChannel(
+                binaryMessenger, "flutter_video_plugin/getTextureId_" + viewId);
+        textureIdChannel.setMethodCallHandler((call, result) -> {
+            if ("getTextureId".equals(call.method)) {
+                // No texture: video goes to a SurfaceView. Returning null
+                // keeps the Dart side from stacking a Texture() widget —
+                // it would paint black over the video layer.
+                result.success(null);
+            } else {
+                result.notImplemented();
+            }
+        });
+        surfaceView = new VLCSurfaceView(context);
+        surfaceView.setFitsSystemWindows(true);
     }
 
     // private Uri getStreamUri(String streamPath, boolean isLocal) {
@@ -135,11 +154,9 @@ final class FlutterVlcPlayer implements PlatformView {
     private void setupVlcMediaPlayer() {
 
         //
-        mediaPlayer.getVLCVout().setWindowSize(textureView.getWidth(), textureView.getHeight());
-        mediaPlayer.getVLCVout().setVideoSurface(textureView.getSurfaceTexture());
-        textureView.setTextureEntry(textureEntry);
-        textureView.setMediaPlayer(mediaPlayer);
-        mediaPlayer.setVideoTrackEnabled(true);
+        // The view attaches libVLC to its holder as soon as the surface
+        // exists — see VLCSurfaceView.attachIfReady.
+        surfaceView.setMediaPlayer(mediaPlayer);
         //
         mediaPlayer.setEventListener(
                 new MediaPlayer.EventListener() {
@@ -634,12 +651,9 @@ final class FlutterVlcPlayer implements PlatformView {
     }
 
     String getSnapshot() {
-        if (textureView == null) return "";
-
-        Bitmap bitmap = textureView.getBitmap();
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-        return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP);
+        // Unsupported on the SurfaceView path: a SurfaceView's pixels live
+        // on their own hardware layer and cannot be read back from the app.
+        return "";
     }
 
     Boolean startRecording(String directory) {
