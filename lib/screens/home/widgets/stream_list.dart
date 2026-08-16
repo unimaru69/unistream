@@ -515,41 +515,114 @@ class _StreamListViewState extends State<StreamListView> {
         // between tiles; gaining focus drives the SAME preview panel as
         // hover, and the focused tile is scrolled into view. Enter /
         // Space / DPAD-center activate it.
-        return FocusableActionDetector(
+        return _GridFocusable(
           // Seed the D-pad with a starting point: the first tile grabs
           // focus when the grid first builds on Android TV.
           autofocus: FormFactorInfo.isAndroidTv && i == 0,
-          actions: <Type, Action<Intent>>{
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                onActivate();
-                return null;
-              },
-            ),
-          },
-          shortcuts: const <ShortcutActivator, Intent>{
-            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-            SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
-            SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-          },
-          onShowFocusHighlight: (focused) {
-            widget.onItemHover?.call(s, focused);
-            if (focused) {
-              // Keep the focused tile fully on-screen as the D-pad walks
-              // the grid. alignment 0.5 centers it vertically.
-              Scrollable.ensureVisible(
-                context,
-                alignment: 0.5,
-                duration: DS.motion.quick,
-                curve: Curves.easeOut,
-              );
-            }
-          },
+          onActivate: onActivate,
+          onFocusChange: (focused) => widget.onItemHover?.call(s, focused),
           child: result,
         );
       },
         ),
       );
     });
+  }
+}
+
+/// A grid tile that shows where the D-pad is.
+///
+/// The grid used to wrap tiles in a bare `FocusableActionDetector` whose
+/// only visible effect was the preview panel at the bottom of the screen —
+/// nothing marked the tile itself, so on a TV there was no way to tell
+/// which one was selected. This draws the `DS.focus` treatment (ring,
+/// scale, shadow) the rest of the app already uses for hover.
+///
+/// The focused flag is local state on purpose: a D-pad move then repaints
+/// the two tiles involved instead of the whole grid. That matters on
+/// low-end boxes — on the Skyworth test box a single key press was once
+/// measured taking 2.5 s to process.
+class _GridFocusable extends StatefulWidget {
+  const _GridFocusable({
+    required this.child,
+    required this.onActivate,
+    required this.onFocusChange,
+    required this.autofocus,
+  });
+
+  final Widget child;
+  final VoidCallback onActivate;
+  final ValueChanged<bool> onFocusChange;
+  final bool autofocus;
+
+  @override
+  State<_GridFocusable> createState() => _GridFocusableState();
+}
+
+class _GridFocusableState extends State<_GridFocusable> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusableActionDetector(
+      autofocus: widget.autofocus,
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onActivate();
+            return null;
+          },
+        ),
+      },
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+      },
+      onShowFocusHighlight: (focused) {
+        if (focused != _focused) setState(() => _focused = focused);
+        widget.onFocusChange(focused);
+        if (focused) {
+          // Keep the focused tile fully on-screen as the D-pad walks the
+          // grid. alignment 0.5 centers it vertically.
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.5,
+            duration: DS.motion.quick,
+            curve: Curves.easeOut,
+          );
+        }
+      },
+      child: AnimatedScale(
+        scale: _focused ? DS.focus.cardScale : 1.0,
+        duration: DS.focus.animation,
+        curve: DS.focus.curve,
+        child: AnimatedContainer(
+          duration: DS.focus.animation,
+          curve: DS.focus.curve,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(DS.radius.card),
+            boxShadow: _focused
+                ? <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: DS.focus.shadowOpacity,
+                      ),
+                      blurRadius: DS.focus.shadowRadius,
+                      offset: Offset(0, DS.focus.shadowY),
+                    ),
+                  ]
+                : null,
+            border: Border.all(
+              color: AppColors.primaryBlue.withValues(
+                alpha: _focused ? 0.9 : 0,
+              ),
+              width: DS.focus.ringWidth,
+            ),
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
   }
 }
