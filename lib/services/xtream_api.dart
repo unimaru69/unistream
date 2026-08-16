@@ -316,7 +316,10 @@ class XtreamApi {
   static DateTime Function() streamCacheNow = () => DateTime.now();
 
   static int get streamCacheSize => _streamCache.length;
-  static void clearStreamCache() => _streamCache.clear();
+  static void clearStreamCache() {
+    _streamCache.clear();
+    clearRecentCatalogCache();
+  }
 
   static List<dynamic>? _getStreamCached(String key) {
     final entry = _streamCache[key];
@@ -406,7 +409,92 @@ class XtreamApi {
   /// Most recently added VOD + series, reduced inside a worker isolate.
   /// Feeds the Accueil hero + "Recently added" row without ever holding
   /// the whole catalog on the main isolate.
+  // ── Recent catalog (Accueil hero + Recently Added) ──
+  //
+  // Measured on the Skyworth box: 15.7 s per call, and the home screen
+  // fired two of them concurrently — four multi-MB payloads on the wire
+  // for one hero, which is most of the "the hero takes ten seconds to
+  // appear" report. Two guards below: in-flight coalescing so parallel
+  // callers share one fetch, and a TTL cache so coming back to a screen
+  // doesn't re-download the whole catalogue.
+  static List<dynamic>? _recentCatalog;
+  static DateTime? _recentCatalogAt;
+  static Future<List<dynamic>>? _recentCatalogInFlight;
+  static const Duration _recentCatalogTtl = Duration(minutes: 5);
+
+  static void clearRecentCatalogCache() {
+    _recentCatalog = null;
+    _recentCatalogAt = null;
+  }
+
   static Future<List<dynamic>> getRecentCatalog({int max = 60}) async {
+    final cached = _recentCatalog;
+    final at = _recentCatalogAt;
+    if (cached != null &&
+        at != null &&
+        streamCacheNow().difference(at) < _recentCatalogTtl) {
+      return cached;
+    }
+
+    // Serve yesterday's list now, refresh behind it. The download is
+    // ~14 s on a TV box, and the hero does not exist until it lands —
+    // which is the whole "the hero takes ten seconds to appear" problem.
+    // Stale content on screen instantly beats correct content after
+    // fifteen seconds of blank page.
+    if (cached == null) {
+      final disk = await _loadRecentCatalogFromDisk();
+      if (disk != null && disk.isNotEmpty) {
+        _recentCatalog = disk;
+        // Deliberately NOT stamping _recentCatalogAt: the entry stays
+        // stale, so the refresh below still runs and the next call still
+        // re-validates.
+        unawaited(getRecentCatalog(max: max));
+        return disk;
+      }
+    }
+
+    return _recentCatalogInFlight ??=
+        _fetchRecentCatalog(max).whenComplete(() {
+      _recentCatalogInFlight = null;
+    });
+  }
+
+  static List<dynamic> _typeRecent(List<dynamic> maps) =>
+      maps.map<dynamic>((e) {
+        final m = e as Map<String, dynamic>;
+        return m.containsKey('series_id')
+            ? SeriesItem.fromJson(m)
+            : VodItem.fromJson(m);
+      }).toList();
+
+  static Future<List<dynamic>?> _loadRecentCatalogFromDisk() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw =
+          prefs.getString(StorageKeys.recentCatalog(AppConfig.activeProfileId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = await compute(jsonDecode, raw) as List<dynamic>;
+      return _typeRecent(decoded);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'recent catalog: disk read failed',
+          error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  static Future<void> _saveRecentCatalogToDisk(List<dynamic> maps) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = await compute(jsonEncode, maps);
+      await prefs.setString(
+          StorageKeys.recentCatalog(AppConfig.activeProfileId), encoded);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'recent catalog: disk write failed',
+          error: e, stackTrace: st);
+    }
+  }
+
+  static Future<List<dynamic>> _fetchRecentCatalog(int max) async {
     final out = <dynamic>[];
     // Sequential, not Future.wait: on a memory-starved TV two multi-MB
     // payloads in flight at once is exactly the spike we're avoiding.
@@ -423,12 +511,12 @@ class XtreamApi {
     out.sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
     // Type only the survivors (≤ max), so the freezed objects never exist
     // at catalog scale. Series carry `series_id`, films `stream_id`.
-    return out.take(max).map<dynamic>((e) {
-      final m = e as Map<String, dynamic>;
-      return m.containsKey('series_id')
-          ? SeriesItem.fromJson(m)
-          : VodItem.fromJson(m);
-    }).toList();
+    final survivors = out.take(max).toList();
+    final typed = _typeRecent(survivors);
+    _recentCatalog = typed;
+    _recentCatalogAt = streamCacheNow();
+    unawaited(_saveRecentCatalogToDisk(survivors));
+    return typed;
   }
 
   /// Catch-up-capable live channels only, reduced inside a worker isolate.

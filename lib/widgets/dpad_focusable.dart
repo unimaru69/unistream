@@ -66,6 +66,35 @@ class _DpadFocusableState extends State<DpadFocusable> {
 
   bool get _ringEnabled => widget.tvHighlight && FormFactorInfo.isAndroidTv;
 
+  /// Scroll the focused item fully into view.
+  ///
+  /// The grid already did this per tile; the carousels did not, so
+  /// arrowing up from the grid focused a "Continue watching" card while
+  /// leaving its row half cut off at the top of the viewport. This walks
+  /// every enclosing scrollable, so it fixes both the row's own
+  /// horizontal offset and the page's vertical one.
+  void _ensureVisible() {
+    if (!mounted) return;
+    // Scroll the minimum needed, rather than centring. Centring works for
+    // uniform grid tiles but not here: these wrap items of wildly
+    // different heights, and centring the hero's button pushed the top of
+    // the hero clean out of the viewport ("hero zone coupée" on Films /
+    // Séries, which are the only modes with a hero). The keepVisibleAtStart
+    // / keepVisibleAtEnd pair is the canonical way to say "bring it just
+    // inside" — each is a no-op when the item is already past that edge.
+    for (final policy in const [
+      ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    ]) {
+      Scrollable.ensureVisible(
+        context,
+        alignmentPolicy: policy,
+        duration: DS.motion.quick,
+        curve: DS.focus.curve,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FocusableActionDetector(
@@ -92,6 +121,7 @@ class _DpadFocusableState extends State<DpadFocusable> {
         if (_ringEnabled && focused != _focused) {
           setState(() => _focused = focused);
         }
+        if (focused && FormFactorInfo.isAndroidTv) _ensureVisible();
       },
       // Ring only — no scale, no animation. These wrap items inside
       // fixed-height rows and carousels, where a scale would be clipped

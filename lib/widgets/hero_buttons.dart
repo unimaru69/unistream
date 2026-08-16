@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../core/colors.dart';
 import '../core/design_tokens.dart';
+import '../core/form_factor.dart';
 import '../core/typography.dart';
 
 /// Primary call-to-action used in detail-view hero blocks (VOD, Series).
@@ -262,7 +263,27 @@ class _HeroButtonShell extends StatelessWidget {
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
         onShowHoverHighlight: onHover,
-        onShowFocusHighlight: onFocus,
+        onShowFocusHighlight: (focused) {
+          onFocus(focused);
+          // Scroll into view. The hero lives at the top of the home
+          // scroll view; arrowing up from the rows landed focus here
+          // while it was still scrolled off-screen, so the hero looked
+          // like it was being skipped entirely. Grid tiles already did
+          // this; nothing did it for the hero.
+          if (focused && FormFactorInfo.isAndroidTv) {
+            for (final policy in const [
+              ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+              ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+            ]) {
+              Scrollable.ensureVisible(
+                context,
+                alignmentPolicy: policy,
+                duration: DS.motion.quick,
+                curve: DS.focus.curve,
+              );
+            }
+          }
+        },
         actions: <Type, Action<Intent>>{
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
@@ -274,6 +295,10 @@ class _HeroButtonShell extends StatelessWidget {
         shortcuts: const <ShortcutActivator, Intent>{
           SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
           SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          // D-pad centre. Without it the hero's Play button was focusable
+          // but not activatable from a TV remote — OK sends `select`.
+          SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,

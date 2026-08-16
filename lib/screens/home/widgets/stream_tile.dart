@@ -182,7 +182,28 @@ class StreamGridTile extends StatelessWidget {
                 if (cover.isNotEmpty)
                   Container(
                     color: mode == ContentMode.live ? tc.logoBg : null,
-                    child: networkImage(cover, context: context, mode: mode),
+                    // Hand the decode size down. Without it networkImage
+                    // gets no memCacheWidth/Height and decodes at full
+                    // source resolution: a TMDB w500 poster is ~1.5 MB
+                    // decoded, and 25-30 visible tiles blow straight past
+                    // the 32 MB image cache (main.dart). The cache then
+                    // evicts posters it immediately has to decode again —
+                    // which is what pinned the UI thread and got the app
+                    // ANR-killed while arrowing through the film grid.
+                    // Live was spared: its logos are tiny.
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => networkImage(
+                        cover,
+                        context: context,
+                        width: constraints.maxWidth.isFinite
+                            ? constraints.maxWidth
+                            : null,
+                        height: constraints.maxHeight.isFinite
+                            ? constraints.maxHeight
+                            : null,
+                        mode: mode,
+                      ),
+                    ),
                   )
                 else
                   Container(color: mode == ContentMode.live ? tc.logoBg : tc.inputFill,

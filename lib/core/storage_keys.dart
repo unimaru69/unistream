@@ -113,6 +113,11 @@ class StorageKeys {
   // ── EPG cache persistence ──
   static String epgCache(String profileId) => 'epg_cache_$profileId';
 
+  /// Trimmed recent catalogue (hero + Recently Added), persisted so the
+  /// hero can paint on launch instead of waiting on a multi-MB download.
+  static String recentCatalog(String profileId) =>
+      'recent_catalog_$profileId';
+
   // ── Catalogue refresh ──
   /// When the catalogue was last pulled from the panel. Profile-scoped:
   /// two profiles are two different providers with unrelated catalogues.

@@ -80,6 +80,10 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     super.dispose();
   }
 
+  /// Last node that genuinely held focus, so a heal can put the user
+  /// back where they were instead of at the top of the screen.
+  FocusNode? _lastRealFocus;
+
   bool get _hasRealFocus {
     final pf = FocusManager.instance.primaryFocus;
     return pf != null && pf is! FocusScopeNode && pf.context != null;
@@ -101,6 +105,18 @@ class _TvFocusScopeState extends State<TvFocusScope> {
   /// focusable), and by the heal listener after focus collapses.
   void _seed() {
     if (!mounted || !_routeIsCurrent || _hasRealFocus) return;
+    // Prefer where the user actually was. Healing to the *first*
+    // focusable is what made the remote feel possessed: a backdrop or a
+    // TMDB lookup finishing mid-navigation replaces the focused widget,
+    // focus collapses, and the user is yanked back to the top of the
+    // grid — climbing to the app bar became impossible in practice
+    // because every attempt was reset partway. Only usable if the node
+    // survived the rebuild that dropped focus.
+    final last = _lastRealFocus;
+    if (last != null && last.context != null && last.canRequestFocus) {
+      last.requestFocus();
+      return;
+    }
     FocusScope.of(context).nextFocus();
   }
 
@@ -108,7 +124,12 @@ class _TvFocusScopeState extends State<TvFocusScope> {
   /// focused node), re-plant it on the next frame. Debounced so we don't
   /// fight transient states mid-frame.
   void _onFocusChanged() {
-    if (!mounted || _hasRealFocus || _healScheduled) return;
+    if (!mounted) return;
+    if (_hasRealFocus) {
+      _lastRealFocus = FocusManager.instance.primaryFocus;
+      return;
+    }
+    if (_healScheduled) return;
     _healScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _healScheduled = false;
@@ -116,15 +137,30 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     });
   }
 
-  /// Vertical traversal with a reading-order fallback.
+  /// Vertical traversal for the D-pad.
   ///
-  /// Field report: from the first content row the D-pad could not climb
-  /// back to the app bar — geometric `focusInDirection` finds nothing
-  /// (the row's tiles and the app bar don't overlap horizontally the way
-  /// the policy expects) and the user is stranded. We sit above the
-  /// leaves but below `WidgetsApp`'s default shortcuts, so text fields
-  /// (TvArrowEscape) still consume arrows first; anything reaching us
-  /// gets geometry-first, then reading order.
+  /// Geometric `focusInDirection` alone strands the remote: climbing out
+  /// of a content row towards the app bar finds nothing, because the
+  /// row's tiles and the bar don't overlap horizontally the way the
+  /// policy expects. We sit above the leaves but below `WidgetsApp`'s
+  /// default shortcuts, so text fields (TvArrowEscape) still consume
+  /// arrows first; anything reaching us gets geometry first, then a
+  /// direction-constrained search.
+  ///
+  /// What this replaced, and why — traced on a Skyworth box, pressing Up
+  /// eleven times from the film grid:
+  ///
+  ///   y=401   ×6   same tile re-notified: focus pinned, Up did nothing
+  ///   y=-110  ×8   tile above the viewport, page never scrolled to it
+  ///   y=-218       another off-screen node
+  ///   y=637        wrapped to the bottom of the grid
+  ///
+  /// The old fallback used reading order, which wraps at the ends, and
+  /// then undid the wrap with `requestFocus()` on the current node — so
+  /// every press cancelled its own move and the user hammered Up into a
+  /// dead remote, before finally being thrown to the bottom. Nothing
+  /// scrolled either, which is why the hero looked like it was never
+  /// reached: focus was sitting on it, off-screen.
   KeyEventResult _onVerticalKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -136,27 +172,179 @@ class _TvFocusScopeState extends State<TvFocusScope> {
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null) return KeyEventResult.ignored;
     final before = primary.rect;
-    final moved = primary.focusInDirection(
+
+    // Flutter's geometric traversal first. Trying to force a "stay in the
+    // column" rule ahead of it was tested and is worse: a same-column
+    // candidate can be anywhere higher on the page, including across a
+    // zone boundary, so the remote jumped into the category sidebar
+    // mid-climb and could no longer come back down into the grid.
+    if (primary.focusInDirection(
       isDown ? TraversalDirection.down : TraversalDirection.up,
-    );
-    if (moved) return KeyEventResult.handled;
-
-    // Geometry found nothing: fall back to reading order so the remote
-    // can still climb out of a row into the app bar…
-    final ok = isDown ? primary.nextFocus() : primary.previousFocus();
-    if (!ok) return KeyEventResult.ignored;
-
-    // …but reading order WRAPS at the ends, which on TV reads as "I press
-    // up at the top and land at the bottom of the page" (field report).
-    // If the new focus went the wrong way vertically, undo it and stay
-    // put — hitting the edge should simply do nothing.
-    final after = FocusManager.instance.primaryFocus;
-    final wrapped = after == null ||
-        (isDown ? after.rect.top < before.top : after.rect.top > before.top);
-    if (wrapped) {
-      primary.requestFocus();
+    )) {
+      _revealFocused(up: isUp);
+      return KeyEventResult.handled;
     }
+
+    // Geometry found nothing: widen the search, so an edge is never a
+    // dead end. Never a wrap-around, though.
+    final target = _nearestInDirection(primary, before, up: isUp);
+    if (target == null) return KeyEventResult.handled;
+    target.requestFocus();
+    _revealFocused(up: isUp);
     return KeyEventResult.handled;
+  }
+
+  /// Scroll whatever now holds focus back into view.
+  ///
+  /// Done centrally rather than per widget: the grid scrolled its own
+  /// tiles, the carousels and the hero did not, and focus routinely ended
+  /// up on nodes above the viewport with the page unmoved. Aligning to
+  /// the edge we came from (start when moving up, end when moving down)
+  /// scrolls the minimum needed — centring would drag the top of a tall
+  /// hero out of frame.
+  void _revealFocused({required bool up}) {
+    // Deferred on purpose. FocusManager applies a requestFocus() in a
+    // microtask, so reading primaryFocus on the next line still returns
+    // the node we just left — scrolling the *previous* item into view and
+    // leaving the new one off-screen. Traced: focus sat at y=-128 while
+    // the page never moved. Waiting for the frame gives us the node that
+    // actually holds focus, with its layout settled.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _revealNow(up: up);
+    });
+  }
+
+  void _revealNow({required bool up}) {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null) return;
+    // Already comfortably on screen? Leave the page alone. Without this
+    // the two mechanisms below fight each other every press: ensureVisible
+    // nudges the page down to seat the item at 0.2, then the snap pulls it
+    // back to the top — the bar visibly bounced up and down on each Up.
+    final rect = FocusManager.instance.primaryFocus?.rect;
+    if (rect != null) {
+      final size = MediaQuery.maybeSizeOf(ctx);
+      // Below the (transparent, overlapping) app bar and above the fold.
+      const barGuard = 60.0;
+      if (size != null &&
+          rect.top >= barGuard &&
+          rect.bottom <= size.height) {
+        return;
+      }
+    }
+
+    if (up) {
+      // Not the viewport edge: the app bar is transparent and the content
+      // scrolls *under* it (extendBodyBehindAppBar), so aligning to 0.0
+      // parked the focused item at y=0 — hidden behind the bar, and
+      // physically above the bar's own buttons, which then made climbing
+      // any further impossible. Traced: focus at y=0 while the topmost
+      // node in the whole scope was the app bar tab at y=3, so nothing
+      // qualified as "above". A fifth of the viewport clears the bar with
+      // room to spare and still shows what sits above the target.
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.2,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+      _snapToTopIfClose(ctx);
+    } else {
+      Scrollable.ensureVisible(
+        ctx,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  /// Once the page is nearly at the top, go all the way.
+  ///
+  /// The 0.2 alignment is right in the middle of a long page but wrong at
+  /// its start: reaching the hero parked its Play button a fifth of the
+  /// way down and left the hero's own title and artwork above the frame.
+  /// Checked after the reveal animation, so we act on where the page
+  /// actually ended up.
+  void _snapToTopIfClose(BuildContext ctx) {
+    // Walk out to the OUTERMOST vertical scrollable: a card inside a
+    // carousel sits in a horizontal one, which is not the page. Resolved
+    // now, while the context is known good — only the position is touched
+    // after the delay.
+    ScrollableState? vertical;
+    ScrollableState? next = Scrollable.maybeOf(ctx);
+    {
+      while (next != null) {
+        if (next.position.axis == Axis.vertical) vertical = next;
+        next = Scrollable.maybeOf(next.context);
+      }
+    }
+    final scrollable = vertical;
+    if (scrollable == null) return;
+    Future<void>.delayed(const Duration(milliseconds: 220), () {
+      if (!mounted || !scrollable.mounted) return;
+      final pos = scrollable.position;
+      if (!pos.hasPixels) return;
+      if (pos.pixels - pos.minScrollExtent >= 400) return;
+      pos.animateTo(
+        pos.minScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  /// Nearest traversable node strictly above / below [from].
+  ///
+  /// Ranked by vertical gap first, then horizontal centre distance, so
+  /// climbing out of a row lands on the item overhead rather than
+  /// whichever one happens to come first in the tree.
+  FocusNode? _nearestInDirection(
+    FocusNode primary,
+    Rect from, {
+    required bool up,
+    bool alignedOnly = false,
+  }) {
+    final scope = primary.nearestScope;
+    if (scope == null) return null;
+    // Two rankings. A candidate that overlaps us horizontally is in the
+    // same column and always wins: without that, going Up from the hero
+    // landed in the category sidebar — geometrically just above, but on
+    // the other side of the screen. Up should stay in the column
+    // (grid → hero → app bar); the sidebar is what Left is for. The
+    // non-overlapping ranking is only a fallback, so no edge is a dead end.
+    FocusNode? best;
+    double bestGap = double.infinity;
+    double bestDx = double.infinity;
+    FocusNode? bestAligned;
+    double bestAlignedGap = double.infinity;
+    for (final candidate in scope.traversalDescendants) {
+      if (candidate == primary ||
+          !candidate.canRequestFocus ||
+          candidate.skipTraversal) {
+        continue;
+      }
+      final r = candidate.rect;
+      if (r.isEmpty) continue;
+      // Strictly in the requested direction, with a pixel of tolerance so
+      // items merely sharing an edge don't qualify.
+      final gap = up ? from.top - r.bottom : r.top - from.bottom;
+      if (gap < -1) continue;
+      final dx = (r.center.dx - from.center.dx).abs();
+      final overlaps = r.right > from.left && r.left < from.right;
+      if (overlaps && gap < bestAlignedGap) {
+        bestAligned = candidate;
+        bestAlignedGap = gap;
+      }
+      if (gap < bestGap - 1 || (gap < bestGap + 1 && dx < bestDx)) {
+        best = candidate;
+        bestGap = gap;
+        bestDx = dx;
+      }
+    }
+    return alignedOnly ? bestAligned : (bestAligned ?? best);
   }
 
   @override
