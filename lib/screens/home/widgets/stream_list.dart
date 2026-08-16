@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:unistream/core/colors.dart';
@@ -139,6 +141,36 @@ class StreamListView extends StatefulWidget {
 class _StreamListViewState extends State<StreamListView> {
   final ScrollController _scrollController = ScrollController();
 
+  /// Debounce for the bottom-of-grid preview panel.
+  ///
+  /// [StreamListView.onItemHover] drives a panel that pulls TMDB metadata
+  /// and repaints an ambient backdrop. A mouse visits one tile at a time;
+  /// a D-pad sweeps through a dozen, and firing that work on every one of
+  /// them saturated the UI thread on the Skyworth box — Android killed
+  /// the app on an input ANR after waiting 5 s for a key event. Update
+  /// the panel once the focus settles instead, which is how TV interfaces
+  /// behave anyway: you can sweep across a row without the backdrop
+  /// scrambling to keep up.
+  Timer? _hoverDebounce;
+  static const _hoverDebounceDelay = Duration(milliseconds: 300);
+
+  void _notifyItemFocus(dynamic item, bool focused) {
+    final cb = widget.onItemHover;
+    if (cb == null) return;
+    // Pointer hover is one deliberate move at a time — no reason to lag it.
+    if (!FormFactorInfo.isAndroidTv) {
+      cb(item, focused);
+      return;
+    }
+    _hoverDebounce?.cancel();
+    // Losing focus needs no notification: either the next tile takes over,
+    // or we left the grid entirely and the panel is gone with it.
+    if (!focused) return;
+    _hoverDebounce = Timer(_hoverDebounceDelay, () {
+      if (mounted) cb(item, true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -147,6 +179,7 @@ class _StreamListViewState extends State<StreamListView> {
 
   @override
   void dispose() {
+    _hoverDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -520,7 +553,7 @@ class _StreamListViewState extends State<StreamListView> {
           // focus when the grid first builds on Android TV.
           autofocus: FormFactorInfo.isAndroidTv && i == 0,
           onActivate: onActivate,
-          onFocusChange: (focused) => widget.onItemHover?.call(s, focused),
+          onFocusChange: (focused) => _notifyItemFocus(s, focused),
           child: result,
         );
       },
@@ -593,35 +626,24 @@ class _GridFocusableState extends State<_GridFocusable> {
           );
         }
       },
-      child: AnimatedScale(
-        scale: _focused ? DS.focus.cardScale : 1.0,
-        duration: DS.focus.animation,
-        curve: DS.focus.curve,
-        child: AnimatedContainer(
-          duration: DS.focus.animation,
-          curve: DS.focus.curve,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(DS.radius.card),
-            boxShadow: _focused
-                ? <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: DS.focus.shadowOpacity,
-                      ),
-                      blurRadius: DS.focus.shadowRadius,
-                      offset: Offset(0, DS.focus.shadowY),
-                    ),
-                  ]
-                : null,
-            border: Border.all(
-              color: AppColors.primaryBlue.withValues(
-                alpha: _focused ? 0.9 : 0,
-              ),
-              width: DS.focus.ringWidth,
+      // Ring only, and not animated. The first version scaled the tile
+      // and animated a 24 px blur shadow on every focus change; in the
+      // film grid — bigger posters than the live logos — that pushed the
+      // UI thread to 300% CPU and Android killed the app on an input
+      // ANR (5.5 s to process one key event). The grid was already
+      // near the edge on this box before any of it: 2.5 s per key press
+      // was measured on the untouched build.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DS.radius.card),
+          border: Border.all(
+            color: AppColors.primaryBlue.withValues(
+              alpha: _focused ? 0.9 : 0,
             ),
+            width: DS.focus.ringWidth,
           ),
-          child: widget.child,
         ),
+        child: widget.child,
       ),
     );
   }
