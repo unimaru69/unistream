@@ -65,6 +65,13 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   // never stranded staring at a spinner with no escape.
   bool _hasStartedPlaying = false;
 
+  // The root node owns the remote while the overlay is hidden. When the
+  // controls come up on TV, focus moves into [_controlsScope] so the
+  // D-pad can walk the buttons; it comes back here when they hide.
+  final FocusNode _rootNode = FocusNode(debugLabel: 'player-root');
+  final FocusScopeNode _controlsScope =
+      FocusScopeNode(debugLabel: 'player-controls');
+
   Timer? _hideControlsTimer;
   Timer? _progressSaveTimer;
   Timer? _connectTimeoutTimer;
@@ -269,13 +276,36 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   void _scheduleHideControls() {
     _hideControlsTimer?.cancel();
     _hideControlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _showControls = false);
+      if (!mounted) return;
+      setState(() => _showControls = false);
+      // The overlay is going away — take the remote back, or the focused
+      // button would be disposed and the D-pad would go dead.
+      _rootNode.requestFocus();
     });
   }
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
-    if (_showControls) _scheduleHideControls();
+    if (_showControls) {
+      _scheduleHideControls();
+      _focusControls();
+    } else {
+      _rootNode.requestFocus();
+    }
+  }
+
+  /// Hand the remote to the controls overlay.
+  ///
+  /// Without this the D-pad never reaches the buttons: the root [Focus]
+  /// swallows every arrow, so subtitle and audio-track selection were
+  /// simply unreachable on a leanback box. No-op off TV, where a pointer
+  /// already does the job and stealing focus would be surprising.
+  void _focusControls() {
+    if (!FormFactorInfo.isAndroidTv) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_showControls) return;
+      _controlsScope.nextFocus();
+    });
   }
 
   void _togglePlay() {
@@ -312,6 +342,8 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     _connectTimeoutTimer?.cancel();
     _epgTickTimer?.cancel();
     _timeshiftFlashTimer?.cancel();
+    _rootNode.dispose();
+    _controlsScope.dispose();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onPlayerTick);
@@ -341,6 +373,14 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
       return KeyEventResult.ignored;
     }
     final k = event.logicalKey;
+
+    // Focus is inside the controls overlay: let the framework traverse
+    // and activate buttons rather than swallowing the arrows here. Keep
+    // the overlay awake so it doesn't vanish mid-navigation.
+    if (!node.hasPrimaryFocus) {
+      _scheduleHideControls();
+      return KeyEventResult.ignored;
+    }
 
     if (k == LogicalKeyboardKey.select ||
         k == LogicalKeyboardKey.enter ||
@@ -389,6 +429,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   Widget build(BuildContext context) {
     final c = _controller;
     return Focus(
+      focusNode: _rootNode,
       autofocus: true,
       onKeyEvent: _onRemoteKey,
       child: Scaffold(
@@ -439,7 +480,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
           if (!_hasStartedPlaying && !_hasError) _buildLoadingOverlay(),
 
           if (_showControls && c != null && !_hasError && _hasStartedPlaying)
-            _buildControls(c),
+            FocusScope(node: _controlsScope, child: _buildControls(c)),
 
           // Timeshift OSD flash — center-screen, fades in/out. Drawn
           // on top of `_buildControls` so it stays visible while the
