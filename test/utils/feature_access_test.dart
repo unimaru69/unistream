@@ -2,6 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:unistream/models/account_info.dart';
 import 'package:unistream/utils/feature_access.dart';
 
+/// Les assertions de refus ci-dessous décrivent le modèle par tiers
+/// (compte absent, trial expiré, abonnement basic…). Ce modèle est
+/// volontairement suspendu : `FeatureAccess.canUse` renvoie `true` pour
+/// tout le monde en attendant la refonte (tier unique + trial 7 jours).
+/// Les corps de test sont conservés intacts — ils redeviennent la
+/// spécification le jour où les gates reviennent, cf. la doc de
+/// `FeatureAccess`, qui décrit précisément quoi restaurer.
+const _gatesSuspendus =
+    'Gates suspendus en attendant la refonte du modèle économique : '
+    'FeatureAccess.canUse renvoie true pour tous. Cf. doc de FeatureAccess.';
+
 void main() {
   AccountInfo makeTrial({int daysAgo = 0}) => AccountInfo(
         id: 'test',
@@ -39,7 +50,7 @@ void main() {
         for (final f in premiumFeatures) {
           expect(FeatureAccess.canUse(f, null), isFalse, reason: f.name);
         }
-      });
+      }, skip: _gatesSuspendus);
     });
 
     group('active trial (full Premium)', () {
@@ -66,7 +77,7 @@ void main() {
         for (final f in premiumFeatures) {
           expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
         }
-      });
+      }, skip: _gatesSuspendus);
     });
 
     group('active basic subscription', () {
@@ -75,7 +86,7 @@ void main() {
         for (final f in premiumFeatures) {
           expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
         }
-      });
+      }, skip: _gatesSuspendus);
     });
 
     group('active premium subscription', () {
@@ -104,7 +115,7 @@ void main() {
         for (final f in premiumFeatures) {
           expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
         }
-      });
+      }, skip: _gatesSuspendus);
     });
 
     group('expired premium subscription', () {
@@ -113,14 +124,14 @@ void main() {
         for (final f in premiumFeatures) {
           expect(FeatureAccess.canUse(f, account), isFalse, reason: f.name);
         }
-      });
+      }, skip: _gatesSuspendus);
     });
   });
 
   group('FeatureAccess.maxProfiles', () {
     test('null account = 1', () {
       expect(FeatureAccess.maxProfiles(null), 1);
-    });
+    }, skip: _gatesSuspendus);
 
     test('active trial = 10 (full Premium)', () {
       expect(FeatureAccess.maxProfiles(makeTrial()), 10);
@@ -128,7 +139,7 @@ void main() {
 
     test('basic = 1', () {
       expect(FeatureAccess.maxProfiles(makeBasic()), 1);
-    });
+    }, skip: _gatesSuspendus);
 
     test('premium = 10', () {
       expect(FeatureAccess.maxProfiles(makePremium()), 10);
@@ -136,6 +147,6 @@ void main() {
 
     test('expired premium = 1', () {
       expect(FeatureAccess.maxProfiles(makeExpiredPremium()), 1);
-    });
+    }, skip: _gatesSuspendus);
   });
 }

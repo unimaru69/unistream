@@ -8,6 +8,17 @@ import 'package:unistream/widgets/premium_gate.dart';
 
 import '../helpers/test_wrapper.dart';
 
+/// Les quatre tests de widget ci-dessous attendent tous l'état *verrouillé*
+/// (le mot « Premium » à l'écran) — y compris le premier, dont le nom est
+/// trompeur : il part d'un compte non authentifié. Cet état est
+/// inatteignable tant que `FeatureAccess.canUse` renvoie `true` pour tous,
+/// ce qui est volontaire en attendant la refonte du modèle économique.
+/// Les corps sont conservés : ils redeviennent la spécification avec les
+/// gates. Cf. la doc de `FeatureAccess`.
+const _gatesSuspendus =
+    'Gates suspendus en attendant la refonte du modèle économique : '
+    'FeatureAccess.canUse renvoie true pour tous. Cf. doc de FeatureAccess.';
+
 void main() {
   group('PremiumGate', () {
     testWidgets('shows child when user is premium', (tester) async {
@@ -26,7 +37,8 @@ void main() {
       ));
       // Default state is loading/unauthenticated, so locked
       expect(find.text('Premium'), findsOneWidget);
-    });
+      // testWidgets ne prend qu'un bool — motif : _gatesSuspendus.
+    }, skip: true);
 
     testWidgets('shows locked widget when user is basic', (tester) async {
       final notifier = AuthNotifier();
@@ -56,7 +68,8 @@ void main() {
       // Default state has no accountInfo → locked
       expect(find.text('Premium'), findsOneWidget);
       expect(find.text('Unlocked'), findsNothing);
-    });
+      // testWidgets ne prend qu'un bool — motif : _gatesSuspendus.
+    }, skip: true);
 
     testWidgets('shows custom lockedChild when provided', (tester) async {
       await tester.pumpWidget(
@@ -79,7 +92,8 @@ void main() {
 
       expect(find.text('Custom Locked'), findsOneWidget);
       expect(find.text('Unlocked'), findsNothing);
-    });
+      // testWidgets ne prend qu'un bool — motif : _gatesSuspendus.
+    }, skip: true);
 
     testWidgets('tapping default locked widget shows dialog', (tester) async {
       await tester.pumpWidget(
@@ -104,7 +118,8 @@ void main() {
 
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.text('OK'), findsOneWidget);
-    });
+      // testWidgets ne prend qu'un bool — motif : _gatesSuspendus.
+    }, skip: true);
   });
 
   group('checkPremiumAccess', () {
@@ -124,6 +139,6 @@ void main() {
         subscriptionTier: 'basic',
       );
       expect(FeatureAccess.canUse(Feature.collections, account), isFalse);
-    });
+    }, skip: _gatesSuspendus);
   });
 }
