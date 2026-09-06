@@ -32,6 +32,15 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# flutter_local_notifications_windows still includes <experimental/coroutine>.
+# MSVC 14.51 (Visual Studio 18, what windows-latest runners now ship) turned
+# that deprecation into a hard static_assert — STL1011 — which fails the whole
+# Windows build inside the plugin's own generated vcxproj, out of our reach.
+# This definition is the escape hatch the compiler itself points to. It sits
+# beside the UNICODE flags so it reaches every plugin subdirectory added
+# below, and it goes away when the plugin adopts C++20 <coroutine>.
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by

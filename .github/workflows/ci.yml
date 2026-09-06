@@ -33,6 +33,25 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
+
+      # The project signs automatically with the team's Developer ID, and a
+      # bare runner has no such certificate — the build dies on "No signing
+      # certificate Mac Development found". This is a smoke build, so strip
+      # signing the same way release.yml does before its unsigned base
+      # build; the release workflow keeps the real signing path.
+      - name: Disable signing in pbxproj for CI build
+        run: |
+          set -euo pipefail
+          PBX=macos/Runner.xcodeproj/project.pbxproj
+          sed -i.bak \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' \
+            -e 's/DEVELOPMENT_TEAM = VS8P2MA59S;/DEVELOPMENT_TEAM = "";/g' \
+            -e 's|"CODE_SIGN_IDENTITY\[sdk=macosx\*\]" = "Apple Development";|"CODE_SIGN_IDENTITY[sdk=macosx*]" = "";|g' \
+            "$PBX"
+          # Sanity-check the patch took.
+          ! grep -q 'CODE_SIGN_STYLE = Automatic' "$PBX"
+          ! grep -q 'DEVELOPMENT_TEAM = VS8P2MA59S' "$PBX"
+
       # `--dart-define=TMDB_KEY=...` bakes the TMDB API key into the binary
       # so end users get metadata enrichment without any setup. Safe to leave
       # empty on forks that don't set the secret (feature stays dormant).
