@@ -429,7 +429,11 @@ jobs:
             artifacts/macos-builds/**/*.zip
             artifacts/android-builds/**/*.apk
           draft: false
-          prerelease: false
+          # A tag carrying a suffix (v1.0.5-rc1, -beta2…) is a rehearsal:
+          # it exercises the whole pipeline — AppImage, MSIX, notarized DMG,
+          # signed APK — without claiming the "Latest" badge from the real
+          # release. Plain vN.N.N tags stay full releases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: false
 
       # Free up Actions storage immediately after the release is published.
