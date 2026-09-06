@@ -5,6 +5,7 @@ import '../models/app_config.dart';
 import '../models/continue_watching_item.dart';
 import '../models/history_entry.dart';
 import 'sync_service.dart';
+import 'xtream_api.dart';
 
 class WatchProgress {
   static String get _pid => AppConfig.activeProfileId;
@@ -81,6 +82,35 @@ class WatchProgress {
     SyncService.instance.deleteWatchProgress(key);
   }
 
+  /// Container extension of a stream URL — `.../12345.mkv` → `mkv`.
+  ///
+  /// Returns an empty string when there's no usable suffix. Non-sensitive
+  /// (unlike the URL it comes from), so this is what gets synced.
+  static String extFromStreamUrl(String url) {
+    final path = Uri.tryParse(url)?.path ?? url;
+    final dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length - 1) return '';
+    final ext = path.substring(dot + 1).toLowerCase();
+    return RegExp(r'^[a-z0-9]{1,5}$').hasMatch(ext) ? ext : '';
+  }
+
+  /// URL to hand the player for [key].
+  ///
+  /// Prefers the URL captured locally at playback time; falls back to
+  /// re-deriving one from the content key + synced `ext` so an entry that
+  /// arrived from another device — whose meta carries no URL by design —
+  /// still resumes. Live keys need no extension.
+  static String resolveUrl(String key, Map<String, dynamic> meta) {
+    final local = meta['url'] as String?;
+    if (local != null && local.isNotEmpty) return local;
+    final ext = (meta['ext'] as String?)?.trim();
+    return XtreamApi.streamUrlForContentKey(
+          key,
+          ext: (ext == null || ext.isEmpty) ? 'mp4' : ext,
+        ) ??
+        '';
+  }
+
   /// Sauvegarde les metadonnees d'un item (nom, cover, url, mode) pour le bandeau "Continuer a regarder".
   ///
   /// When the matching progress row already exists locally
@@ -95,7 +125,13 @@ class WatchProgress {
       'name': name,
       'title': name, // mirror for tvOS readers
       'cover': cover,
+      // Local-only: `url` embeds the panel login + password and is
+      // stripped on its way to Supabase (SyncService.scrubMetaForSync).
       'url': url,
+      // What crosses devices in its place. The content key alone can't
+      // rebuild a VOD/episode URL — it doesn't carry the provider's
+      // container extension, and defaulting to .mp4 404s on .mkv/.ts.
+      'ext': extFromStreamUrl(url),
       'mode': mode,
       'ts': DateTime.now().millisecondsSinceEpoch,
     };
@@ -142,7 +178,12 @@ class WatchProgress {
       final metaStr = p.getString(StorageKeys.wpMeta(_pid, id));
       if (metaStr == null) continue;
       final meta = Map<String, dynamic>.from(jsonDecode(metaStr) as Map);
-      result.add(ContinueWatchingItem.fromMap({...meta, '_id': id, '_ratio': (pos / dur).clamp(0.0, 1.0)}));
+      result.add(ContinueWatchingItem.fromMap({
+        ...meta,
+        'url': resolveUrl(id, meta),
+        '_id': id,
+        '_ratio': (pos / dur).clamp(0.0, 1.0),
+      }));
     }
     result.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return result;
@@ -243,8 +284,12 @@ class WatchProgress {
         if (remoteMeta['title'] != null && remoteMeta['name'] == null) {
           remoteMeta['name'] = remoteMeta['title'];
         }
-        // Local always wins on URL since the resume URL is platform-
-        // specific; pull the rest verbatim.
+        // The URL never travels: current builds don't push one, and rows
+        // written by older builds carry a URL with THAT device's panel
+        // credentials baked in. Drop it either way and keep the local
+        // one; `resolveUrl` rebuilds from content_key + `ext` when
+        // there's no local URL yet (item first seen on another device).
+        remoteMeta.remove('url');
         final existingMetaStr = p.getString(StorageKeys.wpMeta(_pid, key));
         Map<String, dynamic> merged = remoteMeta;
         if (existingMetaStr != null) {

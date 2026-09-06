@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/logger.dart';
 import 'supabase_config.dart';
@@ -47,6 +48,34 @@ class SyncService {
   }
 
   String? get _userId => SupabaseConfig.currentUserId;
+
+  // ── Outbound scrubbing ──
+
+  /// Meta keys that must never leave the device.
+  ///
+  /// `url` holds a full Xtream stream URL, and those embed the panel
+  /// login + password in the path
+  /// (`{server}/movie/{user}/{pass}/{id}.mp4`, see
+  /// `XtreamApi.getVodStreamUrl`). Pushing the meta blob verbatim stored
+  /// every user's IPTV subscription credentials in cleartext in
+  /// `user_watch_progress.meta_json` — readable from any DB dump, backup
+  /// or service-role key. RLS scoped them per user, it did not keep them
+  /// secret.
+  ///
+  /// What replaces it: the row's `content_key` plus the `ext` field, from
+  /// which each device rebuilds its own URL with its own credentials via
+  /// `XtreamApi.streamUrlForContentKey`.
+  static const metaKeysNeverSynced = {'url'};
+
+  /// Strip [metaKeysNeverSynced] from a meta blob on its way out.
+  ///
+  /// Applied at the single push choke point rather than at each call
+  /// site, so a future caller can't reintroduce the leak by handing over
+  /// an unscrubbed map.
+  @visibleForTesting
+  static Map<String, dynamic> scrubMetaForSync(Map<String, dynamic> meta) =>
+      Map<String, dynamic>.from(meta)
+        ..removeWhere((k, _) => metaKeysNeverSynced.contains(k));
 
   /// Schedule an operation with debounce batching (500 ms).
   void _enqueue(Future<void> Function() op) {
@@ -196,7 +225,7 @@ class SyncService {
         'content_key': key,
         'position_ms': posMs,
         'duration_ms': durMs,
-        'meta_json': jsonEncode(meta),
+        'meta_json': jsonEncode(scrubMetaForSync(meta)),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'user_id,profile_hash,content_key');
       AppLogger.debug(LogModule.sync, 'Pushed watch progress for $key');

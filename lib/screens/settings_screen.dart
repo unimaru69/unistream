@@ -89,8 +89,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Both export paths write IPTV credentials to a file the user picks:
+  /// the JSON backup carries the profile passwords verbatim, and the M3U
+  /// carries them inside every stream URL (`{server}/live/{user}/{pass}/…`).
+  /// The app otherwise keeps those passwords in the Keychain, so handing
+  /// them out as a plain file deserves an explicit yes rather than
+  /// happening silently behind a menu entry.
+  Future<bool> _confirmSecretsLeaveTheDevice(String body) async {
+    final l10n = AppLocalizations.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.exportSecretsTitre),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.annuler),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.exporterQuandMeme),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
   Future<void> _exportFavorites() async {
     try {
+      if (!await _confirmSecretsLeaveTheDevice(
+          AppLocalizations.of(context)!.exportSecretsCorpsM3u)) {
+        return;
+      }
       final m3u = await ImportExport.exportFavoritesM3U();
       final dir = await FilePicker.platform.getDirectoryPath();
       if (dir == null) return;
@@ -108,6 +140,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _backupConfig() async {
     try {
+      if (!await _confirmSecretsLeaveTheDevice(
+          AppLocalizations.of(context)!.exportSecretsCorps)) {
+        return;
+      }
       final json = await ImportExport.exportConfigJSON();
       final dir = await FilePicker.platform.getDirectoryPath();
       if (dir == null) return;

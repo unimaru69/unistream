@@ -749,5 +749,9 @@
   "reprendreSimple": "Reprendre",
   "pasDansVotreCatalogue": "Pas dans votre catalogue",
   "titreIndisponible": "Ce titre n'est pas disponible chez votre fournisseur.",
-  "indexationCatalogue": "Indexation du catalogue…"
+  "indexationCatalogue": "Indexation du catalogue…",
+  "exportSecretsTitre": "Ce fichier contiendra vos mots de passe",
+  "exportSecretsCorps": "La sauvegarde inclut les identifiants de vos serveurs IPTV en clair. N'importe qui ouvrant ce fichier pourra s'en servir. Conservez-le en lieu sûr et ne le partagez pas.",
+  "exportSecretsCorpsM3u": "Les liens exportés contiennent votre identifiant et votre mot de passe IPTV en clair. N'importe qui ouvrant ce fichier pourra s'en servir. Conservez-le en lieu sûr et ne le partagez pas.",
+  "exporterQuandMeme": "Exporter quand même"
 }

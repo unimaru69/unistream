@@ -6,6 +6,14 @@ on:
     - cron: '0 3 * * 0'
   workflow_dispatch:
 
+# Least privilege by default: without this, GITHUB_TOKEN inherits the
+# repository-wide default, which is often read/write on every scope.
+# Jobs that genuinely publish declare what they need themselves — note
+# that a job-level `permissions:` block replaces this default rather
+# than adding to it.
+permissions:
+  contents: read
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest

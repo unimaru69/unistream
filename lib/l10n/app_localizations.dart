@@ -2611,6 +2611,30 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Indexation du catalogue…'**
   String get indexationCatalogue;
+
+  /// No description provided for @exportSecretsTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce fichier contiendra vos mots de passe'**
+  String get exportSecretsTitre;
+
+  /// No description provided for @exportSecretsCorps.
+  ///
+  /// In fr, this message translates to:
+  /// **'La sauvegarde inclut les identifiants de vos serveurs IPTV en clair. N\'importe qui ouvrant ce fichier pourra s\'en servir. Conservez-le en lieu sûr et ne le partagez pas.'**
+  String get exportSecretsCorps;
+
+  /// No description provided for @exportSecretsCorpsM3u.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les liens exportés contiennent votre identifiant et votre mot de passe IPTV en clair. N\'importe qui ouvrant ce fichier pourra s\'en servir. Conservez-le en lieu sûr et ne le partagez pas.'**
+  String get exportSecretsCorpsM3u;
+
+  /// No description provided for @exporterQuandMeme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Exporter quand même'**
+  String get exporterQuandMeme;
 }
 
 class _AppLocalizationsDelegate
