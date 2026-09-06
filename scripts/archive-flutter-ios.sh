@@ -63,9 +63,29 @@ flutter pub get >/dev/null
 echo "→ pod install"
 (cd ios && pod install --repo-update >/dev/null 2>&1 || pod install >/dev/null)
 
+# ── Resolve the TMDB API key ──────────────────────────────────────────
+# Without this the build ships with an empty String.fromEnvironment
+# ('TMDB_KEY') and no metadata enrichment — every TestFlight build until
+# now went out that way, because only CI and the tvOS script passed it.
+# Same resolution order as scripts/build-android-tv.sh.
+: "${TMDB_KEY:=}"
+if [[ -z "$TMDB_KEY" && -f "$ROOT/.tmdb_key" ]]; then
+    TMDB_KEY="$(tr -d '[:space:]' < "$ROOT/.tmdb_key")"
+fi
+if [[ -z "$TMDB_KEY" && -f "$ROOT/tvos/UniStreamTV/.tmdb_key" ]]; then
+    TMDB_KEY="$(tr -d '[:space:]' < "$ROOT/tvos/UniStreamTV/.tmdb_key")"
+fi
+if [[ -z "$TMDB_KEY" ]]; then
+    echo "⚠️  No TMDB key (env TMDB_KEY, .tmdb_key, or tvos/UniStreamTV/.tmdb_key)."
+    echo "    Building without TMDB — hero falls back to provider artwork."
+else
+    echo "🔑 TMDB key found (${#TMDB_KEY} chars) — baking it in."
+fi
+
 # ── Build iOS .ipa ────────────────────────────────────────────────────
 echo "→ flutter build ipa (this can take several minutes)…"
 flutter build ipa --release \
+    --dart-define=TMDB_KEY="$TMDB_KEY" \
     --export-options-plist="$EXPORT_OPTIONS" \
     | tail -20 || true
 

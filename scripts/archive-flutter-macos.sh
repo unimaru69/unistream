@@ -87,9 +87,27 @@ flutter pub get >/dev/null
 echo "→ pod install (macos)"
 (cd macos && pod install --repo-update >/dev/null 2>&1 || pod install >/dev/null)
 
+# ── Resolve the TMDB API key ──────────────────────────────────────────
+# The GitHub release DMG gets it from the TMDB_KEY secret; a DMG built by
+# hand here did not, so a locally-cut build shipped without metadata
+# enrichment. Same resolution order as scripts/build-android-tv.sh.
+: "${TMDB_KEY:=}"
+if [[ -z "$TMDB_KEY" && -f "$ROOT/.tmdb_key" ]]; then
+    TMDB_KEY="$(tr -d '[:space:]' < "$ROOT/.tmdb_key")"
+fi
+if [[ -z "$TMDB_KEY" && -f "$ROOT/tvos/UniStreamTV/.tmdb_key" ]]; then
+    TMDB_KEY="$(tr -d '[:space:]' < "$ROOT/tvos/UniStreamTV/.tmdb_key")"
+fi
+if [[ -z "$TMDB_KEY" ]]; then
+    echo "⚠️  No TMDB key (env TMDB_KEY, .tmdb_key, or tvos/UniStreamTV/.tmdb_key)."
+    echo "    Building without TMDB — hero falls back to provider artwork."
+else
+    echo "🔑 TMDB key found (${#TMDB_KEY} chars) — baking it in."
+fi
+
 # ── Build the .app ────────────────────────────────────────────────────
 echo "→ flutter build macos --release"
-flutter build macos --release | tail -10 || {
+flutter build macos --release --dart-define=TMDB_KEY="$TMDB_KEY" | tail -10 || {
     echo "✗ flutter build macos failed"
     exit 1
 }
