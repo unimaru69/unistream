@@ -131,7 +131,14 @@ final class AuthService {
     // MARK: - Claim Orphaned Data
 
     /// Link pre-auth data to the current user via profile hash.
+    ///
+    /// No-op without a session: the RPC binds rows to `auth.uid()`, so
+    /// there is nothing to bind them to, and it now rejects an anonymous
+    /// caller outright (migration 004). The onboarding call site fires
+    /// after saving an Xtream profile, which the user can reach before
+    /// signing in — without this guard that path just logs a warning.
     func claimProfileData(profileHash: String) async {
+        guard isAuthenticated else { return }
         do {
             try await client.rpc("claim_profile_data", params: ["p_profile_hash": profileHash]).execute()
             logger.info("Claimed profile data for hash: \(profileHash.prefix(8))…")

@@ -1,9 +1,10 @@
 -- UniStream Supabase Schema — consolidated, secure-by-default state
 --
 -- Run this in the Supabase SQL Editor for a fresh setup. It includes
--- everything that migrations/001_add_auth.sql and 002_add_subscription_fields.sql
--- apply, so a clone+paste of this file yields the same DB you'd get by
--- running the original schema then both migrations in order.
+-- everything that migrations/001 through 004 apply, so a clone+paste of
+-- this file yields the same DB you'd get by running the original schema
+-- then every migration in order. (003 only scrubs existing rows, so a
+-- fresh database has nothing for it to do.)
 --
 -- IMPORTANT: this schema requires Supabase Auth. Enable Email + Apple
 -- providers in the dashboard before running.
@@ -123,21 +124,35 @@ create policy "Users own data" on user_watch_progress
 create policy "Users own data" on user_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy "Users own account" on user_accounts
-  for all using (auth.uid() = id) with check (auth.uid() = id);
+-- user_accounts is READ-ONLY to the client. A `for all` policy here would
+-- also grant UPDATE, letting any authenticated user set their own
+-- subscription_tier to 'premium' with nothing but the public anon key.
+-- Writes come from handle_new_user() below (SECURITY DEFINER, runs as the
+-- table owner, which is exempt from RLS) and from the Edge Functions
+-- (service role). Do not add an INSERT/UPDATE policy here.
+create policy "Users read own account" on user_accounts
+  for select using (auth.uid() = id);
 
 -- ============================================================
 -- TRIGGER — auto-create user_accounts row on signup
 -- ============================================================
+-- `set search_path` is not optional on a SECURITY DEFINER function: without
+-- it the function resolves table names against the CALLER's search_path, so
+-- a caller able to create objects in an earlier schema can shadow
+-- user_accounts and have the definer's rights applied to their own table.
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
 begin
   insert into user_accounts (id, email)
   values (new.id, new.email)
   on conflict (id) do nothing;
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -150,9 +165,26 @@ create trigger on_auth_user_created
 -- Called once after a user signs in to a device that already had local
 -- sync data under an anonymous profile_hash, so the records get bound
 -- to their auth.users id and the RLS policies above start matching.
+--
+-- Guarded on auth.uid(): profile_hash is sha256("$serverUrl:$username"),
+-- which is guessable for a known target, so an unauthenticated caller must
+-- not be able to adopt someone else's leftover orphan rows.
 create or replace function claim_profile_data(p_profile_hash text)
-returns void as $$
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
 begin
+  if auth.uid() is null then
+    raise exception 'claim_profile_data requires an authenticated session'
+      using errcode = '28000';
+  end if;
+
+  if p_profile_hash is null or length(p_profile_hash) = 0 then
+    return;
+  end if;
+
   update user_favorites
     set user_id = auth.uid()
     where profile_hash = p_profile_hash and user_id is null;
@@ -169,7 +201,11 @@ begin
     set user_id = auth.uid()
     where profile_hash = p_profile_hash and user_id is null;
 end;
-$$ language plpgsql security definer;
+$$;
+
+-- EXECUTE is granted to PUBLIC by default; narrow it to signed-in users.
+revoke execute on function claim_profile_data(text) from public;
+grant  execute on function claim_profile_data(text) to authenticated;
 
 -- ============================================================
 -- REALTIME — enable cross-device sync over the pubsub channel

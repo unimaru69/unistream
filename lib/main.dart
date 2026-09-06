@@ -16,6 +16,7 @@ import 'core/tv_diag_overlay.dart';
 import 'core/tv_focus.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
+import 'core/log_redaction.dart';
 import 'core/sentry_config.dart';
 import 'core/storage_keys.dart';
 import 'services/xtream_api.dart';
@@ -272,6 +273,15 @@ void main() async {
         options.dsn = sentryDsn;
         options.tracesSampleRate = 0.2;
         options.sendDefaultPii = false;
+        // Every Xtream URL carries the panel login + password (query
+        // string for the API, path segments for streams), so an
+        // exception raised around an HTTP call can drag them into an
+        // event. `sendDefaultPii` doesn't cover this — it governs what
+        // the SDK attaches, not what our own strings contain. Scrub at
+        // the exit rather than auditing every log line forever.
+        options.beforeSend = (event, hint) => redactSentryEvent(event);
+        options.beforeBreadcrumb =
+            (breadcrumb, hint) => redactBreadcrumb(breadcrumb);
       },
       appRunner: () => runApp(const ProviderScope(child: UniStreamApp())),
     );

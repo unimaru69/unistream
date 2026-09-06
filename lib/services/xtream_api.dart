@@ -17,6 +17,7 @@ import '../models/series_item.dart';
 import '../models/episode.dart';
 import '../models/json_coerce.dart';
 import '../models/server_info.dart';
+import '../utils/content_key.dart';
 
 // ── Network helpers ──
 const _defaultBaseDelay = Duration(seconds: 1);
@@ -806,6 +807,35 @@ class XtreamApi {
 
   static String getSeriesEpisodeUrl(String id, String ext) =>
       '${AppConfig.serverUrl}/series/${AppConfig.username}/${AppConfig.password}/$id.$ext';
+
+  /// Re-derive a playable stream URL from a canonical content key.
+  ///
+  /// The three builders above embed the panel login + password in the
+  /// URL path, so those URLs must never leave the device (see
+  /// `SyncService.scrubMetaForSync`). Cross-device sync therefore ships
+  /// only the content key + container extension, and each device rebuilds
+  /// its own URL here with its own credentials — which is also more
+  /// correct than copying a URL across, since two devices on the same
+  /// panel can legitimately hold different passwords.
+  ///
+  /// [ext] is the provider's container extension ('mp4', 'mkv', 'ts');
+  /// live channels ignore it. Returns null for keys with no playable
+  /// stream (series-level entries) or in the legacy/bare key form.
+  static String? streamUrlForContentKey(String key, {String ext = 'mp4'}) {
+    final parsed = ContentKey.parse(key);
+    if (parsed == null) return null;
+    final (type, id) = parsed;
+    switch (type) {
+      case ContentKey.live:
+        return getLiveStreamUrl(id);
+      case ContentKey.movie:
+        return getVodStreamUrl(id, ext);
+      case ContentKey.episode:
+        return getSeriesEpisodeUrl(id, ext);
+      default:
+        return null;
+    }
+  }
 
   // ── Catch-up / Timeshift ──
 

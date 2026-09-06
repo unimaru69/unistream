@@ -285,16 +285,19 @@ struct ContinueWatchingCard: View {
         // never-favorited items synced from Flutter), then favorite info.
         let cover = entry.coverUrl ?? favoriteInfo?.displayIcon
 
-        // Prefer the URL captured at first playback: it embeds the correct
-        // `containerExtension`, which the contentKey alone doesn't carry.
-        // The MP4 fallback below silently returns 404 on .mkv / .ts streams,
-        // which is what made Continue Watching look like "rien ne se passe"
-        // for episodes saved by older builds (or by other devices).
+        // Prefer the URL captured locally at first playback — it's exact.
+        // Otherwise rebuild it here: an entry synced from another device
+        // carries no URL by design (the URL embeds that device's panel
+        // login + password, so it never leaves it). `ext` is what travels,
+        // and it matters — the plain .mp4 fallback silently returns 404 on
+        // .mkv / .ts streams, which is what made Continue Watching look
+        // like "rien ne se passe" for episodes saved elsewhere.
         let savedUrl = entry.streamUrl.flatMap { URL(string: $0) }
+        let ext = entry.ext ?? favoriteInfo?.containerExtension ?? "mp4"
 
         if contentKey.hasPrefix("vod_") {
             let sid = String(contentKey.dropFirst("vod_".count))
-            let url = savedUrl ?? api.vodStreamUrl(streamId: sid, extension: favoriteInfo?.containerExtension ?? "mp4")
+            let url = savedUrl ?? api.vodStreamUrl(streamId: sid, extension: ext)
             if let url {
                 PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey, coverUrl: cover)
             }
@@ -302,7 +305,7 @@ struct ContinueWatchingCard: View {
         }
         if contentKey.hasPrefix("ep_") {
             let eid = String(contentKey.dropFirst("ep_".count))
-            let url = savedUrl ?? api.seriesStreamUrl(episodeId: eid, extension: favoriteInfo?.containerExtension ?? "mp4")
+            let url = savedUrl ?? api.seriesStreamUrl(episodeId: eid, extension: ext)
             if let url {
                 PlayerPresenter.playVOD(url: url, title: title, resumeFromMs: fromMs, contentKey: contentKey, coverUrl: cover)
             }

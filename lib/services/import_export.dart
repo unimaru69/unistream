@@ -80,6 +80,18 @@ class ImportExport {
   }
 
   /// Import une config JSON.
+  ///
+  /// The file is UNTRUSTED input — a backup is a shareable artefact, and
+  /// "import my config" is a normal thing to be handed by someone else.
+  /// Two consequences enforced below:
+  ///
+  ///   * only this profile's own watch-progress keys are restored. The
+  ///     loop used to write `entry.key` straight from the file into
+  ///     SharedPreferences, so a crafted backup could set ANY preference
+  ///     — `parental_pin_hash` to the hash of a PIN it knows, say, which
+  ///     silently unlocks parental controls.
+  ///   * imported passwords go to the Keychain via [AppConfig], not into
+  ///     the SharedPreferences profile list in cleartext.
   static Future<void> importConfigJSON(String content) async {
     final data = jsonDecode(content) as Map<String, dynamic>;
     final p = await SharedPreferences.getInstance();
@@ -88,7 +100,11 @@ class ImportExport {
       AppConfig.profiles = (data['profiles'] as List)
           .map((e) => Profile.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      await p.setString(StorageKeys.profilesList(AppConfig.currentUserId), jsonEncode(AppConfig.profiles.map((e) => e.toJson()).toList()));
+      // Route through AppConfig so each password lands in secure storage
+      // and the persisted list is written with the password stripped.
+      for (final pr in List<Profile>.from(AppConfig.profiles)) {
+        await AppConfig.updateProfile(pr);
+      }
     }
     // Restore active profile
     if (data['activeProfile'] != null) {
@@ -100,11 +116,15 @@ class ImportExport {
       if (data[favKey] != null) {
         await p.setString(StorageKeys.favorites(pr.id), data[favKey] as String);
       }
-      // Restore watch progress
+      // Restore watch progress — only keys inside this profile's own
+      // namespace. Anything else in the blob is ignored, whatever the
+      // file claims.
       final wpKey = 'wp_${pr.id}';
       if (data[wpKey] != null) {
         final wpData = data[wpKey] as Map<String, dynamic>;
+        final allowedPrefix = StorageKeys.wpPrefix(pr.id);
         for (final entry in wpData.entries) {
+          if (!entry.key.startsWith(allowedPrefix)) continue;
           if (entry.value is int) await p.setInt(entry.key, entry.value);
           if (entry.value is String) await p.setString(entry.key, entry.value);
         }

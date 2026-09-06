@@ -7,6 +7,14 @@ on:
     branches: [main]
   workflow_dispatch:  # Allow manual trigger for builds
 
+# Least privilege by default: without this, GITHUB_TOKEN inherits the
+# repository-wide default, which is often read/write on every scope.
+# Jobs that genuinely publish declare what they need themselves — note
+# that a job-level `permissions:` block replaces this default rather
+# than adding to it.
+permissions:
+  contents: read
+
 env:
   SENTRY_NATIVE_REPO: https://github.com/getsentry/sentry-native.git
   SENTRY_NATIVE_VERSION: "0.7.20"

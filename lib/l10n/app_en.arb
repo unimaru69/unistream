@@ -562,5 +562,9 @@
   "reprendreSimple": "Resume",
   "pasDansVotreCatalogue": "Not in your catalogue",
   "titreIndisponible": "This title isn't available from your provider.",
-  "indexationCatalogue": "Indexing catalogue…"
+  "indexationCatalogue": "Indexing catalogue…",
+  "exportSecretsTitre": "This file will contain your passwords",
+  "exportSecretsCorps": "The backup includes your IPTV server credentials in cleartext. Anyone who opens the file can use them. Keep it somewhere safe and don't share it.",
+  "exportSecretsCorpsM3u": "The exported links contain your IPTV username and password in cleartext. Anyone who opens the file can use them. Keep it somewhere safe and don't share it.",
+  "exporterQuandMeme": "Export anyway"
 }

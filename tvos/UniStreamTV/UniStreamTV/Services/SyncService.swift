@@ -525,6 +525,7 @@ final class SyncService {
             updatedAt: Date(),
             title: title ?? existing?.title,
             streamUrl: streamUrl ?? existing?.streamUrl,
+            ext: WatchEntry.containerExtension(from: streamUrl) ?? existing?.ext,
             coverUrl: coverUrl ?? existing?.coverUrl,
             seriesId: seriesId ?? existing?.seriesId
         )
@@ -577,6 +578,7 @@ final class SyncService {
             updatedAt: Date(),
             title: title ?? existing?.title,
             streamUrl: existing?.streamUrl,
+            ext: existing?.ext,
             coverUrl: existing?.coverUrl,
             // Caller-provided seriesId takes priority — without it, an
             // episode entry created from "Marquer tous les précédents
@@ -634,6 +636,7 @@ final class SyncService {
             updatedAt: Date(),
             title: title,
             streamUrl: streamUrl ?? existing?.streamUrl,
+            ext: WatchEntry.containerExtension(from: streamUrl) ?? existing?.ext,
             coverUrl: coverUrl ?? existing?.coverUrl,
             seriesId: seriesId ?? existing?.seriesId
         )
@@ -722,19 +725,24 @@ final class SyncService {
             let durMs = row["duration_ms"]?.intValue ?? 0
             guard durMs > 10000 else { continue }
 
-            // Extract title + streamUrl + coverUrl + seriesId from
-            // meta_json. Flutter writes `name`, `cover`, `url`;
-            // older tvOS-only entries write `title`. Accept either
-            // side. `objectValue` tolerates both shapes Supabase can
-            // return — JSONB columns come back as already-parsed
-            // objects, TEXT columns come back as JSON-encoded strings.
+            // Extract title + ext + coverUrl + seriesId from meta_json.
+            // Flutter writes `name`, `cover`, `ext`; older tvOS-only
+            // entries write `title`. Accept either side. `objectValue`
+            // tolerates both shapes Supabase can return — JSONB columns
+            // come back as already-parsed objects, TEXT columns come back
+            // as JSON-encoded strings.
+            //
+            // `url` is deliberately NOT read: it embeds the panel login +
+            // password, no longer travels, and rows written by older
+            // builds carry the OTHER device's credentials. `ext` is what
+            // lets us rebuild a URL locally — see ContinueWatchingRow.
             var title: String?
-            var streamUrl: String?
+            var ext: String?
             var coverUrl: String?
             var seriesId: String?
             if let metaDict = row["meta_json"]?.objectValue {
                 title = (metaDict["title"] as? String) ?? (metaDict["name"] as? String)
-                streamUrl = metaDict["url"] as? String
+                ext = metaDict["ext"] as? String
                 coverUrl = metaDict["cover"] as? String
                 seriesId = metaDict["series_id"] as? String
             }
@@ -752,7 +760,9 @@ final class SyncService {
                 durationMs: durMs,
                 updatedAt: updatedAt,
                 title: title,
-                streamUrl: streamUrl,
+                // Local-only, and this entry came off the wire.
+                streamUrl: nil,
+                ext: ext,
                 coverUrl: coverUrl,
                 seriesId: seriesId
             )
@@ -825,16 +835,22 @@ final class SyncService {
             return
         }
 
-        // Store title + URL + cover in meta_json for cross-device sync.
+        // Store title + ext + cover in meta_json for cross-device sync.
         // Use JSONSerialization so quotes / unicode encode safely.
-        // Keys mirror what Flutter writes (`name`/`url`/`cover`) plus the
+        // Keys mirror what Flutter writes (`name`/`ext`/`cover`) plus the
         // `title` alias tvOS reads — older tvOS builds only knew `title`.
+        //
+        // The stream URL is NEVER pushed: it embeds the panel login +
+        // password in its path, so sending it stored this user's IPTV
+        // credentials in cleartext in `user_watch_progress.meta_json`.
+        // `ext` carries the one bit the receiving device actually needs
+        // and can't derive from the content key.
         var metaDict: [String: Any] = [:]
         if let title = entry.title {
             metaDict["title"] = title
             metaDict["name"] = title
         }
-        if let url = entry.streamUrl { metaDict["url"] = url }
+        if let ext = entry.ext { metaDict["ext"] = ext }
         if let cover = entry.coverUrl { metaDict["cover"] = cover }
         if let sid = entry.seriesId { metaDict["series_id"] = sid }
         let metaData = (try? JSONSerialization.data(withJSONObject: metaDict)) ?? Data("{}".utf8)
@@ -868,10 +884,19 @@ struct WatchEntry: Codable {
     var title: String?
     /// Full Xtream stream URL captured at playback time. Lets us resume
     /// from the Continue Watching row without re-deriving the URL from a
-    /// content key (impossible without the original `containerExtension`,
-    /// which isn't carried in the key). Synced cross-device via
-    /// `meta_json.url` on `user_watch_progress` — same key Flutter uses.
+    /// content key.
+    ///
+    /// **Never synced.** The URL embeds the panel login + password in its
+    /// path (`{server}/movie/{user}/{pass}/{id}.mkv`), so pushing it put
+    /// this user's IPTV credentials in cleartext on Supabase. It stays on
+    /// this device; `ext` is what crosses.
     var streamUrl: String?
+    /// Container extension of the stream ('mp4', 'mkv', 'ts'), the one
+    /// piece a content key can't carry — and without which the resume
+    /// fallback guesses .mp4 and 404s on everything else. Non-sensitive,
+    /// so this is what syncs via `meta_json.ext`, letting each device
+    /// rebuild the URL with its own credentials.
+    var ext: String?
     /// Poster / cover URL for the item, captured at playback time. Lets
     /// the Continue Watching shelf show real artwork instead of a grey
     /// play-icon placeholder when the item isn't favorited (the favorite
@@ -887,6 +912,17 @@ struct WatchEntry: Codable {
     var progress: Double {
         guard durationMs > 0 else { return 0 }
         return min(Double(positionMs) / Double(durationMs), 1.0)
+    }
+
+    /// Container extension of a stream URL — `.../12345.mkv` → `mkv`.
+    /// Returns nil when there's no usable suffix.
+    static func containerExtension(from url: String?) -> String? {
+        guard let url else { return nil }
+        let path = URL(string: url)?.path ?? url
+        let ext = (path as NSString).pathExtension.lowercased()
+        guard !ext.isEmpty, ext.count <= 5,
+              ext.allSatisfy({ $0.isLetter || $0.isNumber }) else { return nil }
+        return ext
     }
 
     /// An item is considered watched once it has crossed the 95% threshold.

@@ -1413,4 +1413,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get indexationCatalogue => 'Indexing catalogue…';
+
+  @override
+  String get exportSecretsTitre => 'This file will contain your passwords';
+
+  @override
+  String get exportSecretsCorps =>
+      'The backup includes your IPTV server credentials in cleartext. Anyone who opens the file can use them. Keep it somewhere safe and don\'t share it.';
+
+  @override
+  String get exportSecretsCorpsM3u =>
+      'The exported links contain your IPTV username and password in cleartext. Anyone who opens the file can use them. Keep it somewhere safe and don\'t share it.';
+
+  @override
+  String get exporterQuandMeme => 'Export anyway';
 }
