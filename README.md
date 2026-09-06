@@ -18,12 +18,30 @@ Application de streaming IPTV multiplateforme construite avec Flutter. Supporte 
 
 ## Plateformes
 
-| Plateforme | Statut | Package |
-|------------|--------|---------|
-| macOS | Principal | DMG |
-| Windows | Natif | MSIX |
-| Linux | Natif | AppImage |
-| iOS | Simulateur | IPA |
+| Plateforme | Statut | Lecteur | Distribution |
+|------------|--------|---------|--------------|
+| macOS | Cible principale | media_kit (libmpv) | DMG signé Developer ID + notarisé, hors App Store |
+| Windows | Natif | media_kit (libmpv) | MSIX auto-signé (sideload, pas de Microsoft Store) |
+| Linux | Natif | media_kit (libmpv bundlé) | AppImage + tarball Flatpak (recettes Flathub prêtes, soumission non faite) |
+| Android TV | Navigation D-pad en cours | libVLC | APK universel dans les releases (sideload adb, pas de Play Store) |
+| iOS / iPadOS | TestFlight | libVLC | IPA via `scripts/archive-flutter-ios.sh` |
+| tvOS | TestFlight | VLCKit | Application **native SwiftUI distincte**, voir `tvos/` |
+
+Deux précisions qui ne se devinent pas :
+
+- **tvOS n'est pas l'application Flutter.** C'est une base de code SwiftUI
+  séparée sous `tvos/UniStreamTV`, avec son propre pipeline
+  (`scripts/archive-tvos.sh`) et sa propre numérotation de build. Les
+  correctifs fonctionnels doivent souvent être appliqués des deux côtés.
+- **Android TV lit via libVLC, pas libmpv** : libmpv réclame Vulkan, dont les
+  box TV sont dépourvues. L'APK reste universel (arm64-v8a + armeabi-v7a +
+  x86_64) parce que ces box sont couramment 32 bits — la box de test rapporte
+  `armeabi-v7a` seule sous Android 14.
+
+Côté CI, iOS, Android et tvOS sont compilés à chaque push. Les trois cibles
+desktop sont conditionnelles : elles ne tournent que sur déclenchement manuel ou
+si le message du commit contient `[build]` — utile pour valider macOS, Windows
+et Linux avant de tirer un tag (voir `.github/workflows/ci.yml`).
 
 ## Prérequis
 
