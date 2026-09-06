@@ -43,7 +43,7 @@ targets:
         # tvOS share `fr.unimaru.unistream`), so customers buy one product
         # and Apple cross-grants entitlements across their Apple devices.
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream
-        MARKETING_VERSION: "1.0.4"
+        MARKETING_VERSION: "1.0.6"
         CURRENT_PROJECT_VERSION: "77"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: UniStreamTV/Info.plist
@@ -93,7 +93,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.TopShelfExtension
-        MARKETING_VERSION: "1.0.4"
+        MARKETING_VERSION: "1.0.6"
         CURRENT_PROJECT_VERSION: "77"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: TopShelfExtension/Info.plist
