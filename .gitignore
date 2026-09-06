@@ -60,6 +60,9 @@ tools/logs/*
 tvos/**/build/
 tvos/**/simbuild/
 
+# Android Gradle build artifacts (the root project's, not android/app/build)
+android/build/
+
 # Supabase CLI temp files
 supabase/.temp/
 
