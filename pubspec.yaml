@@ -231,7 +231,7 @@ msix_config:
   display_name: UniStream
   publisher_display_name: UniMaru
   identity_name: fr.unimaru.unistream
-  msix_version: 1.0.0.0
+  msix_version: 1.0.6.0
   publisher: CN=UniMaru
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
