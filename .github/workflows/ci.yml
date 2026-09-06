@@ -53,6 +53,29 @@ jobs:
       - name: Build iOS (no codesign)
         run: flutter build ios --no-codesign --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
 
+  # Android / Android TV — one universal APK serves phones and TV boxes.
+  # Built in release so R8 actually runs: the JNI-resolved classes libVLC
+  # and media_kit look up by name are only kept by proguard-rules.pro, and
+  # a regression there is invisible in a debug build (it crashed playback
+  # on the test box, not in the emulator). No signing material in CI —
+  # without android/key.properties Gradle falls back to the debug key,
+  # which is fine for a build that is thrown away.
+  build-android:
+    needs: analyze-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - name: Build APK (release, debug-signed)
+        run: flutter build apk --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+
   # tvOS native app — generated via XcodeGen. Builds Debug for the tvOS
   # simulator with code signing disabled so we don't need a signing
   # identity in CI. Catches Swift / SwiftUI regressions on the native
