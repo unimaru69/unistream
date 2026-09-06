@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/colors.dart';
 import '../../core/form_factor.dart';
@@ -113,6 +114,12 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Keep the screen alive for the whole player session. Nothing in the
+    // app ever asked for this — the WAKE_LOCK permission was declared and
+    // unused — so a Google TV box fell asleep mid-film. It went unnoticed
+    // until now because playback on those boxes was a black screen, and a
+    // TV set handles its own standby differently from a box.
+    WakelockPlus.enable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
@@ -342,6 +349,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     _connectTimeoutTimer?.cancel();
     _epgTickTimer?.cancel();
     _timeshiftFlashTimer?.cancel();
+    WakelockPlus.disable();
     _rootNode.dispose();
     _controlsScope.dispose();
     final c = _controller;

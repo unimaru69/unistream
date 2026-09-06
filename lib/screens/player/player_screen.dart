@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -248,6 +249,9 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // See ios_player_screen: the app never held a wakelock, so a
+    // set-top box could sleep mid-playback.
+    WakelockPlus.enable();
     _zapping = ChannelZappingController(
       channelList: widget.channelList,
       channelIndex: widget.channelIndex,
@@ -770,6 +774,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     // Cancel stream subscriptions first
     _connectivitySubscription?.cancel();
     _tracksSubscription?.cancel();
