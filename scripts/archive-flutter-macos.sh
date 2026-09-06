@@ -33,6 +33,12 @@
 
 set -euo pipefail
 
+# CocoaPods needs a UTF-8 locale — see archive-flutter-ios.sh for the
+# exact failure it prevents (Ruby dies on Unicode normalisation before
+# reading the Podfile, and `set -e` kills the archive).
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+
 # ── Config ────────────────────────────────────────────────────────────
 : "${DEVELOPER_ID_APP:=Developer ID Application: Franck Bourbon (VS8P2MA59S)}"
 : "${ASC_API_KEY_ID:=N4K77SK2A9}"

@@ -21,6 +21,15 @@
 
 set -euo pipefail
 
+# CocoaPods needs a UTF-8 locale. Without one, Ruby throws
+# "Unicode Normalization not appropriate for ASCII-8BIT" from
+# Pod::Config#installation_root before it even reads the Podfile, and
+# `set -e` kills the archive right there. Flutter's own tooling sets this
+# for the pod install it runs itself, which is why `flutter build ios`
+# works while this script's direct call did not.
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+
 # ── Config ────────────────────────────────────────────────────────────
 : "${ASC_API_KEY_ID:=N4K77SK2A9}"
 : "${ASC_API_ISSUER_ID:=025be2c7-6d3e-42a9-a892-8dfb6f3112fc}"
