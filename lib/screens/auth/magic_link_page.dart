@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../providers/auth_provider.dart';
 
 /// Passwordless sign-in via email OTP.
@@ -76,7 +77,8 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
@@ -130,11 +132,13 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                             const SizedBox(height: 32),
 
                             // Email
-                            TextFormField(
+                            TvArrowEscape(child: TextFormField(
                               controller: _emailCtrl,
                               keyboardType: TextInputType.emailAddress,
                               autocorrect: false,
                               enabled: !_sent,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _sendCode(),
                               style: const TextStyle(color: Colors.white),
                               decoration: _input('Email', Icons.email_outlined),
                               validator: (v) {
@@ -146,7 +150,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                                 }
                                 return null;
                               },
-                            ),
+                            )),
 
                             if (_sent) ...[
                               const SizedBox(height: 16),
@@ -157,7 +161,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                               // and let Supabase verify reject
                               // wrong-length tokens with a real
                               // error message.
-                              TextField(
+                              TvArrowEscape(child: TextField(
                                 controller: _codeCtrl,
                                 focusNode: _codeFocus,
                                 keyboardType: TextInputType.number,
@@ -177,7 +181,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
                                   Icons.password_outlined,
                                 ).copyWith(counterText: ''),
                                 onSubmitted: (_) => _verifyCode(),
-                              ),
+                              )),
                             ],
 
                             const SizedBox(height: 16),
@@ -254,6 +258,7 @@ class _MagicLinkPageState extends ConsumerState<MagicLinkPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

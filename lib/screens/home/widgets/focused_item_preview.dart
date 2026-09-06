@@ -100,11 +100,16 @@ class _Panel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             const Spacer(),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: mode == ContentMode.live
-                  ? _LiveContent(item: item)
-                  : _VodSeriesContent(item: item, mode: mode),
+            // Flexible: the text block *prefers* 760px but must be able
+            // to shrink — at TV density (wider paddings) the fixed width
+            // + cover overflowed the panel by ~335px.
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: mode == ContentMode.live
+                    ? _LiveContent(item: item)
+                    : _VodSeriesContent(item: item, mode: mode),
+              ),
             ),
             SizedBox(width: DS.space.lg),
             _Cover(item: item, mode: mode),

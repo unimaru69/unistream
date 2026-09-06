@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:unistream/core/cache_config.dart';
+import 'package:unistream/core/tv_focus.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/design_tokens.dart';
 import 'package:unistream/core/logger.dart';
@@ -440,7 +441,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
         DS.padding.screenHorizontal,
         DS.space.xs,
       ),
-      child: TextField(
+      child: TvArrowEscape(child: TextField(
         controller: _searchCtrl,
         autofocus: true,
         cursorColor: AppColors.primaryBlue,
@@ -459,7 +460,7 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen> {
           ),
         ),
         onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-      ),
+      )),
     );
   }
 

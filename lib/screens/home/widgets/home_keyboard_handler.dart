@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/form_factor.dart';
+
 /// Wraps its [child] in a [Focus] widget that handles global keyboard
 /// shortcuts for the home screen (Cmd/Ctrl + Q, F, Y, G, comma, ?, /).
 class HomeKeyboardHandler extends StatelessWidget {
@@ -29,7 +31,16 @@ class HomeKeyboardHandler extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Focus(
-      autofocus: true,
+      // Desktop: this whole-screen Focus holds default focus so the
+      // Ctrl/Cmd shortcuts work before anything is clicked. On Android
+      // TV it must be a PURE interceptor: if it can take focus, the
+      // TvFocusScope seeding lands on it (first node in reading order),
+      // which satisfies "something has focus" with an invisible
+      // full-screen node — and directional traversal from a rect that
+      // covers the screen goes nowhere. Dead D-pad.
+      autofocus: !FormFactorInfo.isAndroidTv,
+      canRequestFocus: !FormFactorInfo.isAndroidTv,
+      skipTraversal: FormFactorInfo.isAndroidTv,
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         final mod = Platform.isMacOS

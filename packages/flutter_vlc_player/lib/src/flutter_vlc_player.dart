@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_vlc_player/src/vlc_player_controller.dart';
 import 'package:flutter_vlc_player/src/vlc_player_platform.dart';
@@ -36,6 +38,12 @@ class VlcPlayer extends StatefulWidget {
 class _VlcPlayerState extends State<VlcPlayer> {
   bool _isInitialized = false;
 
+  /// Android only. libVLC draws into a SurfaceTexture registered with
+  /// Flutter, but upstream only ever shows the platform view — on some
+  /// devices nothing presents those frames and the picture stays black
+  /// while audio plays. With the id we can draw that texture directly.
+  int? _textureId;
+
   //ignore: avoid_late_keyword
   late VoidCallback _listener;
 
@@ -61,23 +69,55 @@ class _VlcPlayerState extends State<VlcPlayer> {
     widget.controller.addListener(_listener);
   }
 
+  /// Forwards to the controller, then asks the Android side for the id of
+  /// the texture libVLC renders into. Failure is non-fatal: without it the
+  /// widget behaves exactly as upstream.
+  Future<void> _onPlatformViewCreated(int id) async {
+    widget.controller.onPlatformViewCreated(id);
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final textureId = await MethodChannel(
+        'flutter_video_plugin/getTextureId_$id',
+      ).invokeMethod<int>('getTextureId');
+      if (mounted && textureId != null) {
+        setState(() => _textureId = textureId);
+      }
+    } catch (_) {
+      // Older/other implementations don't answer — keep the platform view.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Read the controller directly instead of trusting the cached flag.
+    //
+    // Upstream keeps `_isInitialized` in a field fed by a listener, and
+    // hides the whole player subtree behind an Offstage while it is false.
+    // If the controller finishes initializing before that listener is
+    // attached, the flag never changes again — nothing ever notifies a
+    // value that is already set — and the player is built but never
+    // painted. That is exactly what happened on the Skyworth/Amlogic TV
+    // box, where VLC goes initialized → buffering → playing in ~65 ms:
+    // audio played, the picture stayed black, and so did a debug frame
+    // drawn inside the subtree.
+    final initialized =
+        _isInitialized || widget.controller.value.isInitialized;
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
-          Offstage(
-            offstage: _isInitialized,
-            child: widget.placeholder ?? Container(),
+          // Always mounted and painted: creating the platform view is what
+          // instantiates the native player, and its layout drives VLC's
+          // window size.
+          vlcPlayerPlatform.buildView(
+            _onPlatformViewCreated,
+            virtualDisplay: widget.virtualDisplay,
           ),
-          Offstage(
-            offstage: !_isInitialized,
-            child: vlcPlayerPlatform.buildView(
-              widget.controller.onPlatformViewCreated,
-              virtualDisplay: widget.virtualDisplay,
-            ),
-          ),
+          if (_textureId != null) Texture(textureId: _textureId!),
+          // Placeholder covers the player while it connects, rather than
+          // the player being hidden — no flag can strand it now.
+          if (!initialized) widget.placeholder ?? Container(),
         ],
       ),
     );

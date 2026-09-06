@@ -7,10 +7,22 @@
     <!-- Keep screen on during playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
+    <!-- Android TV: declare leanback support but don't require it, so the
+         same APK still installs on phones/tablets. touchscreen is marked
+         not-required for the same reason (Play hides the app from TV
+         devices otherwise). -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false"/>
+
     <application
         android:label="UniStream"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/tv_banner"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
@@ -28,6 +40,9 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <!-- Makes the app appear in the Android TV (leanback)
+                     home launcher in addition to the phone launcher. -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
             <!-- Deep link for unistream:// scheme -->
             <intent-filter>
@@ -40,6 +55,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Force the Skia renderer. Impeller (default since Flutter ~3.29)
+             is unproven on the GLES2-class GPUs of 2018-19 Android TVs
+             (Philips/Mali) — symptom on-device: last frame stays on
+             screen (focus ring visible, nothing moves) and the app dies
+             ~10 s in with no Sentry trace, on the first screen that uses
+             BackdropFilter blur. Revisit when TV-class GPUs are validated. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
     <queries>
         <intent>

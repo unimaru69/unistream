@@ -57,6 +57,16 @@ class ContentRepository {
   Future<List<VodItem>> getVodStreams([String? categoryId, bool force = false]) =>
       XtreamApi.getVodStreamsTyped(categoryId, force);
 
+  /// Recently-added VOD + series, reduced inside a worker isolate — the
+  /// Home screen must never materialise the full catalog (memory spike
+  /// killed the app on 1 GB Android TV boxes).
+  Future<List<dynamic>> getRecentCatalog({int max = 60}) =>
+      XtreamApi.getRecentCatalog(max: max);
+
+  /// Catch-up-capable channels only, filtered inside a worker isolate.
+  Future<List<Channel>> getCatchupChannels({int max = 15}) =>
+      XtreamApi.getCatchupChannels(max: max);
+
   Future<List<SeriesItem>> getSeries([String? categoryId, bool force = false]) =>
       XtreamApi.getSeriesTyped(categoryId, force);
 

@@ -18,8 +18,17 @@ class PurchaseService {
   bool _initialized = false;
 
   /// Whether the current platform supports in-app purchases.
+  ///
+  /// Android is gated behind a real Google Play key: until the
+  /// monetization refactor lands and [_revenueCatGoogleApiKey] is set to
+  /// a real value, we treat Android as unsupported so the SDK is never
+  /// configured with the placeholder (which would only produce failing
+  /// network calls + confusing logs). Android then falls back to the
+  /// same interim trial=Premium access path as Windows/Linux.
   bool get isPlatformSupported =>
-      Platform.isIOS || Platform.isMacOS || Platform.isAndroid;
+      Platform.isIOS ||
+      Platform.isMacOS ||
+      (Platform.isAndroid && !_revenueCatGoogleApiKey.contains('TODO'));
 
   /// Whether the SDK has been initialized.
   bool get isInitialized => _initialized;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/colors.dart';
 import '../../../core/design_tokens.dart';
+import '../../../core/tv_focus.dart';
 import '../../../core/typography.dart';
 
 /// Inline search trigger that mirrors
@@ -143,7 +144,7 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
             SizedBox(width: DS.space.xs),
             if (_editing)
               Flexible(
-                child: TextField(
+                child: TvArrowEscape(child: TextField(
                   controller: _controller,
                   focusNode: _focusNode,
                   autofocus: true,
@@ -169,7 +170,7 @@ class _InlineSearchFieldState extends State<InlineSearchField> {
                       setState(() => _editing = false);
                     }
                   },
-                ),
+                )),
               )
             else
               Flexible(

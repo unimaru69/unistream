@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'colors.dart';
+import 'form_factor.dart';
 
 /// Design tokens for UniStream — spacing, padding, radii, focus, motion.
 /// Mirror of `DS` in `tvos/UniStreamTV/UniStreamTV/Views/Components/
@@ -40,14 +41,17 @@ class _Spacing {
   final double huge = 96;
 }
 
-/// Screen-edge / section paddings.
-///
-/// Values are intentionally tighter than the tvOS counterpart (Swift uses
-/// 60pt screen / 40pt detail / 60pt bottom — the 10-foot UI breathes more).
-/// Desktop / tablet UniStream uses denser figures because the user sits
-/// close to the screen and a 60-pt margin would feel wasteful.
+/// Screen-edge / section paddings. Uniform across platforms — see the
+/// Android TV note inside the class.
 class _Padding {
   const _Padding();
+
+  // NOTE (Android TV): these deliberately do NOT inflate on TV anymore.
+  // Real TVs report ~320 dpi (devicePixelRatio 2), so a 1080p panel is
+  // only ~960 logical px wide — half a desktop window. Doubling paddings
+  // there made everything read as oversized and cost grid columns
+  // ("tout est un peu gros" from the field test). The 10-foot legibility
+  // comes from the thicker focus ring + the panel's own scaling instead.
 
   /// Horizontal padding for full-width screens.
   final double screenHorizontal = 24;
@@ -105,7 +109,8 @@ class _Focus {
 
   /// Thin accent ring drawn on focused cards. Pulled from the brand teal
   /// at low opacity so it reads as a glow rather than a hard outline.
-  final double ringWidth = 2;
+  /// Thicker on Android TV so the focused tile reads from 3 metres away.
+  double get ringWidth => FormFactorInfo.isAndroidTv ? 4 : 2;
 
   /// Standard focus animation — long enough to feel intentional, short
   /// enough that grid scrolling never feels sluggish.

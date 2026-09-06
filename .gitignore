@@ -60,8 +60,14 @@ tools/logs/*
 tvos/**/build/
 tvos/**/simbuild/
 
+# Android Gradle build artifacts (the root project's, not android/app/build)
+android/build/
+
 # Supabase CLI temp files
 supabase/.temp/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Claude Code agent worktrees
+.claude/worktrees/

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../core/logger.dart';
 import '../../core/theme_colors.dart';
 import '../../models/category.dart' as cat;
@@ -347,8 +348,11 @@ class _ParentalSettingsScreenState
               ),
             ),
             const SizedBox(height: 8),
-            // Search field
-            TextField(
+            // Search field — same D-pad trap as the TMDB key field: without
+            // this the remote gets stuck here and cannot reach the category
+            // list below.
+            TvArrowEscape(
+                child: TextField(
               onChanged: (v) => setState(() => _search = v.toLowerCase()),
               style: TextStyle(fontSize: 14, color: tc.textPrimary),
               decoration: InputDecoration(
@@ -363,7 +367,7 @@ class _ParentalSettingsScreenState
                   borderSide: BorderSide.none,
                 ),
               ),
-            ),
+            )),
           ],
         ),
       ),

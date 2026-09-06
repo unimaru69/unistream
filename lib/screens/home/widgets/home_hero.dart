@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache_config.dart';
 import '../../../core/colors.dart';
 import '../../../core/design_tokens.dart';
+import '../../../core/form_factor.dart';
 import '../../../core/typography.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/series_item.dart';
@@ -138,6 +139,10 @@ class _HomeHeroState extends ConsumerState<HomeHero> {
 
   void _startTimer() {
     if (_featured.length < 2) return;
+    // Android TV: don't auto-rotate. The carousel swaps the hero
+    // foreground via AnimatedSwitcher, which disposes the focused Play
+    // button's FocusNode and drops D-pad focus every few seconds.
+    if (FormFactorInfo.isAndroidTv) return;
     _timer = Timer.periodic(widget.rotationInterval, (_) {
       if (!mounted || _featured.isEmpty) return;
       setState(() => _index = (_index + 1) % _featured.length);
@@ -582,6 +587,11 @@ class _HeroForeground extends StatelessWidget {
             label: isSeries ? l10n.voirLaSerie : l10n.regarder,
             icon: Icons.play_arrow,
             onPressed: onPlay,
+            // Seed Android TV's D-pad focus on the hero's Play button —
+            // the landing screen's natural starting point. Flutter only
+            // honours autofocus when nothing else in the scope holds
+            // focus, so carousel auto-rotation won't yank it back.
+            autofocus: FormFactorInfo.isAndroidTv,
           ),
         ],
       ),

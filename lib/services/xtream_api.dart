@@ -5,6 +5,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unistream/core/form_factor.dart';
+import 'package:unistream/core/tv_diag_overlay.dart';
 import 'package:unistream/core/logger.dart';
 import 'package:unistream/core/storage_keys.dart';
 import '../models/app_config.dart';
@@ -124,6 +126,48 @@ class _StreamCacheEntry {
   _StreamCacheEntry(this.data, this.timestamp);
 }
 
+
+// ── Isolate-side catalog reducers (Android TV memory survival) ──
+//
+// The Home screen used to pull the FULL vod + series + live lists in
+// parallel just to build the hero, "recently added" and catch-up rows.
+// On a real provider that's tens of thousands of objects materialised at
+// once on the main isolate — the invisible memory spike that got the app
+// SIGKILLed on a 1 GB armv7 TV (the diag strip froze mid-load, so the
+// last rss it showed was never the peak).
+//
+// These run inside `compute`: they decode, reduce, and hand back only a
+// small list, so the big graph is born and dies in the worker isolate.
+
+int _recencyOf(dynamic e) {
+  if (e is! Map) return 0;
+  final added = int.tryParse('${e['added'] ?? 0}') ?? 0;
+  final mod = int.tryParse('${e['last_modified'] ?? 0}') ?? 0;
+  return added > mod ? added : mod;
+}
+
+/// Decode + keep only the [_TrimArgs.max] most recently added entries.
+List<dynamic> _decodeTrimRecent(_TrimArgs args) {
+  final list = jsonDecode(args.body) as List<dynamic>;
+  list.sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+  return list.take(args.max).toList();
+}
+
+/// Decode + keep only catch-up-capable channels (tv_archive == 1).
+List<dynamic> _decodeCatchupChannels(_TrimArgs args) {
+  final list = jsonDecode(args.body) as List<dynamic>;
+  return list
+      .where((e) => e is Map && '${e['tv_archive']}' == '1')
+      .take(args.max)
+      .toList();
+}
+
+class _TrimArgs {
+  const _TrimArgs(this.body, this.max);
+  final String body;
+  final int max;
+}
+
 // ── API Xtream Codes ──
 class XtreamApi {
   /// Load retry configuration from SharedPreferences.
@@ -166,7 +210,12 @@ class XtreamApi {
 
   static final Map<String, EpgCacheEntry> _epgCache = {};
   static const Duration _epgCacheTtl = Duration(minutes: 30);
-  static const int _epgCacheMaxSize = 500;
+
+  /// TV boxes are memory-starved (32-bit, ~1 GB shared): keep the EPG
+  /// cache an order of magnitude smaller there. Measured on a real-scale
+  /// catalog (42k items), memory pressure is what silently kills the app
+  /// on armv7 Android TV — same lesson as the tvOS UserDefaults SIGABRT.
+  static int get _epgCacheMaxSize => FormFactorInfo.isAndroidTv ? 150 : 500;
 
   /// In-flight EPG fetches, keyed by the same cache key as
   /// `_epgCache`. When `N` widgets call `getShortEpg(stream_42)` at
@@ -200,7 +249,7 @@ class XtreamApi {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(StorageKeys.epgCache(AppConfig.activeProfileId));
       if (raw == null || raw.isEmpty) return;
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final decoded = await _decodeOffMain(raw) as Map<String, dynamic>;
       final now = DateTime.now();
       for (final entry in decoded.entries) {
         final ts = DateTime.tryParse(entry.value['ts'] as String? ?? '');
@@ -230,7 +279,11 @@ class XtreamApi {
         };
       }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(StorageKeys.epgCache(AppConfig.activeProfileId), jsonEncode(serialized));
+      // Encode off-main too — same UI-thread-freeze rationale as
+      // _decodeOffMain, this fires repeatedly while EPG previews load.
+      final encoded = await compute(jsonEncode, serialized);
+      await prefs.setString(
+          StorageKeys.epgCache(AppConfig.activeProfileId), encoded);
     } catch (e, st) {
       AppLogger.warning(LogModule.epg, 'Failed to save EPG cache to disk', error: e, stackTrace: st);
     }
@@ -253,14 +306,20 @@ class XtreamApi {
   // ── Stream list cache (action+categoryId -> list, TTL 5 min) ──
   static final Map<String, _StreamCacheEntry> _streamCache = {};
   static const Duration _streamCacheTtl = Duration(minutes: 5);
-  static const int _streamCacheMaxSize = 100;
+  /// Each entry is a FULL category list; the "all items" lists reach
+  /// 10-30k maps on real providers. 100 cached lists is fine on desktop,
+  /// lethal on a 32-bit TV — cap hard there.
+  static int get _streamCacheMaxSize => FormFactorInfo.isAndroidTv ? 10 : 100;
 
   /// Visible for testing — allows overriding the clock.
   @visibleForTesting
   static DateTime Function() streamCacheNow = () => DateTime.now();
 
   static int get streamCacheSize => _streamCache.length;
-  static void clearStreamCache() => _streamCache.clear();
+  static void clearStreamCache() {
+    _streamCache.clear();
+    clearRecentCatalogCache();
+  }
 
   static List<dynamic>? _getStreamCached(String key) {
     final entry = _streamCache[key];
@@ -309,6 +368,18 @@ class XtreamApi {
     return list.map((e) => cat.Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+
+  /// Decode a large JSON payload OFF the main isolate.
+  ///
+  /// Full catalog lists reach tens of MB on real providers; parsing them
+  /// with a plain [jsonDecode] froze the UI thread — invisible on fast
+  /// hardware, but 15-30 s on an armv7 TV CPU, where the user's D-pad
+  /// presses then trip Android's input-dispatch ANR and the system kills
+  /// the app (silently: no Sentry event on Android 8). Observed as
+  /// "Choreographer: Skipped 90+ frames" even on the emulator.
+  static Future<dynamic> _decodeOffMain(String body) =>
+      compute(jsonDecode, body);
+
   /// [force] bypasses the 5-minute cache and goes back to the panel.
   /// Used by pull-to-refresh and the explicit "Actualiser le catalogue"
   /// action — without it those affordances silently returned the very
@@ -320,7 +391,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_live_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('liveFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('liveDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('liveDone');
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -328,6 +403,137 @@ class XtreamApi {
   static Future<List<Channel>> getLiveStreamsTyped([String? catId, bool force = false]) async {
     final list = await getLiveStreams(catId, force);
     return list.map((e) => Channel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+
+  /// Most recently added VOD + series, reduced inside a worker isolate.
+  /// Feeds the Accueil hero + "Recently added" row without ever holding
+  /// the whole catalog on the main isolate.
+  // ── Recent catalog (Accueil hero + Recently Added) ──
+  //
+  // Measured on the Skyworth box: 15.7 s per call, and the home screen
+  // fired two of them concurrently — four multi-MB payloads on the wire
+  // for one hero, which is most of the "the hero takes ten seconds to
+  // appear" report. Two guards below: in-flight coalescing so parallel
+  // callers share one fetch, and a TTL cache so coming back to a screen
+  // doesn't re-download the whole catalogue.
+  static List<dynamic>? _recentCatalog;
+  static DateTime? _recentCatalogAt;
+  static Future<List<dynamic>>? _recentCatalogInFlight;
+  static const Duration _recentCatalogTtl = Duration(minutes: 5);
+
+  static void clearRecentCatalogCache() {
+    _recentCatalog = null;
+    _recentCatalogAt = null;
+  }
+
+  static Future<List<dynamic>> getRecentCatalog({int max = 60}) async {
+    final cached = _recentCatalog;
+    final at = _recentCatalogAt;
+    if (cached != null &&
+        at != null &&
+        streamCacheNow().difference(at) < _recentCatalogTtl) {
+      return cached;
+    }
+
+    // Serve yesterday's list now, refresh behind it. The download is
+    // ~14 s on a TV box, and the hero does not exist until it lands —
+    // which is the whole "the hero takes ten seconds to appear" problem.
+    // Stale content on screen instantly beats correct content after
+    // fifteen seconds of blank page.
+    if (cached == null) {
+      final disk = await _loadRecentCatalogFromDisk();
+      if (disk != null && disk.isNotEmpty) {
+        _recentCatalog = disk;
+        // Deliberately NOT stamping _recentCatalogAt: the entry stays
+        // stale, so the refresh below still runs and the next call still
+        // re-validates.
+        unawaited(getRecentCatalog(max: max));
+        return disk;
+      }
+    }
+
+    return _recentCatalogInFlight ??=
+        _fetchRecentCatalog(max).whenComplete(() {
+      _recentCatalogInFlight = null;
+    });
+  }
+
+  static List<dynamic> _typeRecent(List<dynamic> maps) =>
+      maps.map<dynamic>((e) {
+        final m = e as Map<String, dynamic>;
+        return m.containsKey('series_id')
+            ? SeriesItem.fromJson(m)
+            : VodItem.fromJson(m);
+      }).toList();
+
+  static Future<List<dynamic>?> _loadRecentCatalogFromDisk() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw =
+          prefs.getString(StorageKeys.recentCatalog(AppConfig.activeProfileId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = await compute(jsonDecode, raw) as List<dynamic>;
+      return _typeRecent(decoded);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'recent catalog: disk read failed',
+          error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  static Future<void> _saveRecentCatalogToDisk(List<dynamic> maps) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = await compute(jsonEncode, maps);
+      await prefs.setString(
+          StorageKeys.recentCatalog(AppConfig.activeProfileId), encoded);
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'recent catalog: disk write failed',
+          error: e, stackTrace: st);
+    }
+  }
+
+  static Future<List<dynamic>> _fetchRecentCatalog(int max) async {
+    final out = <dynamic>[];
+    // Sequential, not Future.wait: on a memory-starved TV two multi-MB
+    // payloads in flight at once is exactly the spike we're avoiding.
+    for (final action in <String>['get_vod_streams', 'get_series']) {
+      try {
+        final body = (await httpGet('$baseUrl&action=$action')).body;
+        final trimmed = await compute(_decodeTrimRecent, _TrimArgs(body, max));
+        out.addAll(trimmed);
+      } catch (e, st) {
+        AppLogger.warning(LogModule.api, 'getRecentCatalog($action) failed',
+            error: e, stackTrace: st);
+      }
+    }
+    out.sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+    // Type only the survivors (≤ max), so the freezed objects never exist
+    // at catalog scale. Series carry `series_id`, films `stream_id`.
+    final survivors = out.take(max).toList();
+    final typed = _typeRecent(survivors);
+    _recentCatalog = typed;
+    _recentCatalogAt = streamCacheNow();
+    unawaited(_saveRecentCatalogToDisk(survivors));
+    return typed;
+  }
+
+  /// Catch-up-capable live channels only, reduced inside a worker isolate.
+  static Future<List<Channel>> getCatchupChannels({int max = 15}) async {
+    try {
+      final body =
+          (await httpGet('$baseUrl&action=get_live_streams')).body;
+      final trimmed =
+          await compute(_decodeCatchupChannels, _TrimArgs(body, max));
+      return trimmed
+          .map((e) => Channel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e, st) {
+      AppLogger.warning(LogModule.api, 'getCatchupChannels failed',
+          error: e, stackTrace: st);
+      return <Channel>[];
+    }
   }
 
   static Future<List<dynamic>> getVodCategories() async =>
@@ -345,7 +551,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_vod_streams';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('vodFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('vodDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('vodDone');
     _putStreamCache(cacheKey, result);
     return result;
   }
@@ -370,7 +580,11 @@ class XtreamApi {
     if (cached != null) return cached;
     var url = '$baseUrl&action=get_series';
     if (catId != null) url += '&category_id=$catId';
-    final result = jsonDecode((await httpGet(url)).body) as List<dynamic>;
+    TvDiag.mark('seriesFetch');
+    final body = (await httpGet(url)).body;
+    TvDiag.mark('seriesDecode');
+    final result = await _decodeOffMain(body) as List<dynamic>;
+    TvDiag.mark('seriesDone');
     _putStreamCache(cacheKey, result);
     return result;
   }

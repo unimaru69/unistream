@@ -48,8 +48,28 @@ android {
         }
     }
 
+    // Extract .so files at install time (extractNativeLibs=true).
+    // AGP 8 defaults to non-extracted libs, but Dart's
+    // DynamicLibrary.open('libmpv.so') relies on dlopen finding the
+    // library on disk — on Android 8 TV boxes it fails, MediaKit init
+    // throws, and every playback then dies with the misleading
+    // "MediaKit.ensureInitialized must be called before" (observed on a
+    // Philips Android 8 TV). Costs install size, buys working playback.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
+            // R8 runs on release builds and renames classes that native
+            // code resolves by name through JNI (libVLC, media_kit) —
+            // see proguard-rules.pro for the crash this prevents.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

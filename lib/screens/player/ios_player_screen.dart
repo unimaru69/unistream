@@ -6,8 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/colors.dart';
+import '../../core/form_factor.dart';
+import '../../core/tv_diag_overlay.dart';
+import '../../core/tv_focus.dart';
 import '../../core/logger.dart';
 import '../../models/channel.dart';
 import '../../models/next_episode_info.dart';
@@ -62,6 +66,13 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   // never stranded staring at a spinner with no escape.
   bool _hasStartedPlaying = false;
 
+  // The root node owns the remote while the overlay is hidden. When the
+  // controls come up on TV, focus moves into [_controlsScope] so the
+  // D-pad can walk the buttons; it comes back here when they hide.
+  final FocusNode _rootNode = FocusNode(debugLabel: 'player-root');
+  final FocusScopeNode _controlsScope =
+      FocusScopeNode(debugLabel: 'player-controls');
+
   Timer? _hideControlsTimer;
   Timer? _progressSaveTimer;
   Timer? _connectTimeoutTimer;
@@ -103,6 +114,12 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Keep the screen alive for the whole player session. Nothing in the
+    // app ever asked for this — the WAKE_LOCK permission was declared and
+    // unused — so a Google TV box fell asleep mid-film. It went unnoticed
+    // until now because playback on those boxes was a black screen, and a
+    // TV set handles its own standby differently from a box.
+    WakelockPlus.enable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
@@ -124,11 +141,19 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   }
 
   void _initPlayer() {
+    TvDiag.mark('vlcInit');
+    // Native surface incoming: stop scaling the Flutter tree (see
+    // tvUiScaleEnabled). Restored in dispose().
+    tvUiScaleEnabled.value = false;
     // Options mirror the flutter_vlc_player example for IPTV-style streams:
     // hardware decoding, network caching to absorb jitter, and HTTP reconnect
     // so transient drops don't kill playback.
     final c = VlcPlayerController.network(
       widget.url,
+      // Direct rendering: the decoder writes straight to the SurfaceView
+      // libVLC is attached to (see VLCSurfaceView). `decoding`
+      // (`:no-mediacodec-dr`) copies every frame out instead, which on the
+      // Skyworth box bought nothing and audibly choked the audio.
       hwAcc: HwAcc.full,
       autoPlay: true,
       // Subtitle sizing (`--freetype-rel-fontsize=20`) lives in our
@@ -151,6 +176,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     // Some streams don't autoplay reliably; force play once the platform
     // view is ready.
     c.addOnInitListener(() async {
+      TvDiag.mark('vlcReady');
       try {
         await c.play();
       } catch (_) {/* ignore — listener will surface real errors */}
@@ -209,8 +235,12 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
           'size=${v.size} '
           'pos=${v.position.inMilliseconds}ms '
           'err=${v.errorDescription}');
-      if (kDebugMode) {
-        // Direct print for `flutter run` console clarity.
+      if (kDebugMode || FormFactorInfo.isAndroidTv) {
+        // Direct print for `flutter run` console clarity — and on TV, the
+        // only way to see anything at all: AppLogger goes through the
+        // `logger` package, whose default filter drops everything in
+        // release builds, so `adb logcat` shows nothing on a sideloaded
+        // APK. print() lands in logcat as I/flutter either way.
         // ignore: avoid_print
         print('[VLC] state=${v.playingState.name} init=${v.isInitialized} '
             'playing=${v.isPlaying} buf=${v.isBuffering} '
@@ -253,13 +283,36 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
   void _scheduleHideControls() {
     _hideControlsTimer?.cancel();
     _hideControlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _showControls = false);
+      if (!mounted) return;
+      setState(() => _showControls = false);
+      // The overlay is going away — take the remote back, or the focused
+      // button would be disposed and the D-pad would go dead.
+      _rootNode.requestFocus();
     });
   }
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
-    if (_showControls) _scheduleHideControls();
+    if (_showControls) {
+      _scheduleHideControls();
+      _focusControls();
+    } else {
+      _rootNode.requestFocus();
+    }
+  }
+
+  /// Hand the remote to the controls overlay.
+  ///
+  /// Without this the D-pad never reaches the buttons: the root [Focus]
+  /// swallows every arrow, so subtitle and audio-track selection were
+  /// simply unreachable on a leanback box. No-op off TV, where a pointer
+  /// already does the job and stealing focus would be surprising.
+  void _focusControls() {
+    if (!FormFactorInfo.isAndroidTv) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_showControls) return;
+      _controlsScope.nextFocus();
+    });
   }
 
   void _togglePlay() {
@@ -296,6 +349,9 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
     _connectTimeoutTimer?.cancel();
     _epgTickTimer?.cancel();
     _timeshiftFlashTimer?.cancel();
+    WakelockPlus.disable();
+    _rootNode.dispose();
+    _controlsScope.dispose();
     final c = _controller;
     if (c != null) {
       c.removeListener(_onPlayerTick);
@@ -307,15 +363,84 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
       try { c.stop(); } catch (_) {}
       try { c.dispose(); } catch (_) {}
     }
+    tvUiScaleEnabled.value = true;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
+
+  /// Remote-control keys for the libVLC screen.
+  ///
+  /// The controls were tap-only (built for iOS), so on a TV the overlay
+  /// could never be summoned: playback started and nothing but Back
+  /// worked. OK reveals the controls, then acts as play/pause; left/right
+  /// seek on VOD; any arrow keeps the overlay awake.
+  KeyEventResult _onRemoteKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final k = event.logicalKey;
+
+    // Focus is inside the controls overlay: let the framework traverse
+    // and activate buttons rather than swallowing the arrows here. Keep
+    // the overlay awake so it doesn't vanish mid-navigation.
+    if (!node.hasPrimaryFocus) {
+      _scheduleHideControls();
+      return KeyEventResult.ignored;
+    }
+
+    if (k == LogicalKeyboardKey.select ||
+        k == LogicalKeyboardKey.enter ||
+        k == LogicalKeyboardKey.numpadEnter ||
+        k == LogicalKeyboardKey.space ||
+        k == LogicalKeyboardKey.mediaPlayPause ||
+        k == LogicalKeyboardKey.mediaPlay ||
+        k == LogicalKeyboardKey.mediaPause) {
+      // Held keys repeat: acting on every repeat turned one long press on
+      // OK into ~20 play/pause flips a second on the test box. Repeats are
+      // meaningful for seeking (below), never for a toggle — same split as
+      // player_keyboard_handler.dart.
+      if (event is KeyRepeatEvent) return KeyEventResult.handled;
+      // First press surfaces the (auto-hidden) overlay; once visible, OK
+      // means play/pause — the behaviour every TV app has.
+      if (!_showControls) {
+        _toggleControls();
+      } else {
+        _togglePlay();
+      }
+      return KeyEventResult.handled;
+    }
+
+    final isLeft = k == LogicalKeyboardKey.arrowLeft ||
+        k == LogicalKeyboardKey.mediaRewind;
+    final isRight = k == LogicalKeyboardKey.arrowRight ||
+        k == LogicalKeyboardKey.mediaFastForward;
+    if ((isLeft || isRight) && !_isLiveMode) {
+      _seekRelative(Duration(seconds: isRight ? 10 : -10));
+      if (!_showControls) setState(() => _showControls = true);
+      _scheduleHideControls();
+      return KeyEventResult.handled;
+    }
+
+    if (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown) {
+      if (!_showControls) {
+        _toggleControls();
+        return KeyEventResult.handled;
+      }
+      _scheduleHideControls();
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _controller;
-    return Scaffold(
+    return Focus(
+      focusNode: _rootNode,
+      autofocus: true,
+      onKeyEvent: _onRemoteKey,
+      child: Scaffold(
       backgroundColor: Colors.black,
       // No outer GestureDetector — VLC's native UIView swallows taps before
       // they reach an ancestor. Instead we put a transparent tap-catcher
@@ -329,6 +454,15 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
               child: VlcPlayer(
                 controller: c,
                 aspectRatio: _aspectRatio(c),
+                // Default (true) builds an AndroidView in virtual-display
+                // mode. On the Skyworth/Amlogic box that froze Flutter
+                // outright: the moment this screen opened, frame
+                // production stopped dead (`dumpsys gfxinfo` stuck on the
+                // same total across seconds) and the whole screen went
+                // black — DIAG overlay included, so not a video problem.
+                // `false` switches to initSurfaceAndroidView (hybrid
+                // composition): the player gets a real native SurfaceView.
+                virtualDisplay: !FormFactorInfo.isAndroidTv,
                 // Our own loading overlay handles the "Connexion…" UI;
                 // VLC's built-in spinner would make it a double spinner.
                 placeholder: const SizedBox.shrink(),
@@ -354,7 +488,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
           if (!_hasStartedPlaying && !_hasError) _buildLoadingOverlay(),
 
           if (_showControls && c != null && !_hasError && _hasStartedPlaying)
-            _buildControls(c),
+            FocusScope(node: _controlsScope, child: _buildControls(c)),
 
           // Timeshift OSD flash — center-screen, fades in/out. Drawn
           // on top of `_buildControls` so it stays visible while the
@@ -370,6 +504,7 @@ class _IOSPlayerScreenState extends ConsumerState<IOSPlayerScreen> {
             ),
         ],
       ),
+    ),
     );
   }
 

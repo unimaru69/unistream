@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/colors.dart';
 import '../../../core/theme_colors.dart';
+import '../../../core/tv_focus.dart';
 import '../../../providers/config_provider.dart';
 import '../../../providers/parental_provider.dart';
 import '../../../utils/feature_access.dart';
@@ -40,7 +41,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
   Widget _field(String label, TextEditingController ctrl,
       {String? hint, IconData? icon, String? Function(String?)? validator}) {
     final tc = AppThemeColors.of(context);
-    return TextFormField(
+    return TvArrowEscape(child: TextFormField(
       controller: ctrl,
       style: const TextStyle(fontSize: 14),
       validator: validator,
@@ -55,7 +56,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none),
       ),
-    );
+    ));
   }
 
   @override
@@ -83,7 +84,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
               return null;
             }),
         const SizedBox(height: 16),
-        TextFormField(
+        TvArrowEscape(child: TextFormField(
           controller: widget.passCtrl,
           obscureText: _obscure,
           style: const TextStyle(fontSize: 14),
@@ -111,7 +112,7 @@ class _ServerConfigSectionState extends ConsumerState<ServerConfigSection> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none),
           ),
-        ),
+        )),
         if (widget.error != null) ...[
           const SizedBox(height: 16),
           Semantics(

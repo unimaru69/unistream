@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/preferences_repository.dart';
 import '../../core/design_tokens.dart';
+import '../../core/tv_diag_overlay.dart';
+import '../../core/tv_focus.dart';
 import '../../core/theme_colors.dart';
 import '../../widgets/skeleton_list.dart';
 import '../channel_detail_screen.dart';
@@ -485,6 +487,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Init / loading ──
   Future<void> _init() async {
     try {
+      TvDiag.mark('auth');
       final auth = await _repo.authenticate();
       if (auth['user_info']?['auth'] == 1) {
         _repo.loadServerTimezone();
@@ -497,7 +500,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // ignore: unawaited_futures
           _loadAccueilFeatured();
         }
+        TvDiag.mark('cats');
         await _loadCategories();
+        TvDiag.mark('catsDone');
       } else {
         setState(() { _error = AppLocalizations.of(context)!.authEchouee; _loading = false; });
       }
@@ -609,15 +614,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Independent of [_loadRecentlyAdded] (which is per-mode and feeds
   /// the legacy split-view headers).
   Future<void> _loadAccueilFeatured() async {
+    TvDiag.mark('featured');
     AppLogger.debug(LogModule.ui, 'Loading Accueil featured items…');
     try {
-      final results = await Future.wait<List<dynamic>>(<Future<List<dynamic>>>[
-        _repo.getVodStreams().then((v) => v.cast<dynamic>()),
-        _repo.getSeries().then((s) => s.cast<dynamic>()),
-      ]);
-      final vodCount = results[0].length;
-      final seriesCount = results[1].length;
-      final all = <dynamic>[...results[0], ...results[1]];
+      // Reduced inside a worker isolate: the hero + Recently Added rows
+      // only ever show a handful of items, but this used to pull the FULL
+      // vod AND series lists in parallel — the memory spike that killed
+      // the app on 1 GB Android TV boxes.
+      final all = await _repo.getRecentCatalog(max: 60);
+      // TEMPORARY timing probe (TV only): the hero is gated on this data,
+      // and it takes seconds to appear on the box. Splits fetch time from
+      // our own processing so we optimise the right half.
+      final vodCount = all.whereType<VodItem>().length;
+      final seriesCount = all.whereType<SeriesItem>().length;
       int recencyKey(dynamic it) {
         final added = (it is VodItem
                 ? it.added
@@ -635,9 +644,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final tm = int.tryParse(lastMod) ?? 0;
         return ta > tm ? ta : tm;
       }
-      all.sort((a, b) => recencyKey(b).compareTo(recencyKey(a)));
+      // Key each item once rather than re-parsing inside the comparator
+      // (same trap as _loadRecentlyAdded, milder here — the isolate has
+      // already cut this to 60 items).
+      final keyed = [for (final it in all) (score: recencyKey(it), item: it)]
+        ..sort((a, b) => b.score.compareTo(a.score));
       if (!mounted) return;
-      setState(() => _accueilFeatured = all.take(30).toList());
+      setState(() =>
+          _accueilFeatured = keyed.take(30).map((e) => e.item).toList());
       AppLogger.debug(LogModule.ui,
           'Accueil featured loaded: ${_accueilFeatured.length}/${all.length} items (vod=$vodCount, series=$seriesCount)');
     } catch (e, st) {
@@ -652,24 +666,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
     try {
-      final List<dynamic> all = _mode == ContentMode.vod
-          ? await _repo.getVodStreams()
-          : await _repo.getSeries();
-      final items = all.where((s) {
-        final added = (s is VodItem ? s.added : s is SeriesItem ? s.added : null)?.toString() ?? '0';
-        final lastMod = (s is VodItem ? s.lastModified : s is SeriesItem ? s.lastModified : null)?.toString() ?? '0';
-        return (added.isNotEmpty && added != '0') || (lastMod.isNotEmpty && lastMod != '0');
-      }).toList();
-      items.sort((a, b) {
-        final ta = int.tryParse((a is VodItem ? a.added : a is SeriesItem ? a.added : null)?.toString() ?? '0') ?? 0;
-        final tb = int.tryParse((b is VodItem ? b.added : b is SeriesItem ? b.added : null)?.toString() ?? '0') ?? 0;
-        final ma = int.tryParse((a is VodItem ? a.lastModified : a is SeriesItem ? a.lastModified : null)?.toString() ?? '0') ?? 0;
-        final mb = int.tryParse((b is VodItem ? b.lastModified : b is SeriesItem ? b.lastModified : null)?.toString() ?? '0') ?? 0;
-        final sa = ta > ma ? ta : ma;
-        final sb = tb > mb ? tb : mb;
-        return sb.compareTo(sa);
-      });
-      if (mounted) setState(() => _recentlyAdded = items.take(20).toList());
+      // Reduced in a worker isolate, like the Accueil hero — and sharing
+      // its cache, so opening Films right after Accueil costs nothing.
+      //
+      // This used to pull the FULL catalogue: measured at 53 647 typed
+      // objects on the test provider, 5-7 s on the box, to display twenty
+      // of them. That is where the Films/Séries hero's delay came from,
+      // and almost certainly where the old memory kills came from too.
+      // 120, not 60: the pool mixes films and series, and filtering it by
+      // type left only 13 films on the test provider — the row used to
+      // show 20. Widening costs nothing extra on the wire; the download is
+      // the same, only the isolate's trim keeps more survivors.
+      final recent = await _repo.getRecentCatalog(max: 120);
+      final all = _mode == ContentMode.vod
+          ? recent.whereType<VodItem>().toList()
+          : recent.whereType<SeriesItem>().toList();
+      // Parse each timestamp ONCE, then sort integers.
+      //
+      // This used to sort the whole catalogue with a comparator that ran
+      // four int.tryParse calls per comparison — so roughly 4·n·log n
+      // string parses on the UI thread, for a list we then truncate to
+      // 20. On the Skyworth box that was several seconds during which the
+      // hero simply did not exist (it is gated on this list being
+      // non-empty) and navigation stuttered.
+      final scored = <({int score, dynamic item})>[];
+      for (final s in all) {
+        final added = int.tryParse(
+              (s is VodItem
+                          ? s.added
+                          : s is SeriesItem
+                              ? s.added
+                              : null)
+                      ?.toString() ??
+                  '',
+            ) ??
+            0;
+        final lastMod = int.tryParse(
+              (s is VodItem
+                          ? s.lastModified
+                          : s is SeriesItem
+                              ? s.lastModified
+                              : null)
+                      ?.toString() ??
+                  '',
+            ) ??
+            0;
+        final score = added > lastMod ? added : lastMod;
+        if (score > 0) scored.add((score: score, item: s));
+      }
+      scored.sort((a, b) => b.score.compareTo(a.score));
+      final items = scored.take(20).map((e) => e.item).toList();
+      if (mounted) setState(() => _recentlyAdded = items);
     } catch (e, st) {
       AppLogger.warning(LogModule.ui, 'Failed to load recently added items', error: e, stackTrace: st);
     }
@@ -680,6 +727,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Accueil cross-mode home — the user can land on catch-up content
   /// from either surface.
   Future<void> _loadCatchupPrograms() async {
+    TvDiag.mark('catchup');
     final wantsCatchup =
         _mode == ContentMode.live || _segment == HomeSegment.home;
     if (!wantsCatchup) {
@@ -687,9 +735,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
     try {
-      // Get all live channels to find catch-up enabled ones
-      final allChannels = await _repo.getLiveStreams();
-      final catchupChannels = allChannels.where((ch) => ch.hasCatchup).take(15).toList();
+      // Filtered inside a worker isolate — pulling every live channel here
+      // just to find the catch-up ones was part of the startup spike.
+      final catchupChannels = await _repo.getCatchupChannels(max: 15);
       if (catchupChannels.isEmpty) return;
 
       final now = DateTime.now().toUtc();
@@ -1254,7 +1302,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? _categories.where((c) => !blockedIds.contains(c.categoryId)).toList()
         : _categories;
 
-    return HomeKeyboardHandler(
+    return TvFocusScope(
+      child: HomeKeyboardHandler(
       onSettings: _openSettings,
       onSearch: () => Navigator.push(context, fadeRoute(const SearchScreen()))
           .then((_) => _refreshProgress()),
@@ -1713,6 +1762,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               return body;
             }),
       ),
+    ),
     ),
     );
   }

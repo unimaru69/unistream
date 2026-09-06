@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
+import '../../core/tv_focus.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import 'forgot_password_page.dart';
@@ -21,12 +22,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passFocus = FocusNode();
   bool _obscure = true;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
@@ -49,7 +54,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
 
-    return Center(
+    return TvFocusScope(
+      child: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: ConstrainedBox(
@@ -93,10 +99,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 40),
 
                 // Email field
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _emailCtrl,
+                  focusNode: _emailFocus,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
+                  // IME "Next" jumps to the password field — the reliable
+                  // way to move between fields on a D-pad (arrow keys are
+                  // captured by the text caret).
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passFocus.requestFocus(),
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authEmail, Icons.email_outlined),
                   validator: (v) {
@@ -104,13 +116,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     if (!v.contains('@') || !v.contains('.')) return l10n.authEmailInvalide;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
 
                 // Password field
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _passCtrl,
+                  focusNode: _passFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(l10n.authMotDePasse, Icons.lock_outline).copyWith(
                     suffixIcon: IconButton(
@@ -126,7 +140,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     return null;
                   },
                   onFieldSubmitted: (_) => _submit(),
-                ),
+                )),
                 const SizedBox(height: 8),
 
                 // Forgot password
@@ -231,12 +245,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 24),
                 ],
 
-                // Switch to signup
+                // Switch to signup. Flexible: the prompt + button exceed
+                // the form's 400px cap in French — without it the row
+                // overflows (clipped text in release).
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(l10n.authPasDeCompte,
-                        style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                    Flexible(child: Text(l10n.authPasDeCompte,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white60, fontSize: 13))),
                     TextButton(
                       onPressed: widget.onSwitchToSignup,
                       child: Text(l10n.authCreerCompte,
@@ -251,6 +268,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

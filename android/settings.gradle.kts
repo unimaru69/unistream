@@ -20,7 +20,11 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.0" apply false
+    // 2.2.20 is Flutter's current floor: the Gradle plugin refuses to
+    // apply below it ("Your project's Kotlin version is lower than
+    // Flutter's minimum supported version"). CI tracks the stable
+    // channel, so it hit that floor before this machine's older SDK did.
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 include(":app")

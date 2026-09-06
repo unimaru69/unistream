@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="launch_background">#0E0B1E</color>
+    <!-- Android TV launcher banner background (brand near-black). -->
+    <color name="tv_banner_background">#0E0B1E</color>
 </resources>

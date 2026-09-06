@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/widgets/dpad_focusable.dart';
 
 String _decodeEpgTitle(String s) {
   if (s.isEmpty) return s;
@@ -85,7 +86,9 @@ class CatchupRow extends StatelessWidget {
             return Semantics(
               button: true,
               label: '${_decodeEpgTitle(prog.title)}, ${prog.channelName}, ${prog.durationMin} min, replay',
-              child: GestureDetector(
+              child: DpadFocusable(
+                onTap: () => onTap(prog),
+                child: GestureDetector(
                 onTap: () => onTap(prog),
                 child: Container(
                   width: 180,
@@ -153,6 +156,7 @@ class CatchupRow extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
               ),
             );
           },

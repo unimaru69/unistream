@@ -3,6 +3,16 @@ import XCTest
 
 final class FeatureAccessTests: XCTestCase {
 
+    /// Same suspension as the Flutter side: `FeatureAccess.canUse` returns
+    /// `true` for everyone and `maxProfiles` returns 10, deliberately,
+    /// while the monetisation refactor (single tier + 7-day trial) is
+    /// pending — see the disabled branches kept in `Feature.swift`. The
+    /// tests that assert a *denial* are skipped rather than rewritten, so
+    /// re-enabling the gates re-enables the spec that describes them.
+    private static let gatesSuspended =
+        "Gates suspended pending the monetisation refactor — FeatureAccess "
+        + "returns true / 10 for everyone. See Feature.swift."
+
     override func setUp() {
         super.setUp()
         DebugPlanOverride.current = nil
@@ -15,7 +25,8 @@ final class FeatureAccessTests: XCTestCase {
 
     // MARK: - No Account
 
-    func testNilAccountDeniesAll() {
+    func testNilAccountDeniesAll() throws {
+        throw XCTSkip(Self.gatesSuspended)
         for feature in Feature.allCases {
             XCTAssertFalse(FeatureAccess.canUse(feature, account: nil))
         }
@@ -28,7 +39,8 @@ final class FeatureAccessTests: XCTestCase {
         XCTAssertTrue(FeatureAccess.canUse(.cloudSync, account: info))
     }
 
-    func testActiveTrialDeniedPremiumFeatures() {
+    func testActiveTrialDeniedPremiumFeatures() throws {
+        throw XCTSkip(Self.gatesSuspended)
         let info = AccountInfo(id: "1", trialStartedAt: Date(), subscriptionTier: "trial")
         XCTAssertFalse(FeatureAccess.canUse(.collections, account: info))
         XCTAssertFalse(FeatureAccess.canUse(.multipleProfiles, account: info))
@@ -44,7 +56,8 @@ final class FeatureAccessTests: XCTestCase {
         XCTAssertTrue(FeatureAccess.canUse(.cloudSync, account: info))
     }
 
-    func testBasicDeniedPremiumFeatures() {
+    func testBasicDeniedPremiumFeatures() throws {
+        throw XCTSkip(Self.gatesSuspended)
         let info = AccountInfo(id: "1", subscriptionTier: "basic")
         XCTAssertFalse(FeatureAccess.canUse(.collections, account: info))
         XCTAssertFalse(FeatureAccess.canUse(.multipleProfiles, account: info))
@@ -69,7 +82,8 @@ final class FeatureAccessTests: XCTestCase {
         }
     }
 
-    func testDebugBasicBlocksPremiumFeatures() {
+    func testDebugBasicBlocksPremiumFeatures() throws {
+        throw XCTSkip(Self.gatesSuspended)
         DebugPlanOverride.current = "basic"
         let info = AccountInfo(id: "1", subscriptionTier: "premium")
         XCTAssertFalse(FeatureAccess.canUse(.collections, account: info))
@@ -78,7 +92,8 @@ final class FeatureAccessTests: XCTestCase {
 
     // MARK: - Max Profiles
 
-    func testMaxProfilesBasic() {
+    func testMaxProfilesBasic() throws {
+        throw XCTSkip(Self.gatesSuspended)
         let info = AccountInfo(id: "1", subscriptionTier: "basic")
         XCTAssertEqual(FeatureAccess.maxProfiles(info), 1)
     }
@@ -88,7 +103,8 @@ final class FeatureAccessTests: XCTestCase {
         XCTAssertEqual(FeatureAccess.maxProfiles(info), 10)
     }
 
-    func testMaxProfilesNilAccount() {
+    func testMaxProfilesNilAccount() throws {
+        throw XCTSkip(Self.gatesSuspended)
         XCTAssertEqual(FeatureAccess.maxProfiles(nil), 1)
     }
 }

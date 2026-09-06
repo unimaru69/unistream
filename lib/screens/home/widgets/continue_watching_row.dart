@@ -7,6 +7,7 @@ import '../../../core/colors.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/continue_watching_item.dart';
 import '../../../utils/stream_helpers.dart';
+import '../../../widgets/dpad_focusable.dart';
 
 /// Horizontal carousel of "Continue watching" items with type badges.
 class ContinueWatchingRow extends StatelessWidget {
@@ -148,7 +149,10 @@ class ContinueWatchingRow extends StatelessWidget {
             return Semantics(
               label: '${item.name.isNotEmpty ? item.name : 'Contenu'}, ${(item.ratio * 100).round()}% regard\u00e9${badge != null ? ', ${badge.label}' : ''}',
               button: true,
-              child: MouseRegion(
+              child: DpadFocusable(
+                onTap: () => onTap(item),
+                onFocusChange: (f) => onItemHover?.call(item, f),
+                child: MouseRegion(
                 onEnter: (_) => onItemHover?.call(item, true),
                 onExit: (_) => onItemHover?.call(item, false),
                 cursor: SystemMouseCursors.click,
@@ -233,6 +237,7 @@ class ContinueWatchingRow extends StatelessWidget {
                 ]),
               ),
               ),
+            ),
             ),
             );
           },
@@ -409,7 +414,10 @@ class RecentlyAddedRow extends StatelessWidget {
             return Semantics(
               label: name.isNotEmpty ? name : 'Contenu',
               button: true,
-              child: MouseRegion(
+              child: DpadFocusable(
+                onTap: () => onTap(item),
+                onFocusChange: (f) => onItemHover?.call(item, f),
+                child: MouseRegion(
                 onEnter: (_) => onItemHover?.call(item, true),
                 onExit: (_) => onItemHover?.call(item, false),
                 cursor: SystemMouseCursors.click,
@@ -471,6 +479,7 @@ class RecentlyAddedRow extends StatelessWidget {
                         maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 ),
+              ),
               ),
               ),
             );

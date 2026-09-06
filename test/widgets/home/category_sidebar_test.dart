@@ -65,7 +65,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Favoris'), findsOneWidget);
-      expect(find.byIcon(Icons.star), findsOneWidget);
+      expect(find.byIcon(Icons.favorite), findsOneWidget);
     });
 
     testWidgets('renders Historique row', (tester) async {

@@ -1,5 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:unistream/core/colors.dart';
+import 'package:unistream/core/design_tokens.dart';
+import 'package:unistream/core/form_factor.dart';
+import 'package:unistream/core/tv_focus.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../../../models/content_mode.dart';
@@ -135,6 +141,36 @@ class StreamListView extends StatefulWidget {
 class _StreamListViewState extends State<StreamListView> {
   final ScrollController _scrollController = ScrollController();
 
+  /// Debounce for the bottom-of-grid preview panel.
+  ///
+  /// [StreamListView.onItemHover] drives a panel that pulls TMDB metadata
+  /// and repaints an ambient backdrop. A mouse visits one tile at a time;
+  /// a D-pad sweeps through a dozen, and firing that work on every one of
+  /// them saturated the UI thread on the Skyworth box — Android killed
+  /// the app on an input ANR after waiting 5 s for a key event. Update
+  /// the panel once the focus settles instead, which is how TV interfaces
+  /// behave anyway: you can sweep across a row without the backdrop
+  /// scrambling to keep up.
+  Timer? _hoverDebounce;
+  static const _hoverDebounceDelay = Duration(milliseconds: 300);
+
+  void _notifyItemFocus(dynamic item, bool focused) {
+    final cb = widget.onItemHover;
+    if (cb == null) return;
+    // Pointer hover is one deliberate move at a time — no reason to lag it.
+    if (!FormFactorInfo.isAndroidTv) {
+      cb(item, focused);
+      return;
+    }
+    _hoverDebounce?.cancel();
+    // Losing focus needs no notification: either the next tile takes over,
+    // or we left the grid entirely and the panel is gone with it.
+    if (!focused) return;
+    _hoverDebounce = Timer(_hoverDebounceDelay, () {
+      if (mounted) cb(item, true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +179,7 @@ class _StreamListViewState extends State<StreamListView> {
 
   @override
   void dispose() {
+    _hoverDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -271,7 +308,7 @@ class _StreamListViewState extends State<StreamListView> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(children: [
-        Expanded(child: TextField(
+        Expanded(child: TvArrowEscape(child: TextField(
           controller: widget.searchCtrl,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
@@ -289,7 +326,7 @@ class _StreamListViewState extends State<StreamListView> {
                 borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
           onChanged: widget.onSearchChanged,
-        )),
+        ))),
         if (widget.selectedCategory == '__favorites__' || widget.selectedCategory == '__watchlist__')
           Padding(
             padding: const EdgeInsets.only(left: 8),
@@ -449,7 +486,7 @@ class _StreamListViewState extends State<StreamListView> {
             childAspectRatio: aspect,
           ),
           itemCount: itemCount,
-          itemBuilder: (_, i) {
+          itemBuilder: (context, i) {
         if (i >= items.length) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
@@ -469,10 +506,15 @@ class _StreamListViewState extends State<StreamListView> {
           if (sid.isNotEmpty) liveNow = XtreamApi.getCachedEpgNow(sid);
         }
 
+        // Activating the tile (tap, Enter, or D-pad center) plays it —
+        // or toggles selection in multi-select mode. Shared between the
+        // tile's own GestureDetector and the focus ActivateIntent below.
+        void onActivate() => widget.selectionMode
+            ? widget.onToggleSelection(selKey)
+            : widget.onPlayStream(s);
+
         // Wrapped in a TMDB-aware consumer: for films/series, replaces the
         // low-res IPTV poster with the TMDB w500 poster when available.
-        // MouseRegion surfaces hover on desktop so the host can drive
-        // a bottom-of-grid `FocusedItemPreview` panel.
         final tile = TmdbAwareGridTile(
           key: ValueKey('grid_${StreamListView.getStreamId(s)}'),
           stream: s,
@@ -483,24 +525,126 @@ class _StreamListViewState extends State<StreamListView> {
           isInCollection: widget.activeCollectionId != null,
           selectionMode: widget.selectionMode,
           isSelected: isSelected,
-          onTap: widget.selectionMode
-              ? () => widget.onToggleSelection(selKey)
-              : () => widget.onPlayStream(s),
+          onTap: onActivate,
           onToggleFavorite: () => widget.onToggleFavorite(s),
           onToggleWatchlist: () => widget.onToggleWatchlist(s),
           onRemoveFromCollection: () => widget.onRemoveFromCollection(s),
           onSecondaryTap: (_) => widget.onShowStreamInfo(s),
           subtitle: liveNow,
         );
-        if (widget.onItemHover == null) return tile;
-        return MouseRegion(
-          onEnter: (_) => widget.onItemHover!(s, true),
-          onExit: (_) => widget.onItemHover!(s, false),
-          child: tile,
+
+        Widget result = tile;
+        // MouseRegion surfaces hover on desktop so the host can drive
+        // the bottom-of-grid `FocusedItemPreview` panel.
+        if (widget.onItemHover != null) {
+          result = MouseRegion(
+            onEnter: (_) => widget.onItemHover!(s, true),
+            onExit: (_) => widget.onItemHover!(s, false),
+            child: result,
+          );
+        }
+        // Focus traversal for D-pad (Android TV) and keyboard. The D-pad
+        // arrives as arrow keys → Flutter's directional focus moves
+        // between tiles; gaining focus drives the SAME preview panel as
+        // hover, and the focused tile is scrolled into view. Enter /
+        // Space / DPAD-center activate it.
+        return _GridFocusable(
+          // Seed the D-pad with a starting point: the first tile grabs
+          // focus when the grid first builds on Android TV.
+          autofocus: FormFactorInfo.isAndroidTv && i == 0,
+          onActivate: onActivate,
+          onFocusChange: (focused) => _notifyItemFocus(s, focused),
+          child: result,
         );
       },
         ),
       );
     });
+  }
+}
+
+/// A grid tile that shows where the D-pad is.
+///
+/// The grid used to wrap tiles in a bare `FocusableActionDetector` whose
+/// only visible effect was the preview panel at the bottom of the screen —
+/// nothing marked the tile itself, so on a TV there was no way to tell
+/// which one was selected. This draws the `DS.focus` treatment (ring,
+/// scale, shadow) the rest of the app already uses for hover.
+///
+/// The focused flag is local state on purpose: a D-pad move then repaints
+/// the two tiles involved instead of the whole grid. That matters on
+/// low-end boxes — on the Skyworth test box a single key press was once
+/// measured taking 2.5 s to process.
+class _GridFocusable extends StatefulWidget {
+  const _GridFocusable({
+    required this.child,
+    required this.onActivate,
+    required this.onFocusChange,
+    required this.autofocus,
+  });
+
+  final Widget child;
+  final VoidCallback onActivate;
+  final ValueChanged<bool> onFocusChange;
+  final bool autofocus;
+
+  @override
+  State<_GridFocusable> createState() => _GridFocusableState();
+}
+
+class _GridFocusableState extends State<_GridFocusable> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusableActionDetector(
+      autofocus: widget.autofocus,
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onActivate();
+            return null;
+          },
+        ),
+      },
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+      },
+      onShowFocusHighlight: (focused) {
+        if (focused != _focused) setState(() => _focused = focused);
+        widget.onFocusChange(focused);
+        if (focused) {
+          // Keep the focused tile fully on-screen as the D-pad walks the
+          // grid. alignment 0.5 centers it vertically.
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.5,
+            duration: DS.motion.quick,
+            curve: Curves.easeOut,
+          );
+        }
+      },
+      // Ring only, and not animated. The first version scaled the tile
+      // and animated a 24 px blur shadow on every focus change; in the
+      // film grid — bigger posters than the live logos — that pushed the
+      // UI thread to 300% CPU and Android killed the app on an input
+      // ANR (5.5 s to process one key event). The grid was already
+      // near the edge on this box before any of it: 2.5 s per key press
+      // was measured on the untouched build.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DS.radius.card),
+          border: Border.all(
+            color: AppColors.primaryBlue.withValues(
+              alpha: _focused ? 0.9 : 0,
+            ),
+            width: DS.focus.ringWidth,
+          ),
+        ),
+        child: widget.child,
+      ),
+    );
   }
 }

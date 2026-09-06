@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import '../core/colors.dart';
+import '../core/form_factor.dart';
 import '../core/theme_colors.dart';
+import '../core/tv_focus.dart';
 import '../providers/config_provider.dart';
 import '../providers/sync_trigger_provider.dart';
 import '../services/m3u_parser.dart';
@@ -29,6 +31,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _serverCtrl = TextEditingController();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  // Owned nodes (survive setState rebuilds) + IME "Next" chaining so the
+  // Xtream form is fillable with a D-pad on Android TV.
+  final _serverFocus = FocusNode();
+  final _userFocus = FocusNode();
+  final _passFocus = FocusNode();
+  // The server field's TvArrowEscape guard — the D-pad landing spot when
+  // the config page opens (focusing the FIELD would pop the IME).
+  final _serverGuard = FocusNode(debugLabel: 'serverGuard');
   bool _saving = false;
   bool _obscure = true;
   String? _error;
@@ -41,6 +51,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _serverCtrl.dispose();
     _userCtrl.dispose();
     _passCtrl.dispose();
+    _serverFocus.dispose();
+    _userFocus.dispose();
+    _passFocus.dispose();
+    _serverGuard.dispose();
     super.dispose();
   }
 
@@ -49,7 +63,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       page,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-    );
+    ).then((_) {
+      // Explicit D-pad focus handoff: land on the server field's GUARD
+      // (ring, no IME) once the config page settles. Relying on
+      // TvFocusScope's heal proved racy — the welcome page may not be
+      // disposed yet, so focus never drops and nothing gets seeded.
+      if (page == 1 && FormFactorInfo.isAndroidTv && mounted) {
+        _serverGuard.requestFocus();
+      }
+    });
   }
 
   Future<void> _importM3u() async {
@@ -174,7 +196,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return TvFocusScope(
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: PageView(
@@ -185,6 +208,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           _buildConfigPage(context),
           _buildSuccessPage(context),
         ],
+      ),
       ),
       ),
     );
@@ -276,8 +300,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                TextFormField(
+                TvArrowEscape(
+                  guardNode: _serverGuard,
+                  child: TextFormField(
                   controller: _serverCtrl,
+                  focusNode: _serverFocus,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _userFocus.requestFocus(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.serverUrlHint,
@@ -295,10 +325,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     if (uri == null || !uri.hasScheme) return l10n.urlInvalide;
                     return null;
                   },
-                ),
+                )),
                 const SizedBox(height: 16),
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _userCtrl,
+                  focusNode: _userFocus,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passFocus.requestFocus(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.nomUtilisateur,
@@ -310,11 +343,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         borderSide: BorderSide.none),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
-                ),
+                )),
                 const SizedBox(height: 16),
-                TextFormField(
+                TvArrowEscape(child: TextFormField(
                   controller: _passCtrl,
+                  focusNode: _passFocus,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _saving ? null : _authenticate(),
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     labelText: l10n.motDePasse,
@@ -332,7 +368,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         borderSide: BorderSide.none),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? l10n.tousChampRequis : null,
-                ),
+                )),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Semantics(

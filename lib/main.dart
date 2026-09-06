@@ -11,6 +11,9 @@ import 'package:window_manager/window_manager.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'core/logger.dart';
+import 'core/form_factor.dart';
+import 'core/tv_diag_overlay.dart';
+import 'core/tv_focus.dart';
 import 'l10n/app_localizations.dart';
 import 'core/colors.dart';
 import 'core/sentry_config.dart';
@@ -138,12 +141,58 @@ void showMiniOverlay(MiniPlayerState state) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // MUST come before any FormFactorInfo.isAndroidTv read below: the flag
+  // is resolved by a platform channel, so it stays false until this
+  // await completes. Ordering this after the media_kit block was a real
+  // bug — the TV skip never applied and libmpv was still loaded there.
+  // Resolve Android TV / leanback once so the UI can switch to the
+  // 10-foot density + D-pad focus synchronously from here on. No-op
+  // off Android. Timeout-guarded so a stuck platform channel can't
+  // block the first frame.
+  await FormFactorInfo.ensureInitialized()
+      .timeout(const Duration(seconds: 4), onTimeout: () {});
+  if (FormFactorInfo.isAndroidTv) {
+    // Android defaults the focus highlight mode to `touch`, so
+    // `onShowFocusHighlight` never fires and the focused tile shows no
+    // ring until the first key press. Force the desktop/TV behaviour so
+    // D-pad focus is visible from the first frame.
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+    // Memory guard: TV boxes are 32-bit with ~1 GB shared RAM, and the
+    // decoded-image cache defaults to 100 MB — poster grids fill it
+    // within seconds of the first real catalog load, and the low-memory
+    // killer takes the app down silently (no Sentry event). Cap it hard;
+    // tiles re-decode from the disk cache when evicted, which is fine
+    // at 10-foot browsing speed.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
+  }
+
   // media_kit wraps libmpv, which crashes at init on iOS (EXC_BAD_ACCESS
   // in the DartWorker thread). Until we wire the iOS player to AVPlayer
   // via `video_player`, skip the global init so the UI still boots on
   // iPhone / iPad. Playback will be a no-op on those platforms.
-  if (!Platform.isIOS) {
-    MediaKit.ensureInitialized();
+  // Android TV also skips libmpv: its prebuilt libmpv.so links against
+  // libvulkan.so, which 2018-19 TV panels (GLES2-class GPUs) simply don't
+  // ship — dlopen fails, and media_kit reports the misleading "Cannot
+  // find libmpv.so" (confirmed on a Philips Android 8 TV via the diag
+  // strip). Those devices play through libVLC instead, which only needs
+  // EGL/GLESv2 (verified with readelf on the packaged libvlc.so).
+  if (Platform.isIOS || FormFactorInfo.isAndroidTv) {
+    // Visible confirmation in the diag strip that the skip really applied.
+    TvDiag.mark('mkSKIP');
+  } else {
+    try {
+      MediaKit.ensureInitialized();
+      TvDiag.mark('mkOK');
+    } catch (e, st) {
+      // NEVER swallow this silently: a failed libmpv init makes every
+      // playback throw "MediaKit.ensureInitialized must be called
+      // before" much later, with no clue why (exactly what the Philips
+      // TV showed). Surface it in the diag strip AND to Sentry.
+      TvDiag.mark('mkFAIL:${e.toString().split('\n').first}');
+      AppLogger.error(LogModule.player,
+          'MediaKit init FAILED — playback will not work', error: e, stackTrace: st);
+    }
   }
   if (kDemoMode && kDemoLandscape) {
     // Lock orientation to landscape for screenshot generation.
@@ -157,7 +206,14 @@ void main() async {
     await prefs.setString(StorageKeys.locale, kDemoLocale);
   }
   if (!kDemoMode) {
-    await SupabaseConfig.initialize();
+    // Never let a slow/unreachable network wedge the splash: Supabase
+    // (and other startup inits below) run behind a timeout so `runApp`
+    // is always reached. Sync still degrades gracefully when it's null.
+    await SupabaseConfig.initialize().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => AppLogger.warning(
+          LogModule.sync, 'Supabase init timed out at startup — continuing'),
+    );
   }
   await AppConfig.load();
 
@@ -191,7 +247,16 @@ void main() async {
   }
 
   if (!kDemoMode) {
-    await NotificationService.instance.init();
+    // Guarded: notification-channel setup must never hang or crash the
+    // splash (esp. on Android TV, where the notification stack differs).
+    try {
+      await NotificationService.instance
+          .init()
+          .timeout(const Duration(seconds: 8));
+    } catch (e, st) {
+      AppLogger.warning(LogModule.ui,
+          'Notification init failed/timed out — continuing', error: e, stackTrace: st);
+    }
   }
   await loadThemeMode();
 
@@ -377,6 +442,7 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
   /// Pull remote data from Supabase and merge into local providers,
   /// then start realtime subscriptions for live cross-device sync.
   Future<void> _initSync() async {
+    TvDiag.mark('sync');
     // Skip sync if not authenticated
     if (!AuthService.instance.isAuthenticated) return;
 
@@ -562,6 +628,11 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        // No-op unless built with --dart-define=TVDIAG=true on Android TV.
+        // TvUiScale first (gives TV a 1280-wide logical canvas), diag
+        // strip on top so it stays readable at panel scale.
+        builder: (context, child) =>
+            withTvDiagOverlay(TvUiScale(child: child!)),
         home: const AuthGate(),
       ),
     );

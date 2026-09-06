@@ -5,6 +5,7 @@ import 'package:unistream/core/design_tokens.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/core/typography.dart';
 import 'package:unistream/l10n/app_localizations.dart';
+import 'package:unistream/widgets/dpad_focusable.dart';
 
 import '../../../models/category.dart' as cat;
 import '../../../models/collection_data.dart';
@@ -338,7 +339,11 @@ class _SidebarRowState extends State<_SidebarRow> {
 
     final scale = hovered && !selected ? DS.focus.chipScale : 1.0;
 
-    return MouseRegion(
+    return DpadFocusable(
+      onTap: widget.onTap,
+      // Focus drives the same highlight + scale as mouse hover.
+      onFocusChange: _setHover,
+      child: MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => _setHover(true),
       onExit: (_) => _setHover(false),
@@ -394,6 +399,7 @@ class _SidebarRowState extends State<_SidebarRow> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
