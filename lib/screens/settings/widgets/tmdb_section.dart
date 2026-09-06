@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme_colors.dart';
+import '../../../core/tv_focus.dart';
 import '../../../providers/tmdb_provider.dart';
 
 /// Settings block for the TMDB metadata enrichment feature.
@@ -79,7 +80,15 @@ class _TmdbSectionState extends ConsumerState<TmdbSection> {
             ),
 
             const SizedBox(height: 8),
-            TextField(
+            // On Android TV a text field grabs the D-pad and pops the
+            // fullscreen IME the moment focus merely passes through it —
+            // here that trapped the user on the TMDB key with no way down
+            // to the options below, so they could not even sign out.
+            // TvArrowEscape makes it an inert focus stop that only opens
+            // the keyboard on an explicit OK. Already applied to the
+            // onboarding, search and server fields; this one was missed.
+            TvArrowEscape(
+                child: TextField(
               controller: _ctrl,
               obscureText: !_showKey,
               decoration: InputDecoration(
@@ -92,7 +101,7 @@ class _TmdbSectionState extends ConsumerState<TmdbSection> {
                 ),
                 border: const OutlineInputBorder(),
               ),
-            ),
+            )),
             const SizedBox(height: 8),
             Row(children: [
               TextButton.icon(

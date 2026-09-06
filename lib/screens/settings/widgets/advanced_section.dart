@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme_colors.dart';
+import '../../../core/tv_focus.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 import 'package:unistream/repositories/content_repository.dart';
 import 'package:unistream/repositories/preferences_repository.dart';
@@ -80,14 +81,22 @@ class _AdvancedSectionState extends ConsumerState<AdvancedSection> {
                 style: TextStyle(fontSize: 14, color: tc.textSecondary)),
           ],
         ),
-        Slider(
-          value: _maxRetries,
-          min: 1,
-          max: 5,
-          divisions: 4,
-          label: '${_maxRetries.round()}',
-          onChanged: (v) => setState(() => _maxRetries = v),
-          onChangeEnd: _saveMaxRetries,
+        TvSliderEscape(
+          onAdjust: (dir) {
+            final next = (_maxRetries + dir).clamp(1.0, 5.0);
+            if (next == _maxRetries) return;
+            setState(() => _maxRetries = next);
+            _saveMaxRetries(next);
+          },
+          child: Slider(
+            value: _maxRetries,
+            min: 1,
+            max: 5,
+            divisions: 4,
+            label: '${_maxRetries.round()}',
+            onChanged: (v) => setState(() => _maxRetries = v),
+            onChangeEnd: _saveMaxRetries,
+          ),
         ),
         const SizedBox(height: 8),
         // Timeout slider
@@ -101,14 +110,22 @@ class _AdvancedSectionState extends ConsumerState<AdvancedSection> {
                 style: TextStyle(fontSize: 14, color: tc.textSecondary)),
           ],
         ),
-        Slider(
-          value: _timeoutSec,
-          min: 5,
-          max: 30,
-          divisions: 25,
-          label: '${_timeoutSec.round()}s',
-          onChanged: (v) => setState(() => _timeoutSec = v),
-          onChangeEnd: _saveTimeout,
+        TvSliderEscape(
+          onAdjust: (dir) {
+            final next = (_timeoutSec + dir).clamp(5.0, 30.0);
+            if (next == _timeoutSec) return;
+            setState(() => _timeoutSec = next);
+            _saveTimeout(next);
+          },
+          child: Slider(
+            value: _timeoutSec,
+            min: 5,
+            max: 30,
+            divisions: 25,
+            label: '${_timeoutSec.round()}s',
+            onChanged: (v) => setState(() => _timeoutSec = v),
+            onChangeEnd: _saveTimeout,
+          ),
         ),
         const SizedBox(height: 8),
         Text(l10n.descriptionAvances,

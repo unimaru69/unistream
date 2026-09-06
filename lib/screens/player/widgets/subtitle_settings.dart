@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unistream/core/colors.dart';
+import '../../../core/tv_focus.dart';
 import 'package:unistream/core/theme_colors.dart';
 import 'package:unistream/l10n/app_localizations.dart';
 
@@ -44,7 +45,14 @@ void showSubtitleStylePicker(BuildContext context, {
             child: Row(children: [
               Text(l10n.taille, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               Expanded(
-                child: Slider(
+                child: TvSliderEscape(
+                  onAdjust: (dir) {
+                    final next = (localFontSize + dir * 2).clamp(12.0, 48.0);
+                    if (next == localFontSize) return;
+                    setLocal(() => localFontSize = next);
+                    onFontSizeChanged(next);
+                  },
+                  child: Slider(
                   value: localFontSize,
                   min: 12, max: 48, divisions: 18,
                   label: localFontSize.round().toString(),
@@ -53,6 +61,7 @@ void showSubtitleStylePicker(BuildContext context, {
                     setLocal(() => localFontSize = v);
                     onFontSizeChanged(v);
                   },
+                ),
                 ),
               ),
               Text('${localFontSize.round()}',
@@ -96,7 +105,14 @@ void showSubtitleStylePicker(BuildContext context, {
             child: Row(children: [
               Text(l10n.fondLabel, style: TextStyle(fontSize: 13, color: tc.textSecondary)),
               Expanded(
-                child: Slider(
+                child: TvSliderEscape(
+                  onAdjust: (dir) {
+                    final next = (localBgOpacity + dir * 0.1).clamp(0.0, 1.0);
+                    if (next == localBgOpacity) return;
+                    setLocal(() => localBgOpacity = next);
+                    onBgOpacityChanged(next);
+                  },
+                  child: Slider(
                   value: localBgOpacity,
                   min: 0, max: 1, divisions: 10,
                   label: '${(localBgOpacity * 100).round()}%',
@@ -105,6 +121,7 @@ void showSubtitleStylePicker(BuildContext context, {
                     setLocal(() => localBgOpacity = v);
                     onBgOpacityChanged(v);
                   },
+                ),
                 ),
               ),
               Text('${(localBgOpacity * 100).round()}%',

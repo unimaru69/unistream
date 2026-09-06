@@ -608,3 +608,75 @@ class TvUiScale extends StatelessWidget {
     );
   }
 }
+
+/// Makes a [Slider] D-pad friendly on Android TV. No-op elsewhere.
+///
+/// Flutter's slider binds **all four** arrow keys to value adjustment, so
+/// on a remote it swallows Up and Down and the focus can never leave it —
+/// reported on the "Tentatives max" slider in advanced settings, which
+/// stranded the user before the options underneath.
+///
+/// Wrapping it in `Shortcuts` does not help: the slider's own bindings sit
+/// closer to the focused node and win. So the slider is taken out of the
+/// focus tree entirely ([ExcludeFocus]) and a guard node takes its place —
+/// the same trick [TvArrowEscape] plays for text fields. The guard keeps
+/// Left/Right for adjustment and lets Up/Down bubble up to [TvFocusScope].
+class TvSliderEscape extends StatefulWidget {
+  const TvSliderEscape({
+    super.key,
+    required this.child,
+    required this.onAdjust,
+  });
+
+  final Widget child;
+
+  /// Called with -1 / +1 when Left / Right is pressed while focused.
+  final ValueChanged<int> onAdjust;
+
+  @override
+  State<TvSliderEscape> createState() => _TvSliderEscapeState();
+}
+
+class _TvSliderEscapeState extends State<TvSliderEscape> {
+  bool _focused = false;
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      widget.onAdjust(-1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      widget.onAdjust(1);
+      return KeyEventResult.handled;
+    }
+    // Everything else — Up, Down, Back — bubbles.
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!FormFactorInfo.isAndroidTv) return widget.child;
+    return Focus(
+      onKeyEvent: _onKey,
+      onFocusChange: (f) {
+        if (f != _focused) setState(() => _focused = f);
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _focused
+                ? const Color(0xFF1E88E5)
+                : const Color(0x00000000),
+            width: 3,
+          ),
+        ),
+        child: ExcludeFocus(child: widget.child),
+      ),
+    );
+  }
+}
