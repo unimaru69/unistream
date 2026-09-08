@@ -37,6 +37,7 @@ import 'widgets/timeshift_osd.dart';
 import 'widgets/player_app_bar.dart';
 import 'widgets/quality_selector.dart';
 import 'channel_zapping_controller.dart';
+import 'player_stall_diagnostics.dart';
 import 'ios_player_screen.dart';
 import 'player_keyboard_handler.dart';
 
@@ -213,6 +214,9 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   // Channel zapping controller
   late final ChannelZappingController _zapping;
 
+  // Off unless UNISTREAM_PLAYER_DIAG=1 — see PlayerStallDiagnostics.
+  final PlayerStallDiagnostics _stallDiagnostics = PlayerStallDiagnostics();
+
   // Subtitle customization
   double _subtitleFontSize = 24;
   Color _subtitleColor = Colors.white;
@@ -272,9 +276,16 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
       final nativePlayer = _player.platform;
       if (nativePlayer is NativePlayer) {
         nativePlayer.setProperty('hwdec', 'no');
+        // media_kit enables mpv's disk cache on every platform, which
+        // writes every streamed byte to a file under ~/.cache for no
+        // benefit — we never replay a stream from disk. Unrelated to the
+        // Impeller stall (that one is fixed in linux/runner/main.cc);
+        // this is just the wrong default for a streaming-only client.
+        nativePlayer.setProperty('cache-on-disk', 'no');
       }
     }
     _controller = widget.existingController ?? VideoController(_player);
+    _stallDiagnostics.attach(_player);
 
     // Only force immersive/landscape on mobile platforms
     if (!Platform.isLinux && !Platform.isMacOS && !Platform.isWindows) {
@@ -792,6 +803,7 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     _volumeOsdTimer?.cancel();
     _timeshiftFlashTimer?.cancel();
     _epgTickTimer?.cancel();
+    _stallDiagnostics.dispose();
     _zapping.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     if (!_minimized && !_handedOff) {
