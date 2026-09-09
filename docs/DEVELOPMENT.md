@@ -105,64 +105,77 @@ GitHub Actions (`.github/workflows/`) :
 - `analyze-and-test` : Ubuntu — lint + tests (toujours exécuté)
 - `build-macos/windows/linux` : On-demand (tag `[build]` ou workflow dispatch)
 
-## Lecture saccadée sur Linux : Impeller
+## Lecture saccadée sur Linux : ce qui est écarté
 
-**Résolu.** Symptôme : la lecture démarre mais se met en pause ~1 s toutes
-les 1 à 2 s, en live comme en VOD, avec une sévérité proportionnelle à la
-résolution (SD propre, HD occasionnel, FHD systématique).
+Symptôme (iMac Fedora, AppImage release, 2026-09-08) : la lecture démarre
+mais se met en pause ~1 s toutes les 1 à 2 s, en live comme en VOD, avec
+une sévérité proportionnelle à la résolution — SD propre, HD occasionnel,
+FHD systématique.
 
-Cause : Flutter active **Impeller/GLES par défaut sur Linux**, et la
-texture vidéo de media_kit_video n'y survit pas. Le plugin rend les frames
-de libmpv dans son propre contexte EGL et les passe à Flutter via une
-texture externe adossée à un EGLImage ; le chemin external-texture
-d'Impeller rend cette présentation assez coûteuse pour bloquer la lecture.
-Skia joue le même flux proprement.
+**Non résolu.** Ce qui est écarté, avec la preuve :
 
-Correctif : [`linux/runner/main.cc`](../linux/runner/main.cc) pousse
-`enable-impeller=false` dans les engine switches avant le démarrage du
-moteur (le point d'entrée le plus haut qui couvre tarball, AppImage,
-Flatpak et `flutter run -d linux`). Le runner s'abstient si un switch
-`enable-impeller` est déjà présent, donc pour retester Impeller il suffit
-de le demander explicitement —
+- **Le rendu logiciel de media_kit.** Le plugin natif annonce son chemin
+  sur stderr, sans rebuild ni variable d'environnement :
+  `media_kit: VideoOutput: H/W rendering with isolated EGL context…`
+  (le cas ici) vs `S/W rendering.`, qui signifierait pas de contexte EGL
+  et chaque image recopiée via un buffer RGBA 1080p sur le CPU — à
+  vérifier alors côté pilotes hôte (`glxinfo | grep -i renderer` ≠
+  `llvmpipe`).
+
+- **Le décodage logiciel.** `top -H -p $(pgrep -f usr/bin/unistream)` :
+  seule la colonne `TIME+` est fiable sur un `top -n 1` (les `%CPU` du
+  premier passage sont des moyennes depuis le démarrage). Relevé : ~19 s
+  de CPU pour tout le process sur 126 s de session, threads `av:h264` à
+  4 s chacun. Rien ne sature, en FHD 5,8 Mbps.
+
+- **Impeller.** Flutter active Impeller/GLES par défaut sur Linux, et le
+  soupçon était que la texture externe de media_kit_video (frames rendues
+  dans le contexte EGL du plugin, passées en EGLImage) y coûte trop cher.
+  Faux, pour deux raisons : le switch `enable-impeller=false` est
+  **ignoré** par l'embedder Linux de Flutter 3.41 — vérifié en le passant
+  par l'environnement, `Using the Impeller rendering backend` continue de
+  s'afficher — donc Skia n'est plus atteignable et le test qui semblait
+  positif ne l'était pas ; et le lendemain matin, Impeller toujours actif
+  et inchangé, le même flux FHD passait proprement.
+
+Ce dernier point est le plus informatif : **le symptôme varie dans le
+temps sans que rien ne change dans l'app.** Les deux observations
+« ça coupe » / « ça passe » diffèrent par l'heure (21 h 48 un soir de
+Ligue des champions vs 07 h 49) et par le contenu (match vs plan quasi
+statique). Le badge de l'overlay affiche le débit *demandé*, pas le débit
+*servi* — un panel Xtream en heure de pointe reste le suspect à mesurer.
+
+### Mesurer plutôt que deviner
+
+L'instrumentation est embarquée depuis le commit b3c63cf, dans
+[`player_stall_diagnostics.dart`](../lib/screens/player/player_stall_diagnostics.dart).
+À lancer pendant que ça coupe :
 
 ```bash
-FLUTTER_ENGINE_SWITCHES=1 FLUTTER_ENGINE_SWITCH_1=enable-impeller=true ./UniStream-x86_64.AppImage
+UNISTREAM_PLAYER_DIAG=1 ./UniStream-x86_64.AppImage 2>&1 | grep player-diag
 ```
 
-### Ce que le diagnostic a coûté, et comment aller plus vite
+Une ligne par seconde, tirée des compteurs de mpv :
 
-Trois mécanismes produisent exactement la même saccade et rien ne les
-distingue de l'extérieur. Dans l'ordre de coût de vérification :
+- `for-cache=yes` avec `cache` qui tombe vers 0 et `speed` faible → le
+  flux arrive trop lentement (réseau, ou serveur Xtream saturé) ;
+- `dec-drop=+N` qui grimpe alors que `cache` reste sain → décodage ;
+- `vo-delay=+N` qui grimpe et `vf-fps` très en dessous de `fps` → les
+  images ne partent pas à l'écran.
 
-1. **Le chemin de rendu de media_kit**, que le plugin natif annonce
-   lui-même sur stderr — sans rebuild ni variable d'environnement :
-   - `media_kit: VideoOutput: H/W rendering with isolated EGL context…`
-   - `media_kit: VideoOutput: S/W rendering.` → pas de contexte EGL, chaque
-     image recopiée via un buffer RGBA 1080p sur le CPU. Vérifier les
-     pilotes GPU de l'hôte (`glxinfo | grep -i renderer` ≠ `llvmpipe`).
+Et en complément, hors app, sur l'URL du flux qui coupe (5,8 Mbps ≈
+725 000 octets/s) :
 
-2. **Le CPU**, via `top -H -p $(pgrep -f usr/bin/unistream)`. Seule la
-   colonne `TIME+` est fiable sur un `top -n 1` (les `%CPU` du premier
-   passage sont des moyennes depuis le démarrage). Des threads `av:h264`
-   à quelques secondes de CPU sur deux minutes de session excluent le
-   décodage logiciel.
+```bash
+curl -o /dev/null -w 'debit: %{speed_download} octets/s\n' --max-time 20 'URL_DU_FLUX'
+```
 
-3. **Les compteurs internes de mpv**, via
-   [`player_stall_diagnostics.dart`](../lib/screens/player/player_stall_diagnostics.dart)
-   — une ligne par seconde sur stderr :
+### Deux pièges de méthode qui ont coûté des allers-retours
 
-   ```bash
-   UNISTREAM_PLAYER_DIAG=1 ./UniStream-x86_64.AppImage
-   ```
-
-   - `for-cache=yes` avec `cache` qui tombe vers 0 et `speed` faible → le
-     flux arrive trop lentement (réseau, ou serveur Xtream).
-   - `dec-drop=+N` qui grimpe alors que `cache` reste sain → décodage.
-   - `vo-delay=+N` qui grimpe et `vf-fps` très en dessous de `fps` → les
-     images ne partent pas à l'écran : c'était le cas ici.
-
-Attention au piège qui a fait perdre un aller-retour : `VAR=x ./app` doit
-être **une seule** commande. `VAR=x` sur sa propre ligne ne fait qu'une
-affectation de shell, non exportée — le process fils ne voit rien. La
-ligne `Using the Impeller rendering backend` dans la sortie dit si le
-switch a bien été pris.
+1. `VAR=x ./app` doit être **une seule** commande. `VAR=x` seul sur sa
+   ligne n'est qu'une affectation de shell non exportée : le process fils
+   ne voit rien, et le test paraît négatif sans avoir eu lieu.
+2. Ne jamais valider un correctif sur un symptôme intermittent sans
+   vérifier que le correctif est **actif** (ici : la ligne
+   `Using the Impeller rendering backend` doit disparaître) et sans
+   comparer à contenu et à heure comparables.
