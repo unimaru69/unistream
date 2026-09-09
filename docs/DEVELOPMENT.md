@@ -105,60 +105,57 @@ GitHub Actions (`.github/workflows/`) :
 - `analyze-and-test` : Ubuntu — lint + tests (toujours exécuté)
 - `build-macos/windows/linux` : On-demand (tag `[build]` ou workflow dispatch)
 
-## Lecture saccadée sur Linux : débit amont insuffisant
+## Lecture saccadée sur Linux : le lien réseau de la machine
 
 Symptôme (iMac Fedora, AppImage release, 2026-09-08/09) : la lecture se met
 en pause ~1 s toutes les quelques secondes, en live comme en VOD, avec une
 sévérité proportionnelle à la résolution — SD propre, HD occasionnel, FHD
 systématique.
 
-**Cause mesurée : le flux n'arrive pas plus vite qu'il ne se joue.** Rien à
-corriger dans l'app ; mpv fait déjà le bon choix (il attend au lieu de
-sacrifier des images). Relevé `UNISTREAM_PLAYER_DIAG=1` sur CANAL+ FHD à
-21 h 17 :
+**Cause mesurée : le chemin réseau de cette machine plafonne autour de
+4-5 Mb/s. Rien à corriger dans l'app.** mpv fait déjà le bon choix (il
+attend au lieu de sacrifier des images), et le décodage comme la
+présentation sont irréprochables.
+
+La mesure décisive est le relevé `UNISTREAM_PLAYER_DIAG=1` **sur un film**,
+pas sur un live : un live est poussé à ~1× temps réel et ne dit rien du
+tuyau, alors qu'un VOD est servi aussi vite que la liaison l'accepte —
+`speed` doit donc écraser `bitrate` et `cache` grimper jusqu'à remplir les
+32 Mo (≈ 55 s à 4,7 Mb/s). Observé sur un film 24 fps :
 
 ```
-stream   1920x1080 fps=50 pixfmt=yuv420p
-pipeline hwdec=no vo=libmpv ao=pulse cache-on-disk=no
-         demuxer-max-bytes=33554432 cache-secs=3600000
-for-cache=no  cache=0.8s speed=6.8Mb/s bitrate=0.0Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
-for-cache=yes cache=0.0s speed=4.0Mb/s bitrate=6.1Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
-for-cache=yes cache=0.0s speed=3.5Mb/s bitrate=6.0Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
+ 2.0s cache=2.3s speed=9.9Mb/s  ← pointe d'ouverture
+ 3.0s cache=1.9s speed=12.1Mb/s
+ 6.0s cache=0.2s speed=3.5Mb/s
+ 7.9s BUFFERING start
+21.0s cache=4.4s speed=5.0Mb/s bitrate=4.7Mb/s   ← réserve maximale atteinte
+38.0s cache=0.0s speed=3.2Mb/s bitrate=4.6Mb/s
+38.1s BUFFERING start
 ```
 
 Lecture :
 
-- `speed` (3,5 à 9 Mb/s, l'essentiel entre 4 et 6) oscille **autour** de
-  `bitrate` (5,3 à 6,3 Mb/s) au lieu de le dominer. Et `bitrate` ne compte
-  que la **vidéo** : l'audio et l'encapsulation TS s'ajoutent par-dessus, le
-  déficit réel est donc un peu pire que l'écart affiché.
-- `cache` ne dépasse jamais 1,1 s et retombe régulièrement à 0,0 s. Aucune
-  réserve ne se constitue, donc le moindre creux devient un `BUFFERING`
-  (observé toutes les 4 à 7 s, pour 1 à 2 s).
-- `dec-drop=+0` et `vo-delay=+0` sur toute la durée, `vf-fps` exactement
-  50,000, `avsync` sous les 2 ms : décodage et présentation sont parfaits.
-  Tout ce qui est local est hors de cause.
+- la réserve ne dépasse jamais **4,7 s** et retombe à zéro : le cache est
+  limité par la livraison, pas par sa configuration ;
+- `speed` tient 3 à 6 Mb/s en régime, pour un film à 4,6-4,7 Mb/s — aucune
+  marge, d'où les `BUFFERING` ;
+- mais la pointe d'ouverture à **12,1 Mb/s** prouve que le serveur *peut*
+  dépasser le bitrate. Le panel n'est donc pas le facteur limitant ;
+- `dec-drop=+0`, `vo-drop=+0`, `vo-delay=+0` sur les 43 s, `vf-fps`
+  exactement 24,000, `avsync` sous la milliseconde : décodage et
+  présentation parfaits, y compris en `hwdec=no`.
 
-Un live ne se met de toute façon pas en réserve : le serveur pousse à ~1×
-temps réel et on ne peut pas lire au-delà du bord du direct. `cache-secs`
-et `demuxer-max-bytes` sont déjà largement dimensionnés (32 Mo ≈ 43 s à
-6 Mb/s) — les augmenter ne changerait rien.
+Et le même compte s'écrit en live (CANAL+ FHD 1080p50) : `speed` 3,5-6 Mb/s
+contre un `bitrate` vidéo de 5,3-6,3 Mb/s — auquel s'ajoutent l'audio et
+l'encapsulation TS, donc le déficit réel est pire que l'écart affiché.
 
-### Localiser : la box ou le panel ?
-
-Un `curl` sur l'URL d'un **live** ne discrimine rien (le serveur le
-bride aussi à ~1×). Mesurer sur un **film**, que les panels servent aussi
-vite que le tuyau l'accepte :
-
-```bash
-curl -o /dev/null -w 'debit: %{speed_download} octets/s\n' --max-time 20 'URL_D_UN_FILM'
-```
-
-Repère : 6 Mb/s ≈ 750 000 octets/s. Et le test le plus propre reste de
-lire la **même chaîne au même instant** depuis le Mac sur le même réseau —
-si le Mac passe et la Fedora coupe, c'est le lien de la box (Wi-Fi
-Broadcom sous Fedora, notoirement médiocre sur les vieux iMac) ; si les
-deux coupent, c'est le panel en heure de pointe.
+Le Mac, sur le même réseau et le même panel, lit ces flux sans coupure. Le
+plafond est donc propre à cette machine : liaison Wi-Fi (les Broadcom sous
+Fedora sont médiocres sur ces vieux iMac), ou route dégradée. À confirmer
+hors app — `curl -L` sur l'URL d'un film, qui retire player, décodeur et
+Flutter de l'équation — puis à traiter côté système : câble Ethernet,
+bande Wi-Fi, ou `curl -4` contre `curl -6` si une IPv6 mal routée vers le
+panel est en cause.
 
 ### Ce que le diagnostic a écarté, et comment
 
