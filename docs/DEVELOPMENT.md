@@ -146,19 +146,33 @@ chaîne SD ou HD à 1,5-3 Mb/s garde de la marge et passe proprement.
   live 1080p50), `avsync` sous la milliseconde. Parfaits, `hwdec=no`
   compris.
 
-### Reste à départager
+### Le plafond est en amont, identique sur les deux machines
 
-Le Mac lit ces mêmes flux sans coupure sur le même réseau. Pour savoir si
-le plafond est propre à l'hôte Fedora ou commun aux deux, lancer le
-**même `curl` depuis le Mac** : un débit franchement supérieur désigne le
-chemin de la Fedora (auquel cas comparer `curl -4` et `curl -6` — une IPv6
-mal routée vers le panel donne exactement ce profil « même box, deux
-machines, une seule lente ») ; un débit équivalent désigne le panel ou le
-transit de l'opérateur, et il n'y a alors rien à faire côté machine.
+Le même `curl` depuis le Mac donne **788 338 o/s** contre **796 430 o/s**
+sur la Fedora — 1 % d'écart. Le plafond n'est donc ni l'hôte Fedora, ni
+son Wi-Fi, ni son pilote, ni sa pile réseau : c'est **le panel ou le
+transit de l'opérateur**, et il vaut ~6,3-6,4 Mb/s pour les deux machines.
+Inutile de creuser IPv4/IPv6 ou quoi que ce soit de local.
 
-Dans tous les cas l'échappatoire est la définition : sur un plafond de
-6,4 Mb/s, regarder la variante HD de la chaîne n'est pas un pis-aller,
-c'est le débit disponible.
+Conséquence : sur cet abonnement et depuis ce réseau, **une chaîne FHD ne
+tient pas**, quelle que soit la plateforme — elle demande à elle seule
+tout le débit disponible. La sortie est la définition : sur 6,4 Mb/s,
+regarder la variante HD n'est pas un pis-aller, c'est le débit disponible.
+
+**Anomalie restante, à ne pas expliquer à la légère :** le Mac lisait ces
+mêmes flux FHD sans coupure alors qu'il subit exactement le même plafond.
+À contenu et heure comparables, la comparaison propre passe par le même
+instrument des deux côtés — l'instrumentation marche aussi sur macOS :
+
+```bash
+UNISTREAM_PLAYER_DIAG=1 /Applications/UniStream.app/Contents/MacOS/unistream 2>&1 | grep player-diag
+```
+
+Si le Mac montre `for-cache=no` avec un `cache` qui grimpe et un `speed`
+au-dessus du `bitrate`, alors macOS tire réellement plus que ce que `curl`
+laissait voir et il y a quelque chose à comprendre. S'il montre lui aussi
+`for-cache=yes` et des `BUFFERING`, l'observation « pas de saccade sur
+Mac » relevait d'un autre contexte et le dossier est clos.
 
 ### Ce que le diagnostic a écarté, et comment
 
