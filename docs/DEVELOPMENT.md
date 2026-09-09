@@ -105,77 +105,83 @@ GitHub Actions (`.github/workflows/`) :
 - `analyze-and-test` : Ubuntu — lint + tests (toujours exécuté)
 - `build-macos/windows/linux` : On-demand (tag `[build]` ou workflow dispatch)
 
-## Lecture saccadée sur Linux : ce qui est écarté
+## Lecture saccadée sur Linux : débit amont insuffisant
 
-Symptôme (iMac Fedora, AppImage release, 2026-09-08) : la lecture démarre
-mais se met en pause ~1 s toutes les 1 à 2 s, en live comme en VOD, avec
-une sévérité proportionnelle à la résolution — SD propre, HD occasionnel,
-FHD systématique.
+Symptôme (iMac Fedora, AppImage release, 2026-09-08/09) : la lecture se met
+en pause ~1 s toutes les quelques secondes, en live comme en VOD, avec une
+sévérité proportionnelle à la résolution — SD propre, HD occasionnel, FHD
+systématique.
 
-**Non résolu.** Ce qui est écarté, avec la preuve :
+**Cause mesurée : le flux n'arrive pas plus vite qu'il ne se joue.** Rien à
+corriger dans l'app ; mpv fait déjà le bon choix (il attend au lieu de
+sacrifier des images). Relevé `UNISTREAM_PLAYER_DIAG=1` sur CANAL+ FHD à
+21 h 17 :
 
-- **Le rendu logiciel de media_kit.** Le plugin natif annonce son chemin
-  sur stderr, sans rebuild ni variable d'environnement :
-  `media_kit: VideoOutput: H/W rendering with isolated EGL context…`
-  (le cas ici) vs `S/W rendering.`, qui signifierait pas de contexte EGL
-  et chaque image recopiée via un buffer RGBA 1080p sur le CPU — à
-  vérifier alors côté pilotes hôte (`glxinfo | grep -i renderer` ≠
+```
+stream   1920x1080 fps=50 pixfmt=yuv420p
+pipeline hwdec=no vo=libmpv ao=pulse cache-on-disk=no
+         demuxer-max-bytes=33554432 cache-secs=3600000
+for-cache=no  cache=0.8s speed=6.8Mb/s bitrate=0.0Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
+for-cache=yes cache=0.0s speed=4.0Mb/s bitrate=6.1Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
+for-cache=yes cache=0.0s speed=3.5Mb/s bitrate=6.0Mb/s dec-drop=+0 vo-delay=+0 vf-fps=50.000
+```
+
+Lecture :
+
+- `speed` (3,5 à 9 Mb/s, l'essentiel entre 4 et 6) oscille **autour** de
+  `bitrate` (5,3 à 6,3 Mb/s) au lieu de le dominer. Et `bitrate` ne compte
+  que la **vidéo** : l'audio et l'encapsulation TS s'ajoutent par-dessus, le
+  déficit réel est donc un peu pire que l'écart affiché.
+- `cache` ne dépasse jamais 1,1 s et retombe régulièrement à 0,0 s. Aucune
+  réserve ne se constitue, donc le moindre creux devient un `BUFFERING`
+  (observé toutes les 4 à 7 s, pour 1 à 2 s).
+- `dec-drop=+0` et `vo-delay=+0` sur toute la durée, `vf-fps` exactement
+  50,000, `avsync` sous les 2 ms : décodage et présentation sont parfaits.
+  Tout ce qui est local est hors de cause.
+
+Un live ne se met de toute façon pas en réserve : le serveur pousse à ~1×
+temps réel et on ne peut pas lire au-delà du bord du direct. `cache-secs`
+et `demuxer-max-bytes` sont déjà largement dimensionnés (32 Mo ≈ 43 s à
+6 Mb/s) — les augmenter ne changerait rien.
+
+### Localiser : la box ou le panel ?
+
+Un `curl` sur l'URL d'un **live** ne discrimine rien (le serveur le
+bride aussi à ~1×). Mesurer sur un **film**, que les panels servent aussi
+vite que le tuyau l'accepte :
+
+```bash
+curl -o /dev/null -w 'debit: %{speed_download} octets/s\n' --max-time 20 'URL_D_UN_FILM'
+```
+
+Repère : 6 Mb/s ≈ 750 000 octets/s. Et le test le plus propre reste de
+lire la **même chaîne au même instant** depuis le Mac sur le même réseau —
+si le Mac passe et la Fedora coupe, c'est le lien de la box (Wi-Fi
+Broadcom sous Fedora, notoirement médiocre sur les vieux iMac) ; si les
+deux coupent, c'est le panel en heure de pointe.
+
+### Ce que le diagnostic a écarté, et comment
+
+- **Rendu logiciel de media_kit** : le plugin natif annonce son chemin sur
+  stderr sans rebuild — `media_kit: VideoOutput: H/W rendering with
+  isolated EGL context…` (le cas ici) vs `S/W rendering.`, qui
+  signifierait pas de contexte EGL et chaque image recopiée via un buffer
+  RGBA 1080p sur le CPU (vérifier alors `glxinfo | grep -i renderer` ≠
   `llvmpipe`).
-
-- **Le décodage logiciel.** `top -H -p $(pgrep -f usr/bin/unistream)` :
-  seule la colonne `TIME+` est fiable sur un `top -n 1` (les `%CPU` du
-  premier passage sont des moyennes depuis le démarrage). Relevé : ~19 s
-  de CPU pour tout le process sur 126 s de session, threads `av:h264` à
-  4 s chacun. Rien ne sature, en FHD 5,8 Mbps.
-
-- **Impeller.** Flutter active Impeller/GLES par défaut sur Linux, et le
-  soupçon était que la texture externe de media_kit_video (frames rendues
-  dans le contexte EGL du plugin, passées en EGLImage) y coûte trop cher.
-  Faux, pour deux raisons : le switch `enable-impeller=false` est
-  **ignoré** par l'embedder Linux de Flutter 3.41 — vérifié en le passant
-  par l'environnement, `Using the Impeller rendering backend` continue de
-  s'afficher — donc Skia n'est plus atteignable et le test qui semblait
-  positif ne l'était pas ; et le lendemain matin, Impeller toujours actif
-  et inchangé, le même flux FHD passait proprement.
-
-Ce dernier point est le plus informatif : **le symptôme varie dans le
-temps sans que rien ne change dans l'app.** Les deux observations
-« ça coupe » / « ça passe » diffèrent par l'heure (21 h 48 un soir de
-Ligue des champions vs 07 h 49) et par le contenu (match vs plan quasi
-statique). Le badge de l'overlay affiche le débit *demandé*, pas le débit
-*servi* — un panel Xtream en heure de pointe reste le suspect à mesurer.
-
-### Mesurer plutôt que deviner
-
-L'instrumentation est embarquée depuis le commit b3c63cf, dans
-[`player_stall_diagnostics.dart`](../lib/screens/player/player_stall_diagnostics.dart).
-À lancer pendant que ça coupe :
-
-```bash
-UNISTREAM_PLAYER_DIAG=1 ./UniStream-x86_64.AppImage 2>&1 | grep player-diag
-```
-
-Une ligne par seconde, tirée des compteurs de mpv :
-
-- `for-cache=yes` avec `cache` qui tombe vers 0 et `speed` faible → le
-  flux arrive trop lentement (réseau, ou serveur Xtream saturé) ;
-- `dec-drop=+N` qui grimpe alors que `cache` reste sain → décodage ;
-- `vo-delay=+N` qui grimpe et `vf-fps` très en dessous de `fps` → les
-  images ne partent pas à l'écran.
-
-Et en complément, hors app, sur l'URL du flux qui coupe (5,8 Mbps ≈
-725 000 octets/s) :
-
-```bash
-curl -o /dev/null -w 'debit: %{speed_download} octets/s\n' --max-time 20 'URL_DU_FLUX'
-```
+- **Décodage logiciel** : `top -H -p $(pgrep -f usr/bin/unistream)`, où
+  seule la colonne `TIME+` est fiable sur un `top -n 1`. Relevé : ~19 s de
+  CPU pour tout le process sur 126 s, threads `av:h264` à 4 s chacun.
+- **Impeller** : Flutter 3.41 **ignore** `enable-impeller=false` sur Linux
+  (vérifié par l'environnement : `Using the Impeller rendering backend`
+  continue de s'afficher), donc Skia n'est plus atteignable — et le même
+  flux FHD passait proprement le lendemain matin avec Impeller inchangé.
 
 ### Deux pièges de méthode qui ont coûté des allers-retours
 
 1. `VAR=x ./app` doit être **une seule** commande. `VAR=x` seul sur sa
    ligne n'est qu'une affectation de shell non exportée : le process fils
    ne voit rien, et le test paraît négatif sans avoir eu lieu.
-2. Ne jamais valider un correctif sur un symptôme intermittent sans
-   vérifier que le correctif est **actif** (ici : la ligne
-   `Using the Impeller rendering backend` doit disparaître) et sans
-   comparer à contenu et à heure comparables.
+2. Sur un symptôme intermittent, ne jamais valider un correctif sans
+   vérifier qu'il est **actif**, ni sans comparer à contenu et à heure
+   comparables. Mesurer d'abord : les compteurs de mpv désignaient la
+   cause dès la première seconde.
