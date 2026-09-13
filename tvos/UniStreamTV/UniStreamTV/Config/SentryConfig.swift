@@ -53,6 +53,11 @@ enum SentryConfig {
             options.tracesSampleRate = 0.2
             // No PII — same stance as Flutter (`sendDefaultPii = false`).
             options.sendDefaultPii = false
+            // Xtream credentials ride in every panel URL, and the SDK
+            // breadcrumbs each request. Scrub on the way out rather than
+            // leaning on Sentry's server-side scrubber. See LogRedaction.
+            options.beforeSend = { LogRedaction.redactEvent($0) }
+            options.beforeBreadcrumb = { LogRedaction.redactBreadcrumb($0) }
             // Breadcrumbs for view lifecycle + network give us the trail
             // leading up to a crash without us instrumenting by hand.
             options.enableAutoBreadcrumbTracking = true

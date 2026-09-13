@@ -18,8 +18,15 @@ import '../models/app_config.dart';
 /// itself attaches (IP, user), not what our own strings contain.
 
 /// Query parameters whose value is a credential.
+///
+/// The leading `(^|[?&])` is load-bearing: Sentry's HTTP breadcrumbs carry
+/// the query on its own, with no `?` in front of it
+/// (`username=…&password=…`), as does an event's request `queryString`.
+/// Anchoring only on `?` or `&` masked every parameter except the first —
+/// which is exactly where `username` sits. Caught by running the tvOS
+/// equivalent against live breadcrumbs.
 final _credentialQueryParam = RegExp(
-  r'''([?&](?:username|password|pass|user)=)([^&\s"']+)''',
+  r'''(^|[?&])((?:username|password|pass|user)=)([^&\s"']+)''',
   caseSensitive: false,
 );
 
@@ -46,7 +53,7 @@ const _minLiteralLength = 4;
 String redactCredentials(String input) {
   if (input.isEmpty) return input;
   var out = input
-      .replaceAllMapped(_credentialQueryParam, (m) => '${m[1]}$_mask')
+      .replaceAllMapped(_credentialQueryParam, (m) => '${m[1]}${m[2]}$_mask')
       .replaceAllMapped(_credentialPathSegments, (m) => '${m[1]}$_mask/$_mask/');
 
   // Belt and braces: the live credentials, matched literally, for shapes

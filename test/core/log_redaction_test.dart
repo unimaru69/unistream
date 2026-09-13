@@ -31,6 +31,23 @@ void main() {
         '?USERNAME=***&PASSWORD=***&action=x',
       );
     });
+
+    // Regression: a bare query string with no leading `?` — the shape of a
+    // Sentry HTTP breadcrumb's `http.query`. Anchoring only on `?`/`&` left
+    // the first parameter, i.e. the username, in the clear.
+    test('masks the first parameter of a bare query string', () {
+      expect(
+        redactCredentials('username=u&password=p&action=get_short_epg'),
+        'username=***&password=***&action=get_short_epg',
+      );
+    });
+
+    // The anchor must not turn into a wildcard.
+    test('leaves a similarly-named parameter alone', () {
+      expect(redactCredentials('?superuser=bob&action=x'),
+          '?superuser=bob&action=x');
+      expect(redactCredentials('superuser=bob'), 'superuser=bob');
+    });
   });
 
   group('redactCredentials — stream paths', () {

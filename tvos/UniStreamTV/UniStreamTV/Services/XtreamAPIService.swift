@@ -84,6 +84,10 @@ final class XtreamAPIService {
         self.serverUrl = url
         self.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
         self.password = password
+        // Keep the Sentry scrubber in step with the credentials actually
+        // in use, so a profile switch doesn't leave it masking the old
+        // subscription's password.
+        LogRedaction.setCredentials(username: self.username, password: self.password)
         streamCache.removeAll()
     }
 

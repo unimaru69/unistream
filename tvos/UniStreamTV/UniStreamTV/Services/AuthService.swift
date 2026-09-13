@@ -101,6 +101,9 @@ final class AuthService {
     func signOut() async throws {
         try await client.auth.signOut()
         cachedAccountInfo = nil
+        // Drop the panel credentials the Sentry scrubber was masking
+        // against — they are no longer this session's to mask.
+        LogRedaction.clearCredentials()
         logger.info("Signed out")
     }
 

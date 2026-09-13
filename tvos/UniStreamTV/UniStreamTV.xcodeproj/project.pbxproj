@@ -38,6 +38,7 @@
 		396927464CDC18AC510A5BD7 /* EPGReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046F8AE26BBDF89DD1AD38AA /* EPGReminderTests.swift */; };
 		3993DFE1A0A3019075FDD450 /* VODGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28E382440D792AE090F1428 /* VODGridView.swift */; };
 		3DA76FEED5723C6F69E22973 /* SeriesCategoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAAA6CE8FC407045CB4314CC /* SeriesCategoryListView.swift */; };
+		43C15A3827DDE2760DF63F3C /* LogRedactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5CB814B6DAB08A6A6B26D6 /* LogRedactionTests.swift */; };
 		46A2F7560E0D63535E4DBC83 /* EpgProgramTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDEFAE9916DE082857E081C9 /* EpgProgramTests.swift */; };
 		47454208746D0795DC46EA18 /* TitleYearParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37B1226FB9FE51E7A15EF3D1 /* TitleYearParserTests.swift */; };
 		484358916F62833200E09457 /* VodItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02EA354BA1B30584C66F654E /* VodItem.swift */; };
@@ -113,6 +114,7 @@
 		DCA01B08E6757CC2E4C2FFD6 /* Profile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04CB8C04ED1E64A112120B8 /* Profile.swift */; };
 		DD4A8696BA3E0019BB065DC4 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E479CBF422C20F822038C2 /* SplashView.swift */; };
 		DE1FE5D8717EC75912CA6E05 /* VODCategoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A0B3E88E682FA7B2316BB1 /* VODCategoryListView.swift */; };
+		E09627F40BB73CE726B53557 /* LogRedaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9CE627947C33243865BA63 /* LogRedaction.swift */; };
 		E16BF863CC08D4A394572FCB /* TMDBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B5215C53F62C8492BAA9A2 /* TMDBService.swift */; };
 		E1F81CB53E67F1356C0CC223 /* ParentalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2BAE3875739CF23A3B6029 /* ParentalSettingsView.swift */; };
 		E44B7D05A3619B05B7EA30AB /* PremiumGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF703BD873DE264823660A7E /* PremiumGate.swift */; };
@@ -227,6 +229,7 @@
 		89CFF589A164C8FEC186A7E9 /* HomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabView.swift; sourceTree = "<group>"; };
 		8B145C105C58D8FFCEFADE90 /* TMDBViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBViewModel.swift; sourceTree = "<group>"; };
 		8E868467221E5324BDE5EB5F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		8F9CE627947C33243865BA63 /* LogRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogRedaction.swift; sourceTree = "<group>"; };
 		917CA542B893D20299F88ECF /* AsyncPosterImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncPosterImage.swift; sourceTree = "<group>"; };
 		92F415EDCD815CB11DFB7CDB /* UniStreamTVTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = UniStreamTVTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A04CB8C04ED1E64A112120B8 /* Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Profile.swift; sourceTree = "<group>"; };
@@ -262,6 +265,7 @@
 		D5DDA0498EA1249640855584 /* ContentMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentMode.swift; sourceTree = "<group>"; };
 		D83A3CE8441AC647CBB36955 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		DBD9217BA080D88D6A2C082F /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
+		DE5CB814B6DAB08A6A6B26D6 /* LogRedactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogRedactionTests.swift; sourceTree = "<group>"; };
 		E6C8A7C4167CC8454E6FA4BC /* LiveSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSplitView.swift; sourceTree = "<group>"; };
 		E70B86BC91ADD0508B379456 /* SeriesItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesItem.swift; sourceTree = "<group>"; };
 		E78417C8E53BC65974811B73 /* VLCLivePlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VLCLivePlayerViewController.swift; sourceTree = "<group>"; };
@@ -444,6 +448,7 @@
 				6A72883A64F190F787A8978B /* FavoriteItemTests.swift */,
 				1B11D8444EA36EE220D4A5F1 /* FeatureAccessTests.swift */,
 				E79ECCF226C5991993FBEDEA /* LiveEpgOnDemandTests.swift */,
+				DE5CB814B6DAB08A6A6B26D6 /* LogRedactionTests.swift */,
 				7A58FEFCBBD77D6B34788F3D /* ParentalServiceTests.swift */,
 				37B1226FB9FE51E7A15EF3D1 /* TitleYearParserTests.swift */,
 			);
@@ -608,6 +613,7 @@
 			children = (
 				D83A3CE8441AC647CBB36955 /* Constants.swift */,
 				AE0B109201D90541B8CC2A4C /* DemoMode.swift */,
+				8F9CE627947C33243865BA63 /* LogRedaction.swift */,
 				A2C6B0FCD4990121B7C41792 /* SentryConfig.swift */,
 				8124D84D4CBEE7E9EC6A5B0F /* SupabaseConfig.swift */,
 			);
@@ -764,6 +770,7 @@
 				A569B005A477E360F8335C5E /* FavoriteItemTests.swift in Sources */,
 				5A5A2DED8CB17BA518C20EFF /* FeatureAccessTests.swift in Sources */,
 				D4BAE2D3A5AA6FAA88E94A95 /* LiveEpgOnDemandTests.swift in Sources */,
+				43C15A3827DDE2760DF63F3C /* LogRedactionTests.swift in Sources */,
 				5B3538EF2558F70A83AF2DDE /* ParentalServiceTests.swift in Sources */,
 				47454208746D0795DC46EA18 /* TitleYearParserTests.swift in Sources */,
 			);
@@ -825,6 +832,7 @@
 				1B4479EFFA49C34209FF1174 /* LiveFocusedPreview.swift in Sources */,
 				BB19028D23263D4F974F7365 /* LiveSplitView.swift in Sources */,
 				96657B3CFC4A4AB040C51C06 /* LiveViewModel.swift in Sources */,
+				E09627F40BB73CE726B53557 /* LogRedaction.swift in Sources */,
 				27470FAD91871586A5AAB276 /* LoginView.swift in Sources */,
 				01C209C0F57146C60D378C85 /* ParentalService.swift in Sources */,
 				E1F81CB53E67F1356C0CC223 /* ParentalSettingsView.swift in Sources */,
