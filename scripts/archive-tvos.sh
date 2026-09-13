@@ -34,12 +34,16 @@ set -euo pipefail
 : "${ASC_API_KEY_ID:=N4K77SK2A9}"
 : "${ASC_API_ISSUER_ID:=025be2c7-6d3e-42a9-a892-8dfb6f3112fc}"
 
-# Sentry — the org is in the DE region, so the default sentry.io endpoint
-# will not find it. The auth token stays out of the repo: env
-# SENTRY_AUTH_TOKEN or ~/.sentryclirc.
+# Sentry. The org is in the DE region, and the region is encoded in the
+# auth token itself — sentry-cli routes on that and ignores any
+# SENTRY_URL, warning when the two disagree. So there is deliberately no
+# URL set here: what matters is that the token was issued from the DE
+# side (unimaru.sentry.io → Settings → Auth Tokens). A token created on
+# sentry.io answers 403 for this org no matter how the CLI is configured.
+#
+# The token stays out of the repo: env SENTRY_AUTH_TOKEN or ~/.sentryclirc.
 : "${SENTRY_ORG:=unimaru}"
 : "${SENTRY_PROJECT:=unistream}"
-: "${SENTRY_URL:=https://de.sentry.io}"
 
 UPLOAD=true
 COMMIT=true
@@ -145,14 +149,13 @@ if $SENTRY_UPLOAD; then
         echo "⚠️  No dSYMs at $DSYM_DIR — check DEBUG_INFORMATION_FORMAT."
     else
         echo "→ Uploading dSYMs to Sentry ($SENTRY_ORG/$SENTRY_PROJECT)"
-        # SENTRY_URL matters: the org lives in Sentry's DE region, and the
-        # default sentry.io endpoint answers 404/permission-denied for it.
-        if SENTRY_URL="$SENTRY_URL" SENTRY_ORG="$SENTRY_ORG" \
-           SENTRY_PROJECT="$SENTRY_PROJECT" \
+        if SENTRY_ORG="$SENTRY_ORG" SENTRY_PROJECT="$SENTRY_PROJECT" \
            sentry-cli debug-files upload --include-sources "$DSYM_DIR"; then
             echo "✓ dSYMs uploaded for build $NEW"
         else
             echo "⚠️  dSYM upload failed — build $NEW will report unsymbolicated."
+            echo "    A 403 here usually means the token was issued on"
+            echo "    sentry.io rather than the DE region that hosts this org."
         fi
     fi
 else
