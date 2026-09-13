@@ -6,9 +6,10 @@
 #   1. Bump CURRENT_PROJECT_VERSION in tvos/UniStreamTV/project.yml
 #   2. Regenerate the Xcode project via xcodegen
 #   3. Archive
-#   4. Export an .ipa via the existing ExportOptions.plist
-#   5. Upload via xcrun altool (using ASC API key from ~/.appstoreconnect/private_keys/)
-#   6. Commit the version bump (so git history matches what's on TestFlight)
+#   4. Upload the archive's dSYMs to Sentry (so crashes symbolicate)
+#   5. Export an .ipa via the existing ExportOptions.plist
+#   6. Upload via xcrun altool (using ASC API key from ~/.appstoreconnect/private_keys/)
+#   7. Commit the version bump (so git history matches what's on TestFlight)
 #
 # Usage:
 #   ./scripts/archive-tvos.sh                # auto-bump + upload
@@ -17,11 +18,15 @@
 #   ./scripts/archive-tvos.sh --no-bump      # re-archive at the current version
 #                                            #   (use after a failed export to avoid
 #                                            #    burning the next build number)
+#   ./scripts/archive-tvos.sh --no-sentry    # skip the dSYM upload
 #
 # Requirements:
 #   - xcodegen on PATH
 #   - ASC API key file at ~/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID}.p8
 #   - Env vars (or defaults below) ASC_API_KEY_ID + ASC_API_ISSUER_ID
+#   - For the dSYM upload: sentry-cli on PATH plus a token in
+#     $SENTRY_AUTH_TOKEN or ~/.sentryclirc (both optional — a missing one
+#     warns and moves on rather than failing the release)
 
 set -euo pipefail
 
@@ -29,14 +34,23 @@ set -euo pipefail
 : "${ASC_API_KEY_ID:=N4K77SK2A9}"
 : "${ASC_API_ISSUER_ID:=025be2c7-6d3e-42a9-a892-8dfb6f3112fc}"
 
+# Sentry — the org is in the DE region, so the default sentry.io endpoint
+# will not find it. The auth token stays out of the repo: env
+# SENTRY_AUTH_TOKEN or ~/.sentryclirc.
+: "${SENTRY_ORG:=unimaru}"
+: "${SENTRY_PROJECT:=unistream}"
+: "${SENTRY_URL:=https://de.sentry.io}"
+
 UPLOAD=true
 COMMIT=true
 BUMP=true
+SENTRY_UPLOAD=true
 for arg in "$@"; do
     case $arg in
         --no-upload) UPLOAD=false ;;
         --no-commit) COMMIT=false ;;
         --no-bump)   BUMP=false ;;
+        --no-sentry) SENTRY_UPLOAD=false ;;
         *) echo "unknown flag: $arg"; exit 2 ;;
     esac
 done
@@ -106,6 +120,44 @@ echo "→ Archiving (this can take a few minutes)…"
     | xcbeautify --quieter 2>/dev/null || true)
 
 [[ -d "$ARCHIVE_PATH" ]] || { echo "✗ archive missing — fix the build error and retry"; exit 1; }
+
+# ── Upload dSYMs to Sentry ────────────────────────────────────────────
+# Without this, every UniStreamTV frame in a tvOS crash or App Hang shows
+# up on Sentry as `<redacted>` and the event carries `native_missing_dsym`
+# — you can see the app hung inside UIKit, never which of our views got it
+# there. Uploading from the archive (rather than a build phase) keeps it
+# off every incremental build and catches the exact binary we ship.
+#
+# Never fatal: a missing sentry-cli or token degrades to a warning so a
+# release is never blocked on observability tooling.
+if $SENTRY_UPLOAD; then
+    : "${SENTRY_AUTH_TOKEN:=}"
+    DSYM_DIR="$ARCHIVE_PATH/dSYMs"
+
+    if ! command -v sentry-cli >/dev/null 2>&1; then
+        echo "⚠️  sentry-cli not on PATH — skipping dSYM upload."
+        echo "    Install with: brew install getsentry/tools/sentry-cli"
+        echo "    tvOS stack traces will stay unsymbolicated for build $NEW."
+    elif [[ -z "$SENTRY_AUTH_TOKEN" && ! -f "$HOME/.sentryclirc" ]]; then
+        echo "⚠️  No Sentry auth token (env SENTRY_AUTH_TOKEN or ~/.sentryclirc)"
+        echo "    — skipping dSYM upload for build $NEW."
+    elif [[ ! -d "$DSYM_DIR" ]]; then
+        echo "⚠️  No dSYMs at $DSYM_DIR — check DEBUG_INFORMATION_FORMAT."
+    else
+        echo "→ Uploading dSYMs to Sentry ($SENTRY_ORG/$SENTRY_PROJECT)"
+        # SENTRY_URL matters: the org lives in Sentry's DE region, and the
+        # default sentry.io endpoint answers 404/permission-denied for it.
+        if SENTRY_URL="$SENTRY_URL" SENTRY_ORG="$SENTRY_ORG" \
+           SENTRY_PROJECT="$SENTRY_PROJECT" \
+           sentry-cli debug-files upload --include-sources "$DSYM_DIR"; then
+            echo "✓ dSYMs uploaded for build $NEW"
+        else
+            echo "⚠️  dSYM upload failed — build $NEW will report unsymbolicated."
+        fi
+    fi
+else
+    echo "→ Skipping dSYM upload (--no-sentry)"
+fi
 
 # ── Export .ipa ───────────────────────────────────────────────────────
 # Export uses the Xcode keychain account (signingStyle: automatic in

@@ -54,6 +54,15 @@ targets:
         # Default empty TMDB key — override at build time via
         # `xcodebuild TMDB_API_KEY=xxxxx …` or an .xcconfig file.
         TMDB_API_KEY: ""
+      configs:
+        # Sentry can only symbolicate what it has a dSYM for. Until we
+        # started uploading them, every UniStreamTV frame in a tvOS crash
+        # or App Hang arrived as `<redacted>` and the events carried
+        # `native_missing_dsym`. This is Xcode's Release default already —
+        # stated explicitly because the whole native crash pipeline hangs
+        # off it. `scripts/archive-tvos.sh` uploads what it produces.
+        Release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     dependencies:
       - package: Supabase
         product: Supabase
