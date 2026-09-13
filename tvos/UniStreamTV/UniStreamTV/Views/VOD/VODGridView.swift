@@ -14,6 +14,7 @@ struct VODGridView: View {
     @State private var presentedVod: VodItem?
     @State private var sortMode: CatalogSortMode = .default
     @State private var searchQuery: String = ""
+    @State private var window = CatalogueWindow()
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
@@ -49,6 +50,11 @@ struct VODGridView: View {
         }
     }
 
+    /// What the grid actually renders — see ``CatalogueWindow``.
+    private var windowedItems: [VodItem] {
+        window.applied(to: displayedItems)
+    }
+
     /// Currently-focused VodItem — drives the bottom preview.
     private var focusedVod: VodItem? {
         guard let id = focusedVodId else { return nil }
@@ -74,6 +80,13 @@ struct VODGridView: View {
             }
         }
         .onChange(of: focusedVodId) { _, newId in
+            if let newId {
+                window.extendIfNeeded(
+                    focusedId: newId,
+                    in: displayedItems,
+                    identifiedBy: \.streamId
+                )
+            }
             guard let binding = focusedItem else { return }
             if let id = newId, let item = viewModel.items.first(where: { $0.streamId == id }) {
                 binding.wrappedValue = item
@@ -81,10 +94,16 @@ struct VODGridView: View {
                 binding.wrappedValue = nil
             }
         }
+        // Search and sort rebuild the list under the window, so it has to
+        // start over — otherwise a search run after paging deep would
+        // render its handful of matches inside a 600-card window.
+        .onChange(of: searchQuery) { _, _ in window.reset() }
+        .onChange(of: sortMode) { _, _ in window.reset() }
         .fullScreenCover(item: $presentedVod) { item in
             VODDetailView(item: item, api: api)
         }
         .task(id: category.categoryId) {
+            window.reset()
             await viewModel.loadItems(for: category)
         }
     }
@@ -165,7 +184,7 @@ struct VODGridView: View {
     @ViewBuilder
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 30) {
-            ForEach(displayedItems) { item in
+            ForEach(windowedItems) { item in
                 Button {
                     presentedVod = item
                 } label: {

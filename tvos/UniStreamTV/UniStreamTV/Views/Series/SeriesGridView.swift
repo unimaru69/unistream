@@ -15,6 +15,7 @@ struct SeriesGridView: View {
     @State private var presentedSeries: SeriesItem?
     @State private var sortMode: CatalogSortMode = .default
     @State private var searchQuery: String = ""
+    @State private var window = CatalogueWindow()
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 30)
@@ -60,6 +61,11 @@ struct SeriesGridView: View {
         }
     }
 
+    /// What the grid actually renders — see ``CatalogueWindow``.
+    private var windowedItems: [SeriesItem] {
+        window.applied(to: displayedItems)
+    }
+
     /// Currently-focused SeriesItem — drives the bottom preview.
     private var focusedSeries: SeriesItem? {
         guard let id = focusedSeriesId else { return nil }
@@ -81,6 +87,13 @@ struct SeriesGridView: View {
             }
         }
         .onChange(of: focusedSeriesId) { _, newId in
+            if let newId {
+                window.extendIfNeeded(
+                    focusedId: newId,
+                    in: displayedItems,
+                    identifiedBy: \.seriesId
+                )
+            }
             guard let binding = focusedItem else { return }
             if let id = newId, let item = viewModel.items.first(where: { $0.seriesId == id }) {
                 binding.wrappedValue = item
@@ -88,10 +101,15 @@ struct SeriesGridView: View {
                 binding.wrappedValue = nil
             }
         }
+        // Search and sort rebuild the list under the window, so it has to
+        // start over — see VODGridView.
+        .onChange(of: searchQuery) { _, _ in window.reset() }
+        .onChange(of: sortMode) { _, _ in window.reset() }
         .fullScreenCover(item: $presentedSeries) { series in
             SeriesDetailView(series: series, viewModel: viewModel, api: api)
         }
         .task(id: category.categoryId) {
+            window.reset()
             await viewModel.loadItems(for: category)
         }
     }
@@ -171,7 +189,7 @@ struct SeriesGridView: View {
     @ViewBuilder
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 30) {
-            ForEach(displayedItems) { item in
+            ForEach(windowedItems) { item in
                 Button {
                     presentedSeries = item
                 } label: {

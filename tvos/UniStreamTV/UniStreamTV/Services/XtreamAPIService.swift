@@ -54,7 +54,14 @@ final class XtreamAPIService {
     /// Whether authentication succeeded at least once.
     private(set) var isAuthenticated = false
 
-    init() {
+    /// - Parameter session: overrides the default transport. Only tests pass
+    ///   this, to stand a `URLProtocol` stub in front of the panel; app code
+    ///   calls `init()` and gets the session configured below unchanged.
+    init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+            return
+        }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = Constants.httpTimeout
         config.timeoutIntervalForResource = 60
@@ -63,7 +70,7 @@ final class XtreamAPIService {
             "User-Agent": "Dart/3.5 (dart:io)",
             "Connection": "close",
         ]
-        session = URLSession(configuration: config)
+        self.session = URLSession(configuration: config)
     }
 
     // MARK: - Configuration

@@ -10,6 +10,7 @@ struct ChannelGridView: View {
 
     @Environment(AppState.self) private var appState
     @FocusState private var focusedChannelId: String?
+    @State private var window = CatalogueWindow()
 
     private let columns = [
         GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 40)
@@ -34,6 +35,12 @@ struct ChannelGridView: View {
             return viewModel.channels.filter { favIds.contains($0.streamId) }
         }
         return viewModel.channels
+    }
+
+    /// What the grid actually renders — see ``CatalogueWindow`` for why a
+    /// full "Toutes les chaînes" list can't all be on screen at once.
+    private var windowedChannels: [Channel] {
+        window.applied(to: displayedChannels)
     }
 
     private var focusedChannel: Channel? {
@@ -73,7 +80,36 @@ struct ChannelGridView: View {
             }
         }
         .task(id: taskKey) {
+            // New list, new window — otherwise switching from a 4000-channel
+            // "Toutes les chaînes" into a 12-channel category would keep the
+            // window wide open over the next big list the user lands on.
+            window.reset()
             await reload()
+        }
+        .onChange(of: focusedChannelId) { _, newId in
+            guard let newId else { return }
+            window.extendIfNeeded(
+                focusedId: newId,
+                in: displayedChannels,
+                identifiedBy: \.streamId
+            )
+        }
+        // On-demand EPG for the channel the user has settled on, so the
+        // cards past the prefetch cap still say what's on — that's most of
+        // how you choose a channel.
+        //
+        // The sleep is the whole point: holding the d-pad sweeps focus
+        // across dozens of cards, and `.task(id:)` cancels the previous
+        // task on every move, so only a channel actually rested on costs a
+        // request. Without it this would be the old storm again, just
+        // spread over the remote instead of the category.
+        .task(id: focusedChannelId) {
+            guard let id = focusedChannelId else { return }
+            // `try?` swallows the cancellation error, so re-check before
+            // spending a request.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await viewModel.loadEpgIfNeeded(for: id)
         }
     }
 
@@ -102,7 +138,7 @@ struct ChannelGridView: View {
                     }
 
                     LazyVGrid(columns: columns, spacing: 40) {
-                        ForEach(displayedChannels) { channel in
+                        ForEach(windowedChannels) { channel in
                             channelCard(channel)
                         }
                     }
@@ -193,10 +229,9 @@ struct ChannelGridView: View {
                 await viewModel.loadAllChannels()
             }
             viewModel.setChannels(viewModel.allChannels)
-            let epgTargets = Array(displayedChannels.prefix(30))
-            if !epgTargets.isEmpty {
-                await viewModel.loadEpgForChannels(epgTargets)
-            }
+            // The prefetch cap lives in the view model so both entry
+            // points — here and `loadChannels(for:)` — obey the same one.
+            await viewModel.loadEpgForChannels(displayedChannels)
         } else {
             await viewModel.loadChannels(for: category)
         }
