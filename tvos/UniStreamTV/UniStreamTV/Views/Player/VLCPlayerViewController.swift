@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import VLCKitSPM
+import os
 
 /// VLC-based player for formats AVPlayer can't handle (MKV, AVI, etc.).
 /// Presented as a full-screen UIViewController with basic transport controls.
@@ -20,6 +21,7 @@ final class VLCPlayerViewController: UIViewController {
     // VLCLibrary for this player by going through `VLCMediaPlayer(options:)`.
     private let mediaPlayer = VLCMediaPlayer(options: [
         "--freetype-rel-fontsize=20",
+        "--no-spdif",
     ])
     private let url: URL
     /// The URL currently loaded into the player. Starts as `url`, but the
@@ -46,11 +48,21 @@ final class VLCPlayerViewController: UIViewController {
     private var resumeFromMs: Int?
     private let contentKey: String?
     private var progressTimer: Timer?
+    /// Per-playback workaround for a route that cannot render multichannel PCM.
+    /// Keep the selected language/track and downmix it rather than choosing French.
+    private var stereoCompatibility = false
+    private var audioOutputTask: Task<Void, Never>?
 
     /// Whether we've already retried with software decoding after a hw-decode failure.
     private var softwareDecodeRetryDone = false
     /// Watchdog: if audio plays but no video frame appears within ~6s, retry in software.
     private var videoWatchdog: Timer?
+    private let playbackLogger = Logger(subsystem: "fr.unimaru.unistream.tv", category: "VODPlayback")
+    private var lastDiagnosticsTime = Date.distantPast
+    private var showsDiagnostics = false
+    private var bufferingEvents = 0
+    private var wasBuffering = false
+
 
     // UI
     private let videoView = UIView()
@@ -60,6 +72,7 @@ final class VLCPlayerViewController: UIViewController {
     private let overlayModel = VLCVODPlayerModel()
     private var overlayHost: UIHostingController<VLCVODOverlayView>!
     private var overlayTimer: Timer?
+    private var overlayUpdateTimer: Timer?
 
     init(url: URL, title: String, resumeFromMs: Int? = nil, contentKey: String? = nil) {
         self.url = url
@@ -94,7 +107,6 @@ final class VLCPlayerViewController: UIViewController {
 
         startOverlayAutoHide()
         startProgressTracking()
-        startVideoWatchdog()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -106,10 +118,13 @@ final class VLCPlayerViewController: UIViewController {
         saveVLCProgress()
         progressTimer?.invalidate()
         videoWatchdog?.invalidate()
+        audioOutputTask?.cancel()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        overlayUpdateTimer?.invalidate()
+        overlayUpdateTimer = nil
         mediaPlayer.drawable = nil
         mediaPlayer.stop()
     }
@@ -173,7 +188,7 @@ final class VLCPlayerViewController: UIViewController {
         // Update timer — pushes VLC time / state into the model so the
         // SwiftUI drawer re-renders. 0.5s feels responsive without
         // wasting frames on a static drawer.
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        overlayUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateProgress()
             }
@@ -320,22 +335,48 @@ final class VLCPlayerViewController: UIViewController {
             .compactMap { URL(string: "\(base).\($0)") }
     }
 
-    /// If audio is decoding but no video frame has appeared after ~6s, the
-    /// hardware decoder likely rejected the video elementary stream. Retry in
-    /// software before giving up.
+    /// Only arm once VLC reports playback. A six-second network open is
+    /// not evidence of decoder failure; audio track discovery isn't either.
     private func startVideoWatchdog() {
         videoWatchdog?.invalidate()
+        guard !softwareDecodeRetryDone else { return }
         videoWatchdog = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
-                guard !self.softwareDecodeRetryDone else { return }
+                guard let self, let media = self.mediaPlayer.media else { return }
+                let stats = media.statistics
                 let size = self.mediaPlayer.videoSize
-                let audible = (self.mediaPlayer.audioTrackIndexes as? [Int32])?.isEmpty == false
-                if (size.width <= 0 || size.height <= 0) && audible {
-                    self.retryWithSoftwareDecode()
-                }
+                guard Self.shouldRetryVideoDecoder(
+                    isPlaying: self.mediaPlayer.state == .playing,
+                    alreadyRetried: self.softwareDecodeRetryDone,
+                    hasVideoSize: size.width > 0 && size.height > 0,
+                    decodedVideo: stats.decodedVideo,
+                    playedAudioBuffers: stats.playedAudioBuffers
+                ) else { return }
+                self.logPlaybackDiagnostics(reason: "software-retry")
+                self.retryWithSoftwareDecode()
             }
         }
+    }
+
+    /// Kept independent of VLC so the startup-buffering regression is testable.
+    static func shouldRetryVideoDecoder(
+        isPlaying: Bool, alreadyRetried: Bool, hasVideoSize: Bool,
+        decodedVideo: Int32, playedAudioBuffers: Int32
+    ) -> Bool {
+        isPlaying && !alreadyRetried && !hasVideoSize
+            && decodedVideo == 0 && playedAudioBuffers > 0
+    }
+
+    /// Numeric counters only: never log the media URL (it carries credentials),
+    /// title, server, or raw VLC messages. Compare successive samples to tell
+    /// input starvation from decoding/output loss on hardware.
+    private func logPlaybackDiagnostics(reason: String) {
+        guard let media = mediaPlayer.media else { return }
+        let stats = media.statistics
+        let position = mediaPlayer.time.intValue
+        let softwareRetry = softwareDecodeRetryDone
+        playbackLogger.notice("VOD \(reason, privacy: .public) posMs=\(position) readBytes=\(stats.readBytes) demuxBytes=\(stats.demuxReadBytes) decodedVideo=\(stats.decodedVideo) displayed=\(stats.displayedPictures) lostVideo=\(stats.lostPictures) playedAudio=\(stats.playedAudioBuffers) lostAudio=\(stats.lostAudioBuffers) softwareRetry=\(softwareRetry)")
+        lastDiagnosticsTime = Date()
     }
 
     // MARK: - Button handling (UIPress — works for Siri Remote AND Free / Bose)
@@ -498,6 +539,22 @@ final class VLCPlayerViewController: UIViewController {
             })
         }
 
+        let audioOutputTitle = stereoCompatibility
+            ? "Sortie audio : stéréo (revenir en automatique)"
+            : "Son absent ? Essayer la sortie stéréo"
+        alert.addAction(UIAlertAction(title: audioOutputTitle, style: .default) { [weak self] _ in
+            guard let self else { return }
+            stereoCompatibility.toggle()
+            applyAudioOutputMode()
+        })
+
+        let diagnosticsTitle = showsDiagnostics ? "Masquer les diagnostics de lecture" : "Afficher les diagnostics de lecture"
+        alert.addAction(UIAlertAction(title: diagnosticsTitle, style: .default) { [weak self] _ in
+            guard let self else { return }
+            showsDiagnostics.toggle()
+            updateDiagnosticsOverlay()
+        })
+
         // Subtitle tracks
         let subTracks = mediaPlayer.videoSubTitlesNames as? [String] ?? []
         if !subTracks.isEmpty {
@@ -528,7 +585,7 @@ final class VLCPlayerViewController: UIViewController {
         let names = mediaPlayer.audioTrackNames as? [String] ?? []
         let indexes = mediaPlayer.audioTrackIndexes as? [Int32] ?? []
         let options: [TrackPickerView.Option] = zip(names, indexes).map { name, idx in
-            TrackPickerView.Option(id: idx, label: name, detail: nil)
+            TrackPickerView.Option(id: idx, label: name, detail: audioTrackDetail(for: idx))
         }
         presentTrackPicker(
             title: "Piste audio",
@@ -536,7 +593,48 @@ final class VLCPlayerViewController: UIViewController {
             selectedId: mediaPlayer.currentAudioTrackIndex,
             allowOff: false
         ) { [weak self] id in
-            self?.mediaPlayer.currentAudioTrackIndex = id
+            guard let self, id >= 0 else { return }
+            mediaPlayer.currentAudioTrackIndex = id
+            // A track switch recreates the audio output asynchronously.
+            scheduleAudioOutputMode()
+        }
+    }
+
+    private func audioTrackDetail(for id: Int32) -> String? {
+        guard let tracks = mediaPlayer.media?.tracksInformation as? [[String: Any]],
+              let track = tracks.first(where: {
+                  ($0[VLCMediaTracksInformationId] as? NSNumber)?.int32Value == id
+                      && ($0[VLCMediaTracksInformationType] as? String) == VLCMediaTracksInformationTypeAudio
+              }) else { return nil }
+        var parts: [String] = []
+        if let code = track[VLCMediaTracksInformationCodec] as? NSNumber {
+            let name = VLCMedia.codecName(forFourCC: code.uint32Value, trackType: VLCMediaTracksInformationTypeAudio)
+            if !name.isEmpty { parts.append(name) }
+        }
+        if let channels = track[VLCMediaTracksInformationAudioChannelsNumber] as? NSNumber {
+            parts.append("\(channels.intValue) canaux")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func applyAudioOutputMode() {
+        if mediaPlayer.audio?.passthrough == true {
+            mediaPlayer.audio?.passthrough = false
+        }
+        // libvlc stereo-mode: 0 = original, 1 = stereo. This preserves
+        // playback position, subtitle selection and the chosen audio track.
+        let channel: Int32 = stereoCompatibility ? 1 : 0
+        if mediaPlayer.audioChannel != channel {
+            mediaPlayer.audioChannel = channel
+        }
+    }
+
+    private func scheduleAudioOutputMode() {
+        audioOutputTask?.cancel()
+        audioOutputTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            applyAudioOutputMode()
         }
     }
 
@@ -611,10 +709,31 @@ final class VLCPlayerViewController: UIViewController {
         }
     }
 
+    private func updateDiagnosticsOverlay() {
+        guard showsDiagnostics, let media = mediaPlayer.media else {
+            overlayModel.diagnosticsText = nil
+            return
+        }
+        let stats = media.statistics
+        let receivedMB = Double(stats.readBytes) / 1_000_000
+        let state = mediaPlayer.state == .buffering ? "Chargement" :
+            mediaPlayer.isPlaying ? "Lecture" : "En attente / pause"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        overlayModel.diagnosticsText = "Build \(build) · \(state) · Chargements : \(bufferingEvents)"
+            + "\nReçu : \(String(format: "%.1f", receivedMB)) Mo · Images perdues : \(stats.lostPictures)"
+            + "\nAudio : \(audioTrackDetail(for: mediaPlayer.currentAudioTrackIndex) ?? "piste \(mediaPlayer.currentAudioTrackIndex)")"
+            + "\nAudio décodé : \(stats.decodedAudio) · Joué : \(stats.playedAudioBuffers) · Sortie : \(stereoCompatibility ? "stéréo" : "auto")"
+            + "\nRepli logiciel : \(softwareDecodeRetryDone ? "oui" : "non")"
+    }
+
     /// Push VLC time / state into the SwiftUI overlay model. Called
     /// every 0.5s by the timer set up in `setupOverlay`.
     private func updateProgress() {
         guard mediaPlayer.media != nil else { return }
+        updateDiagnosticsOverlay()
+        if Date().timeIntervalSince(lastDiagnosticsTime) >= 10 {
+            logPlaybackDiagnostics(reason: "sample")
+        }
         let posMs = Int(mediaPlayer.time.intValue)
         let durMs: Int = {
             if let remaining = mediaPlayer.remainingTime {
@@ -650,8 +769,13 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
     nonisolated func mediaPlayerStateChanged(_ aNotification: Notification) {
         Task { @MainActor [weak self] in
             guard let self else { return }
+            let buffering = mediaPlayer.state == .buffering
+            if buffering && !wasBuffering { bufferingEvents += 1 }
+            wasBuffering = buffering
             switch mediaPlayer.state {
             case .opening, .buffering:
+                videoWatchdog?.invalidate()
+                logPlaybackDiagnostics(reason: "buffering")
                 // Surface a spinner on the drawer's play/pause so long
                 // initial loads and mid-stream stalls don't read as a
                 // frozen player. Cleared as soon as VLC starts decoding
@@ -659,6 +783,8 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 overlayModel.isBuffering = true
             case .playing:
                 overlayModel.isBuffering = false
+                scheduleAudioOutputMode()
+                startVideoWatchdog()
                 // Resuming from pause re-arms the auto-hide timer if
                 // the drawer is currently visible — without this it'd
                 // stay up forever after un-pausing.
@@ -666,6 +792,7 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                     startOverlayAutoHide()
                 }
             case .paused, .stopped:
+                videoWatchdog?.invalidate()
                 overlayModel.isBuffering = false
                 // Cancel any pending auto-hide so the drawer stays up
                 // for as long as the user keeps the player paused.

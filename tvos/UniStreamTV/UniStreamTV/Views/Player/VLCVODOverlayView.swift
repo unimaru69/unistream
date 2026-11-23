@@ -45,6 +45,17 @@ struct VLCVODOverlayView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .topLeading) {
+            if let diagnostics = model.diagnosticsText {
+                Text(diagnostics)
+                    .font(.system(size: 18, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(16)
+                    .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 12))
+                    .padding(40)
+                    .allowsHitTesting(false)
+            }
+        }
         .animation(DS.Motion.standard, value: model.isDrawerVisible)
         // Default focus when drawer becomes visible. Restore the last
         // focused button (saved in `lastFocused` below) so the drawer
