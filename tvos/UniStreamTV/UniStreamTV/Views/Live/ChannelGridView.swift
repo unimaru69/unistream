@@ -7,10 +7,23 @@ struct ChannelGridView: View {
     @Bindable var viewModel: LiveViewModel
     var showFavoritesOnly: Bool = false
     var isAllChannels: Bool = false
+    @Binding var isReturningFromPlayback: Bool
 
     @Environment(AppState.self) private var appState
     @FocusState private var focusedChannelId: String?
     @State private var window = CatalogueWindow()
+    @State private var loadedTaskKey: String?
+    @State private var returnChannelId: String?
+
+    init(category: Category, viewModel: LiveViewModel,
+         showFavoritesOnly: Bool = false, isAllChannels: Bool = false,
+         isReturningFromPlayback: Binding<Bool> = .constant(false)) {
+        self.category = category
+        self.viewModel = viewModel
+        self.showFavoritesOnly = showFavoritesOnly
+        self.isAllChannels = isAllChannels
+        self._isReturningFromPlayback = isReturningFromPlayback
+    }
 
     private let columns = [
         GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 40)
@@ -83,6 +96,8 @@ struct ChannelGridView: View {
             // New list, new window — otherwise switching from a 4000-channel
             // "Toutes les chaînes" into a 12-channel category would keep the
             // window wide open over the next big list the user lands on.
+            guard loadedTaskKey != taskKey else { return }
+            loadedTaskKey = taskKey
             window.reset()
             await reload()
         }
@@ -116,37 +131,52 @@ struct ChannelGridView: View {
     @ViewBuilder
     private var gridContent: some View {
         ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.lg) {
-                    // Inline title that scrolls with content (avoids the
-                    // tvOS large-title overlay overdraw on the cards).
-                    Text(
-                        showFavoritesOnly ? "Favoris" :
-                        isAllChannels ? "Toutes les chaînes" :
-                        category.categoryName
-                    )
-                    .font(.largeTitle).bold()
-                    .padding(.horizontal, 40)
-                    .padding(.top, 20)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DS.Spacing.lg) {
+                        // Inline title that scrolls with content (avoids the
+                        // tvOS large-title overlay overdraw on the cards).
+                        Text(
+                            showFavoritesOnly ? "Favoris" :
+                            isAllChannels ? "Toutes les chaînes" :
+                            category.categoryName
+                        )
+                        .font(.largeTitle).bold()
+                        .padding(.horizontal, 40)
+                        .padding(.top, 20)
 
-                    // Catch-up shelf — only for users with the replay
-                    // feature; surfaces "what was on lately" without
-                    // having to drill into a channel's EPG.
-                    if canUseCatchup {
-                        CatchUpRow()
-                            .focusSection()
-                    }
-
-                    LazyVGrid(columns: columns, spacing: 40) {
-                        ForEach(windowedChannels) { channel in
-                            channelCard(channel)
+                        // Catch-up shelf — only for users with the replay
+                        // feature; surfaces "what was on lately" without
+                        // having to drill into a channel's EPG.
+                        if canUseCatchup {
+                            CatchUpRow()
+                                .focusSection()
                         }
-                    }
-                    .padding(.horizontal, 40)
 
-                    // Bottom inset so the preview overlay doesn't cover
-                    // the last grid row.
-                    Color.clear.frame(height: 200)
+                        LazyVGrid(columns: columns, spacing: 40) {
+                            ForEach(windowedChannels) { channel in
+                                channelCard(channel)
+                                    .id(channel.streamId)
+                            }
+                        }
+                        .padding(.horizontal, 40)
+
+                        // Bottom inset so the preview overlay doesn't cover
+                        // the last grid row.
+                        Color.clear.frame(height: 200)
+                    }
+                }
+                .task(id: returnChannelId) {
+                    guard let id = returnChannelId else { return }
+                    defer { isReturningFromPlayback = false }
+                    window.include(id: id, in: displayedChannels, identifiedBy: \.streamId)
+                    // Materialise the lazy card before asking tvOS to focus it.
+                    await Task.yield()
+                    proxy.scrollTo(id, anchor: .center)
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                    focusedChannelId = id
+                    returnChannelId = nil
                 }
             }
             // No .focusSection() on the ScrollView — see SeriesGridView
@@ -243,11 +273,15 @@ struct ChannelGridView: View {
             PlayerPresenter.playLive(url: url, title: channel.name, contentKey: "live_\(channel.streamId)")
             return
         }
+        isReturningFromPlayback = true
         PlayerPresenter.playLiveWithZapping(
             channels: displayedChannels,
             startIndex: index,
             api: appState.api,
-            timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
+            timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo),
+            onDismiss: { channelId in
+                returnChannelId = channelId
+            }
         )
     }
 }

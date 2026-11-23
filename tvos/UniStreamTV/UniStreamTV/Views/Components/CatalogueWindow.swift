@@ -37,6 +37,13 @@ struct CatalogueWindow {
         limit = Self.pageSize
     }
 
+    /// Ensure a remembered card exists before scroll/focus restoration.
+    mutating func include<T>(id target: String, in items: [T], identifiedBy id: (T) -> String) {
+        guard let index = items.firstIndex(where: { id($0) == target }) else { return }
+        let pages = index / Self.pageSize + 1
+        limit = max(limit, min(pages * Self.pageSize, items.count))
+    }
+
     /// The prefix of `items` that should actually be rendered.
     func applied<T>(to items: [T]) -> [T] {
         items.count > limit ? Array(items.prefix(limit)) : items

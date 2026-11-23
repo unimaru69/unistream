@@ -131,7 +131,8 @@ enum PlayerPresenter {
         channels: [Channel],
         startIndex: Int,
         api: XtreamAPIService,
-        timeshiftAllowed: Bool = false
+        timeshiftAllowed: Bool = false,
+        onDismiss: ((String) -> Void)? = nil
     ) {
         guard startIndex >= 0, startIndex < channels.count else { return }
 
@@ -143,13 +144,20 @@ enum PlayerPresenter {
                 api: api,
                 timeshiftAllowed: timeshiftAllowed
             )
-            guard let rootVC = rootViewController else { return }
+            guard let rootVC = rootViewController else {
+                onDismiss?(channels[startIndex].streamId)
+                return
+            }
+            vlc.onPlaybackDismissed = onDismiss
             rootVC.present(vlc, animated: true)
             return
         }
 
         let channel = channels[startIndex]
-        guard let url = api.liveStreamUrl(streamId: channel.streamId) else { return }
+        guard let url = api.liveStreamUrl(streamId: channel.streamId) else {
+            onDismiss?(channel.streamId)
+            return
+        }
 
         let player = AVPlayer(url: url)
         player.applyDefaultSubtitleStyle()
@@ -158,6 +166,7 @@ enum PlayerPresenter {
         playerVC.channels = channels
         playerVC.currentIndex = startIndex
         playerVC.api = api
+        playerVC.onPlaybackDismissed = onDismiss
         playerVC.updateMetadata(title: channel.name)
 
         // AVPlayerViewController natively supports subtitles & audio tracks
@@ -165,7 +174,10 @@ enum PlayerPresenter {
         playerVC.allowsPictureInPicturePlayback = false
         playerVC.requiresLinearPlayback = false
 
-        guard let rootVC = rootViewController else { return }
+        guard let rootVC = rootViewController else {
+            onDismiss?(channel.streamId)
+            return
+        }
         rootVC.present(playerVC, animated: true) {
             player.play()
         }
@@ -858,6 +870,15 @@ final class EnhancedPlayerViewController: AVPlayerViewController, UIGestureRecog
 final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecognizerDelegate {
 
     var channels: [Channel] = []
+    var onPlaybackDismissed: ((String) -> Void)?
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        guard isBeingDismissed, channels.indices.contains(currentIndex) else { return }
+        onPlaybackDismissed?(channels[currentIndex].streamId)
+        onPlaybackDismissed = nil
+    }
+
     var currentIndex: Int = 0
     var api: XtreamAPIService?
 
