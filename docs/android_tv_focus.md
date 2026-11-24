@@ -122,6 +122,3 @@ l'item 1 après un rebuild. La vraie solution est ci-dessous.
   → l'app bascule en `OfflineContent` (peu de focusables). Tester contre un
   serveur Xtream joignable, ou vérifier la connectivité de l'AVD, pour valider
   les vrais écrans Accueil/grille.
-- **RevenueCat** : volontairement désactivé sur Android tant que la clé
-  Google Play est le placeholder (`purchase_service.dart`) — sans impact sur le
-  focus, l'accès reste débloqué (FeatureAccess.canUse=true).

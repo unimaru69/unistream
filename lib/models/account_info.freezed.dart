@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AccountInfo {
 
- String get id; String get email;@JsonKey(name: 'trial_started_at') DateTime get trialStartedAt;@JsonKey(name: 'subscription_tier') String get subscriptionTier;@JsonKey(name: 'subscription_expires_at') DateTime? get subscriptionExpiresAt;@JsonKey(name: 'cross_platform_license') bool get crossPlatformLicense;@JsonKey(name: 'created_at') DateTime? get createdAt;
+ String get id; String get email;@JsonKey(name: 'created_at') DateTime? get createdAt;
 /// Create a copy of AccountInfo
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AccountInfoCopyWith<AccountInfo> get copyWith => _$AccountInfoCopyWithImpl<Acco
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.trialStartedAt, trialStartedAt) || other.trialStartedAt == trialStartedAt)&&(identical(other.subscriptionTier, subscriptionTier) || other.subscriptionTier == subscriptionTier)&&(identical(other.subscriptionExpiresAt, subscriptionExpiresAt) || other.subscriptionExpiresAt == subscriptionExpiresAt)&&(identical(other.crossPlatformLicense, crossPlatformLicense) || other.crossPlatformLicense == crossPlatformLicense)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,trialStartedAt,subscriptionTier,subscriptionExpiresAt,crossPlatformLicense,createdAt);
+int get hashCode => Object.hash(runtimeType,id,email,createdAt);
 
 @override
 String toString() {
-  return 'AccountInfo(id: $id, email: $email, trialStartedAt: $trialStartedAt, subscriptionTier: $subscriptionTier, subscriptionExpiresAt: $subscriptionExpiresAt, crossPlatformLicense: $crossPlatformLicense, createdAt: $createdAt)';
+  return 'AccountInfo(id: $id, email: $email, createdAt: $createdAt)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AccountInfoCopyWith<$Res>  {
   factory $AccountInfoCopyWith(AccountInfo value, $Res Function(AccountInfo) _then) = _$AccountInfoCopyWithImpl;
 @useResult
 $Res call({
- String id, String email,@JsonKey(name: 'trial_started_at') DateTime trialStartedAt,@JsonKey(name: 'subscription_tier') String subscriptionTier,@JsonKey(name: 'subscription_expires_at') DateTime? subscriptionExpiresAt,@JsonKey(name: 'cross_platform_license') bool crossPlatformLicense,@JsonKey(name: 'created_at') DateTime? createdAt
+ String id, String email,@JsonKey(name: 'created_at') DateTime? createdAt
 });
 
 
@@ -65,15 +65,11 @@ class _$AccountInfoCopyWithImpl<$Res>
 
 /// Create a copy of AccountInfo
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? trialStartedAt = null,Object? subscriptionTier = null,Object? subscriptionExpiresAt = freezed,Object? crossPlatformLicense = null,Object? createdAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? createdAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,trialStartedAt: null == trialStartedAt ? _self.trialStartedAt : trialStartedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,subscriptionTier: null == subscriptionTier ? _self.subscriptionTier : subscriptionTier // ignore: cast_nullable_to_non_nullable
-as String,subscriptionExpiresAt: freezed == subscriptionExpiresAt ? _self.subscriptionExpiresAt : subscriptionExpiresAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,crossPlatformLicense: null == crossPlatformLicense ? _self.crossPlatformLicense : crossPlatformLicense // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }
@@ -159,10 +155,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email, @JsonKey(name: 'trial_started_at')  DateTime trialStartedAt, @JsonKey(name: 'subscription_tier')  String subscriptionTier, @JsonKey(name: 'subscription_expires_at')  DateTime? subscriptionExpiresAt, @JsonKey(name: 'cross_platform_license')  bool crossPlatformLicense, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AccountInfo() when $default != null:
-return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier,_that.subscriptionExpiresAt,_that.crossPlatformLicense,_that.createdAt);case _:
+return $default(_that.id,_that.email,_that.createdAt);case _:
   return orElse();
 
 }
@@ -180,10 +176,10 @@ return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email, @JsonKey(name: 'trial_started_at')  DateTime trialStartedAt, @JsonKey(name: 'subscription_tier')  String subscriptionTier, @JsonKey(name: 'subscription_expires_at')  DateTime? subscriptionExpiresAt, @JsonKey(name: 'cross_platform_license')  bool crossPlatformLicense, @JsonKey(name: 'created_at')  DateTime? createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email, @JsonKey(name: 'created_at')  DateTime? createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _AccountInfo():
-return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier,_that.subscriptionExpiresAt,_that.crossPlatformLicense,_that.createdAt);case _:
+return $default(_that.id,_that.email,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +196,10 @@ return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email, @JsonKey(name: 'trial_started_at')  DateTime trialStartedAt, @JsonKey(name: 'subscription_tier')  String subscriptionTier, @JsonKey(name: 'subscription_expires_at')  DateTime? subscriptionExpiresAt, @JsonKey(name: 'cross_platform_license')  bool crossPlatformLicense, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _AccountInfo() when $default != null:
-return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier,_that.subscriptionExpiresAt,_that.crossPlatformLicense,_that.createdAt);case _:
+return $default(_that.id,_that.email,_that.createdAt);case _:
   return null;
 
 }
@@ -214,16 +210,12 @@ return $default(_that.id,_that.email,_that.trialStartedAt,_that.subscriptionTier
 /// @nodoc
 @JsonSerializable()
 
-class _AccountInfo extends AccountInfo {
-  const _AccountInfo({required this.id, this.email = '', @JsonKey(name: 'trial_started_at') required this.trialStartedAt, @JsonKey(name: 'subscription_tier') this.subscriptionTier = 'trial', @JsonKey(name: 'subscription_expires_at') this.subscriptionExpiresAt, @JsonKey(name: 'cross_platform_license') this.crossPlatformLicense = false, @JsonKey(name: 'created_at') this.createdAt}): super._();
+class _AccountInfo implements AccountInfo {
+  const _AccountInfo({required this.id, this.email = '', @JsonKey(name: 'created_at') this.createdAt});
   factory _AccountInfo.fromJson(Map<String, dynamic> json) => _$AccountInfoFromJson(json);
 
 @override final  String id;
 @override@JsonKey() final  String email;
-@override@JsonKey(name: 'trial_started_at') final  DateTime trialStartedAt;
-@override@JsonKey(name: 'subscription_tier') final  String subscriptionTier;
-@override@JsonKey(name: 'subscription_expires_at') final  DateTime? subscriptionExpiresAt;
-@override@JsonKey(name: 'cross_platform_license') final  bool crossPlatformLicense;
 @override@JsonKey(name: 'created_at') final  DateTime? createdAt;
 
 /// Create a copy of AccountInfo
@@ -239,16 +231,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.trialStartedAt, trialStartedAt) || other.trialStartedAt == trialStartedAt)&&(identical(other.subscriptionTier, subscriptionTier) || other.subscriptionTier == subscriptionTier)&&(identical(other.subscriptionExpiresAt, subscriptionExpiresAt) || other.subscriptionExpiresAt == subscriptionExpiresAt)&&(identical(other.crossPlatformLicense, crossPlatformLicense) || other.crossPlatformLicense == crossPlatformLicense)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,trialStartedAt,subscriptionTier,subscriptionExpiresAt,crossPlatformLicense,createdAt);
+int get hashCode => Object.hash(runtimeType,id,email,createdAt);
 
 @override
 String toString() {
-  return 'AccountInfo(id: $id, email: $email, trialStartedAt: $trialStartedAt, subscriptionTier: $subscriptionTier, subscriptionExpiresAt: $subscriptionExpiresAt, crossPlatformLicense: $crossPlatformLicense, createdAt: $createdAt)';
+  return 'AccountInfo(id: $id, email: $email, createdAt: $createdAt)';
 }
 
 
@@ -259,7 +251,7 @@ abstract mixin class _$AccountInfoCopyWith<$Res> implements $AccountInfoCopyWith
   factory _$AccountInfoCopyWith(_AccountInfo value, $Res Function(_AccountInfo) _then) = __$AccountInfoCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email,@JsonKey(name: 'trial_started_at') DateTime trialStartedAt,@JsonKey(name: 'subscription_tier') String subscriptionTier,@JsonKey(name: 'subscription_expires_at') DateTime? subscriptionExpiresAt,@JsonKey(name: 'cross_platform_license') bool crossPlatformLicense,@JsonKey(name: 'created_at') DateTime? createdAt
+ String id, String email,@JsonKey(name: 'created_at') DateTime? createdAt
 });
 
 
@@ -276,15 +268,11 @@ class __$AccountInfoCopyWithImpl<$Res>
 
 /// Create a copy of AccountInfo
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? trialStartedAt = null,Object? subscriptionTier = null,Object? subscriptionExpiresAt = freezed,Object? crossPlatformLicense = null,Object? createdAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? createdAt = freezed,}) {
   return _then(_AccountInfo(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,trialStartedAt: null == trialStartedAt ? _self.trialStartedAt : trialStartedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,subscriptionTier: null == subscriptionTier ? _self.subscriptionTier : subscriptionTier // ignore: cast_nullable_to_non_nullable
-as String,subscriptionExpiresAt: freezed == subscriptionExpiresAt ? _self.subscriptionExpiresAt : subscriptionExpiresAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,crossPlatformLicense: null == crossPlatformLicense ? _self.crossPlatformLicense : crossPlatformLicense // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }

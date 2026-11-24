@@ -40,7 +40,6 @@ import 'screens/auth/auth_gate.dart';
 import 'screens/player/player_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import 'services/auth_service.dart';
-import 'providers/purchase_provider.dart';
 
 // Re-export theme utilities for screens that need them
 export 'utils/theme.dart' show themeNotifier, saveThemeMode;
@@ -320,17 +319,13 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     }
     // Init EPG reminder service
     EpgReminderService.instance.init(onAlert: _onEpgReminderAlert);
-    // Pull remote data, start realtime, and init RevenueCat after first frame
+    // Pull remote data and start realtime after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // A cold start fetches the catalogue from the network anyway (the
       // stream cache is in-memory only), so stamp launch as a refresh —
       // otherwise the first resume would re-pull data we just pulled.
       unawaited(ref.read(catalogRefreshProvider.notifier).markFreshStart());
       _initSync();
-      final userId = AuthService.instance.userId;
-      if (userId != null) {
-        ref.read(purchaseProvider.notifier).initialize(userId);
-      }
     });
     // Listen for auth state changes — sync needs to react to both fresh
     // sign-ins AND session restores at launch. Supabase emits
@@ -344,7 +339,6 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
     _authSub = AuthService.instance.onAuthStateChange?.listen((authState) {
       if (authState.event == AuthChangeEvent.signedOut) {
         SyncService.instance.stopRealtime();
-        ref.read(purchaseProvider.notifier).logOut();
         AppConfig.currentUserId = null;
         AppLogger.info(LogModule.sync, 'Auth signed out — realtime stopped');
       } else if (authState.event == AuthChangeEvent.signedIn ||
@@ -354,10 +348,6 @@ class _UniStreamAppState extends ConsumerState<UniStreamApp> with WindowListener
         // really have a session in hand.
         if (authState.session == null) return;
         _initSync();
-        final userId = AuthService.instance.userId;
-        if (userId != null) {
-          ref.read(purchaseProvider.notifier).initialize(userId);
-        }
       }
     });
     // Re-run the full startup sync whenever someone bumps the

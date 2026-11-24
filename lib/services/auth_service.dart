@@ -272,7 +272,7 @@ class AuthService {
 
   // ── Account Info ──
 
-  /// Fetches the user's account info (trial status, subscription, etc.).
+  /// Fetches the user's account row.
   Future<AccountInfo?> fetchAccountInfo() async {
     try {
       final uid = userId;

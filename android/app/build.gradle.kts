@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         applicationId = "fr.unimaru.unistream"
-        minSdk = 24  // media_kit + RevenueCat require API 24+
+        minSdk = 24  // media_kit requires API 24+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -86,10 +86,6 @@ struct EPGGridView: View {
     }
     private var cacheKey: String { "\(dayKey)|\(filterKey)" }
 
-    private var timeshiftAllowed: Bool {
-        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
-    }
-
     // MARK: - Body
 
     var body: some View {
@@ -605,8 +601,7 @@ struct EPGGridView: View {
         PlayerPresenter.playLiveWithZapping(
             channels: chans,
             startIndex: idx,
-            api: appState.api,
-            timeshiftAllowed: timeshiftAllowed
+            api: appState.api
         )
     }
 

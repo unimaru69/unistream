@@ -2,73 +2,26 @@ import XCTest
 @testable import UniStreamTV
 
 final class AccountInfoTests: XCTestCase {
+    private let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
 
-    // MARK: - Trial Logic
-
-    func testFreshTrialHasAccess() {
-        let info = AccountInfo(id: "1", trialStartedAt: Date(), subscriptionTier: "trial")
-        XCTAssertTrue(info.isTrial)
-        XCTAssertTrue(info.isTrialActive)
-        XCTAssertFalse(info.isTrialExpired)
-        XCTAssertTrue(info.hasAccess)
-        XCTAssertGreaterThan(info.trialDaysRemaining, 0)
+    func testDecodesTheAccountRow() throws {
+        let json = #"{"id":"user-1","email":"someone@example.invalid","created_at":"2026-04-10T08:00:00Z"}"#
+        let info = try decoder.decode(AccountInfo.self, from: Data(json.utf8))
+        XCTAssertEqual(info.id, "user-1")
+        XCTAssertEqual(info.email, "someone@example.invalid")
+        XCTAssertNotNil(info.createdAt)
     }
 
-    func testExpiredTrialHasNoAccess() {
-        let past = Calendar.current.date(byAdding: .day, value: -20, to: Date())!
-        let info = AccountInfo(id: "1", trialStartedAt: past, subscriptionTier: "trial")
-        XCTAssertTrue(info.isTrial)
-        XCTAssertFalse(info.isTrialActive)
-        XCTAssertTrue(info.isTrialExpired)
-        XCTAssertFalse(info.hasAccess)
-        XCTAssertEqual(info.trialDaysRemaining, 0)
-    }
-
-    func testTrialDaysBoundary() {
-        let exactlyAtLimit = Calendar.current.date(byAdding: .day, value: -14, to: Date())!
-        let info = AccountInfo(id: "1", trialStartedAt: exactlyAtLimit, subscriptionTier: "trial")
-        XCTAssertEqual(info.trialDaysRemaining, 0)
-        XCTAssertTrue(info.isTrialExpired)
-    }
-
-    func testNonTrialHasZeroTrialDays() {
-        let info = AccountInfo(id: "1", subscriptionTier: "basic")
-        XCTAssertFalse(info.isTrial)
-        XCTAssertEqual(info.trialDaysRemaining, 0)
-    }
-
-    // MARK: - Subscription Logic
-
-    func testBasicHasActiveSubscription() {
-        let info = AccountInfo(id: "1", subscriptionTier: "basic")
-        XCTAssertTrue(info.hasActiveSubscription)
-        XCTAssertTrue(info.isBasicOrAbove)
-        XCTAssertFalse(info.isPremium)
-        XCTAssertTrue(info.hasAccess)
-    }
-
-    func testPremiumHasActiveSubscription() {
-        let info = AccountInfo(id: "1", subscriptionTier: "premium")
-        XCTAssertTrue(info.hasActiveSubscription)
-        XCTAssertTrue(info.isPremium)
-        XCTAssertTrue(info.hasAccess)
-    }
-
-    func testExpiredSubscriptionHasNoAccess() {
-        let past = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
-        let info = AccountInfo(id: "1", subscriptionTier: "basic", subscriptionExpiresAt: past)
-        XCTAssertFalse(info.hasActiveSubscription)
-        XCTAssertFalse(info.hasAccess)
-    }
-
-    func testNilExpiryMeansLifetime() {
-        let info = AccountInfo(id: "1", subscriptionTier: "premium", subscriptionExpiresAt: nil)
-        XCTAssertTrue(info.hasActiveSubscription)
-    }
-
-    func testFutureExpiryIsActive() {
-        let future = Calendar.current.date(byAdding: .month, value: 1, to: Date())!
-        let info = AccountInfo(id: "1", subscriptionTier: "basic", subscriptionExpiresAt: future)
-        XCTAssertTrue(info.hasActiveSubscription)
+    /// `user_accounts` still has the trial and subscription columns of the
+    /// abandoned paid model. The app must not depend on them.
+    func testIgnoresLegacyTrialAndSubscriptionColumns() throws {
+        let json = #"{"id":"user-1","email":"","trial_started_at":"2020-01-01T00:00:00Z","subscription_tier":"trial","subscription_expires_at":"2020-02-01T00:00:00Z","cross_platform_license":false}"#
+        let info = try decoder.decode(AccountInfo.self, from: Data(json.utf8))
+        XCTAssertEqual(info.id, "user-1")
+        XCTAssertNil(info.createdAt)
     }
 }

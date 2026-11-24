@@ -2042,42 +2042,6 @@ abstract class AppLocalizations {
   /// **'Créé le {date}'**
   String compteCreeLe(String date);
 
-  /// No description provided for @compteEssaiGratuit.
-  ///
-  /// In fr, this message translates to:
-  /// **'Essai gratuit'**
-  String get compteEssaiGratuit;
-
-  /// No description provided for @compteEssaiJoursRestants.
-  ///
-  /// In fr, this message translates to:
-  /// **'{count, plural, =0{Essai expiré} =1{1 jour restant} other{{count} jours restants}}'**
-  String compteEssaiJoursRestants(int count);
-
-  /// No description provided for @compteEssaiExpire.
-  ///
-  /// In fr, this message translates to:
-  /// **'Votre essai gratuit a expiré'**
-  String get compteEssaiExpire;
-
-  /// No description provided for @compteAbonnementBasic.
-  ///
-  /// In fr, this message translates to:
-  /// **'Abonnement Basic'**
-  String get compteAbonnementBasic;
-
-  /// No description provided for @compteAbonnementPremium.
-  ///
-  /// In fr, this message translates to:
-  /// **'Abonnement Premium'**
-  String get compteAbonnementPremium;
-
-  /// No description provided for @compteLicenceCrossplateforme.
-  ///
-  /// In fr, this message translates to:
-  /// **'Licence cross-plateforme'**
-  String get compteLicenceCrossplateforme;
-
   /// No description provided for @compteDeconnexion.
   ///
   /// In fr, this message translates to:
@@ -2192,84 +2156,6 @@ abstract class AppLocalizations {
   /// **'Cet email sera ton identifiant cross-device. Connecte-toi avec la même adresse sur tous tes appareils pour que tes favoris et ta progression se synchronisent.'**
   String get crossDeviceHintGeneric;
 
-  /// No description provided for @paywallTitre.
-  ///
-  /// In fr, this message translates to:
-  /// **'Passez à Premium'**
-  String get paywallTitre;
-
-  /// No description provided for @paywallDescription.
-  ///
-  /// In fr, this message translates to:
-  /// **'Débloquez toutes les fonctionnalités'**
-  String get paywallDescription;
-
-  /// No description provided for @paywallRestaurer.
-  ///
-  /// In fr, this message translates to:
-  /// **'Restaurer les achats'**
-  String get paywallRestaurer;
-
-  /// No description provided for @paywallMensuel.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mensuel'**
-  String get paywallMensuel;
-
-  /// No description provided for @paywallAnnuel.
-  ///
-  /// In fr, this message translates to:
-  /// **'Annuel'**
-  String get paywallAnnuel;
-
-  /// No description provided for @paywallSAbonner.
-  ///
-  /// In fr, this message translates to:
-  /// **'S\'abonner'**
-  String get paywallSAbonner;
-
-  /// No description provided for @paywallEconomie.
-  ///
-  /// In fr, this message translates to:
-  /// **'Économisez {percent}%'**
-  String paywallEconomie(int percent);
-
-  /// No description provided for @paywallParMois.
-  ///
-  /// In fr, this message translates to:
-  /// **'{price}/mois'**
-  String paywallParMois(String price);
-
-  /// No description provided for @paywallParAn.
-  ///
-  /// In fr, this message translates to:
-  /// **'{price}/an'**
-  String paywallParAn(String price);
-
-  /// No description provided for @paywallAchatReussi.
-  ///
-  /// In fr, this message translates to:
-  /// **'Achat effectué avec succès !'**
-  String get paywallAchatReussi;
-
-  /// No description provided for @paywallAchatErreur.
-  ///
-  /// In fr, this message translates to:
-  /// **'Erreur lors de l\'achat. Veuillez réessayer.'**
-  String get paywallAchatErreur;
-
-  /// No description provided for @paywallNonDisponible.
-  ///
-  /// In fr, this message translates to:
-  /// **'Les achats in-app ne sont pas disponibles sur cette plateforme.'**
-  String get paywallNonDisponible;
-
-  /// No description provided for @fonctionnaliteRequiertPremium.
-  ///
-  /// In fr, this message translates to:
-  /// **'Cette fonctionnalité nécessite un abonnement Premium.'**
-  String get fonctionnaliteRequiertPremium;
-
   /// No description provided for @fonctionnaliteCollections.
   ///
   /// In fr, this message translates to:
@@ -2341,48 +2227,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Thèmes clair / sombre'**
   String get fonctionnaliteThemes;
-
-  /// No description provided for @abonnementGerer.
-  ///
-  /// In fr, this message translates to:
-  /// **'Gérer l\'abonnement'**
-  String get abonnementGerer;
-
-  /// No description provided for @abonnementUpgrade.
-  ///
-  /// In fr, this message translates to:
-  /// **'Passer à Premium'**
-  String get abonnementUpgrade;
-
-  /// No description provided for @abonnementSAbonner.
-  ///
-  /// In fr, this message translates to:
-  /// **'S\'abonner'**
-  String get abonnementSAbonner;
-
-  /// No description provided for @abonnementBasic.
-  ///
-  /// In fr, this message translates to:
-  /// **'Basic'**
-  String get abonnementBasic;
-
-  /// No description provided for @abonnementPremium.
-  ///
-  /// In fr, this message translates to:
-  /// **'Premium'**
-  String get abonnementPremium;
-
-  /// No description provided for @abonnementLicenceCross.
-  ///
-  /// In fr, this message translates to:
-  /// **'Licence cross-plateforme'**
-  String get abonnementLicenceCross;
-
-  /// No description provided for @abonnementLicenceCrossDesc.
-  ///
-  /// In fr, this message translates to:
-  /// **'Utilisez votre abonnement Premium sur toutes les plateformes'**
-  String get abonnementLicenceCrossDesc;
 
   /// No description provided for @accueilTab.
   ///

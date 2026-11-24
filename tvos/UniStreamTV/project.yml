@@ -10,9 +10,6 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: "2.0.0"
-  RevenueCat:
-    url: https://github.com/RevenueCat/purchases-ios-spm
-    exactVersion: "5.103.0"
   Kingfisher:
     url: https://github.com/onevcat/Kingfisher
     from: "8.0.0"
@@ -65,8 +62,6 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
-      - package: RevenueCat
-        product: RevenueCat
       - package: Kingfisher
       - package: VLCKitSPM
         product: VLCKitSPM

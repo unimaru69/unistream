@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/colors.dart';
 import '../../../core/theme_colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../providers/auth_provider.dart';
 import '../../auth/account_screen.dart';
-import '../../subscription/paywall_screen.dart';
 
 class AccountSection extends ConsumerWidget {
   const AccountSection({super.key});
@@ -35,41 +33,10 @@ class AccountSection extends ConsumerWidget {
             ),
             const Divider(height: 24),
             if (auth.user != null) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      auth.user!.email ?? '',
-                      style: TextStyle(color: tc.textPrimary),
-                    ),
-                  ),
-                  if (auth.accountInfo != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withAlpha(25),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _tierLabel(l10n, auth.accountInfo!.subscriptionTier),
-                        style: const TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
+              Text(
+                auth.user!.email ?? '',
+                style: TextStyle(color: tc.textPrimary),
               ),
-              if (auth.accountInfo?.isTrialActive == true) ...[
-                const SizedBox(height: 8),
-                Text(
-                  l10n.compteEssaiJoursRestants(
-                      auth.accountInfo!.trialDaysRemaining),
-                  style: TextStyle(color: tc.textSecondary, fontSize: 13),
-                ),
-              ],
             ],
             const SizedBox(height: 12),
             Row(
@@ -82,36 +49,11 @@ class AccountSection extends ConsumerWidget {
                     child: Text(l10n.compteMonCompte),
                   ),
                 ),
-                if (auth.accountInfo?.isPremium != true) ...[
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const PaywallScreen()),
-                    ),
-                    icon: const Icon(Icons.star, size: 16),
-                    label: Text(l10n.abonnementUpgrade),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                    ),
-                  ),
-                ],
               ],
             ),
           ],
         ),
       ),
     );
-  }
-
-  String _tierLabel(AppLocalizations l10n, String tier) {
-    switch (tier) {
-      case 'basic':
-        return 'Basic';
-      case 'premium':
-        return 'Premium';
-      default:
-        return l10n.compteEssaiGratuit;
-    }
   }
 }

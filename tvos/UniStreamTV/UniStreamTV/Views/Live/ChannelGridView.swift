@@ -61,10 +61,6 @@ struct ChannelGridView: View {
         return displayedChannels.first(where: { $0.streamId == id })
     }
 
-    private var canUseCatchup: Bool {
-        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
-    }
-
     var body: some View {
         Group {
             if (viewModel.isLoadingChannels || viewModel.isLoadingAllChannels) && viewModel.channels.isEmpty {
@@ -145,13 +141,10 @@ struct ChannelGridView: View {
                         .padding(.horizontal, 40)
                         .padding(.top, 20)
 
-                        // Catch-up shelf — only for users with the replay
-                        // feature; surfaces "what was on lately" without
-                        // having to drill into a channel's EPG.
-                        if canUseCatchup {
-                            CatchUpRow()
-                                .focusSection()
-                        }
+                        // Catch-up shelf — surfaces "what was on lately"
+                        // without having to drill into a channel's EPG.
+                        CatchUpRow()
+                            .focusSection()
 
                         LazyVGrid(columns: columns, spacing: 40) {
                             ForEach(windowedChannels) { channel in
@@ -235,8 +228,7 @@ struct ChannelGridView: View {
                       systemImage: isInWl ? "bookmark.slash" : "bookmark")
             }
 
-            if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
-               !appState.collectionsService.collections.isEmpty {
+            if !appState.collectionsService.collections.isEmpty {
                 Menu("Ajouter à une collection") {
                     ForEach(appState.collectionsService.collections(for: "live")) { collection in
                         Button {
@@ -278,7 +270,6 @@ struct ChannelGridView: View {
             channels: displayedChannels,
             startIndex: index,
             api: appState.api,
-            timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo),
             onDismiss: { channelId in
                 returnChannelId = channelId
             }

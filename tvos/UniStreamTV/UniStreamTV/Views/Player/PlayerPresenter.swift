@@ -23,12 +23,6 @@ enum PlayerPresenter {
     /// than the generic VLC VOD drawer.
     static weak var api: XtreamAPIService?
     static weak var liveViewModel: LiveViewModel?
-    /// Auth service reference — needed for the timeshift feature
-    /// gate so single-channel-mode launches (from Home / Favoris /
-    /// deep links) honour the same Premium check the channel grid
-    /// already uses.
-    static weak var authService: AuthService?
-
     /// Whether to use VLC (true) or AVPlayer (false) for live streams.
     /// VLC supports HEVC in MPEG-TS, MPEG-1 audio, and many broadcast-style
     /// streams that AVPlayer refuses (audio-only / black screen).
@@ -80,8 +74,7 @@ enum PlayerPresenter {
                 let vlc = VLCLivePlayerViewController(
                     channels: [channel],
                     startIndex: 0,
-                    api: api,
-                    timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: authService?.cachedAccountInfo)
+                    api: api
                 )
                 if let title { syncService?.registerPlayback(contentKey: key, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl) }
                 guard let rootVC = rootViewController else { return }
@@ -124,14 +117,12 @@ enum PlayerPresenter {
     }
 
     /// Present a live channel with zapping support (swipe left/right to change channel).
-    /// - timeshiftAllowed: caller-side gate. Pass `FeatureAccess.canUse(.catchupReplay, ...)`
-    ///   so the player only enables D-pad ← → rewind for subscribed users; channels that
-    ///   don't advertise `tv_archive` are still filtered inside the player itself.
+    /// D-pad ← → rewinds into the archive on channels that advertise `tv_archive`;
+    /// the player filters out the others itself.
     static func playLiveWithZapping(
         channels: [Channel],
         startIndex: Int,
         api: XtreamAPIService,
-        timeshiftAllowed: Bool = false,
         onDismiss: ((String) -> Void)? = nil
     ) {
         guard startIndex >= 0, startIndex < channels.count else { return }
@@ -141,8 +132,7 @@ enum PlayerPresenter {
             let vlc = VLCLivePlayerViewController(
                 channels: channels,
                 startIndex: startIndex,
-                api: api,
-                timeshiftAllowed: timeshiftAllowed
+                api: api
             )
             guard let rootVC = rootViewController else {
                 onDismiss?(channels[startIndex].streamId)

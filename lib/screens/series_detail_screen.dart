@@ -805,7 +805,7 @@ class _Hero extends StatelessWidget {
             // `SeriesDetailView` secondary `Menu { ForEach
             // collections }`. Routes through the shared
             // `addToCollectionFlow` helper so the picker behaviour
-            // (premium gate, create-if-empty, snackbar feedback)
+            // (create-if-empty, snackbar feedback)
             // stays in sync with VOD detail + home stream-tile.
             GhostHeroButton(
               label: l10n.ajouterCollection,

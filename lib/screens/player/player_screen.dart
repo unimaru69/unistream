@@ -21,9 +21,6 @@ import '../../services/watch_progress.dart';
 import '../../utils/content_key.dart';
 import '../../utils/routes.dart';
 import '../../main.dart' show MiniPlayerState, miniPlayerNotifier, showMiniOverlay, miniEntry;
-import '../../services/auth_service.dart';
-import '../../utils/feature_access.dart';
-import '../../widgets/premium_gate.dart';
 import 'widgets/cinematic_controls.dart';
 import 'widgets/next_episode_overlay.dart';
 import 'widgets/player_controls.dart';
@@ -522,7 +519,6 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
   }
 
   void _onSubtitleStylePicker() {
-    if (!_checkFeature(Feature.advancedSubtitles)) return;
     showSubtitleStylePicker(context,
       fontSize: _subtitleFontSize,
       color: _subtitleColor,
@@ -650,17 +646,8 @@ class _PlayerScreenState extends State<_MediaKitPlayerScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Imperative feature gate for the player (no WidgetRef available).
-  bool _checkFeature(Feature feature) {
-    final account = AuthService.instance.cachedAccountInfo;
-    if (FeatureAccess.canUse(feature, account)) return true;
-    showPremiumRequiredDialog(context);
-    return false;
-  }
-
   // ── Mini-player ──
   void _minimize() {
-    if (!_checkFeature(Feature.miniPlayer)) return;
     _minimized = true;
     final state = MiniPlayerState(
       player: _player,

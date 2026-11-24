@@ -264,24 +264,22 @@ struct VODDetailView: View {
             }
             .buttonStyle(GhostHeroButton())
 
-            if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo) {
-                Menu {
-                    ForEach(appState.collectionsService.collections(for: "movie")) { collection in
-                        Button {
-                            appState.collectionsService.addToCollection(
-                                collectionId: collection.id,
-                                item: .from(vod: item)
-                            )
-                        } label: {
-                            Label(collection.name, systemImage: "folder")
-                        }
+            Menu {
+                ForEach(appState.collectionsService.collections(for: "movie")) { collection in
+                    Button {
+                        appState.collectionsService.addToCollection(
+                            collectionId: collection.id,
+                            item: .from(vod: item)
+                        )
+                    } label: {
+                        Label(collection.name, systemImage: "folder")
                     }
-                } label: {
-                    Label("Collection", systemImage: "folder.badge.plus")
                 }
-                .buttonStyle(GhostHeroButton())
-                .disabled(appState.collectionsService.collections.isEmpty)
+            } label: {
+                Label("Collection", systemImage: "folder.badge.plus")
             }
+            .buttonStyle(GhostHeroButton())
+            .disabled(appState.collectionsService.collections.isEmpty)
         }
     }
 

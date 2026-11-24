@@ -218,8 +218,7 @@ struct SeriesGridView: View {
                               systemImage: isInWl ? "bookmark.slash" : "bookmark")
                     }
 
-                    if FeatureAccess.canUse(.collections, account: appState.authService.cachedAccountInfo),
-                       !appState.collectionsService.collections.isEmpty {
+                    if !appState.collectionsService.collections.isEmpty {
                         Menu("Ajouter à une collection") {
                             ForEach(appState.collectionsService.collections(for: "series")) { collection in
                                 Button {
