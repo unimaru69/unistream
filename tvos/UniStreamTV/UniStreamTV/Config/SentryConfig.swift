@@ -61,6 +61,11 @@ enum SentryConfig {
             // Breadcrumbs for view lifecycle + network give us the trail
             // leading up to a crash without us instrumenting by hand.
             options.enableAutoBreadcrumbTracking = true
+            // A panel answering 5xx (Cloudflare 520 and friends) is the
+            // provider being down, not an app error. Captured as events they
+            // drowned the project — 1,900 in two weeks from one device. The
+            // failed request still shows up as a breadcrumb.
+            options.enableCaptureFailedRequests = false
         }
     }
 }

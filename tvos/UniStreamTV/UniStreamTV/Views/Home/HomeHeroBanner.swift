@@ -376,102 +376,14 @@ struct HomeHeroBanner: View {
         let vods = (try? await vodResult) ?? []
         let seriesList = (try? await seriesResult) ?? []
 
-        // Heuristic preference for content matching the user's primary
-        // language. IPTV providers tag categories with language prefixes
-        // ("FR|", "AR|", "EN|", "DO|"…). Until the settings expose a
-        // language picker, prefer the system locale's primary language —
-        // and apply a soft de-prioritisation to obviously-foreign tags
-        // so the À LA UNE rotation doesn't open on Arabic / Turkish
-        // titles for a French user.
+        // Scoring walks the whole catalogue (tens of thousands of titles):
+        // keep it off the main actor. See `HeroCandidates`.
         let primaryLang = Locale.current.language.languageCode?.identifier.uppercased() ?? "FR"
-        let preferredPrefixes: Set<String> = {
-            switch primaryLang {
-            case "FR": return ["FR", "FRA", "VF"]
-            case "EN": return ["EN", "US", "UK", "ENG"]
-            default:   return [primaryLang]
-            }
-        }()
-        let dispreferredPrefixes: Set<String> = ["AR", "TR", "RU", "HI", "BN", "FA"]
-
-        /// Extract the "XX|" provider tag from either an item title or a
-        /// category name. Returns the uppercased prefix or "" if none.
-        func providerTag(_ s: String) -> String {
-            guard let prefix = s.split(separator: "|").first, prefix.count <= 4 else { return "" }
-            return String(prefix).trimmingCharacters(in: .whitespaces).uppercased()
-        }
-
-        /// `startsWith`-style match — providers tag content with
-        /// either "AR|" or "ARI|" / "ARTV|", so "AR" alone misses the
-        /// longer variants. Use prefix-startsWith instead of strict
-        /// equality.
-        func tagMatches(_ tag: String, _ candidates: Set<String>) -> Bool {
-            for c in candidates where tag == c || tag.hasPrefix(c) { return true }
-            return false
-        }
-
-        func languageBoost(name: String, category: String) -> Double {
-            // Provider tags can appear on the title ("AR| Bhramam",
-            // "ARI| Bhramam") or the category ("FR| Films Premium").
-            // Read both — title first so a French film parked in a
-            // generic category still wins.
-            let titleTag = providerTag(name)
-            let catTag = providerTag(category)
-            for tag in [titleTag, catTag] where !tag.isEmpty {
-                if tagMatches(tag, preferredPrefixes) { return 5.0 }
-                if tagMatches(tag, dispreferredPrefixes) { return -8.0 }
-            }
-            return 0
-        }
-
-        // Prefer items that (a) match the user's language, (b) have an
-        // actual poster + description, and (c) carry a TMDB-grade
-        // rating. Penalise items without a real cover URL so the
-        // carousel never opens on a placeholder.
-        func vodScore(_ v: VodItem) -> Double {
-            let r = Double(v.rating ?? "") ?? 0
-            let hasPoster = !v.displayIcon.isEmpty ? 3.0 : -2.0
-            let hasPlot = ((v.plot ?? v.description)?.isEmpty == false) ? 2.0 : 0.0
-            return r + hasPoster + hasPlot + languageBoost(name: v.name, category: v.categoryName ?? "")
-        }
-        func seriesScore(_ s: SeriesItem) -> Double {
-            let r = Double(s.rating ?? "") ?? 0
-            let hasPoster = !s.displayIcon.isEmpty ? 3.0 : -2.0
-            let hasPlot = ((s.plot ?? s.description)?.isEmpty == false) ? 2.0 : 0.0
-            return r + hasPoster + hasPlot + languageBoost(name: s.name, category: s.categoryName ?? "")
-        }
-
-        // Hard-filter dispreferred languages BEFORE scoring — the
-        // previous penalty (-8) can be cancelled by a high TMDB rating
-        // + poster + plot, which is exactly how Arabic films with
-        // perfect TMDB metadata kept slipping into the À LA UNE
-        // rotation. An item tagged with a blacklisted prefix on either
-        // its title or its category never makes the candidate list.
-        func isDispreferred(name: String, category: String) -> Bool {
-            for tag in [providerTag(name), providerTag(category)] where !tag.isEmpty {
-                if tagMatches(tag, dispreferredPrefixes) { return true }
-            }
-            return false
-        }
-
-        // Rotate among the top N films + top N series — interleaved so the
-        // carousel alternates formats. We score then drop anything below
-        // a quality threshold so the user never lands on a hero with
-        // empty plot + no poster.
-        let qualityThreshold: Double = 5.0
-        let candidateVods = vods
-            .filter { !isDispreferred(name: $0.name, category: $0.categoryName ?? "") }
-            .map { (item: $0, score: vodScore($0)) }
-            .filter { $0.score >= qualityThreshold }
-            .sorted { $0.score > $1.score }
-            .prefix(15)
-            .map { RecentlyAddedItem.vod($0.item) }
-        let candidateSeries = seriesList
-            .filter { !isDispreferred(name: $0.name, category: $0.categoryName ?? "") }
-            .map { (item: $0, score: seriesScore($0)) }
-            .filter { $0.score >= qualityThreshold }
-            .sorted { $0.score > $1.score }
-            .prefix(15)
-            .map { RecentlyAddedItem.series($0.item) }
+        let picked = await Task.detached(priority: .userInitiated) {
+            HeroCandidates.pick(vods: vods, series: seriesList, primaryLang: primaryLang)
+        }.value
+        let candidateVods = picked.vods
+        let candidateSeries = picked.series
 
         // Final quality gate: only keep candidates for which TMDB has a
         // proper backdrop image. The home wallpaper is sharp (no blur)
@@ -564,6 +476,95 @@ struct HomeHeroBanner: View {
             .compactMap { $0 }
             .sorted { $0.0 < $1.0 }
             .map { (item: $0.1, tmdb: $0.2) }
+    }
+}
+
+/// Picks the titles worth featuring in the hero from the full catalogue.
+///
+/// Pure and nonisolated so it runs off the main actor: filtering, scoring
+/// and sorting every film and series on the main thread hung the app for
+/// seconds when Home loaded (Sentry App Hangs in `HomeHeroBanner.load`).
+enum HeroCandidates {
+    /// Languages never featured, whatever their rating.
+    static let dispreferredPrefixes: Set<String> = ["AR", "TR", "RU", "HI", "BN", "FA"]
+    /// Below this score a title has no poster, no plot or no rating.
+    static let qualityThreshold: Double = 5.0
+    static let limit = 15
+
+    /// IPTV providers tag titles and categories with a language prefix
+    /// ("FR|", "AR|", "EN|"…). Until the settings expose a language picker,
+    /// prefer the system language.
+    static func preferredPrefixes(for primaryLang: String) -> Set<String> {
+        switch primaryLang {
+        case "FR": return ["FR", "FRA", "VF"]
+        case "EN": return ["EN", "US", "UK", "ENG"]
+        default:   return [primaryLang]
+        }
+    }
+
+    /// The leading "XX|" provider tag of a title or category name,
+    /// uppercased, or "" when there is none. Only looks at the first few
+    /// characters: a tag is at most four long, and this runs twice per
+    /// title over the whole catalogue.
+    static func providerTag(_ s: String) -> String {
+        let head = s.prefix(5)
+        guard let bar = head.firstIndex(of: "|") else { return "" }
+        return head[..<bar].trimmingCharacters(in: .whitespaces).uppercased()
+    }
+
+    /// Prefix match — providers write "AR|" but also "ARI|" or "ARTV|".
+    static func tagMatches(_ tag: String, _ candidates: Set<String>) -> Bool {
+        candidates.contains { tag.hasPrefix($0) }
+    }
+
+    /// Hard filter, applied before scoring: a penalty alone can be cancelled
+    /// by a high rating plus poster plus plot, which is how well-documented
+    /// foreign films kept reaching the rotation.
+    static func isDispreferred(name: String, category: String) -> Bool {
+        for tag in [providerTag(name), providerTag(category)] where !tag.isEmpty {
+            if tagMatches(tag, dispreferredPrefixes) { return true }
+        }
+        return false
+    }
+
+    /// Rating, plus a bonus for a real poster and a plot, plus a boost when
+    /// the title (first) or its category carries the user's language tag.
+    static func score(name: String, category: String, rating: String?,
+                      hasPoster: Bool, hasPlot: Bool, preferred: Set<String>) -> Double {
+        var total = (Double(rating ?? "") ?? 0) + (hasPoster ? 3.0 : -2.0) + (hasPlot ? 2.0 : 0.0)
+        for tag in [providerTag(name), providerTag(category)] where tagMatches(tag, preferred) {
+            total += 5.0
+            break
+        }
+        return total
+    }
+
+    static func pick(vods: [VodItem], series: [SeriesItem], primaryLang: String)
+        -> (vods: [RecentlyAddedItem], series: [RecentlyAddedItem]) {
+        let preferred = preferredPrefixes(for: primaryLang)
+        func top<Item>(_ items: [Item], name: (Item) -> String, category: (Item) -> String?,
+                       score: (Item) -> Double, wrap: (Item) -> RecentlyAddedItem) -> [RecentlyAddedItem] {
+            items
+                .filter { !isDispreferred(name: name($0), category: category($0) ?? "") }
+                .map { (item: $0, score: score($0)) }
+                .filter { $0.score >= qualityThreshold }
+                .sorted { $0.score > $1.score }
+                .prefix(limit)
+                .map { wrap($0.item) }
+        }
+        let topVods = top(vods, name: \.name, category: \.categoryName, score: { v in
+            HeroCandidates.score(
+                name: v.name, category: v.categoryName ?? "", rating: v.rating,
+                hasPoster: !v.displayIcon.isEmpty,
+                hasPlot: (v.plot ?? v.description)?.isEmpty == false, preferred: preferred)
+        }, wrap: RecentlyAddedItem.vod)
+        let topSeries = top(series, name: \.name, category: \.categoryName, score: { s in
+            HeroCandidates.score(
+                name: s.name, category: s.categoryName ?? "", rating: s.rating,
+                hasPoster: !s.displayIcon.isEmpty,
+                hasPlot: (s.plot ?? s.description)?.isEmpty == false, preferred: preferred)
+        }, wrap: RecentlyAddedItem.series)
+        return (topVods, topSeries)
     }
 }
 
