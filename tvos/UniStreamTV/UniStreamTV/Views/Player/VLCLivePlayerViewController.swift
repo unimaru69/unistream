@@ -122,7 +122,8 @@ final class VLCLivePlayerViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         mediaPlayer.drawable = nil
-        mediaPlayer.stop()
+        // Never stop or free libvlc on the main thread — see VLCPlayerDisposal.
+        VLCPlayerDisposal.stopAndRelease(mediaPlayer)
         if isBeingDismissed {
             onPlaybackDismissed?(channels[currentIndex].streamId)
             onPlaybackDismissed = nil

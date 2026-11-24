@@ -126,7 +126,8 @@ final class VLCPlayerViewController: UIViewController {
         overlayUpdateTimer?.invalidate()
         overlayUpdateTimer = nil
         mediaPlayer.drawable = nil
-        mediaPlayer.stop()
+        // Never stop or free libvlc on the main thread — see VLCPlayerDisposal.
+        VLCPlayerDisposal.stopAndRelease(mediaPlayer)
     }
 
     // MARK: - Watch Progress

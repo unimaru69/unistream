@@ -39,6 +39,15 @@ enum RecentlyAddedItem: Identifiable {
             .max() ?? 0
     }
 
+    /// The `limit` most recently added or modified titles, newest first.
+    static func newest(vods: [VodItem], series: [SeriesItem], limit: Int) -> [RecentlyAddedItem] {
+        var stamped: [(item: RecentlyAddedItem, at: TimeInterval)] = []
+        stamped.reserveCapacity(vods.count + series.count)
+        for v in vods { let item = RecentlyAddedItem.vod(v); stamped.append((item, item.sortTimestamp)) }
+        for s in series { let item = RecentlyAddedItem.series(s); stamped.append((item, item.sortTimestamp)) }
+        return stamped.sorted { $0.at > $1.at }.prefix(limit).map(\.item)
+    }
+
     var badgeLabel: String {
         switch self {
         case .vod: "FILM"
@@ -120,15 +129,11 @@ struct RecentlyAddedRow: View {
         let vods = (try? await vodResult) ?? []
         let seriesList = (try? await seriesResult) ?? []
 
-        var combined: [RecentlyAddedItem] = []
-        combined.reserveCapacity(vods.count + seriesList.count)
-        for v in vods { combined.append(.vod(v)) }
-        for s in seriesList { combined.append(.series(s)) }
-
-        items = combined
-            .sorted { $0.sortTimestamp > $1.sortTimestamp }
-            .prefix(20)
-            .map { $0 }
+        // Off the main actor: this ranks the whole catalogue. The timestamp
+        // is parsed once per item, not on every comparison of the sort.
+        items = await Task.detached(priority: .userInitiated) {
+            RecentlyAddedItem.newest(vods: vods, series: seriesList, limit: 20)
+        }.value
     }
 }
 

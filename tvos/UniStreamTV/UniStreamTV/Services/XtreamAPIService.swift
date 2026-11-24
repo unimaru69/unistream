@@ -173,6 +173,30 @@ final class XtreamAPIService {
             .uniqued(by: { $0.categoryId })
     }
 
+    /// Decode a full panel list off the main actor.
+    ///
+    /// A real catalogue is tens of thousands of rows. Parsing, mapping and
+    /// de-duplicating it here, on the main actor, froze the UI for seconds —
+    /// Sentry reported it as App Hangs on tab switches. Parsed with
+    /// JSONSerialization because panels mix types freely (like Flutter).
+    /// Rows with an empty id are dropped and duplicates removed: see
+    /// `uniqued(by:)`.
+    private nonisolated static func decodeList<Item: Sendable>(
+        _ data: Data,
+        invalid message: String,
+        make: @escaping @Sendable ([String: Any]) -> Item,
+        id: @escaping @Sendable (Item) -> String
+    ) async throws -> [Item] {
+        try await Task.detached(priority: .userInitiated) {
+            guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                throw XtreamError.invalidResponse(message)
+            }
+            return rows.map(make)
+                .filter { !id($0).isEmpty }
+                .uniqued(by: id)
+        }.value
+    }
+
     /// - Parameter force: bypass the 5-minute cache and go back to the
     ///   panel. Used by the catalogue refresh so an explicit "Actualiser"
     ///   never hands back the list we already had.
@@ -202,13 +226,9 @@ final class XtreamAPIService {
         let request = URLRequest(url: url)
         let (data, _) = try await session.dataWithRetry(for: request)
 
-        // Parse with JSONSerialization (tolerant of mixed types, like Flutter)
-        guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw XtreamError.invalidResponse("Format de chaînes invalide")
-        }
-        let channels = jsonArray.map { Channel(json: $0) }
-            .filter { !$0.streamId.isEmpty }
-            .uniqued(by: { $0.streamId })
+        let channels = try await Self.decodeList(
+            data, invalid: "Format de chaînes invalide",
+            make: { Channel(json: $0) }, id: { $0.streamId })
 
         // Update cache
         streamCache[cacheKey] = (channels, Date())
@@ -275,12 +295,9 @@ final class XtreamAPIService {
         guard let url = URL(string: urlString) else { throw XtreamError.invalidUrl }
 
         let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
-        guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw XtreamError.invalidResponse("Format VOD invalide")
-        }
-        let items = jsonArray.map { VodItem(json: $0) }
-            .filter { !$0.streamId.isEmpty }
-            .uniqued(by: { $0.streamId })
+        let items = try await Self.decodeList(
+            data, invalid: "Format VOD invalide",
+            make: { VodItem(json: $0) }, id: { $0.streamId })
         streamCache[cacheKey] = (items, Date())
         return items
     }
@@ -320,12 +337,9 @@ final class XtreamAPIService {
         guard let url = URL(string: urlString) else { throw XtreamError.invalidUrl }
 
         let (data, _) = try await session.dataWithRetry(for: URLRequest(url: url))
-        guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw XtreamError.invalidResponse("Format séries invalide")
-        }
-        let items = jsonArray.map { SeriesItem(json: $0) }
-            .filter { !$0.seriesId.isEmpty }
-            .uniqued(by: { $0.seriesId })
+        let items = try await Self.decodeList(
+            data, invalid: "Format séries invalide",
+            make: { SeriesItem(json: $0) }, id: { $0.seriesId })
         streamCache[cacheKey] = (items, Date())
         return items
     }
