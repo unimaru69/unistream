@@ -34,6 +34,14 @@ final class VLCVODPlayerModel {
     /// button so it doesn't look frozen.
     var isBuffering: Bool = false
 
+    /// Set once the current episode has ended and another is queued: the
+    /// title of the next one and the seconds left before it starts.
+    struct NextUp: Equatable {
+        let title: String
+        var secondsLeft: Int
+    }
+    var nextUp: NextUp?
+
     /// Drawer visibility — UIKit toggles this on Select press, on the
     /// 5-second auto-hide timer, and on transient state changes
     /// (play/pause flash, aspect ratio change).

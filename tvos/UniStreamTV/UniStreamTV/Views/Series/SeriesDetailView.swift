@@ -147,6 +147,22 @@ struct SeriesDetailView: View {
         return nil
     }
 
+    /// The rest of the season after `episode`, ready to chain: the player
+    /// offers each one when the previous ends.
+    private func queue(after episode: Episode, in season: String?) -> [QueuedVOD] {
+        guard let season, let episodes = viewModel.episodes[season],
+              let index = episodes.firstIndex(where: { $0.episodeId == episode.episodeId })
+        else { return [] }
+        return episodes[(index + 1)...].compactMap { next in
+            guard let url = api.seriesStreamUrl(
+                episodeId: next.episodeId, extension: next.containerExtension
+            ) else { return nil }
+            return QueuedVOD(
+                url: url, title: next.displayTitle, contentKey: contentKey(for: next),
+                coverUrl: series.displayIcon, seriesId: series.seriesId)
+        }
+    }
+
     private func nextEpisode(after ep: Episode, in season: String) -> Episode? {
         guard let eps = viewModel.episodes[season],
               let idx = eps.firstIndex(where: { $0.episodeId == ep.episodeId }),
@@ -513,7 +529,8 @@ struct SeriesDetailView: View {
             resumeFromMs: resumeFromMs,
             contentKey: key,
             coverUrl: series.displayIcon,
-            seriesId: series.seriesId
+            seriesId: series.seriesId,
+            upNext: queue(after: episode, in: activeSeason)
         )
         upgradeEpisodeCover(episode: episode, season: activeSeason, contentKey: key)
     }

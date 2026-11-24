@@ -75,6 +75,18 @@ final class VLCLivePlayerViewController: UIViewController {
     private var hideOverlayTimer: Timer?
     private var clockTimer: Timer?
     private var zapHideTimer: Timer?
+    private var preferredTracksTask: Task<Void, Never>?
+    /// Shared by every live player: "previous channel" survives leaving
+    /// and reopening the player.
+    private static var recall = ChannelRecall()
+    private var stallDetector = StallDetector()
+    private var stallTimer: Timer?
+    /// A lighter variant on offer after repeated freezes; OK accepts it
+    /// until `variantOfferExpiry`.
+    private var offeredVariant: Channel?
+    private var variantOfferExpiry = Date.distantPast
+    /// How long the "switch to HD" offer stays on screen.
+    private static let variantOfferDuration: TimeInterval = 10
 
     init(channels: [Channel], startIndex: Int, api: XtreamAPIService) {
         self.channels = channels
@@ -103,6 +115,7 @@ final class VLCLivePlayerViewController: UIViewController {
         showOverlay(autoHide: true)
         showZapOverlay()
         startClock()
+        startStallWatch()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -110,6 +123,8 @@ final class VLCLivePlayerViewController: UIViewController {
         hideOverlayTimer?.invalidate()
         zapHideTimer?.invalidate()
         clockTimer?.invalidate()
+        stallTimer?.invalidate()
+        preferredTracksTask?.cancel()
         // NOTE: VLC teardown moved to viewDidDisappear. `mediaPlayer.stop()`
         // synchronously flushes the decoder queue and can briefly block the
         // main thread; running it during the dismiss animation leaves tvOS
@@ -352,7 +367,12 @@ final class VLCLivePlayerViewController: UIViewController {
                 // Swallow on Began; dismiss on Ended (HIG).
                 return
             case .select:
-                toggleOverlay()
+                if let variant = offeredVariant, Date() < variantOfferExpiry {
+                    offeredVariant = nil
+                    switchTo(variant)
+                } else {
+                    toggleOverlay()
+                }
                 handled = true
             case .upArrow, .pageUp:
                 zapNext()
@@ -466,10 +486,25 @@ final class VLCLivePlayerViewController: UIViewController {
             preferredStyle: .actionSheet
         )
 
+        // Previous channel — first, so long-press then OK flips between
+        // two channels.
+        if let previous = previousChannel {
+            alert.addAction(UIAlertAction(title: "Chaîne précédente : \(previous.name)", style: .default) { [weak self] _ in
+                self?.switchTo(previous)
+            })
+        }
+
+        // Other quality variants of this channel, best first.
+        for variant in ChannelQuality.variants(of: channels[currentIndex], in: knownChannels) {
+            alert.addAction(UIAlertAction(title: "Passer en \(variant.tier.label) : \(variant.channel.name)", style: .default) { [weak self] _ in
+                self?.switchTo(variant.channel)
+            })
+        }
+
         // Audio tracks
         let audioCount = Int(mediaPlayer.numberOfAudioTracks)
         if audioCount > 1 {
-            alert.addAction(UIAlertAction(title: "🔊 Piste audio…", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Piste audio…", style: .default) { [weak self] _ in
                 self?.showAudioPicker()
             })
         }
@@ -477,14 +512,19 @@ final class VLCLivePlayerViewController: UIViewController {
         // Subtitle tracks
         let subCount = Int(mediaPlayer.numberOfSubtitlesTracks)
         if subCount > 0 {
-            alert.addAction(UIAlertAction(title: "💬 Sous-titres…", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Sous-titres…", style: .default) { [weak self] _ in
                 self?.showSubtitlePicker()
             })
         }
 
         // Aspect ratio
-        alert.addAction(UIAlertAction(title: "📐 Format d'image", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format d'image", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
+        })
+
+        alert.addAction(UIAlertAction(title: "Synchronisation du son", style: .default) { [weak self] _ in
+            guard let self else { return }
+            PlaybackDelayMenu.present(from: self, player: mediaPlayer, includeSubtitles: false)
         })
 
         alert.addAction(UIAlertAction(title: "Fermer", style: .cancel))
@@ -560,6 +600,63 @@ final class VLCLivePlayerViewController: UIViewController {
         showOverlay(autoHide: true)
     }
 
+    // MARK: - Channel recall and quality variants
+
+    /// Every channel the app knows, to find a previous channel or a quality
+    /// variant that sits outside the list being zapped through.
+    private var knownChannels: [Channel] {
+        let all = PlayerPresenter.liveViewModel?.allChannels ?? []
+        return all.isEmpty ? channels : all
+    }
+
+    private var previousChannel: Channel? {
+        guard let id = Self.recall.previous, id != channels[currentIndex].streamId else { return nil }
+        return knownChannels.first { $0.streamId == id }
+    }
+
+    /// Tunes to `channel`. If it is not in the list being zapped through
+    /// (another category), it is slotted in right after the current one so
+    /// ↑ ↓ keep working from there.
+    private func switchTo(_ channel: Channel) {
+        if let index = channels.firstIndex(where: { $0.streamId == channel.streamId }) {
+            currentIndex = index
+        } else {
+            channels.insert(channel, at: currentIndex + 1)
+            currentIndex += 1
+        }
+        timeshiftOffsetSec = 0
+        loadCurrentChannel()
+        showZapOverlay()
+        updateOverlayForCurrentChannel()
+        showOverlay(autoHide: true)
+    }
+
+    private func startStallWatch() {
+        stallTimer?.invalidate()
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.sampleStall() }
+        }
+    }
+
+    /// After repeated freezes, offer the next quality down — once per
+    /// channel load, and only when the panel lists such a variant. It is an
+    /// offer, not a switch: the freeze test cannot tell a weak line from a
+    /// brief hiccup at the source.
+    private func sampleStall() {
+        guard presentedViewController == nil, timeshiftOffsetSec == 0 else { return }
+        let frozenOften = stallDetector.sample(
+            position: mediaPlayer.time.intValue,
+            isPlaying: mediaPlayer.state != .paused && mediaPlayer.state != .stopped)
+        guard frozenOften,
+              let lighter = ChannelQuality.lighterVariant(of: channels[currentIndex], in: knownChannels)
+        else { return }
+        offeredVariant = lighter.channel
+        variantOfferExpiry = Date().addingTimeInterval(Self.variantOfferDuration)
+        flashCenterMessage(
+            "Lecture saccadée · OK pour passer en \(lighter.tier.label)",
+            duration: Self.variantOfferDuration)
+    }
+
     private func loadCurrentChannel() {
         if timeshiftOffsetSec > 0 {
             loadTimeshiftStream()
@@ -579,6 +676,17 @@ final class VLCLivePlayerViewController: UIViewController {
         ])
         mediaPlayer.media = media
         mediaPlayer.play()
+        applyPreferredTracks()
+        Self.recall.watch(channel.streamId)
+        stallDetector = StallDetector()
+        offeredVariant = nil
+    }
+
+    /// Each channel is a new media: select the preferred audio and subtitle
+    /// language again once VLC has listed its tracks.
+    private func applyPreferredTracks() {
+        preferredTracksTask?.cancel()
+        preferredTracksTask = VLCPreferredTracks.applyWhenReady(to: mediaPlayer)
     }
 
     private func loadTimeshiftStream() {
@@ -600,6 +708,7 @@ final class VLCLivePlayerViewController: UIViewController {
         ])
         mediaPlayer.media = media
         mediaPlayer.play()
+        applyPreferredTracks()
     }
 
     // MARK: - Timeshift
@@ -790,7 +899,7 @@ final class VLCLivePlayerViewController: UIViewController {
     /// Briefly show a large centered message (uses the zap overlay labels).
     /// Overrides any in-flight zap overlay — acceptable because seek and zap are
     /// mutually exclusive user gestures.
-    private func flashCenterMessage(_ message: String) {
+    private func flashCenterMessage(_ message: String, duration: TimeInterval = 1.8) {
         zapChannelLabel.text = message
         zapChannelNumber.text = ""
         UIView.animate(withDuration: 0.15) {
@@ -798,7 +907,7 @@ final class VLCLivePlayerViewController: UIViewController {
             self.zapChannelNumber.alpha = 0
         }
         zapHideTimer?.invalidate()
-        zapHideTimer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: false) { [weak self] _ in
+        zapHideTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 UIView.animate(withDuration: 0.4) {
                     self?.zapChannelLabel.alpha = 0

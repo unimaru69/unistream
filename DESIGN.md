@@ -148,7 +148,8 @@ Mêmes concepts, icônes natives de la plateforme :
 - **Direct, court, sans jargon technique IPTV** : on dit "chaîne", pas "flux" ; "serveur", pas "endpoint"
 - **Tutoiement** sur les onboardings courts ("Configure ton serveur") — mais **vouvoiement** sur les notifications système et erreurs ("Votre abonnement a expiré")
 - **Phrases courtes**, max 2 lignes pour les empty states
-- **Emoji parcimonieux** : icônes natives préférées
+- **Emoji parcimonieux** : icônes natives préférées. Aucun emoji dans les
+  libellés de menu (les avatars de profil sont du contenu, pas du chrome)
 
 ## Navigation
 
@@ -159,6 +160,8 @@ Mêmes concepts, icônes natives de la plateforme :
 
 ### tvOS (Apple TV)
 - Tab bar horizontale : Accueil / Live / Films / Séries / Favoris / Recherche / Réglages
+  — Recherche et Réglages sont en icône seule (loupe, engrenage), comme dans
+  les apps Apple : sept onglets libellés débordent de la barre
 - Sidebar catégories dans chaque section de contenu
 - Focus engine natif
 

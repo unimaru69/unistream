@@ -1,6 +1,7 @@
 import XCTest
 import UIKit
 import VLCKitSPM
+@testable import UniStreamTV
 
 /// Real decoder/output tests using generated sine-wave clips, with no network
 /// or client media. Track discovery alone passed even in the silent build 80;
@@ -79,6 +80,32 @@ final class TrueHDAudioDecodeTests: XCTestCase {
         let before = try XCTUnwrap(player.media?.statistics)
         try await waitForAudio(player, after: before.decodedAudio, played: before.playedAudioBuffers)
         XCTAssertEqual(player.currentAudioTrackIndex, id)
+    }
+
+    /// The language preference picks the English track of a file that
+    /// defaults to French, on a real player with real track metadata.
+    func testPreferredAudioLanguageSelectsTheEnglishTrack() async throws {
+        try skipWithoutTrueHDDecoder()
+        let defaults = UserDefaults.standard
+        let key = PlaybackPreferences.audioLanguageKey
+        let saved = defaults.string(forKey: key)
+        defaults.set("en", forKey: key)
+        defer { defaults.set(saved, forKey: key) }
+
+        let player = try makePlayer(fixture: "ac3-truehd-switch")
+        player.play()
+        defer { player.stop() }
+        try await waitForAudio(player)
+        let tracks = try XCTUnwrap(player.media?.tracksInformation as? [[String: Any]])
+        let english = try XCTUnwrap(tracks.first {
+            ($0[VLCMediaTracksInformationType] as? String) == VLCMediaTracksInformationTypeAudio
+                && ($0[VLCMediaTracksInformationLanguage] as? String) == "eng"
+        })
+        let englishId = try XCTUnwrap(english[VLCMediaTracksInformationId] as? NSNumber).int32Value
+        XCTAssertNotEqual(player.currentAudioTrackIndex, englishId, "Fixture should start on French")
+
+        XCTAssertTrue(VLCPreferredTracks.apply(to: player))
+        XCTAssertEqual(player.currentAudioTrackIndex, englishId)
     }
 
     func testMKVVideoAndTrueHDAudioPlayTogether() async throws {
