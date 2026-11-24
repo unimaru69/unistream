@@ -1,7 +1,8 @@
 import Foundation
 import VLCKitSPM
 
-/// Applies `PlaybackPreferences` to a VLC player once its tracks are known.
+/// Applies `PlaybackPreferences` — languages and audio delay — to a VLC
+/// player once its tracks are known.
 @MainActor
 enum VLCPreferredTracks {
 
@@ -14,6 +15,12 @@ enum VLCPreferredTracks {
             names: player.audioTrackNames, indexes: player.audioTrackIndexes,
             in: player, type: VLCMediaTracksInformationTypeAudio)
         guard !audio.isEmpty else { return false }
+
+        // VLC counts delays in microseconds and resets them on each media.
+        let delay = PlaybackPreferences.audioDelayMs * 1000
+        if player.currentAudioPlaybackDelay != delay {
+            player.currentAudioPlaybackDelay = delay
+        }
 
         if let wanted = PlaybackPreferences.preferredTrack(
             in: audio, language: PlaybackPreferences.audioLanguage),

@@ -598,6 +598,11 @@ final class VLCPlayerViewController: UIViewController {
             self?.cycleAspectRatio()
         })
 
+        alert.addAction(UIAlertAction(title: "Synchronisation son et sous-titres", style: .default) { [weak self] _ in
+            guard let self else { return }
+            PlaybackDelayMenu.present(from: self, player: mediaPlayer, includeSubtitles: true)
+        })
+
         // Playback speed
         alert.addAction(UIAlertAction(title: "Vitesse : \(Self.rateLabel(playbackRate))", style: .default) { [weak self] _ in
             self?.showSpeedPicker()

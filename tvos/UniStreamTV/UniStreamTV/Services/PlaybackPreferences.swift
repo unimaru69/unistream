@@ -42,6 +42,29 @@ enum PlaybackPreferences {
         UserDefaults.standard.string(forKey: subtitleLanguageKey) ?? original
     }
 
+    // MARK: - Audio delay
+
+    static let audioDelayKey = "player.pref.audioDelayMs"
+    static let audioDelayStepMs = 50
+    static let audioDelayLimitMs = 2000
+
+    /// Lip-sync correction in milliseconds, kept across films and channels:
+    /// the lag comes from the TV and sound bar, not from the content.
+    /// Negative plays the sound earlier, positive later.
+    static var audioDelayMs: Int {
+        get { UserDefaults.standard.integer(forKey: audioDelayKey) }
+        set {
+            let clamped = min(max(newValue, -audioDelayLimitMs), audioDelayLimitMs)
+            UserDefaults.standard.set(clamped, forKey: audioDelayKey)
+        }
+    }
+
+    /// "0 ms", "+150 ms", "−100 ms".
+    static func delayLabel(_ ms: Int) -> String {
+        if ms == 0 { return "0 ms" }
+        return (ms > 0 ? "+" : "−") + "\(abs(ms)) ms"
+    }
+
     /// One audio or subtitle track as the player lists it.
     struct Track: Equatable {
         let id: Int32
