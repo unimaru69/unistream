@@ -22,6 +22,8 @@ final class VLCVODPlayerModel {
 
     var title: String = ""
     var subtitle: String? = nil
+    /// Optional counters shown during hardware testing, independent of drawer visibility.
+    var diagnosticsText: String?
 
     var isPlaying: Bool = true
     var positionSeconds: Double = 0

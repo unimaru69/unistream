@@ -123,6 +123,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
+      # The TrueHD-enabled VLCKit binary is not in the repository; build
+      # and test against the upstream package instead (TrueHD tests skip).
+      - name: Use upstream VLCKit
+        run: ./scripts/ci-tvos-upstream-vlc.sh
       - name: Generate Xcode project
         working-directory: tvos/UniStreamTV
         run: xcodegen generate
@@ -144,6 +148,11 @@ jobs:
             build
       - name: Run tvOS unit tests
         working-directory: tvos/UniStreamTV
+        # xcodebuild forwards TEST_RUNNER_* environment variables to the
+        # test process with the prefix stripped. It must be an environment
+        # variable: passed as a build setting it never reaches the tests.
+        env:
+          TEST_RUNNER_UNISTREAM_UPSTREAM_VLC: "1"
         run: |
           # Pick the first available tvOS simulator runtime. Apple bumps
           # the bundled tvOS version on macos-latest runners every few

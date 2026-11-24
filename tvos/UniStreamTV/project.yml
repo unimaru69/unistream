@@ -12,13 +12,12 @@ packages:
     from: "2.0.0"
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm
-    from: "5.0.0"
+    exactVersion: "5.103.0"
   Kingfisher:
     url: https://github.com/onevcat/Kingfisher
     from: "8.0.0"
   VLCKitSPM:
-    url: https://github.com/tylerjonesio/vlckit-spm
-    from: "3.5.1"
+    path: ../Packages/VLCKitTrueHD
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: "8.0.0"
@@ -44,7 +43,7 @@ targets:
         # and Apple cross-grants entitlements across their Apple devices.
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream
         MARKETING_VERSION: "1.0.6"
-        CURRENT_PROJECT_VERSION: "79"
+        CURRENT_PROJECT_VERSION: "81"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: UniStreamTV/Info.plist
         CODE_SIGN_ENTITLEMENTS: UniStreamTV/UniStreamTV.entitlements
@@ -80,7 +79,10 @@ targets:
     type: bundle.unit-test
     platform: tvOS
     sources:
-      - UniStreamTVTests
+      - path: UniStreamTVTests
+        excludes: [Fixtures]
+      - path: UniStreamTVTests/Fixtures
+        buildPhase: resources
     dependencies:
       - target: UniStreamTV
     settings:
@@ -103,10 +105,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.unimaru.unistream.TopShelfExtension
         MARKETING_VERSION: "1.0.6"
-        CURRENT_PROJECT_VERSION: "79"
+        CURRENT_PROJECT_VERSION: "81"
         SWIFT_VERSION: "6.0"
         INFOPLIST_FILE: TopShelfExtension/Info.plist
         DEVELOPMENT_TEAM: VS8P2MA59S
         CODE_SIGN_STYLE: Automatic
 
 # Ensure the extension is embedded in the main app bundle.
+
+schemes:
+  UniStreamTV:
+    build:
+      targets:
+        UniStreamTV: all
+    test:
+      targets:
+        - UniStreamTVTests

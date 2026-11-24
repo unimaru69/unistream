@@ -12,6 +12,7 @@ final class VLCLivePlayerViewController: UIViewController {
         "--freetype-rel-fontsize=20",
     ])
     private var channels: [Channel]
+    var onPlaybackDismissed: ((String) -> Void)?
     private var currentIndex: Int
     private let api: XtreamAPIService
     private let timeshiftAllowed: Bool
@@ -122,6 +123,10 @@ final class VLCLivePlayerViewController: UIViewController {
         super.viewDidDisappear(animated)
         mediaPlayer.drawable = nil
         mediaPlayer.stop()
+        if isBeingDismissed {
+            onPlaybackDismissed?(channels[currentIndex].streamId)
+            onPlaybackDismissed = nil
+        }
     }
 
     // MARK: - Setup

@@ -10,6 +10,7 @@ struct LiveSplitView: View {
 
     @State private var selection: CategoryEntry = .all
     @State private var didInitSelection = false
+    @State private var isReturningFromPlayback = false
     @FocusState private var focusedEntry: CategoryEntry?
     /// Debounces sidebar focus → selection updates so a quick scroll
     /// doesn't constantly re-render the grid. Without this the grid
@@ -89,7 +90,7 @@ struct LiveSplitView: View {
             // is a softer hint that loses against any geometrically-
             // attractive sibling (chips just below the tab bar) and
             // didn't actually move focus to the sidebar.
-            .defaultFocus($focusedEntry, .all)
+            .defaultFocus($focusedEntry, selection)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Canvas: vertical gradient from pure black at the top
             // (where channel logos sit — they pop on full black) down
@@ -124,10 +125,10 @@ struct LiveSplitView: View {
             // commits once focus has stabilised on a category.
             .onChange(of: focusedEntry) { _, newValue in
                 selectionDebounce?.cancel()
-                guard let newValue, newValue != selection else { return }
+                guard !isReturningFromPlayback, let newValue, newValue != selection else { return }
                 selectionDebounce = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 350_000_000)
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled, !isReturningFromPlayback else { return }
                     selection = newValue
                 }
             }
@@ -220,13 +221,15 @@ struct LiveSplitView: View {
             ChannelGridView(
                 category: Category(categoryId: "__favorites__", categoryName: "Favoris"),
                 viewModel: viewModel,
-                showFavoritesOnly: true
+                showFavoritesOnly: true,
+                isReturningFromPlayback: $isReturningFromPlayback
             )
         case .all:
             ChannelGridView(
                 category: Category(categoryId: "__all__", categoryName: "Toutes les chaînes"),
                 viewModel: viewModel,
-                isAllChannels: true
+                isAllChannels: true,
+                isReturningFromPlayback: $isReturningFromPlayback
             )
         case .epg:
             // The grid drives its own category + day selection from
@@ -247,7 +250,8 @@ struct LiveSplitView: View {
                 }
             )
         case .category(let cat):
-            ChannelGridView(category: cat, viewModel: viewModel)
+            ChannelGridView(category: cat, viewModel: viewModel,
+                            isReturningFromPlayback: $isReturningFromPlayback)
         }
     }
 }

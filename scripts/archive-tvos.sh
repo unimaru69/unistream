@@ -69,6 +69,10 @@ EXPORT_OPTIONS="$TVOS_DIR/ExportOptions.plist"
 [[ -f "$PROJECT_YML" ]] || { echo "missing $PROJECT_YML"; exit 1; }
 [[ -f "$EXPORT_OPTIONS" ]] || { echo "missing $EXPORT_OPTIONS"; exit 1; }
 
+# The upstream prebuilt Apple TV framework disables MLP/TrueHD. Our local
+# package uses a reproducible build of the same VLC 3.x API with it enabled.
+"$SCRIPT_DIR/build-tvos-vlc-truehd.sh"
+
 # ── Resolve the TMDB API key ──────────────────────────────────────────
 # Info.plist's TMDBAPIKey expands from the TMDB_API_KEY build setting,
 # which project.yml defaults to "" — so a local archive ships with TMDB

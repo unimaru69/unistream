@@ -108,4 +108,22 @@ final class CatalogueWindowTests: XCTestCase {
         window.reset()
         XCTAssertEqual(window.applied(to: items).count, pageSize)
     }
+    func testRestoreIncludesRememberedChannelBeyondFirstPage() {
+        var window = CatalogueWindow()
+        let items = ids(5000)
+        window.include(id: "id350", in: items, identifiedBy: { $0 })
+        XCTAssertEqual(window.limit, pageSize * 3)
+        XCTAssertTrue(window.applied(to: items).contains("id350"))
+    }
+
+    func testRestoreNeverShrinksWindowAndIgnoresMissingChannel() {
+        var window = CatalogueWindow()
+        let items = ids(250)
+        window.include(id: "id249", in: items, identifiedBy: { $0 })
+        XCTAssertEqual(window.limit, 250)
+        window.include(id: "id0", in: items, identifiedBy: { $0 })
+        window.include(id: "missing", in: items, identifiedBy: { $0 })
+        XCTAssertEqual(window.limit, 250)
+    }
+
 }
