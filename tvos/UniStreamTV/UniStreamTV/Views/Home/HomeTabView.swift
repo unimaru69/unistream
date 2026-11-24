@@ -61,9 +61,9 @@ struct HomeTabView: View {
                     .navigationDestination(for: String.self) { dest in
                         switch dest {
                         case "history": HistoryView()
-                        case "collections": PremiumGate(feature: .collections) { CollectionsView() }
-                        case "parental": PremiumGate(feature: .parentalControls) { ParentalSettingsView() }
-                        case "profiles": PremiumGate(feature: .multipleProfiles) { ProfileEditorView() }
+                        case "collections": CollectionsView()
+                        case "parental": ParentalSettingsView()
+                        case "profiles": ProfileEditorView()
                         default: EmptyView()
                         }
                     }
@@ -222,11 +222,9 @@ struct HomeContentView: View {
                             .focusSection()
                     }
 
-                    // Catch-up replay (Premium only)
-                    if FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo) {
-                        CatchUpRow()
-                            .focusSection()
-                    }
+                    // Catch-up replay
+                    CatchUpRow()
+                        .focusSection()
 
                     // Recently Added
                     RecentlyAddedRow()

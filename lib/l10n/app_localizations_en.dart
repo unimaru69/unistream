@@ -1095,33 +1095,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get compteEssaiGratuit => 'Free Trial';
-
-  @override
-  String compteEssaiJoursRestants(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count days remaining',
-      one: '1 day remaining',
-      zero: 'Trial expired',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get compteEssaiExpire => 'Your free trial has expired';
-
-  @override
-  String get compteAbonnementBasic => 'Basic Subscription';
-
-  @override
-  String get compteAbonnementPremium => 'Premium Subscription';
-
-  @override
-  String get compteLicenceCrossplateforme => 'Cross-platform license';
-
-  @override
   String get compteDeconnexion => 'Sign Out';
 
   @override
@@ -1187,53 +1160,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'This email is your cross-device identifier. Sign in with the same address on every device so favorites and progress sync automatically.';
 
   @override
-  String get paywallTitre => 'Upgrade to Premium';
-
-  @override
-  String get paywallDescription => 'Unlock all features';
-
-  @override
-  String get paywallRestaurer => 'Restore purchases';
-
-  @override
-  String get paywallMensuel => 'Monthly';
-
-  @override
-  String get paywallAnnuel => 'Annual';
-
-  @override
-  String get paywallSAbonner => 'Subscribe';
-
-  @override
-  String paywallEconomie(int percent) {
-    return 'Save $percent%';
-  }
-
-  @override
-  String paywallParMois(String price) {
-    return '$price/month';
-  }
-
-  @override
-  String paywallParAn(String price) {
-    return '$price/year';
-  }
-
-  @override
-  String get paywallAchatReussi => 'Purchase completed successfully!';
-
-  @override
-  String get paywallAchatErreur => 'Purchase failed. Please try again.';
-
-  @override
-  String get paywallNonDisponible =>
-      'In-app purchases are not available on this platform.';
-
-  @override
-  String get fonctionnaliteRequiertPremium =>
-      'This feature requires a Premium subscription.';
-
-  @override
   String get fonctionnaliteCollections => 'Custom collections';
 
   @override
@@ -1268,28 +1194,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fonctionnaliteThemes => 'Light / Dark themes';
-
-  @override
-  String get abonnementGerer => 'Manage subscription';
-
-  @override
-  String get abonnementUpgrade => 'Upgrade to Premium';
-
-  @override
-  String get abonnementSAbonner => 'Subscribe';
-
-  @override
-  String get abonnementBasic => 'Basic';
-
-  @override
-  String get abonnementPremium => 'Premium';
-
-  @override
-  String get abonnementLicenceCross => 'Cross-platform license';
-
-  @override
-  String get abonnementLicenceCrossDesc =>
-      'Use your Premium subscription on all platforms';
 
   @override
   String get accueilTab => 'Home';

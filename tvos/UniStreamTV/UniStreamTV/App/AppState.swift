@@ -11,7 +11,6 @@ final class AppState {
     let profileManager = ProfileManager()
     let api = XtreamAPIService()
     let syncService = SyncService()
-    let purchaseService = PurchaseService()
     let parentalService = ParentalService()
     let collectionsService = CollectionsService()
     let reminderService = EPGReminderService()
@@ -72,8 +71,6 @@ final class AppState {
             isAuthenticated = true
             logger.info("Existing session found")
 
-            // Configure RevenueCat + fetch account info
-            purchaseService.configure(appUserId: authService.userId)
             Task { _ = await authService.fetchAccountInfo() }
 
             // Check if we have a saved profile
@@ -89,8 +86,6 @@ final class AppState {
     /// Called after successful sign-in.
     func onSignIn() async {
         isAuthenticated = true
-        // Configure RevenueCat + fetch account info
-        purchaseService.configure(appUserId: authService.userId)
         Task { _ = await authService.fetchAccountInfo() }
 
         if profileManager.activeProfile != nil {
@@ -161,7 +156,6 @@ final class AppState {
         // already does.
         PlayerPresenter.api = api
         PlayerPresenter.liveViewModel = liveVM
-        PlayerPresenter.authService = authService
         logger.info("ViewModels created")
     }
 

@@ -4,17 +4,11 @@ import Kingfisher
 /// Settings screen with profile, account, subscription, history, collections, parental.
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
-    @State private var showSubscription = false
     @State private var showCrossDeviceEmail = false
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
     @State private var imageCacheSize: String = "…"
     @State private var showCachePurged = false
-    // Use @AppStorage so SwiftUI re-renders the List when the override changes.
-    @AppStorage("debug.plan.override") private var debugPlanRaw: String = ""
-    private var debugPlanMode: String {
-        get { debugPlanRaw.isEmpty ? "auto" : debugPlanRaw }
-    }
 
     var body: some View {
         List {
@@ -46,74 +40,45 @@ struct SettingsView: View {
                 } header: { settingsHeader("Profil actif") }
             }
 
-            // Subscription
-            Section {
-                subscriptionRow
-
-                Button {
-                    showSubscription = true
-                } label: {
-                    Label(
-                        appState.authService.cachedAccountInfo?.hasActiveSubscription == true
-                            ? "Gérer l'abonnement"
-                            : "S'abonner",
-                        systemImage: "crown"
-                    )
-                }
-                .tint(Color(hex: 0x1B6B8A))
-            } header: { settingsHeader("Abonnement") }
-
             // Content management
             Section {
                 NavigationLink(value: "history") {
                     Label("Historique de lecture", systemImage: "clock.arrow.circlepath")
                 }
 
-                if canUse(.collections) {
-                    NavigationLink(value: "collections") {
-                        HStack {
-                            Label("Collections", systemImage: "folder.fill")
-                            Spacer()
-                            Text("\(appState.collectionsService.collections.count)")
-                                .font(.caption)
-                                .foregroundColor(DS.Colour.textSecondary)
-                        }
+                NavigationLink(value: "collections") {
+                    HStack {
+                        Label("Collections", systemImage: "folder.fill")
+                        Spacer()
+                        Text("\(appState.collectionsService.collections.count)")
+                            .font(.caption)
+                            .foregroundColor(DS.Colour.textSecondary)
                     }
-                } else {
-                    premiumLockedRow(label: "Collections", icon: "folder.fill", feature: .collections)
                 }
 
-                if canUse(.parentalControls) {
-                    NavigationLink(value: "parental") {
-                        HStack {
-                            Label("Contrôle parental", systemImage: "lock.shield.fill")
-                            Spacer()
-                            if appState.parentalService.isEnabled {
-                                Text("Activé")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
+                NavigationLink(value: "parental") {
+                    HStack {
+                        Label("Contrôle parental", systemImage: "lock.shield.fill")
+                        Spacer()
+                        if appState.parentalService.isEnabled {
+                            Text("Activé")
+                                .font(.caption)
+                                .foregroundColor(.green)
                         }
                     }
-                } else {
-                    premiumLockedRow(label: "Contrôle parental", icon: "lock.shield.fill", feature: .parentalControls)
                 }
             } header: { settingsHeader("Contenus") }
 
             // Profiles
             Section {
-                if canUse(.multipleProfiles) {
-                    NavigationLink(value: "profiles") {
-                        HStack {
-                            Label("Gérer les profils", systemImage: "person.2.fill")
-                            Spacer()
-                            Text("\(appState.profileManager.profiles.count)")
-                                .font(.caption)
-                                .foregroundColor(DS.Colour.textSecondary)
-                        }
+                NavigationLink(value: "profiles") {
+                    HStack {
+                        Label("Gérer les profils", systemImage: "person.2.fill")
+                        Spacer()
+                        Text("\(appState.profileManager.profiles.count)")
+                            .font(.caption)
+                            .foregroundColor(DS.Colour.textSecondary)
                     }
-                } else {
-                    premiumLockedRow(label: "Multi-profils", icon: "person.2.fill", feature: .multipleProfiles)
                 }
             } header: { settingsHeader("Profils") }
 
@@ -271,35 +236,12 @@ struct SettingsView: View {
                 Button("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                     Task {
                         appState.parentalService.lock()
-                        await appState.purchaseService.logOut()
                         try? await appState.authService.signOut()
                         appState.isAuthenticated = false
                         appState.hasActiveProfile = false
                     }
                 }
             }
-
-            // Debug — visible uniquement en Debug build
-            #if DEBUG
-            Section {
-                Picker(selection: Binding(
-                    get: { debugPlanMode },
-                    set: { debugPlanRaw = $0 == "auto" ? "" : $0 }
-                )) {
-                    Text("Auto (plan réel)").tag("auto")
-                    Text("Forcer Basic").tag("basic")
-                    Text("Forcer Premium").tag("premium")
-                } label: {
-                    Label("Plan override", systemImage: "hammer")
-                }
-
-                if !debugPlanRaw.isEmpty {
-                    Text("Override actif : \(debugPlanRaw). Les fonctionnalités sont débloquées immédiatement.")
-                        .font(.caption)
-                        .foregroundColor(DS.Colour.textSecondary)
-                }
-            } header: { settingsHeader("Debug") }
-            #endif
 
             // Danger zone
             Section {
@@ -326,9 +268,6 @@ struct SettingsView: View {
         // those use a `Color.secondary` that compresses against our
         // dark TabView substrate.
         .navigationTitle("Réglages")
-        .fullScreenCover(isPresented: $showSubscription) {
-            SubscriptionView()
-        }
         .fullScreenCover(isPresented: $showCrossDeviceEmail) {
             CrossDeviceEmailSheet()
         }
@@ -348,12 +287,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Feature Gating
-
-    private func canUse(_ feature: Feature) -> Bool {
-        FeatureAccess.canUse(feature, account: appState.authService.cachedAccountInfo)
-    }
-
     /// Section header that's actually visible on our dark canvas —
     /// the default Section(_:) header uses Color.secondary, which
     /// rendered as low-contrast grey on `DS.Colour.surface`.
@@ -371,61 +304,6 @@ struct SettingsView: View {
         case "google": return ("globe", "Google")
         case "email":  return ("envelope.fill", "Email")
         default:       return ("person.crop.circle", provider)
-        }
-    }
-
-    @ViewBuilder
-    private func premiumLockedRow(label: String, icon: String, feature: Feature) -> some View {
-        Button {
-            showSubscription = true
-        } label: {
-            HStack {
-                Label(label, systemImage: icon)
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "crown.fill")
-                        .font(.caption)
-                    Text("Premium")
-                        .font(.caption)
-                }
-                .foregroundColor(.yellow)
-            }
-        }
-    }
-
-    // MARK: - Subscription display
-
-    @ViewBuilder
-    private var subscriptionRow: some View {
-        if let info = appState.authService.cachedAccountInfo {
-            if info.isTrial {
-                HStack {
-                    Label("Essai gratuit", systemImage: "clock")
-                    Spacer()
-                    Text("\(info.trialDaysRemaining)j restants")
-                        .foregroundColor(info.trialDaysRemaining <= 3 ? .red : .secondary)
-                }
-            } else if info.hasActiveSubscription {
-                HStack {
-                    Label(info.subscriptionTier.capitalized, systemImage: info.isPremium ? "crown.fill" : "star.fill")
-                        .foregroundColor(info.isPremium ? .yellow : Color(hex: 0x1B6B8A))
-                    Spacer()
-                    if let expires = info.subscriptionExpiresAt {
-                        Text("Expire \(expires, style: .date)")
-                            .font(.caption)
-                            .foregroundColor(DS.Colour.textSecondary)
-                    }
-                }
-            } else if info.isTrialExpired {
-                Label("Essai expiré", systemImage: "exclamationmark.triangle")
-                    .foregroundColor(.red)
-            } else {
-                Label("Aucun abonnement", systemImage: "xmark.circle")
-                    .foregroundColor(DS.Colour.textSecondary)
-            }
-        } else {
-            Label("Chargement…", systemImage: "hourglass")
-                .foregroundColor(DS.Colour.textSecondary)
         }
     }
 
@@ -473,7 +351,6 @@ struct SettingsView: View {
         isDeleting = true
         Task {
             do {
-                await appState.purchaseService.logOut()
                 try await appState.authService.deleteAccount()
                 appState.isAuthenticated = false
                 appState.hasActiveProfile = false

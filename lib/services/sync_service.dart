@@ -34,16 +34,6 @@ class SyncService {
     if (_client == null || profileHash.isEmpty || _client!.auth.currentSession == null) {
       return false;
     }
-    // Cloud sync is intentionally ungated until the monetisation refactor
-    // lands (single paid tier + 7-day trial — see auto-memory
-    // `project_business_model.md`). Previously this checked
-    // `FeatureAccess.canUse(Feature.cloudSync, account)`, which silently
-    // disabled push/pull on accounts whose 14-day trial had elapsed —
-    // including the team's own test account, leading to the "favorites
-    // don't sync between iPhone, iPad, Apple TV" bug we hunted in TF.
-    // tvOS never had this gate, so tvOS-pushed entries surfaced; iOS
-    // pushes silently no-op'd, and the resulting one-way data flow
-    // looked like total breakage.
     return true;
   }
 

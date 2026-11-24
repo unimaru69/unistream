@@ -6,12 +6,8 @@ import 'package:unistream/l10n/app_localizations.dart';
 import '../../core/colors.dart';
 import '../../core/theme_colors.dart';
 import '../../models/profile.dart';
-import '../../models/app_config.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/config_provider.dart';
-import '../../utils/feature_access.dart';
 import '../../widgets/pin_dialog.dart';
-import '../../widgets/premium_gate.dart';
 import 'profile_dialog.dart';
 
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -34,11 +30,6 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   bool _changed = false;
 
   Future<void> _addProfile() async {
-    final account = ref.read(authProvider).accountInfo;
-    final maxAllowed = FeatureAccess.maxProfiles(account);
-    if (AppConfig.profiles.length >= maxAllowed) {
-      if (!checkPremiumAccess(context, ref, Feature.multipleProfiles)) return;
-    }
     final result = await showDialog<Profile>(
       context: context,
       builder: (ctx) => const ProfileDialog(),

@@ -15,7 +15,6 @@ final class VLCLivePlayerViewController: UIViewController {
     var onPlaybackDismissed: ((String) -> Void)?
     private var currentIndex: Int
     private let api: XtreamAPIService
-    private let timeshiftAllowed: Bool
 
     // Live timeshift state.
     // offset == 0 : live HLS. offset > 0 : Xtream timeshift TS URL, `offset`
@@ -77,11 +76,10 @@ final class VLCLivePlayerViewController: UIViewController {
     private var clockTimer: Timer?
     private var zapHideTimer: Timer?
 
-    init(channels: [Channel], startIndex: Int, api: XtreamAPIService, timeshiftAllowed: Bool = false) {
+    init(channels: [Channel], startIndex: Int, api: XtreamAPIService) {
         self.channels = channels
         self.currentIndex = max(0, min(startIndex, channels.count - 1))
         self.api = api
-        self.timeshiftAllowed = timeshiftAllowed
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
     }
@@ -612,10 +610,6 @@ final class VLCLivePlayerViewController: UIViewController {
     private func timeshiftSeek(delta: Int) {
         let channel = channels[currentIndex]
 
-        guard timeshiftAllowed else {
-            flashCenterMessage("Replay réservé à l'abonnement Premium")
-            return
-        }
         guard channel.hasCatchup, channel.archiveDays > 0 else {
             flashCenterMessage("Replay indisponible sur cette chaîne")
             return

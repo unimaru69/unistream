@@ -7,9 +7,7 @@ import '../../../models/collection_data.dart';
 import '../../../models/content_mode.dart';
 import '../../../models/favorite_item.dart';
 import '../../../providers/collections_provider.dart';
-import '../../../utils/feature_access.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/premium_gate.dart';
 
 /// Shows a dialog to create a new collection. Returns the collection name or null.
 Future<String?> showCreateCollectionDialog(BuildContext context) async {
@@ -223,15 +221,13 @@ void showStreamInfoDialogWithEpg(
 /// stream-tile context menu, etc.).
 ///
 /// Steps:
-///   1. Premium gate via `checkPremiumAccess(Feature.collections)` —
-///      bails to paywall if the active profile isn't entitled.
-///   2. Filter the user's collections to those matching [mode] (a
+///   1. Filter the user's collections to those matching [mode] (a
 ///      film can't land in a "Live channels" collection).
-///   3. If no compatible collection exists, prompt the create dialog
+///   2. If no compatible collection exists, prompt the create dialog
 ///      first so the picker isn't empty.
-///   4. Show the picker (`showCollectionPickerDialog`) with an
+///   3. Show the picker (`showCollectionPickerDialog`) with an
 ///      inline "Nouvelle collection" affordance.
-///   5. On selection, push the item into the collection provider and
+///   4. On selection, push the item into the collection provider and
 ///      surface a snackbar confirmation.
 ///
 /// Mirrors `_showAddToCollectionPicker` in `home_screen.dart` —
@@ -242,7 +238,6 @@ Future<void> addToCollectionFlow(
   required ContentMode mode,
   required FavoriteItem item,
 }) async {
-  if (!checkPremiumAccess(context, ref, Feature.collections)) return;
 
   final l10n = AppLocalizations.of(context)!;
 

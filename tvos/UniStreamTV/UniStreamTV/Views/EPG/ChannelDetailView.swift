@@ -328,8 +328,7 @@ struct ChannelDetailView: View {
             PlayerPresenter.playLiveWithZapping(
                 channels: allChannels,
                 startIndex: index,
-                api: appState.api,
-                timeshiftAllowed: FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
+                api: appState.api
             )
         } else {
             guard let url = appState.api.liveStreamUrl(streamId: channel.streamId) else { return }

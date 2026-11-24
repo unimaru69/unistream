@@ -115,7 +115,6 @@ Ces termes doivent être **identiques** dans les deux apps :
 | Listes personnalisées | **Collections** | "Playlists", "Listes" |
 | Guide programmes | **Guide TV** | "EPG", "Programme", "Grille" |
 | PIN et blocage | **Contrôle parental** | "Parental", "Contrôle jeunesse" |
-| Abonnement payant | **Abonnement** | "Souscription", "Subscription" |
 
 ## Terminologie plateforme-spécifique (assumée)
 

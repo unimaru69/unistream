@@ -32,8 +32,6 @@ import '../../providers/collections_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/catalog_refresh_provider.dart';
 import '../../providers/connectivity_provider.dart';
-import '../../utils/feature_access.dart';
-import '../../widgets/premium_gate.dart';
 import '../../providers/paginated_streams_provider.dart';
 import '../../providers/parental_provider.dart';
 import '../../services/connectivity_service.dart';
@@ -209,7 +207,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Collections ──
   Future<void> _createCollection() async {
-    if (!checkPremiumAccess(context, ref, Feature.collections)) return;
     final name = await showCreateCollectionDialog(context);
     if (name != null && name.isNotEmpty) {
       await ref.read(collectionsProvider.notifier).create(name, mode: _mode.key);
@@ -290,7 +287,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _createCollectionFromSelected() async {
-    if (!checkPremiumAccess(context, ref, Feature.collections)) return;
     final items = _streams
         .where((s) => _selectedItems.contains(_itemSelectionKey(s)))
         .toList();
@@ -948,7 +944,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Open a Catch-up program from Accueil (mirrors the inline handler
   /// the Live header previously used).
   void _openCatchupProgram(CatchupProgram prog) {
-    if (!checkPremiumAccess(context, ref, Feature.catchupReplay)) return;
     final url = prog.serverLocalStart.isNotEmpty
         ? _repo.getTimeshiftUrlFromLocal(
             prog.streamId, prog.serverLocalStart, prog.durationMin)
@@ -1507,7 +1502,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     CatchupRow(
                       programs: _catchupPrograms,
                       onTap: (prog) {
-                        if (!checkPremiumAccess(context, ref, Feature.catchupReplay)) return;
                         String url;
                         if (prog.serverLocalStart.isNotEmpty) {
                           url = _repo.getTimeshiftUrlFromLocal(

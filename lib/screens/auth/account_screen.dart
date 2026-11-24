@@ -5,7 +5,6 @@ import '../../core/colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
-import '../subscription/paywall_screen.dart';
 import 'auth_gate.dart';
 
 class AccountScreen extends ConsumerWidget {
@@ -64,83 +63,6 @@ class AccountScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // Subscription status
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _tierLabel(l10n, auth.accountInfo?.subscriptionTier ?? 'trial'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: AppColors.primaryBlue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (auth.accountInfo?.isTrial == true) ...[
-                    if (auth.accountInfo!.isTrialActive)
-                      _StatusRow(
-                        icon: Icons.schedule,
-                        text: l10n.compteEssaiJoursRestants(auth.accountInfo!.trialDaysRemaining),
-                        color: AppColors.primaryBlue,
-                      )
-                    else
-                      _StatusRow(
-                        icon: Icons.warning_amber,
-                        text: l10n.compteEssaiExpire,
-                        color: Colors.orange,
-                      ),
-                  ],
-                  if (auth.accountInfo?.crossPlatformLicense == true)
-                    _StatusRow(
-                      icon: Icons.devices,
-                      text: l10n.compteLicenceCrossplateforme,
-                      color: AppColors.accentGreen,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Upgrade / Manage subscription button
-          if (auth.accountInfo?.isPremium != true)
-            FilledButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PaywallScreen()),
-              ),
-              icon: const Icon(Icons.star),
-              label: Text(
-                auth.accountInfo?.isBasicOrAbove == true
-                    ? l10n.abonnementUpgrade
-                    : l10n.abonnementSAbonner,
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-
-          if (auth.accountInfo?.isPremium == true)
-            OutlinedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PaywallScreen()),
-              ),
-              icon: const Icon(Icons.settings),
-              label: Text(l10n.abonnementGerer),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
           // Cross-device sign-in methods + email-linking action
           _CrossDeviceCard(),
           const SizedBox(height: 16),
@@ -167,17 +89,6 @@ class AccountScreen extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _tierLabel(AppLocalizations l10n, String tier) {
-    switch (tier) {
-      case 'basic':
-        return l10n.compteAbonnementBasic;
-      case 'premium':
-        return l10n.compteAbonnementPremium;
-      default:
-        return l10n.compteEssaiGratuit;
-    }
   }
 
   String _formatDate(DateTime date) {
@@ -455,26 +366,5 @@ class _CrossDeviceCardState extends ConsumerState<_CrossDeviceCard> {
     }
     // Error path: the auth provider already populated `auth.error`
     // which the form surfaces above the Cancel/Send buttons.
-  }
-}
-
-class _StatusRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color color;
-  const _StatusRow({required this.icon, required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Text(text, style: TextStyle(color: color, fontSize: 13)),
-        ],
-      ),
-    );
   }
 }

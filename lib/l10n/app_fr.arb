@@ -610,17 +610,6 @@
       "date": {"type": "String"}
     }
   },
-  "compteEssaiGratuit": "Essai gratuit",
-  "compteEssaiJoursRestants": "{count, plural, =0{Essai expiré} =1{1 jour restant} other{{count} jours restants}}",
-  "@compteEssaiJoursRestants": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "compteEssaiExpire": "Votre essai gratuit a expiré",
-  "compteAbonnementBasic": "Abonnement Basic",
-  "compteAbonnementPremium": "Abonnement Premium",
-  "compteLicenceCrossplateforme": "Licence cross-plateforme",
   "compteDeconnexion": "Se déconnecter",
   "compteSupprimerCompte": "Supprimer mon compte",
   "compteSupprimerConfirmation": "Êtes-vous sûr ? Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
@@ -647,35 +636,7 @@
   "crossDeviceHintApple": "Pour synchroniser tes favoris et ta progression entre iPhone, iPad, Mac et Linux, choisis « Partager mon email » avec Apple Sign-In (pas « Masquer »). L'email masqué crée un compte isolé.",
   "crossDeviceHintGeneric": "Cet email sera ton identifiant cross-device. Connecte-toi avec la même adresse sur tous tes appareils pour que tes favoris et ta progression se synchronisent.",
 
-  "paywallTitre": "Passez à Premium",
-  "paywallDescription": "Débloquez toutes les fonctionnalités",
-  "paywallRestaurer": "Restaurer les achats",
-  "paywallMensuel": "Mensuel",
-  "paywallAnnuel": "Annuel",
-  "paywallSAbonner": "S'abonner",
-  "paywallEconomie": "Économisez {percent}%",
-  "@paywallEconomie": {
-    "placeholders": {
-      "percent": {"type": "int"}
-    }
-  },
-  "paywallParMois": "{price}/mois",
-  "@paywallParMois": {
-    "placeholders": {
-      "price": {"type": "String"}
-    }
-  },
-  "paywallParAn": "{price}/an",
-  "@paywallParAn": {
-    "placeholders": {
-      "price": {"type": "String"}
-    }
-  },
-  "paywallAchatReussi": "Achat effectué avec succès !",
-  "paywallAchatErreur": "Erreur lors de l'achat. Veuillez réessayer.",
-  "paywallNonDisponible": "Les achats in-app ne sont pas disponibles sur cette plateforme.",
 
-  "fonctionnaliteRequiertPremium": "Cette fonctionnalité nécessite un abonnement Premium.",
   "fonctionnaliteCollections": "Collections personnalisées",
   "fonctionnaliteMultiProfils": "Multi-profils",
   "fonctionnaliteParental": "Contrôle parental",
@@ -689,13 +650,6 @@
   "fonctionnaliteFavoris": "Favoris & Historique",
   "fonctionnaliteThemes": "Thèmes clair / sombre",
 
-  "abonnementGerer": "Gérer l'abonnement",
-  "abonnementUpgrade": "Passer à Premium",
-  "abonnementSAbonner": "S'abonner",
-  "abonnementBasic": "Basic",
-  "abonnementPremium": "Premium",
-  "abonnementLicenceCross": "Licence cross-plateforme",
-  "abonnementLicenceCrossDesc": "Utilisez votre abonnement Premium sur toutes les plateformes",
 
   "accueilTab": "Accueil",
   "categoriesHeader": "Catégories",

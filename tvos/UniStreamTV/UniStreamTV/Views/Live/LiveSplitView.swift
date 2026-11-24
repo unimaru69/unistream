@@ -61,13 +61,6 @@ struct LiveSplitView: View {
         appState.syncService.favorites.values.filter { $0.isLive }.count
     }
 
-    private var canUseEPG: Bool {
-        // Source of truth is centralised in FeatureAccess (currently
-        // returns true unconditionally while we test the redesigned
-        // app on hardware — see Feature.swift).
-        FeatureAccess.canUse(.catchupReplay, account: appState.authService.cachedAccountInfo)
-    }
-
     var body: some View {
         NavigationStack {
             HStack(spacing: 0) {
@@ -170,9 +163,7 @@ struct LiveSplitView: View {
                         entry: .all,
                         count: viewModel.allChannels.isEmpty ? nil : viewModel.allChannels.count
                     )
-                    if canUseEPG {
-                        sidebarButton(entry: .epg, count: nil)
-                    }
+                    sidebarButton(entry: .epg, count: nil)
 
                     // Section header
                     Text("Catégories")
