@@ -469,7 +469,7 @@ final class VLCLivePlayerViewController: UIViewController {
         // Audio tracks
         let audioCount = Int(mediaPlayer.numberOfAudioTracks)
         if audioCount > 1 {
-            alert.addAction(UIAlertAction(title: "🔊 Piste audio…", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Piste audio…", style: .default) { [weak self] _ in
                 self?.showAudioPicker()
             })
         }
@@ -477,13 +477,13 @@ final class VLCLivePlayerViewController: UIViewController {
         // Subtitle tracks
         let subCount = Int(mediaPlayer.numberOfSubtitlesTracks)
         if subCount > 0 {
-            alert.addAction(UIAlertAction(title: "💬 Sous-titres…", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Sous-titres…", style: .default) { [weak self] _ in
                 self?.showSubtitlePicker()
             })
         }
 
         // Aspect ratio
-        alert.addAction(UIAlertAction(title: "📐 Format d'image", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format d'image", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
         })
 

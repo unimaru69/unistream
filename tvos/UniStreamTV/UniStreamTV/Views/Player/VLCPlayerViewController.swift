@@ -535,7 +535,7 @@ final class VLCPlayerViewController: UIViewController {
         // Audio tracks
         let audioTracks = mediaPlayer.audioTrackNames as? [String] ?? []
         if audioTracks.count > 1 {
-            alert.addAction(UIAlertAction(title: "🔊 Audio (\(audioTracks.count) pistes)", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Audio (\(audioTracks.count) pistes)", style: .default) { [weak self] _ in
                 self?.showAudioPicker()
             })
         }
@@ -559,20 +559,20 @@ final class VLCPlayerViewController: UIViewController {
         // Subtitle tracks
         let subTracks = mediaPlayer.videoSubTitlesNames as? [String] ?? []
         if !subTracks.isEmpty {
-            alert.addAction(UIAlertAction(title: "💬 Sous-titres (\(subTracks.count) pistes)", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Sous-titres (\(subTracks.count) pistes)", style: .default) { [weak self] _ in
                 self?.showSubtitlePicker()
             })
         }
 
         // Aspect ratio
-        alert.addAction(UIAlertAction(title: "📐 Format vidéo", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format vidéo", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
         })
 
         // Sleep timer
         let timerTitle = SleepTimerManager.shared.isActive
-            ? "⏰ Minuterie (\(SleepTimerManager.shared.remainingMinutes) min)"
-            : "⏰ Minuterie de veille"
+            ? "Minuterie (\(SleepTimerManager.shared.remainingMinutes) min)"
+            : "Minuterie de veille"
         alert.addAction(UIAlertAction(title: timerTitle, style: .default) { [weak self] _ in
             guard let self else { return }
             SleepTimerManager.showPicker(from: self)

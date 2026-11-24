@@ -50,9 +50,14 @@ struct HomeTabView: View {
                 .tabItem { Label("Favoris", systemImage: "heart.fill") }
                 .tag(4)
 
-            // Search
+            // Search and Settings are icon-only, as in Apple's own tvOS
+            // apps: seven labelled tabs overflow the bar and the last one
+            // (Réglages) was clipped at the right edge.
             SearchView()
-                .tabItem { Label("Recherche", systemImage: "magnifyingglass") }
+                .tabItem {
+                    Image(systemName: "magnifyingglass")
+                        .accessibilityLabel("Recherche")
+                }
                 .tag(5)
 
             // Settings
@@ -68,7 +73,10 @@ struct HomeTabView: View {
                         }
                     }
             }
-            .tabItem { Label("Réglages", systemImage: "gear") }
+            .tabItem {
+                Image(systemName: "gear")
+                    .accessibilityLabel("Réglages")
+            }
             .tag(6)
         }
         .task {

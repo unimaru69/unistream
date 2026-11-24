@@ -12,6 +12,10 @@ struct HomeHeroBanner: View {
     /// until the first successful load. Replaces a plain `hasLoaded`
     /// latch so a catalogue refresh re-opens the gate exactly once.
     @State private var loadedGeneration: Int?
+    /// True once a load has run to completion. Tells "still loading" (keep
+    /// the skeleton, the hero is about to appear) from "nothing to feature"
+    /// (collapse, so Home doesn't open on a 640pt black void).
+    @State private var didFinishLoading = false
     /// TMDB lookups resolved during `load()` so the foreground can fall
     /// back on `result.overview` when the IPTV provider gives us no
     /// plot of its own. Keyed on `RecentlyAddedItem.id`.
@@ -40,6 +44,10 @@ struct HomeHeroBanner: View {
         return items[currentIndex % items.count]
     }
 
+    /// Loaded, and the catalogue has nothing worth featuring — an empty
+    /// or unreachable panel, or only titles below the quality bar.
+    private var isCollapsed: Bool { items.isEmpty && didFinishLoading }
+
     var body: some View {
         ZStack {
             if let currentItem {
@@ -63,12 +71,13 @@ struct HomeHeroBanner: View {
                 if items.count > 1 {
                     pageDots
                 }
-            } else {
+            } else if !didFinishLoading {
                 placeholder
             }
         }
-        .frame(height: heroHeight)
+        .frame(height: isCollapsed ? 0 : heroHeight)
         .animation(DS.Motion.spring, value: currentIndex)
+        .animation(DS.Motion.spring, value: isCollapsed)
         // The hero is a section on its own for focus navigation. The
         // CTA is the only focusable inside, so pressing Left / Right
         // would otherwise bounce off the section edge — intercept it
@@ -318,7 +327,7 @@ struct HomeHeroBanner: View {
         // (logo + welcome copy) that the user perceived as a slow
         // welcome screen even though the rows below were already
         // loading. Now we render a near-flat dark block so the eye
-        // drifts straight to Reprendre / Favoris while the hero pops in
+        // drifts straight to Continuer à regarder / Favoris while the hero pops in
         // as soon as `load()` resolves the first item with a TMDB
         // backdrop. No copy, no logo — the brand lives in the hero
         // artwork itself the moment it's ready.
@@ -365,7 +374,8 @@ struct HomeHeroBanner: View {
         // Reload when authentication flips to true — don't latch on the first
         // call if the API wasn't ready yet.
         let api = appState.api
-        guard api.isAuthenticated else { return }
+        // Demo mode serves its catalogue without a panel session.
+        guard api.isAuthenticated || DemoMode.isActive else { return }
         let generation = appState.catalogRefresh.generation
         guard loadedGeneration != generation else { return }
         loadedGeneration = generation
@@ -435,6 +445,7 @@ struct HomeHeroBanner: View {
 
         items = interleaved
         tmdbCache = cache
+        didFinishLoading = true
         // Start at a random index so successive launches don't always begin with
         // the same item.
         currentIndex = items.isEmpty ? 0 : Int.random(in: 0..<items.count)

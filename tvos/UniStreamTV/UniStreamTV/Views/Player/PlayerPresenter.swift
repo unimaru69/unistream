@@ -771,8 +771,8 @@ final class EnhancedPlayerViewController: AVPlayerViewController, UIGestureRecog
         if let audioGroup, audioGroup.options.count > 0 {
             let currentAudio = player?.currentItem?.currentMediaSelection.selectedMediaOption(in: audioGroup)
             let audioLabel = audioGroup.options.count > 1
-                ? "🔊 Audio : \(currentAudio?.displayName ?? "Par défaut")"
-                : "🔊 Audio : \(audioGroup.options.first?.displayName ?? "Par défaut")"
+                ? "Audio : \(currentAudio?.displayName ?? "Par défaut")"
+                : "Audio : \(audioGroup.options.first?.displayName ?? "Par défaut")"
             alert.addAction(UIAlertAction(title: audioLabel, style: .default) { [weak self] _ in
                 self?.showTrackPicker(group: audioGroup, title: "Piste audio", isSubtitle: false)
             })
@@ -782,20 +782,20 @@ final class EnhancedPlayerViewController: AVPlayerViewController, UIGestureRecog
         if let subtitleGroup, !subtitleGroup.options.isEmpty {
             let currentSub = player?.currentItem?.currentMediaSelection.selectedMediaOption(in: subtitleGroup)
             let subLabel = currentSub?.displayName ?? "Désactivés"
-            alert.addAction(UIAlertAction(title: "💬 Sous-titres : \(subLabel)", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Sous-titres : \(subLabel)", style: .default) { [weak self] _ in
                 self?.showTrackPicker(group: subtitleGroup, title: "Sous-titres", isSubtitle: true)
             })
         }
 
         // Aspect ratio
-        alert.addAction(UIAlertAction(title: "📐 Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
         })
 
         // Sleep timer
         let timerTitle = SleepTimerManager.shared.isActive
-            ? "⏰ Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
-            : "⏰ Minuterie de veille"
+            ? "Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
+            : "Minuterie de veille"
         alert.addAction(UIAlertAction(title: timerTitle, style: .default) { [weak self] _ in
             guard let self else { return }
             SleepTimerManager.showPicker(from: self)
@@ -808,12 +808,12 @@ final class EnhancedPlayerViewController: AVPlayerViewController, UIGestureRecog
     /// Fallback if asset is unavailable.
     private func showBasicOptions() {
         let alert = UIAlertController(title: "Options de lecture", message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "📐 Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
         })
         let timerTitle = SleepTimerManager.shared.isActive
-            ? "⏰ Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
-            : "⏰ Minuterie de veille"
+            ? "Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
+            : "Minuterie de veille"
         alert.addAction(UIAlertAction(title: timerTitle, style: .default) { [weak self] _ in
             guard let self else { return }
             SleepTimerManager.showPicker(from: self)
@@ -967,8 +967,8 @@ final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecogn
         if let audioGroup, !audioGroup.options.isEmpty {
             let current = player?.currentItem?.currentMediaSelection.selectedMediaOption(in: audioGroup)
             let audioLabel = audioGroup.options.count > 1
-                ? "🔊 Audio : \(current?.displayName ?? "Par défaut")"
-                : "🔊 Audio : \(audioGroup.options.first?.displayName ?? "Par défaut")"
+                ? "Audio : \(current?.displayName ?? "Par défaut")"
+                : "Audio : \(audioGroup.options.first?.displayName ?? "Par défaut")"
             alert.addAction(UIAlertAction(title: audioLabel, style: .default) { [weak self] _ in
                 self?.showZappingTrackPicker(group: audioGroup, title: "Piste audio", isSubtitle: false)
             })
@@ -977,20 +977,20 @@ final class ZappingPlayerViewController: AVPlayerViewController, UIGestureRecogn
         // Subtitle tracks
         if let subtitleGroup, !subtitleGroup.options.isEmpty {
             let current = player?.currentItem?.currentMediaSelection.selectedMediaOption(in: subtitleGroup)
-            alert.addAction(UIAlertAction(title: "💬 Sous-titres : \(current?.displayName ?? "Désactivés")", style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Sous-titres : \(current?.displayName ?? "Désactivés")", style: .default) { [weak self] _ in
                 self?.showZappingTrackPicker(group: subtitleGroup, title: "Sous-titres", isSubtitle: true)
             })
         }
 
         // Aspect ratio
-        alert.addAction(UIAlertAction(title: "📐 Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Format : \(aspectRatioLabel)", style: .default) { [weak self] _ in
             self?.cycleAspectRatio()
         })
 
         // Sleep timer
         let timerTitle = SleepTimerManager.shared.isActive
-            ? "⏰ Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
-            : "⏰ Minuterie de veille"
+            ? "Minuterie (\(SleepTimerManager.shared.remainingMinutes) min restantes)"
+            : "Minuterie de veille"
         alert.addAction(UIAlertAction(title: timerTitle, style: .default) { [weak self] _ in
             guard let self else { return }
             SleepTimerManager.showPicker(from: self)

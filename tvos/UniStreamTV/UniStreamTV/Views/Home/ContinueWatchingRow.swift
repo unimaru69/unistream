@@ -112,7 +112,7 @@ struct ContinueWatchingRow: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: DS.Spacing.md) {
-                Text("Reprendre")
+                Text("Continuer à regarder")
                     .font(DS.Typography.title1)
                     .foregroundColor(DS.Colour.textPrimary)
                     .padding(.horizontal, horizontalPadding)
