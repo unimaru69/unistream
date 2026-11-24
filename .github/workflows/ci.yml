@@ -16,6 +16,11 @@ permissions:
   contents: read
 
 env:
+  # Pinned to the Flutter the app is developed and shipped with. On the
+  # floating `stable` channel CI moved first and broke on toolchain floors
+  # nobody had chosen (Kotlin 2.2.20, then Gradle 9.3.1). Bump this on
+  # purpose, together with the local SDK.
+  FLUTTER_VERSION: "3.41.7"
   SENTRY_NATIVE_REPO: https://github.com/getsentry/sentry-native.git
   SENTRY_NATIVE_VERSION: "0.7.20"
 
@@ -27,6 +32,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter test
@@ -40,6 +46,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - run: flutter pub get
 
       # The project signs automatically with the team's Developer ID, and a
@@ -76,6 +83,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - run: flutter pub get
       - name: Build iOS (no codesign)
         run: flutter build ios --no-codesign --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
@@ -99,6 +107,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - run: flutter pub get
       - name: Build APK (release, debug-signed)
         run: flutter build apk --release --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
@@ -174,6 +183,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Configure git for sentry-native
         run: |
@@ -214,6 +224,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Install Linux dependencies
         run: |

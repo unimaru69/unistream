@@ -2,7 +2,7 @@
 
 ## Prérequis
 
-- **Flutter** >= 3.11.4 (stable channel)
+- **Flutter** 3.41.7 (stable channel) — la version épinglée en CI (`FLUTTER_VERSION` dans `.github/workflows`)
 - **Dart** >= 3.3
 - **Xcode** (pour macOS/iOS)
 - **Visual Studio** (pour Windows)
