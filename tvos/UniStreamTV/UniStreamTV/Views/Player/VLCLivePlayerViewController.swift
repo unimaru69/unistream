@@ -75,6 +75,7 @@ final class VLCLivePlayerViewController: UIViewController {
     private var hideOverlayTimer: Timer?
     private var clockTimer: Timer?
     private var zapHideTimer: Timer?
+    private var preferredTracksTask: Task<Void, Never>?
 
     init(channels: [Channel], startIndex: Int, api: XtreamAPIService) {
         self.channels = channels
@@ -110,6 +111,7 @@ final class VLCLivePlayerViewController: UIViewController {
         hideOverlayTimer?.invalidate()
         zapHideTimer?.invalidate()
         clockTimer?.invalidate()
+        preferredTracksTask?.cancel()
         // NOTE: VLC teardown moved to viewDidDisappear. `mediaPlayer.stop()`
         // synchronously flushes the decoder queue and can briefly block the
         // main thread; running it during the dismiss animation leaves tvOS
@@ -579,6 +581,14 @@ final class VLCLivePlayerViewController: UIViewController {
         ])
         mediaPlayer.media = media
         mediaPlayer.play()
+        applyPreferredTracks()
+    }
+
+    /// Each channel is a new media: select the preferred audio and subtitle
+    /// language again once VLC has listed its tracks.
+    private func applyPreferredTracks() {
+        preferredTracksTask?.cancel()
+        preferredTracksTask = VLCPreferredTracks.applyWhenReady(to: mediaPlayer)
     }
 
     private func loadTimeshiftStream() {
@@ -600,6 +610,7 @@ final class VLCLivePlayerViewController: UIViewController {
         ])
         mediaPlayer.media = media
         mediaPlayer.play()
+        applyPreferredTracks()
     }
 
     // MARK: - Timeshift

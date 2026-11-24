@@ -9,6 +9,10 @@ struct SettingsView: View {
     @State private var isDeleting = false
     @State private var imageCacheSize: String = "…"
     @State private var showCachePurged = false
+    @AppStorage(PlaybackPreferences.audioLanguageKey)
+    private var preferredAudioLanguage = PlaybackPreferences.original
+    @AppStorage(PlaybackPreferences.subtitleLanguageKey)
+    private var preferredSubtitleLanguage = PlaybackPreferences.original
 
     var body: some View {
         List {
@@ -81,6 +85,28 @@ struct SettingsView: View {
                     }
                 }
             } header: { settingsHeader("Profils") }
+
+            // Playback — preferred languages, applied when a stream starts.
+            Section {
+                Picker(selection: $preferredAudioLanguage) {
+                    ForEach(PlaybackPreferences.audioOptions) { option in
+                        Text(option.label).tag(option.id)
+                    }
+                } label: {
+                    Label("Langue audio", systemImage: "speaker.wave.2")
+                }
+                Picker(selection: $preferredSubtitleLanguage) {
+                    ForEach(PlaybackPreferences.subtitleOptions) { option in
+                        Text(option.label).tag(option.id)
+                    }
+                } label: {
+                    Label("Sous-titres", systemImage: "captions.bubble")
+                }
+            } header: {
+                settingsHeader("Lecture")
+            } footer: {
+                Text("Choisies automatiquement au lancement quand le contenu les propose. Tu peux toujours changer de piste pendant la lecture.")
+            }
 
             // Account — current email + linked identities + cross-device email action.
             // Mirrors the Flutter AccountScreen "Synchronisation entre appareils"

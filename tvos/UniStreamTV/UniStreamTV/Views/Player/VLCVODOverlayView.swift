@@ -56,6 +56,29 @@ struct VLCVODOverlayView: View {
                     .allowsHitTesting(false)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if let next = model.nextUp {
+                VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                    Text("ÉPISODE SUIVANT")
+                        .font(DS.Typography.label)
+                        .foregroundStyle(DS.Colour.textSecondary)
+                    Text(next.title)
+                        .font(DS.Typography.title3)
+                        .foregroundStyle(DS.Colour.textPrimary)
+                        .lineLimit(2)
+                    Text("Lecture dans \(next.secondsLeft) s · OK pour lancer · Menu pour quitter")
+                        .font(DS.Typography.caption)
+                        .foregroundStyle(DS.Colour.textSecondary)
+                }
+                .padding(DS.Spacing.lg)
+                .frame(maxWidth: 620, alignment: .leading)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.Radius.hero))
+                .padding(DS.Padding.screenHorizontal)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+            }
+        }
+        .animation(DS.Motion.standard, value: model.nextUp != nil)
         .animation(DS.Motion.standard, value: model.isDrawerVisible)
         // Default focus when drawer becomes visible. Restore the last
         // focused button (saved in `lastFocused` below) so the drawer

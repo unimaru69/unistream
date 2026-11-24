@@ -3,6 +3,16 @@ import SwiftUI
 import UIKit
 import VLCKitSPM
 
+/// An item waiting behind the one being played — the following episodes of
+/// a season.
+struct QueuedVOD: Equatable {
+    let url: URL
+    let title: String
+    let contentKey: String?
+    let coverUrl: String?
+    let seriesId: String?
+}
+
 /// Presents AVPlayerViewController via UIKit — the only reliable way on tvOS.
 /// SwiftUI's fullScreenCover/NavigationLink break the focus engine.
 @MainActor
@@ -180,7 +190,9 @@ enum PlayerPresenter {
     /// user gets a "Reprendre / Recommencer" dialog before playback starts.
     /// Below the threshold we skip the dialog (it'd be annoying to confirm
     /// a 5-second resume).
-    static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil, coverUrl: String? = nil, seriesId: String? = nil) {
+    /// - upNext: what to chain to when this one ends — the rest of the season
+    ///   when playing an episode. Empty for films.
+    static func playVOD(url: URL, title: String? = nil, resumeFromMs: Int? = nil, contentKey: String? = nil, coverUrl: String? = nil, seriesId: String? = nil, upNext: [QueuedVOD] = []) {
         if let ms = resumeFromMs, ms >= resumeConfirmThresholdMs {
             // Pull duration from saved progress (if any) so the dialog can
             // show "X% vu". Failure to find it is harmless — we just omit
@@ -191,15 +203,15 @@ enum PlayerPresenter {
                 positionMs: ms,
                 durationMs: durMs,
                 onResume: {
-                    actuallyPlayVOD(url: url, title: title, resumeFromMs: ms, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+                    actuallyPlayVOD(url: url, title: title, resumeFromMs: ms, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId, upNext: upNext)
                 },
                 onRestart: {
-                    actuallyPlayVOD(url: url, title: title, resumeFromMs: nil, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+                    actuallyPlayVOD(url: url, title: title, resumeFromMs: nil, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId, upNext: upNext)
                 }
             )
             return
         }
-        actuallyPlayVOD(url: url, title: title, resumeFromMs: resumeFromMs, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId)
+        actuallyPlayVOD(url: url, title: title, resumeFromMs: resumeFromMs, contentKey: contentKey, coverUrl: coverUrl, seriesId: seriesId, upNext: upNext)
     }
 
     /// Threshold below which we don't bother prompting. 30 s mirrors what
@@ -208,10 +220,21 @@ enum PlayerPresenter {
 
     /// Internal — actually launches VOD playback once the user has chosen
     /// resume vs. restart (or there's no progress to confirm).
-    private static func actuallyPlayVOD(url: URL, title: String?, resumeFromMs: Int?, contentKey: String?, coverUrl: String?, seriesId: String?) {
+    /// Starts the next queued item straight away, from the beginning: the
+    /// viewer just watched the previous episode to its end, so no resume
+    /// prompt.
+    static func playNext(in queue: [QueuedVOD]) {
+        guard let next = queue.first else { return }
+        actuallyPlayVOD(
+            url: next.url, title: next.title, resumeFromMs: nil,
+            contentKey: next.contentKey, coverUrl: next.coverUrl,
+            seriesId: next.seriesId, upNext: Array(queue.dropFirst()))
+    }
+
+    private static func actuallyPlayVOD(url: URL, title: String?, resumeFromMs: Int?, contentKey: String?, coverUrl: String?, seriesId: String?, upNext: [QueuedVOD] = []) {
         // VLC path for unusual codecs (4K HEVC MKV, etc.) — opt-in via Settings.
         if useVlcForVod {
-            let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: resumeFromMs, contentKey: contentKey)
+            let vlc = VLCPlayerViewController(url: url, title: title ?? "", resumeFromMs: resumeFromMs, contentKey: contentKey, upNext: upNext)
             if let contentKey, let title { syncService?.registerPlayback(contentKey: contentKey, title: title, streamUrl: url.absoluteString, coverUrl: coverUrl, seriesId: seriesId) }
             guard let rootVC = rootViewController else { return }
             rootVC.present(vlc, animated: true)

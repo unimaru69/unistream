@@ -52,6 +52,16 @@ final class VLCPlayerViewController: UIViewController {
     /// Keep the selected language/track and downmix it rather than choosing French.
     private var stereoCompatibility = false
     private var audioOutputTask: Task<Void, Never>?
+    /// Selects the preferred audio / subtitle language once per media load.
+    private var preferredTracksTask: Task<Void, Never>?
+    private var needsPreferredTracks = true
+    /// Episodes to chain to when this one ends.
+    private let upNext: [QueuedVOD]
+    private var nextUpTimer: Timer?
+    /// Seconds the "next episode" card stays up before it starts by itself.
+    static let nextUpCountdown = 10
+    private var playbackRate: Float = 1
+    static let playbackRates: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2]
 
     /// Whether we've already retried with software decoding after a hw-decode failure.
     private var softwareDecodeRetryDone = false
@@ -74,7 +84,8 @@ final class VLCPlayerViewController: UIViewController {
     private var overlayTimer: Timer?
     private var overlayUpdateTimer: Timer?
 
-    init(url: URL, title: String, resumeFromMs: Int? = nil, contentKey: String? = nil) {
+    init(url: URL, title: String, resumeFromMs: Int? = nil, contentKey: String? = nil, upNext: [QueuedVOD] = []) {
+        self.upNext = upNext
         self.url = url
         self.currentUrl = url
         self.extensionFallbacks = Self.buildExtensionFallbacks(from: url)
@@ -119,6 +130,8 @@ final class VLCPlayerViewController: UIViewController {
         progressTimer?.invalidate()
         videoWatchdog?.invalidate()
         audioOutputTask?.cancel()
+        preferredTracksTask?.cancel()
+        nextUpTimer?.invalidate()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -252,6 +265,9 @@ final class VLCPlayerViewController: UIViewController {
     /// - startTimeSec: start offset via libvlc's native `:start-time`.
     private func buildMedia(softwareDecode: Bool, startTimeSec: Double = 0) -> VLCMedia {
         let media = VLCMedia(url: currentUrl)
+        // A reload (software retry, alternate extension) resets VLC's track
+        // choice to the file's default, so the preference applies again.
+        needsPreferredTracks = true
 
         media.addOption("--network-caching=2000")
         media.addOption("--http-reconnect")
@@ -401,6 +417,19 @@ final class VLCPlayerViewController: UIViewController {
         // gone — that's the "menu sort du film" symptom.
         if presentedViewController != nil {
             super.pressesBegan(presses, with: event)
+            return
+        }
+
+        // "Next episode" card up: OK or Play/Pause starts it now. Menu is
+        // swallowed here and leaves the player on Ended, as everywhere else.
+        if overlayModel.nextUp != nil {
+            for press in presses {
+                switch press.type {
+                case .menu: return
+                case .select, .playPause: playNextEpisode(); return
+                default: break
+                }
+            }
             return
         }
 
@@ -569,6 +598,11 @@ final class VLCPlayerViewController: UIViewController {
             self?.cycleAspectRatio()
         })
 
+        // Playback speed
+        alert.addAction(UIAlertAction(title: "Vitesse : \(Self.rateLabel(playbackRate))", style: .default) { [weak self] _ in
+            self?.showSpeedPicker()
+        })
+
         // Sleep timer
         let timerTitle = SleepTimerManager.shared.isActive
             ? "Minuterie (\(SleepTimerManager.shared.remainingMinutes) min)"
@@ -662,6 +696,67 @@ final class VLCPlayerViewController: UIViewController {
         ("4:3", "4:3"),
         ("Remplir", "FILL"),
     ]
+
+    // MARK: - Playback speed
+
+    /// "1×", "1,25×" — French decimal comma, no trailing zeros.
+    static func rateLabel(_ rate: Float) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        return (formatter.string(from: NSNumber(value: rate)) ?? "\(rate)") + "×"
+    }
+
+    private func showSpeedPicker() {
+        let alert = UIAlertController(title: "Vitesse de lecture", message: nil, preferredStyle: .actionSheet)
+        for rate in Self.playbackRates {
+            let mark = rate == playbackRate ? "✓ " : ""
+            alert.addAction(UIAlertAction(title: mark + Self.rateLabel(rate), style: .default) { [weak self] _ in
+                guard let self else { return }
+                playbackRate = rate
+                mediaPlayer.rate = rate
+            })
+        }
+        alert.addAction(UIAlertAction(title: "Fermer", style: .cancel))
+        present(alert, animated: true)
+    }
+
+    // MARK: - Next episode
+
+    /// The episode ended and another is queued: show its title with a
+    /// countdown, then start it. The viewer can start it at once or leave.
+    private func startNextUpCountdown() {
+        guard let next = upNext.first, overlayModel.nextUp == nil else { return }
+        overlayTimer?.invalidate()
+        overlayModel.isDrawerVisible = false
+        overlayModel.nextUp = .init(title: next.title, secondsLeft: Self.nextUpCountdown)
+        nextUpTimer?.invalidate()
+        nextUpTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, var state = self.overlayModel.nextUp else { return }
+                state.secondsLeft -= 1
+                if state.secondsLeft <= 0 {
+                    self.playNextEpisode()
+                } else {
+                    self.overlayModel.nextUp = state
+                }
+            }
+        }
+    }
+
+    private func playNextEpisode() {
+        guard overlayModel.nextUp != nil else { return }
+        nextUpTimer?.invalidate()
+        nextUpTimer = nil
+        overlayModel.nextUp = nil
+        let queue = upNext
+        // Leave first so this player releases libvlc, then open the next
+        // one on the same presenter.
+        dismiss(animated: false) {
+            PlayerPresenter.playNext(in: queue)
+        }
+    }
 
     private func cycleAspectRatio() {
         aspectRatioIndex = (aspectRatioIndex + 1) % aspectRatios.count
@@ -786,6 +881,11 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 overlayModel.isBuffering = false
                 scheduleAudioOutputMode()
                 startVideoWatchdog()
+                if needsPreferredTracks {
+                    needsPreferredTracks = false
+                    preferredTracksTask?.cancel()
+                    preferredTracksTask = VLCPreferredTracks.applyWhenReady(to: mediaPlayer)
+                }
                 // Resuming from pause re-arms the auto-hide timer if
                 // the drawer is currently visible — without this it'd
                 // stay up forever after un-pausing.
@@ -820,7 +920,11 @@ extension VLCPlayerViewController: VLCMediaPlayerDelegate {
                 })
                 present(alert, animated: true)
             case .ended:
-                dismiss(animated: true)
+                if upNext.isEmpty {
+                    dismiss(animated: true)
+                } else {
+                    startNextUpCountdown()
+                }
             default:
                 break
             }
