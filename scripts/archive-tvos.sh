@@ -187,6 +187,19 @@ IPA_PATH=$(find "$EXPORT_DIR" -name '*.ipa' | head -1 || true)
 [[ -n "$IPA_PATH" && -f "$IPA_PATH" ]] || { echo "✗ ipa missing under $EXPORT_DIR"; exit 1; }
 echo "  $IPA_PATH"
 
+# ── Keep the IPA and its dSYMs ────────────────────────────────────────
+# /tmp is purged by macOS after a few days. Builds 80 and 81 lost their
+# dSYMs that way, and their crash reports can never be symbolicated. Keep
+# a copy under build/ (gitignored) next to the IPA.
+KEEP_DIR="$ROOT/build/releases/tvos/$NEW"
+mkdir -p "$KEEP_DIR"
+cp "$IPA_PATH" "$KEEP_DIR/UniStreamTV-$NEW.ipa"
+if [[ -d "$ARCHIVE_PATH/dSYMs" ]]; then
+    rm -rf "$KEEP_DIR/dSYMs"
+    ditto "$ARCHIVE_PATH/dSYMs" "$KEEP_DIR/dSYMs"
+fi
+echo "  kept in $KEEP_DIR"
+
 # ── Upload to TestFlight ──────────────────────────────────────────────
 if $UPLOAD; then
     echo "→ Uploading to App Store Connect"
